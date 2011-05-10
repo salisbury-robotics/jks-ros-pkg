@@ -1,0 +1,9 @@
+<stack>
+  <description brief="bosch_arm">bosch_arm</description>
+  <author>Maintained by </author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/bosch_arm</url>
+  <depend stack="ros" />
+
+</stack>
