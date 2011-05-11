@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor"
+       xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller"
+       xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface"
+       xmlns:xacro="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface"
+       name="bosch_arm" >
+  
+  <include filename="$(find bosch_arm_description)/urdf/base/base.urdf.xacro" />
+
+  <include filename="$(find pr2_description)/gazebo/gazebo.urdf.xacro" />
+  <!-- materials for visualization -->
+  <include filename="$(find pr2_description)/urdf/materials.urdf.xacro" />
+
+  <xacro:bosch_arm_base name="base"/>
+
+</robot>

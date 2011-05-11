@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+<robot xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor"
+       xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller"
+       xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface"
+       xmlns:xacro="http://ros.org/wiki/xacro">
+<!--
+  <include filename="$(find bosch_arm)/urdf/base/base.gazebo.xacro" />
+  <include filename="$(find bosch_arm)/urdf/base/base.transmission.xacro" />-->
+
+  <!-- DATA SOURCES -->
+  <!-- all link offsets, CG, limits are obtained from Function Engineering spreadsheet 090224_link_data.xls unless stated otherwise -->
+  <!-- all link geometry sizes are obtained from Function provided CAD model unless stated otherwise -->
+  <!-- all simplified collision geometry are hand approximated from CAD model, sometimes from respective bounding boxes -->
+
+  <property name="M_PI" value="3.1415926535897931" />
+  <property name="base_mass" value="1" />
+
+  <!-- The xacro macro xacro:pr2_base contains: base, casters and wheels -->
+  <xacro:macro name="bosch_arm_base" params="name">
+    <link name="${name}_link">
+
+      <inertial>
+        <mass value="${base_mass}" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="5.652232699207" ixy="-0.009719934438" ixz="1.293988226423"
+                 iyy="5.669473158652" iyz="-0.007379583694" izz="3.683196351726" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/base.stl" />
+        </geometry>
+        
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/caster_L.stl" />
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- base_footprint is a fictitious link(frame) that is on the ground right below base_link origin,
+         navigation stack dedpends on this frame -->
+    <link name="${name}_footprint">
+      <inertial>
+        <mass value="1.0" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0"
+                 iyy="0.01" iyz="0.0" izz="0.01" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.01 0.01 0.01" />
+        </geometry>
+        
+        <material name="White" />
+      </visual>
+      <collision>
+        <!-- represent base collision with a simple rectangular model, positioned by base_size_z s.t. top
+             surface of the collision box matches the top surface of the PR2 base -->
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${name}_footprint_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <child link="${name}_link" />
+      <parent link="${name}_footprint"/>
+    </joint>
+
+    <!-- visualize bellow -->
+    <link name="${name}_bellow_link">
+      <inertial>
+        <mass value="1.0" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0"
+                 iyy="0.01" iyz="0.0" izz="0.01" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.05 0.37 0.3" />
+        </geometry>
+        <material name="Black" />
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.05 0.37 0.3" />
+        </geometry>
+        <material name="Black" />
+      </collision>
+    </link>
+    <joint name="${name}_bellow_joint" type="fixed">
+      <origin xyz="-0.29 0 0.8" rpy="0 0 0" />
+      <parent link="${name}_link" />
+      <child link="${name}_bellow_link"/>
+    </joint>
+
+    <!-- gazebo extensions -->
+    <xacro:bosch_arm_base_gazebo name="${name}" />
+
+  </xacro:macro>
+
+
+</robot>
