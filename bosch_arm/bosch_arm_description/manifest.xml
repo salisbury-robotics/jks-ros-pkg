@@ -1,0 +1,14 @@
+<package>
+  <description brief="bosch_arm_description">
+
+     bosch_arm_description
+
+  </description>
+  <author></author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/bosch_arm_description</url>
+
+</package>
+
+
