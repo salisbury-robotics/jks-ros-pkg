@@ -1,0 +1,14 @@
+<launch>
+
+  <!-- start gazebo with an empty plane -->
+  <param name="/use_sim_time" value="true" />
+
+  <node name="gazebo" pkg="gazebo" type="gazebo" args="-u $(find gazebo_worlds)/worlds/empty.world" respawn="false" output="screen"/>
+
+    <!-- send urdf to param server -->
+    <param name="robot_description1" command="$(find xacro)/xacro.py '$(find bosch_arm_description)/bosch_arm.urdf.xacro'" />
+
+<!-- send urdf to param server -->
+  <node name="spawn_bosch_arm" pkg="gazebo" type="spawn_model" args="$(optenv ROBOT_INITIAL_POSE) -unpause -urdf -param robot_description -model bosch_arm" respawn="false" output="screen" />
+
+</launch>
