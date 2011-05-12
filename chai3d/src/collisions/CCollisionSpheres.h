@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -35,10 +35,21 @@
 #include <list>
 #include <queue>
 #include <vector>
+
+//===========================================================================
+/*!
+    \file       CCollisionSpheres.h
+
+    \brief  
+    <b> Collision Detection </b> \n
+    Spherical Bounding Box Tree - Main Interface.
+*/
+//===========================================================================
+
 //---------------------------------------------------------------------------
 //! Pointer to list of shape primitives.
 typedef vector<cCollisionSpheresGenericShape*> Plist;
-//---------------------------------------------------------------------------
+
 //! Nodes of the collision sphere tree (abstract class).
 class cCollisionSpheresSphere;
 
@@ -48,24 +59,34 @@ class cCollisionSpheresLeaf;
 
 //===========================================================================
 /*!
-      \file     CCollisionSpheres.h
-      \class    cCollisionSpheres
-      \brief    cCollisionSpheres provides methods to create a sphere tree for
-                collision detection, and to use this tree to check for the
-                intersection of a line with a mesh.
+    \class      cCollisionSpheres
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheres provides methods to create a sphere tree for
+    collision detection, and to use this tree to check for the
+    intersection of a line with a mesh.
 */
 //===========================================================================
 class cCollisionSpheres : public cGenericCollision
 {
   public:
-    // CONSTRUCTOR:
+    
+    //-----------------------------------------------------------------------
+    // CONSTRUCTORS AND DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheres.
     cCollisionSpheres(vector<cTriangle> *a_triangles, bool a_useNeighbors);
 
     //! Destructor of cCollisionSpheres.
     virtual ~cCollisionSpheres();
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Build the sphere tree based on the given triangles.
     void initialize(double a_radius = 0);
 
@@ -78,7 +99,11 @@ class cCollisionSpheres : public cGenericCollision
                           cCollisionRecorder& a_recorder,
                           cCollisionSettings& a_settings);
 
-    // PROPERTIES:
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! Pointer to the sphere at the root of the sphere tree.
     cCollisionSpheresSphere *m_root;
 
@@ -93,27 +118,41 @@ class cCollisionSpheres : public cGenericCollision
 
     //! Pointer to the beginning of list of leaf nodes.
     cCollisionSpheresLeaf *m_firstLeaf;
+
+    //! For internal and debug usage.
 	cTriangle* secret;
 };
 
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresSphere
-      \brief    cCollisionSpheresSphere is an abstract class for nodes of
-                the collision sphere tree.
+    \class      cCollisionSpheresSphere
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheresSphere is an abstract class for nodes of the 
+    collision sphere tree.
 */
 //===========================================================================
 class cCollisionSpheresSphere
 {
-  // FRIENDS:
-  //! Internal nodes of the collision sphere tree.
-  friend class cCollisionSpheresNode;
-  //! Leaf nodes of the collision sphere tree.
-  friend class cCollisionSpheresLeaf;
+    //-----------------------------------------------------------------------
+    // FRIENDS:
+    //-----------------------------------------------------------------------
+
+    //! Internal nodes of the collision sphere tree.
+    friend class cCollisionSpheresNode;
+
+    //! Leaf nodes of the collision sphere tree.
+    friend class cCollisionSpheresLeaf;
+
 
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTORS AND DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresSphere.
     cCollisionSpheresSphere(cCollisionSpheresSphere *a_parent);
 
@@ -123,7 +162,11 @@ class cCollisionSpheresSphere
     //! Destructor of cCollisionsSpheresSphere.
     virtual ~cCollisionSpheresSphere() {};
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Return the center of the sphere.
     inline const cVector3d &getCenter() { return m_center; }
 
@@ -142,8 +185,12 @@ class cCollisionSpheresSphere
                                  cCollisionRecorder& a_recorder,
                                  cCollisionSettings& a_settings);
 
-  //protected:
-    // PROPERTIES:
+  protected:
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The parent of the node in the tree.
     cCollisionSpheresSphere *m_parent;
 
@@ -155,22 +202,31 @@ class cCollisionSpheresSphere
 
     //! The depth of this node in the collision tree.
     int m_depth;
+
+    //! Internal usage
 	int m_num;
 };
 
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresNode
-      \brief    cCollisionSpheresNode defines internal nodes of the collision
-                sphere tree and provides methods for constructing the nodes
-                and using them to determine collisions.
+    \class      cCollisionSpheresNode
+    \ingroup    collisions
+    
+    \brief    
+    cCollisionSpheresNode defines internal nodes of the collision
+    sphere tree and provides methods for constructing the nodes
+    and using them to determine collisions.
 */
 //===========================================================================
 class cCollisionSpheresNode : public cCollisionSpheresSphere
 {
   public:
+
+    //-----------------------------------------------------------------------
     // CONSTRUCTORS AND DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresNode.
     cCollisionSpheresNode(Plist &a_primList,
             cCollisionSpheresSphere *a_parent = NULL);
@@ -186,7 +242,11 @@ class cCollisionSpheresNode : public cCollisionSpheresSphere
     //! Destructor of cCollisionSpheseNode.
     virtual ~cCollisionSpheresNode() {};
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Create subtrees by splitting primitives into left and right lists.
     void ConstructChildren(Plist &a_primList);
 
@@ -205,7 +265,11 @@ class cCollisionSpheresNode : public cCollisionSpheresSphere
     //! Exchange the two given pointers.
     static void swapptr(void **a_a, void **a_b);
 
-    // PROPERTIES:
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! Pointer to the left child in the sphere tree.
     cCollisionSpheresSphere *m_left;
 
@@ -216,16 +280,23 @@ class cCollisionSpheresNode : public cCollisionSpheresSphere
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresLeaf
-      \brief    cCollisionSpheresLeaf defines leaf nodes of the collision
-                sphere tree and provides methods for constructing the nodes
-                and using them to determine collisions.
+    \class      cCollisionSpheresLeaf
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheresLeaf defines leaf nodes of the collision
+    sphere tree and provides methods for constructing the nodes
+    and using them to determine collisions.
 */
 //===========================================================================
 class cCollisionSpheresLeaf : public cCollisionSpheresSphere
 {
   public:
-    // CONSTRUCTORS AND DESTRUCTOR:
+    
+    //-----------------------------------------------------------------------
+    // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresLeaf.
     cCollisionSpheresLeaf(cCollisionSpheresGenericShape *a_prim,
             cCollisionSpheresSphere *a_parent = NULL);
@@ -235,13 +306,17 @@ class cCollisionSpheresLeaf : public cCollisionSpheresSphere
             cCollisionSpheresSphere *a_parent = NULL,
             double a_extendedRadius = 0);
 
-    //! Default constructor of cCollisionSpheresLeaf
+    //! Default constructor of cCollisionSpheresLeaf.
     cCollisionSpheresLeaf() : cCollisionSpheresSphere() { m_prim = 0; }
 
-    //! Destructor of cCollisionSpheresLeaf()
+    //! Destructor of cCollisionSpheresLeaf.
     virtual ~cCollisionSpheresLeaf() { if (m_prim) delete m_prim; }
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Return whether the node is a leaf node. (In this class, it is.)
     int isLeaf()  { return 1; }
 
@@ -254,7 +329,11 @@ class cCollisionSpheresLeaf : public cCollisionSpheresSphere
                                  cCollisionRecorder& a_recorder,
                                  cCollisionSettings& a_settings);
 
-    // PROPERTIES:
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The shape primitive bounded by the sphere leaf.
     cCollisionSpheresGenericShape *m_prim;
 };

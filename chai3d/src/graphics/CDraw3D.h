@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -28,15 +28,18 @@
 
 //===========================================================================
 /*!
-    \file CDraw3D.h
+    \file       CDraw3D.h
+    \ingroup    graphics
+
     \brief
-
-    The following functions provide useful macros to draw complex 3D objects.
-
-    In general, they don't set nice colors or modify the OpenGL state, they
-    just draw polygons.
+    <b> Graphics </b> \n 
+    Drawing Macros.
 */
 //===========================================================================
+
+//---------------------------------------------------------------------------
+// GENERAL PURPOSE FUNCTIONS
+//---------------------------------------------------------------------------
 
 //! Draw an x-y-z frame.
 void cDrawFrame(const double a_scale = 1.0, 

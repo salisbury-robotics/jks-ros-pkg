@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -27,6 +27,18 @@
 #include "collisions/CCollisionAABBBox.h"
 //---------------------------------------------------------------------------
 
+//===========================================================================
+/*!
+    \file       CCollisionAABBTree.h
+
+    \brief    
+    <b> Collision Detection </b> \n
+    Axis-Aligned Bounding Box Tree (AABB) - Implementation.
+*/
+//===========================================================================
+
+//---------------------------------------------------------------------------
+//! Internal AABB Node Types.
 typedef enum
 {
   AABB_NODE_INTERNAL=0,
@@ -38,28 +50,38 @@ typedef enum
 
 //===========================================================================
 /*!
-    \file     CCollisionAABBTree.h
-    \class    cCollisionAABBNode
-    \brief    cCollisionAABBNode is an abstract class that contains methods
-              to set up internal and leaf nodes of an AABB tree
-              and to use them to detect for collision with a line.
+    \class      cCollisionAABBNode
+    \ingroup    collisions
+
+    \brief    
+    cCollisionAABBNode is an abstract class that contains methods
+    to set up internal and leaf nodes of an AABB tree and to use them to 
+    detect for collision with a line.
 */
 //===========================================================================
 class cCollisionAABBNode
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionAABBNode.
-    cCollisionAABBNode() : m_parent(0), m_depth(0), m_nodeType(AABB_NODE_GENERIC) { }
+    cCollisionAABBNode() : m_parent(0), m_depth(0), m_nodeType(AABB_NODE_GENERIC) {}
 
     //! Constructor of cCollisionAABBNode.
     cCollisionAABBNode(aabb_node_types a_nodeType, int a_depth) : m_parent(0),
-        m_nodeType(a_nodeType), m_depth(a_depth) { }
+        m_nodeType(a_nodeType), m_depth(a_depth) {}
 
     //! Destructor of cCollisionAABBNode.
     virtual ~cCollisionAABBNode() {}
-
+	
+    
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Create a bounding box for the portion of the model at or below the node.
     virtual void fitBBox(double a_radius = 0) {}
 
@@ -68,8 +90,10 @@ class cCollisionAABBNode
 
     //! Determine whether line intersects mesh bounded by subtree rooted at node.
     virtual bool computeCollision(cVector3d& a_segmentPointA,
-            cVector3d& a_segmentDirection, cCollisionAABBBox &a_lineBox,
-            cCollisionRecorder& a_recorder, cCollisionSettings& a_settings) = 0;
+                                  cVector3d& a_segmentDirection, 
+                                  cCollisionAABBBox &a_lineBox,
+                                  cCollisionRecorder& a_recorder, 
+                                  cCollisionSettings& a_settings) = 0;
 
     //! Return true if this node contains the specified triangle tag.
     virtual bool contains_triangle(int a_tag) = 0;
@@ -77,7 +101,11 @@ class cCollisionAABBNode
     //! Set the parent of this node.
     virtual void setParent(cCollisionAABBNode* a_parent, int a_recusive) = 0;
 
+
+	//-----------------------------------------------------------------------
     // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The bounding box for this node.
     cCollisionAABBBox m_bbox;
 
@@ -87,34 +115,43 @@ class cCollisionAABBNode
     //! Parent node of this node.
     cCollisionAABBNode* m_parent;
 
-    //! The node type, used only for proper deletion right now
+    //! The node type, used only for proper deletion right now.
     int m_nodeType;
 };
 
 
 //===========================================================================
 /*!
-      \class    cCollisionAABBLeaf
-      \brief    cCollisionAABBLeaf contains methods to set up leaf
-                nodes of an AABB tree and to use them to detect for collision
-                with a line.
+    \class      cCollisionAABBLeaf
+    \ingroup    collisions
+
+    \brief    
+    cCollisionAABBLeaf contains methods to set up leaf nodes of an AABB 
+    tree and to use them to detect for collision with a line.
 */
 //===========================================================================
 class cCollisionAABBLeaf : public cCollisionAABBNode
 {
   public:
-    // CONSTRUCTOR & DESTRUCTOR:
-    //! Default constructor of cCollisionAABBLeaf.
-    cCollisionAABBLeaf() : cCollisionAABBNode(AABB_NODE_LEAF, 0) { }
 
-    //! Constructor of cCollisionAABBLeaf.
-    cCollisionAABBLeaf(cTriangle *a_triangle) : m_triangle(a_triangle)
-        {fitBBox(0);}
+    //-----------------------------------------------------------------------
+    // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
+    //! Default constructor of cCollisionAABBLeaf.
+    cCollisionAABBLeaf() : cCollisionAABBNode(AABB_NODE_LEAF, 0) {}
 
     //! Destructor of cCollisionAABBLeaf.
     virtual ~cCollisionAABBLeaf() {}
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
+    //! Initialize internal node.
+    void initialize(cTriangle *a_triangle, double a_radius) { m_triangle = a_triangle; fitBBox(a_radius); }
+
     //! Create a bounding box to enclose triangle belonging to this leaf node.
     void fitBBox(double a_radius = 0);
 
@@ -136,7 +173,11 @@ class cCollisionAABBLeaf : public cCollisionAABBNode
     virtual void setParent(cCollisionAABBNode* a_parent, int a_recusive)
         { m_parent = a_parent; }
 
+
+	//-----------------------------------------------------------------------
     // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The triangle bounded by the leaf.
     cTriangle *m_triangle;
 };
@@ -144,26 +185,37 @@ class cCollisionAABBLeaf : public cCollisionAABBNode
 
 //===========================================================================
 /*!
-      \class    cCollisionAABBInternal
-      \brief    cCollisionAABBInternal contains methods to set up internal
-                nodes of an AABB tree and to use them to detect for collision
-                with a line.
+    \class      cCollisionAABBInternal
+    \ingroup    collisions
+    
+    \brief    
+    cCollisionAABBInternal contains methods to set up internal nodes of 
+    an AABB tree and to use them to detect for collision with a line.
 */
 //===========================================================================
 class cCollisionAABBInternal : public cCollisionAABBNode
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Default constructor of cCollisionAABBInternal.
     cCollisionAABBInternal() : cCollisionAABBNode(AABB_NODE_INTERNAL, 0) { }
 
-    //! Constructor of cCollisionAABBInternal.
-    cCollisionAABBInternal(unsigned int a_numLeaves, cCollisionAABBLeaf *a_leaves,
-            unsigned int a_depth = -1);
     //! Destructor of cCollisionAABBInternal.
-    virtual ~cCollisionAABBInternal();
+    virtual ~cCollisionAABBInternal() {};
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
+    //! Initialize internal node.
+    void initialize(unsigned int a_numLeaves, cCollisionAABBLeaf *a_leaves,
+            unsigned int a_depth = -1);
+
     //! Size the bounding box for this node to enclose its children.
     void fitBBox(double a_radius = 0) {m_bbox.enclose(m_leftSubTree->m_bbox, m_rightSubTree->m_bbox);}
 
@@ -183,7 +235,11 @@ class cCollisionAABBInternal : public cCollisionAABBNode
     //! Return parent node and optionally propagate the assignment to children.
     virtual void setParent(cCollisionAABBNode* a_parent, int a_recursive);
 
+
+	//-----------------------------------------------------------------------
     // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The root of this node's left subtree.
     cCollisionAABBNode *m_leftSubTree;
 

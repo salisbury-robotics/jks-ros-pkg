@@ -48,6 +48,7 @@ ENDIF(APPLE)
 
 IF(UNIX)
     ADD_DEFINITIONS(-D_LINUX)
+    INCLUDE_DIRECTORIES("external/DHD/include")
 ENDIF(UNIX)
 
 #-----------------------------------------------------------------------------
@@ -55,6 +56,7 @@ ENDIF(UNIX)
 
 INCLUDE_DIRECTORIES("src")
 
+
 ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(external)
-ADD_SUBDIRECTORY(examples)
+#ADD_SUBDIRECTORY(external)
+#ADD_SUBDIRECTORY(examples)

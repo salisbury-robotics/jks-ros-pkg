@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -34,24 +34,43 @@ using std::vector;
 
 //===========================================================================
 /*!
-      \file     CCollisionBrute.h
-      \class    cCollisionBrute
-      \brief    cCollisionBrute provides methods to check for the intersection
-                of a line segment with a mesh by checking all triangles in the
-                mesh.
+    \file       CCollisionBrute.h
+    
+    \brief  
+    <b> Collision Detection </b> \n
+    Brute Force Model.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cCollisionBrute
+    \ingroup    collisions
+    
+    \brief    
+    cCollisionBrute provides methods to check for the intersection
+    of a line segment with a mesh by checking all triangles in the mesh.
 */
 //===========================================================================
 class cCollisionBrute : public cGenericCollision
 {
   public:
-    // CONSTRUCTOR & DESTRUCTOR
+    
+    //-----------------------------------------------------------------------
+    // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionBrute.
     cCollisionBrute(vector<cTriangle> *a_triangles) : m_triangles(a_triangles) {}
 
     //! Destructor of cCollisionBrute.
     virtual ~cCollisionBrute() { }
 
-    // VIRTUAL METHODS:
+
+	//-----------------------------------------------------------------------
+    // METHODS:
+    //-----------------------------------------------------------------------
+
     //! No initialization is necessary for the brute force method.
     virtual void initialize(double a_radius = 0) {};
 
@@ -65,6 +84,11 @@ class cCollisionBrute : public cGenericCollision
                           cCollisionSettings& a_settings);
 
   protected:
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! Pointer to the list of triangles in the mesh.
     vector<cTriangle> *m_triangles;
 };

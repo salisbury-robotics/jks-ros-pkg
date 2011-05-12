@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,17 +12,17 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
 #include "scenegraph/CShapeSphere.h"
 //---------------------------------------------------------------------------
-
 typedef GLUquadric GLUquadricObj;
+//---------------------------------------------------------------------------
 
 //===========================================================================
 /*!
@@ -56,9 +56,9 @@ cShapeSphere::cShapeSphere(const double& a_radius)
 //===========================================================================
 void cShapeSphere::render(const int a_renderMode)
 {
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
     // Conditions for object to be rendered
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
 
     if(((a_renderMode == CHAI_RENDER_MODE_NON_TRANSPARENT_ONLY) &&
         (m_useTransparency == true)) ||
@@ -70,9 +70,9 @@ void cShapeSphere::render(const int a_renderMode)
             return;
         }
 
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
     // Rendering code here
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
 
     // render material properties
     if (m_useMaterialProperty)

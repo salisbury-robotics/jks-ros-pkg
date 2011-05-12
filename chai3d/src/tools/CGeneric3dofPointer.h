@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Federico Barbagli
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Federico Barbagli
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -33,50 +33,60 @@
 
 //===========================================================================
 /*!
-      \file       CGeneric3dofPointer.h
-      \class      cGeneric3dofPointer
-      \brief      cGeneric3dofPointer represents a haptic tool that 
-                  can apply forces in three degrees of freedom and
-                  maintains three or six degrees of device pose.
+    \file       CGeneric3dofPointer.h
+    
+    \brief  
+    <b> Haptic Tools </b> \n 
+    Single Point Contact Tool.
+*/
+//===========================================================================
 
-                  This class provides i/o with haptic devices and
-                  a basic graphical representation of a tool.
+//===========================================================================
+/*!
+    \class      cGeneric3dofPointer
+    \ingroup    tools  
+    
+    \brief      
+    cGeneric3dofPointer represents a haptic tool that can apply forces in 
+    three degrees of freedom and maintains three or six degrees of 
+    device pose. \n
+
+    This class provides i/o with haptic devices and a basic graphical 
+    representation of a tool.
 */
 //===========================================================================
 class cGeneric3dofPointer : public cGenericTool
 {
   public:
+
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cGeneric3dofPointer.
     cGeneric3dofPointer(cWorld* a_world);
 
     //! Destructor of cGeneric3dofPointer.
     virtual ~cGeneric3dofPointer();
 
-    // METHODS:
 
-    // Graphics
+    //-----------------------------------------------------------------------
+    // METHODS - TOOL COMMANDS
+    //-----------------------------------------------------------------------
 
-    //! Render the object in OpenGL
-    virtual void render(const int a_renderMode=0);
-
-    //----------------------------------------------------------------------
-    // Tool commands
-    //----------------------------------------------------------------------
-
-    //! Start communication with the device connected to the tool (0 indicates success)
+    //! Start communication with the device connected to the tool (0 indicates success).
     virtual int start();
 
-    //! Stop communication with the device connected to the tool (0 indicates success)
+    //! Stop communication with the device connected to the tool (0 indicates success).
     virtual int stop();
 
     //! Initialize the device connected to the tool (0 indicates success).
     virtual int initialize(const bool a_resetEncoders=false);
 
-    //! Toggle forces on
+    //! Toggle forces \b ON.
     virtual int setForcesON();
 
-    //! Toggle forces off
+    //! Toggle forces \b OFF.
     virtual int setForcesOFF();
 
     //! Update position and orientation of the device.
@@ -88,15 +98,34 @@ class cGeneric3dofPointer : public cGenericTool
     //! Apply latest computed forces to device.
     virtual void applyForces();
 
-    //! get a pointer to the proxy force algorithm
+    //! Get a pointer to the proxy force algorithm.
     virtual cProxyPointForceAlgo* getProxy() { return m_proxyPointForceModel; }
 
-    // Check if the tool is touching a particular object
+    //! Check if the tool is touching a particular object.
     virtual bool isInContact(cGenericObject* a_object);
 
-    //---------------------------------------------------------------------
-    // Workspace settings
-    //---------------------------------------------------------------------
+    //! Read position of proxy in global world coordinates.
+    virtual cVector3d getProxyGlobalPos() { return (m_proxyPointForceModel->getProxyGlobalPosition()); }
+
+    //! Read orientation of proxy in global world coordinates.
+    virtual cMatrix3d getProxyGlobalRot() { return (m_deviceGlobalRot); }
+
+    //! Read position of haptic device in global world coordinates.
+    virtual cVector3d getDeviceGlobalPos() { return (m_deviceGlobalPos); }
+
+    //! Read orientation of haptic device in global world coordinates.
+    virtual cMatrix3d getDeviceGlobalRot() { return (m_deviceGlobalRot); }
+
+    //! Read position of haptic device in local coordinates.
+    virtual cVector3d getDeviceLocalPos() { return (m_deviceLocalPos); }
+
+    //! Read orientation of haptic device in local coordinates.
+    virtual cMatrix3d getDeviceLocalRot() { return (m_deviceLocalRot); }
+
+
+    //-----------------------------------------------------------------------
+    // METHODS - WORKSPACE SETTINGS
+    //-----------------------------------------------------------------------
 
     //! Set radius of pointer.
     virtual void setRadius(const double& a_radius);
@@ -104,112 +133,148 @@ class cGeneric3dofPointer : public cGenericTool
     //! Set virtual workspace dimensions in which tool will be working.
     virtual void setWorkspaceRadius(const double& a_workspaceRadius);
 
-    //! Read the radius of the workspace of the tool
+    //! Read the radius of the workspace of the tool.
     double getWorkspaceRadius() { return(m_workspaceRadius); }
 
     //! Set the scale factor between the workspace of the tool and one of the haptic device.
-    double setWorkspaceScaleFactor(double a_scaleFactor);
+    void setWorkspaceScaleFactor(const double& a_workspaceScaleFactor);
 
     //! Read the scale factor between the workspace of the tool and one of the haptic device.
     double getWorkspaceScaleFactor() { return (m_workspaceScaleFactor); }
 
 
-    // MEMBERS:
+    //-----------------------------------------------------------------------
+    // METHODS - GRAPHICS
+    //-----------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    // Tool graphical models
-    //---------------------------------------------------------------------
-    //! Sphere representing the device
+    //! Render the object in OpenGL.
+    virtual void render(const int a_renderMode=0);
+
+
+    //-----------------------------------------------------------------------
+    // MEMBERS - GRAPHICS
+    //-----------------------------------------------------------------------
+
+    //! Sphere representing the device.
     cShapeSphere* m_deviceSphere;
 
-    //! Sphere representing the proxy
+    //! Sphere representing the proxy.
     cShapeSphere* m_proxySphere;
 
-    //! Mesh representing the device
+    //! Mesh representing the device.
     cMesh* m_deviceMesh;
 
-    //! Mesh representing the proxy
+    //! Mesh representing the proxy.
     cMesh* m_proxyMesh;
 
-    //! Color of line connecting proxy and device position together
+    //! Color of line connecting proxy and device position together.
     cColorf m_colorLine;
 
-    //! Material prperties of proxy
+    //! Material properties of proxy.
     cMaterial m_materialProxy;
 
-    //! Material properties of proxy when button is pressed
+    //! Material properties of proxy when button is pressed.
     cMaterial m_materialProxyButtonPressed;
 
 
-    //---------------------------------------------------------------------
-    // Tool force models
-    //---------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    // MEMBERS - FORCE MODELS
+    //-----------------------------------------------------------------------
 
-    //! finger-proxy algorithm model to handle interactions with mesh objects.
+    //! Finger-proxy algorithm model to handle interactions with mesh objects.
     cProxyPointForceAlgo* m_proxyPointForceModel;
 
-    //! potential fields model
+    //! Potential fields model.
     cPotentialFieldForceAlgo* m_potentialFieldsForceModel;
 
-    //! The last force computed for application to this tool, in the world coordinate
-    //! system.  (N)
+    /*!
+        The last force computed for application to this tool, in the world coordinate
+        system.  [N] \n
 
-    //! If you want to manually send forces to a device, you can modify this
-    //! value before calling 'applyForces'.
+        If you want to manually send forces to a device, you can modify this
+        value before calling 'applyForces'.
+    */
     cVector3d m_lastComputedGlobalForce;
 
-    //! The last force computed for application to this tool, in the device coordinate
-    //! system.  (N)
+    /*!
+        The last force computed for application to this tool, in the device coordinate.
+        system.  [N]
+    */
     cVector3d m_lastComputedLocalForce;
 
-    
-    //---------------------------------------------------------------------
-    // Tool position information and workspace
-    //---------------------------------------------------------------------
-    //! radius of the workspace which can be accessed by the tool
+
+    //-----------------------------------------------------------------------
+    // MEMBERS - TOOL STATUS AND WORKSPACE SETTINGS
+    //-----------------------------------------------------------------------
+
+    //! Radius of the workspace which can be accessed by the tool.
     double m_workspaceRadius;
 
-    //! scale factor between the sizes of the tool workspace and the haptic device workspace.
+    //! Scale factor between the sizes of the tool workspace and the haptic device workspace.
     double m_workspaceScaleFactor;
 
-    //! Position of device in device local coordinate system
+    //! Position of device in device local coordinate system.
     cVector3d m_deviceLocalPos;
 
-    //! Position of device in world global coordinate system
+    //! Position of device in world global coordinate system.
     cVector3d m_deviceGlobalPos;
 
-    //! Velocity of device in device local coordinate system
+    //! Velocity of device in device local coordinate system.
     cVector3d m_deviceLocalVel;
 
-    //! Velocity of device in world global coordinate system
+    //! Velocity of device in world global coordinate system.
     cVector3d m_deviceGlobalVel;
 
-    //! Orientation of wrist in local coordinates of device
+    //! Orientation of wrist in local coordinates of device.
     cMatrix3d m_deviceLocalRot;
 
-    //! Orientation of wrist in global coordinates of device
+    //! Orientation of wrist in global coordinates of device.
     cMatrix3d m_deviceGlobalRot;
+
 
   protected:
 
+    //-----------------------------------------------------------------------
     // MEMBERS:
+    //-----------------------------------------------------------------------
+
+    //! World in which tool is interacting.
+    cWorld* m_world;
 
     //! Radius of sphere representing position of pointer.
     double m_displayRadius;
 
-    //! World in which tool is interacting
-    cWorld* m_world;
+    //! Last status of user switch 0. This value is used by the graphical rendering function.
+    bool m_userSwitch0;
 
-    //! this flag records whether the user has enabled forces
+    //! This flag records whether the user has enabled forces.
     bool m_forceON;
 
-    //! flag to avoid initial bumps in force (has the user sent a _small_ force yet?)
+    //! Flag to avoid initial bumps in force (has the user sent a _small_ force yet?).
     bool m_forceStarted;
 
-    //! Normally this class waits for a very small force before initializing forces
-    //! to avoid initial "jerks" (a safety feature); you can bypass that requirement
-    //! with this variable
+    /*!
+        Normally this class waits for a very small force before initializing forces
+        to avoid initial "jerks" (a safety feature); you can bypass that requirement
+        with this variable.
+    */
     bool m_waitForSmallForce;
+
+
+  private:
+
+    //-----------------------------------------------------------------------
+    // MEMBERS: 
+    //-----------------------------------------------------------------------
+
+	//! Stores a pointer to a possible mesh object the proxy may be in contact with.
+	cGenericObject* m_tempMeshProxyContact0;
+
+	//! Stores a pointer to a possible mesh object the proxy may be in contact with.
+	cGenericObject* m_tempMeshProxyContact1;
+
+	//! Stores a pointer to a possible mesh object the proxy may be in contact with.
+	cGenericObject* m_tempMeshProxyContact2;
 };
 
 //---------------------------------------------------------------------------

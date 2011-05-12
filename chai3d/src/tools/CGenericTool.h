@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Federico Barbagli
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Federico Barbagli
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -31,31 +31,49 @@
 
 //===========================================================================
 /*!
-      \file       CGenericTool.h
-      \class      cGenericTool
-      \brief      cGenericTool describes a generic class to create virtual
-                  tools inside a virtual environment (cWorld) and connecting
-                  them to haptic devices.
+    \file       CGenericTool.h
+
+    \brief  
+    <b> Haptic Tools </b> \n 
+    Base Class.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cGenericTool
+    \ingroup    tools  
+
+    \brief      
+    cGenericTool describes a generic class to create virtual tools inside a 
+    virtual environment (cWorld) and connecting them to haptic devices.
 */
 //===========================================================================
 class cGenericTool : public cGenericObject
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cGenericTool.
     cGenericTool();
 
     //! Destructor of cGenericTool.
     virtual ~cGenericTool() {};
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Connect this tool to a haptic device.
     void setHapticDevice(cGenericHapticDevice* a_device) { if (a_device != NULL) { m_device = a_device; } }
 
     //! Get the handle of haptic device to wich this tool is connected to.
     cGenericHapticDevice* getHapticDevice() { return (m_device); }
 
-    // METHODS:
     //! Render the object in OpenGL.
     virtual void render(const int a_renderMode=0) {};
 
@@ -67,34 +85,39 @@ class cGenericTool : public cGenericObject
 
     //! Apply latest forces to device.
     virtual void applyForces() {};
-    
-    //! Start communication with the device connected to the tool (0 indicates success)
+
+    //! Start communication with the device connected to the tool (0 indicates success).
     virtual int start() { return (-1); }
 
-    //! Stop communication with the device connected to the tool (0 indicates success)
+    //! Stop communication with the device connected to the tool (0 indicates success).
     virtual int stop() { return (-1); }
 
-    //! Initialize encoders on device connected to the tool (0 indicates success)
+    //! Initialize encoders on device connected to the tool (0 indicates success).
     virtual int initialize(const bool a_resetEncoders=false) { return (-1); }
 
-    //! Toggle forces on
+    //! Toggle forces \b ON.
     virtual int setForcesON()  { return (-1); }
 
-    //! Toggle forces off
+    //! Toggle forces \b OFF.
     virtual int setForcesOFF() { return (-1); }
 
-    // Read the status of one of the switches on this device
-    virtual int getUserSwitch(int a_switchIndex);
+    //! Read the status of one of the switches on this device.
+    virtual bool getUserSwitch(int a_switchIndex);
 
-    // Check if the tool is touching a particular object
+    //! Check if the tool is touching a particular object.
     virtual bool isInContact(cGenericObject* a_object) { return (false); }
+
 
   protected:
 
-    //! handle to the haptic device driver.
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
+    //! Handle to the haptic device driver.
     cGenericHapticDevice *m_device;
 
-    //! status of the user switches of the device attached to this tool.
+    //! Status of the user switches of the device attached to this tool.
     int m_userSwitches;
 };
 

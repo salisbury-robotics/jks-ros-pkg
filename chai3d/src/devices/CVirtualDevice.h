@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -24,9 +24,20 @@
 //---------------------------------------------------------------------------
 #include "devices/CGenericHapticDevice.h"
 //---------------------------------------------------------------------------
-#ifndef _DISABLE_VIRTUAL_DEVICE_SUPPORT
+#if defined(_ENABLE_VIRTUAL_DEVICE_SUPPORT)
 //---------------------------------------------------------------------------
 
+
+//===========================================================================
+/*!
+    \file       CVirtualDevice.h
+
+    \brief
+    <b> Devices </b> \n 
+    Virtual Haptic Device.
+*/
+//===========================================================================
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 struct cVirtualDeviceData
 {
     double       ForceX;   // Force component X.
@@ -45,67 +56,77 @@ struct cVirtualDeviceData
     bool         AckMsg;   // Acknowledge Message
     bool         CmdReset; // Command Reset
 };
+#endif  // DOXYGEN_SHOULD_SKIP_THIS 
+
 
 //===========================================================================
 /*!
-    \file CVirtualDevice.h
-    \class cVirtualDevice
-    \brief
+    \class      cVirtualDevice
+    \ingroup    devices  
+
+    \brief      
     Class which interfaces with the virtual device
 */
 //===========================================================================
 class cVirtualDevice : public cGenericHapticDevice
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
-    //! Constructor of cVirtualDevices.
+    //-----------------------------------------------------------------------
+
+    //! Constructor of cVirtualDevice.
     cVirtualDevice();
 
-    //! Destructor of cGenericDevice.
+    //! Destructor of cVirtualDevice.
     virtual ~cVirtualDevice();
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
     //! Open connection to virtual device.
     int open();
 
-    //! Close connection to virtual device
+    //! Close connection to virtual device.
     int close();
 
-    //! Initialize virtual device
+    //! Initialize virtual device.
     int initialize(const bool a_resetEncoders);
 
     //! Returns the number of devices available from this class of device.
     unsigned int getNumDevices();
 
-    //! Read the position of the device. Units are in meters.
+    //! Read the position of the device. Units are meters [m].
     int getPosition(cVector3d& a_position);
 
-    //! Read the orientation frame of the device end-effector
+    //! Read the orientation frame of the device end-effector.
     int getRotation(cMatrix3d& a_rotation);
 
-    //! read the status of the user switch [1 = ON / 0 = OFF]
-    int getUserSwitch(int a_switchIndex, int& a_status);
+    //! Read the status of the user switch [\b true = \e ON / \b false = \e OFF].
+    int getUserSwitch(int a_switchIndex, bool& a_status);
 
-    //! Send a force [N] to the haptic device
+    //! Send a force [N] to the haptic device.
     int setForce(cVector3d& a_force);
 
     //! Read a force [N] from the haptic device.
     int getForce(cVector3d& a_force);
 
   private:
-    //! shared memory connection to virtual haptic device
+    //! Shared memory connection to virtual haptic device.
     HANDLE m_hMapFile;
 
-    //! pointer to shared memory
+    //! Pointer to shared memory.
     LPVOID m_lpMapAddress;
 
-    //! pointer to shared memory data structure
+    //! Pointer to shared memory data structure.
     cVirtualDeviceData* m_pDevice;
 };
 
 //---------------------------------------------------------------------------
 #endif
 //---------------------------------------------------------------------------
-#endif // _DISABLE_VIRTUAL_DEVICE_SUPPORT
+#endif // _ENABLE_VIRTUAL_DEVICE_SUPPORT
 //---------------------------------------------------------------------------
 

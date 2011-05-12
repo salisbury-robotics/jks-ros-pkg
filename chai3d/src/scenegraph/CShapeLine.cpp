@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -27,7 +27,9 @@
 /*!
     Constructor of cShapeLine.
 
-    \fn     cShapeLine::cShapeLine()
+    \fn     cShapeLine::cShapeLine(const cVector3d& a_pointA, const cVector3d& a_pointB)
+	\param	a_pointA  Point A of line.
+	\param	a_pointB  Point B of line.
 */
 //===========================================================================
 cShapeLine::cShapeLine(const cVector3d& a_pointA, const cVector3d& a_pointB)
@@ -36,11 +38,9 @@ cShapeLine::cShapeLine(const cVector3d& a_pointA, const cVector3d& a_pointB)
     m_pointA.copyfrom(a_pointA);
     m_pointB.copyfrom(a_pointB);
 
-    // set material properties
-    m_material.setShininess(100);
-    m_material.m_ambient.set((float)0.3, (float)0.3, (float)0.3);
-    m_material.m_diffuse.set((float)0.1, (float)0.7, (float)0.8);
-    m_material.m_specular.set((float)1.0, (float)1.0, (float)1.0);
+    // set color properties
+    m_ColorPointA.set(1.0, 1.0, 1.0, 1.0);
+    m_ColorPointB.set(1.0, 1.0, 1.0, 1.0);
 };
 
 
@@ -54,9 +54,9 @@ cShapeLine::cShapeLine(const cVector3d& a_pointA, const cVector3d& a_pointB)
 //===========================================================================
 void cShapeLine::render(const int a_renderMode)
 {
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
     // Conditions for object to be rendered
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
 
     if((a_renderMode == CHAI_RENDER_MODE_TRANSPARENT_FRONT_ONLY) ||
        (a_renderMode == CHAI_RENDER_MODE_TRANSPARENT_BACK_ONLY))
@@ -64,18 +64,17 @@ void cShapeLine::render(const int a_renderMode)
         return;
     }
 
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
     // Rendering code here
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
 
     glDisable(GL_LIGHTING);
 
-    // render material properties
-    m_material.render();
-
     // draw line
     glBegin(GL_LINES);
+        m_ColorPointA.render();
         glVertex3dv(&m_pointA.x);
+        m_ColorPointB.render();
         glVertex3dv(&m_pointB.x);
     glEnd();
 
@@ -121,8 +120,13 @@ void cShapeLine::computeLocalInteraction(const cVector3d& a_toolPos,
 //===========================================================================
 void cShapeLine::updateBoundaryBox()
 {
-    m_boundaryBoxMin.set(cMin(m_pointA.x, m_pointB.x), cMin(m_pointA.y, m_pointB.y), cMin(m_pointA.z, m_pointB.z));
-    m_boundaryBoxMax.set(cMax(m_pointA.x, m_pointB.x), cMax(m_pointA.y, m_pointB.y), cMax(m_pointA.z, m_pointB.z));
+    m_boundaryBoxMin.set(cMin(m_pointA.x, m_pointB.x), 
+                         cMin(m_pointA.y, m_pointB.y), 
+                         cMin(m_pointA.z, m_pointB.z));
+
+    m_boundaryBoxMax.set(cMax(m_pointA.x, m_pointB.x), 
+                         cMax(m_pointA.y, m_pointB.y), 
+                         cMax(m_pointA.z, m_pointB.z));
 }
 
 

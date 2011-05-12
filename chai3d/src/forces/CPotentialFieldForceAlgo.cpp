@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -28,14 +28,14 @@ unsigned int cPotentialFieldForceAlgo::m_IDNcounter = 0;
 
 //===========================================================================
 /*!
-    Coonstructor of cPotentialFieldForceAlgo
+    Constructor of cPotentialFieldForceAlgo
 
     \fn       cPotentialFieldForceAlgo::cPotentialFieldForceAlgo()
 */
 //===========================================================================
 cPotentialFieldForceAlgo::cPotentialFieldForceAlgo()
 {
-    // define an identification number for this force algorythm
+    // define an identification number for this force algorithm
     m_IDN = m_IDNcounter;
 
     // increment counter
@@ -51,9 +51,10 @@ cPotentialFieldForceAlgo::cPotentialFieldForceAlgo()
 /*!
     Compute forces for all potential field based objects (cGenericPotentialField).
 
-    \fn       cVector3d cPotentialFieldForceAlgo::computeForces(const
-              cVector3d& a_nextDevicePos)
-    \param    a_nextDevicePos  Next position of haptic device or virtual finger.
+    \fn       cVector3d cPotentialFieldForceAlgo::computeForces(const cVector3d& a_toolPos,
+                                                  const cVector3d& a_toolVel)
+    \param    a_toolPos  Position of tool.
+	\param    a_toolVel  Velocity of tool.
 */
 //===========================================================================
 cVector3d cPotentialFieldForceAlgo::computeForces(const cVector3d& a_toolPos,

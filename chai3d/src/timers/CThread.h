@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -25,55 +25,83 @@
 #include "extras/CGlobals.h"
 //---------------------------------------------------------------------------
 
+//===========================================================================
+/*!
+    \file       CThread.h
+
+    \brief
+    <b> Timers </b> \n 
+    Threads.
+*/
+//===========================================================================
+
+//---------------------------------------------------------------------------
+/*!
+    Defines thread priority for handling \e graphics and \e haptics
+    rendering loops.
+*/
+//---------------------------------------------------------------------------
 enum CThreadPriority
 {
     CHAI_THREAD_PRIORITY_GRAPHICS,
     CHAI_THREAD_PRIORITY_HAPTICS
 };
 
+
 //===========================================================================
 /*!
-    \file   CThread.h
-	\class	cThread
-	\brief	cThread provides a class to manage threads.
+    \class	    cThread
+    \ingroup    timers  
+
+    \brief	
+    cThread provides a class to manage threads.
 */
 //===========================================================================
 class cThread
 {
   public:
+
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cThread.
     cThread();
 
     //! Destructor of cThread.
     ~cThread();
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
-    //! set the thread parameters.
+    //-----------------------------------------------------------------------
+
+    //! Set the thread parameters.
     void set(void (*a_function)(void), CThreadPriority a_level);
 
-    //! set the thread priority level.
+    //! Set the thread priority level.
     void setPriority(CThreadPriority a_level);
 
-    //! get the current thread priority level
+    //! Get the current thread priority level.
     CThreadPriority getPriority() { return (m_priorityLevel); }
+
 
   protected:
 
 #if defined(_WIN32)
-    //! thread handle
+    //! Thread handle
     DWORD m_threadId;
 #endif
 
-#if defined(_LINUX) || defined(_APPLE)
-    // thread handle
+#if defined(_LINUX) || defined(_MACOSX)
+    //! Thread handle
     pthread_t m_handle;
 #endif
 
-    // pointer to thread function
+    //! Pointer to thread function.
     void* m_function;
 
-    // thread priority level
+    //! Thread priority level.
     CThreadPriority m_priorityLevel;
 };
 

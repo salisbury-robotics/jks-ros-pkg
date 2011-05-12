@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -54,7 +54,8 @@ cLabel::~cLabel()
 /*!
       Render the label in OpenGL.
 
-      \fn       void cLabel::render()
+      \fn       void cLabel::render(const int a_renderMode)
+	  \param	a_renderMode  Rendering mode.
 */
 //===========================================================================
 void cLabel::render(const int a_renderMode)

@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -25,29 +25,24 @@
 
 //===========================================================================
 /*!
-      \file     chai3d.h
-      \brief    Includes all the related header files for CHAI 3D.
+    \file       chai3d.h
+    
+    \brief    
+    <b> CHAI 3D </b> \n
+    Main Header File.
 */
 //===========================================================================
 
-// collisions
-#include "collisions/CCollisionAABB.h"
-#include "collisions/CCollisionAABBBox.h"
-#include "collisions/CCollisionAABBTree.h"
-#include "collisions/CCollisionBasics.h"
-#include "collisions/CCollisionBrute.h"
-#include "collisions/CCollisionSpheres.h"
-#include "collisions/CCollisionSpheresGeometry.h"
-#include "collisions/CGenericCollision.h"
-
-// devices
+//---------------------------------------------------------------------------
+//!     \defgroup   devices  Devices
+//---------------------------------------------------------------------------
 #include "devices/CCallback.h"
 #include "devices/CGenericDevice.h"
 #include "devices/CHapticDeviceHandler.h"
 #include "devices/CMyCustomDevice.h"
 
 #if defined(_WIN32)
-#include "devices/CDeltaDevices.h"      // move back to above after adding Mac libs
+#include "devices/CDeltaDevices.h"     
 #include "devices/CDriverSensoray626.h"
 #include "devices/CDriverServotogo.h"
 #include "devices/CFalconDevice.h"
@@ -56,36 +51,18 @@
 #include "devices/CVirtualDevice.h"
 #endif
 
-// display
-#include "display/CViewport.h"
+#if defined(_LINUX)
+#include "devices/CDeltaDevices.h"     
+#endif
 
-// effects
-#include "effects/CGenericEffect.h"
-#include "effects/CEffectMagnet.h"
-#include "effects/CEffectSurface.h"
-#include "effects/CEffectStickSlip.h"
-#include "effects/CEffectViscosity.h"
-#include "effects/CEffectVibration.h"
+#if defined(_MACOSX)
+#include "devices/CDeltaDevices.h"     
+#endif
 
-// extras
-#include "extras/CExtras.h"
-#include "extras/CGlobals.h"
 
-// files
-#include "files/CFileLoader3DS.h"
-#include "files/CFileLoaderBMP.h"
-#include "files/CFileLoaderOBJ.h"
-#include "files/CFileLoaderTGA.h"
-#include "files/CImageLoader.h"
-#include "files/CMeshLoader.h"
-
-// forces
-#include "forces/CGenericPointForceAlgo.h"
-#include "forces/CPotentialFieldForceAlgo.h"
-#include "forces/CProxyPointForceAlgo.h"
-#include "forces/CInteractionBasics.h"
-
-// graphics
+//---------------------------------------------------------------------------
+//!     \defgroup   graphics  Graphics 
+//---------------------------------------------------------------------------
 #include "graphics/CColor.h"
 #include "graphics/CDraw3D.h"
 #include "graphics/CGenericTexture.h"
@@ -95,7 +72,10 @@
 #include "graphics/CTriangle.h"
 #include "graphics/CVertex.h"
 
-// math
+
+//---------------------------------------------------------------------------
+//!     \defgroup   math  Math 
+//---------------------------------------------------------------------------
 #include "math/CConstants.h"
 #include "math/CMaths.h"
 #include "math/CString.h"
@@ -103,7 +83,18 @@
 #include "math/CQuaternion.h"
 #include "math/CVector3d.h"
 
-// scenegraph
+
+//---------------------------------------------------------------------------
+//!     \defgroup   widgets  Widgets
+//---------------------------------------------------------------------------
+#include "widgets/CBitmap.h"
+#include "widgets/CFont.h"
+#include "widgets/CLabel.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   scenegraph  Scenegraph
+//---------------------------------------------------------------------------
 #include "scenegraph/CCamera.h"
 #include "scenegraph/CGenericObject.h"
 #include "scenegraph/CLight.h"
@@ -113,18 +104,80 @@
 #include "scenegraph/CShapeTorus.h"
 #include "scenegraph/CWorld.h"
 
-// timers
-#include "timers/CPrecisionClock.h"
-#include "timers/CThread.h"
 
-// tools
+//---------------------------------------------------------------------------
+//!     \defgroup   tools  Haptic Tools
+//---------------------------------------------------------------------------
 #include "tools/CGeneric3dofPointer.h"
 #include "tools/CGenericTool.h"
 
-// widgets
-#include "widgets/CBitmap.h"
-#include "widgets/CFont.h"
-#include "widgets/CLabel.h"
+
+//---------------------------------------------------------------------------
+//!     \defgroup   effects  Haptic Effects
+//---------------------------------------------------------------------------
+#include "effects/CGenericEffect.h"
+#include "effects/CEffectMagnet.h"
+#include "effects/CEffectSurface.h"
+#include "effects/CEffectStickSlip.h"
+#include "effects/CEffectViscosity.h"
+#include "effects/CEffectVibration.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   forces  Force Rendering Algorithms
+//---------------------------------------------------------------------------
+#include "forces/CGenericPointForceAlgo.h"
+#include "forces/CPotentialFieldForceAlgo.h"
+#include "forces/CProxyPointForceAlgo.h"
+#include "forces/CInteractionBasics.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   collisions  Collision Detection
+//---------------------------------------------------------------------------
+#include "collisions/CCollisionAABB.h"
+#include "collisions/CCollisionAABBBox.h"
+#include "collisions/CCollisionAABBTree.h"
+#include "collisions/CCollisionBasics.h"
+#include "collisions/CCollisionBrute.h"
+#include "collisions/CCollisionSpheres.h"
+#include "collisions/CCollisionSpheresGeometry.h"
+#include "collisions/CGenericCollision.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   timers  Timers
+//---------------------------------------------------------------------------
+#include "timers/CPrecisionClock.h"
+#include "timers/CThread.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   files  Files
+//---------------------------------------------------------------------------
+#include "files/CFileLoader3DS.h"
+#include "files/CFileLoaderBMP.h"
+#include "files/CFileLoaderOBJ.h"
+#include "files/CFileLoaderTGA.h"
+#include "files/CImageLoader.h"
+#include "files/CMeshLoader.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   extras  Extras
+//---------------------------------------------------------------------------
+#include "extras/CGenericType.h"
+#include "extras/CExtras.h"
+#include "extras/CGlobals.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   display  Viewports
+//---------------------------------------------------------------------------
+#if defined(_WIN32)
+#include "display/CViewport.h"
+#endif
+
 
 //---------------------------------------------------------------------------
 #endif

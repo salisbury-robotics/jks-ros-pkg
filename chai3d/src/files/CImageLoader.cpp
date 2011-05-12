@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Dan Morris
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Dan Morris
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -32,7 +32,7 @@
 
 // Borland and MSVC put the atl headers in different places
 #if defined(_MSVC)
-#include <atlbase.h>
+#include <olectl.h>
 #else
 #include <atl/atlbase.h>
 #endif
@@ -331,13 +331,14 @@ bool cImageLoader::loadFromFile(const char* filename)
         cFileLoaderTGA targa_image;
 
         // Load the targa file from disk
-        int result = targa_image.LoadFromFile(m_filename);
-        if (result == 0)
+        bool result = targa_image.LoadFromFile(m_filename);
+        if (!result)
         {
             cleanup();
 
             // Try again using the windows native loader...
-            return loadFromFileOLE(filename);
+            result = loadFromFileOLE(filename);
+            return (result);
         }
 
         m_width = targa_image.GetImageWidth();
@@ -364,7 +365,8 @@ bool cImageLoader::loadFromFile(const char* filename)
             cleanup();
 
             // Try again using the windows native loader...
-            return loadFromFileOLE(filename);
+            bool result = loadFromFileOLE(filename);
+            return (result);
         }
 
         m_data = new unsigned char[m_width*m_height*(m_bits_per_pixel/8)];
@@ -382,12 +384,13 @@ bool cImageLoader::loadFromFile(const char* filename)
         cFileLoaderBMP bmp_image;
 
         bool result = bmp_image.loadBMP(m_filename);
-        if (result == false)
+        if (!result)
         {
             cleanup();
 
             // Try again using the windows native loader...
-            return loadFromFileOLE(filename);
+            result = loadFromFileOLE(filename);
+            return (result);
         }
 
         m_width = bmp_image.getWidth();
@@ -401,15 +404,15 @@ bool cImageLoader::loadFromFile(const char* filename)
         memcpy(m_data,bmp_image.pBitmap(),(m_bits_per_pixel/8)*m_width*m_height);
     }
 
-#if (defined(_WIN32))
+#if defined(_WIN32)
 
     //--------------------------------------------------------------------
     // Unrecognized file format - use win32 loader
     //--------------------------------------------------------------------
     else
     {
-      return loadFromFileOLE(filename);
-
+        bool result = loadFromFileOLE(filename);
+        return (result);
     }
       
 #else
@@ -429,7 +432,7 @@ bool cImageLoader::loadFromFile(const char* filename)
         if (extension == 0)
         {
             m_initialized = 0;
-            return -1;
+            return (false);
         }
         // Extra sanity check to avoid deep recursion
         recursive_call = 1;
@@ -441,10 +444,10 @@ bool cImageLoader::loadFromFile(const char* filename)
         strcpy(new_filename+(extension-filename),"bmp");
 
         // Try again...
-        int result = loadFromFile(new_filename);
+        bool result = loadFromFile(new_filename);
 
         recursive_call = 0;
-        return result;
+        return (result);
     }
 
     //--------------------------------------------------------------------
@@ -453,7 +456,7 @@ bool cImageLoader::loadFromFile(const char* filename)
     else
     {
         m_initialized = false;
-        return -1;
+        return (false);
     }
 
 #endif
@@ -485,8 +488,8 @@ void replace_extension(char* a_dest, const char* a_input, const char* a_extensio
     int chars_to_copy = strlen(a_input);
 
     // Copy only the non-extension portion of a_input if he has an extension
-    char* input_extension = 0;
-    if (input_extension = find_extension(a_input,1))
+    char* input_extension = find_extension(a_input,1);
+    if (input_extension)
       chars_to_copy = input_extension - a_input;
 
     strncpy(a_dest,a_input,chars_to_copy);
@@ -669,10 +672,8 @@ void string_tolower(char* a_dest, const char* a_source)
 bool cImageLoader::loadFromFileOLE(const char* szPathName)
 {
 
-#if (!defined(_WIN32) || defined(_POSIX))
-  
-    return -1;
-
+#if (!defined(_WIN32))
+    return (false);
 #else
 
     // From: http://nehe.gamedev.net/data/lessons/lesson.asp?lesson=41
@@ -701,14 +702,14 @@ bool cImageLoader::loadFromFileOLE(const char* szPathName)
       // for folks with binary model formats...
 
       char* extension = find_extension(szPath);
-      if (extension == 0) return false;
+      if (extension == 0) return (false);
       strcpy(extension,"jpg");
       MultiByteToWideChar(CP_ACP, 0, szPath, -1, wszPath, _MAX_PATH);
       hr = OleLoadPicturePath(wszPath, 0, 0, 0, IID_IPicture, (void**)&pPicture);
 
       if(FAILED(hr)) {
         char* extension = find_extension(szPath);
-        if (extension == 0) return false;
+        if (extension == 0) return (false);
         strcpy(extension,"bmp");
         MultiByteToWideChar(CP_ACP, 0, szPath, -1, wszPath, _MAX_PATH);
         hr = OleLoadPicturePath(wszPath, 0, 0, 0, IID_IPicture, (void**)&pPicture);
@@ -716,7 +717,7 @@ bool cImageLoader::loadFromFileOLE(const char* szPathName)
 
       if(FAILED(hr)) {
         //CHAI_DEBUG_PRINT("Warning: could not load image file %s...\n",szPathName);
-        return false;
+        return (false);
       }
     }
 
@@ -726,7 +727,7 @@ bool cImageLoader::loadFromFileOLE(const char* szPathName)
     if(!hdcTemp)														
     {
       pPicture->Release();
-      return -1;
+      return (false);
     }
 
     pPicture->get_Width(&lWidth);
@@ -754,7 +755,7 @@ bool cImageLoader::loadFromFileOLE(const char* szPathName)
     {
       DeleteDC(hdcTemp);
       pPicture->Release();
-      return -1;
+      return (false);
     }
 
     // Get ready to render to memory
@@ -788,7 +789,7 @@ bool cImageLoader::loadFromFileOLE(const char* szPathName)
     m_format = GL_RGBA;
     m_initialized = 1;    
 
-    return 0;
+    return (true);
 #endif
 
 }

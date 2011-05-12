@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -35,10 +35,22 @@ class cTriangle;
 
 //===========================================================================
 /*!
-      \file     CCollisionBasics.h
-      \struct   cCollisionEvent
-      \brief    cCollisionEvent stores all information related to the
-      intersection (or collision) between an segment and an object.
+    \file       CCollisionBasics.h
+    
+    \brief  
+    <b> Collision Detection </b> \n
+    Collision Events & Recording.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \struct     cCollisionEvent
+    \ingroup    collisions
+
+    \brief    
+    cCollisionEvent stores all information related to the
+    intersection (or collision) between an segment and an object.
 */
 //===========================================================================
 struct cCollisionEvent
@@ -84,21 +96,32 @@ struct cCollisionEvent
 
 //===========================================================================
 /*!
-      \class    cCollisionRecorder
-      \brief    cCollisionRecorder stores a list of collision events.
+    \class      cCollisionRecorder
+    \ingroup    collisions
+    
+    \brief    
+    cCollisionRecorder stores a list of collision events.
 */
 //===========================================================================
 class cCollisionRecorder
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionRecorder
     cCollisionRecorder() { clear(); }
 
     //! Destructor of cCollisionRecorder
     virtual ~cCollisionRecorder() {};
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Clear all records.
     void clear()
     {
@@ -106,7 +129,11 @@ class cCollisionRecorder
         m_collisions.clear();
     }
 
+
+	//-----------------------------------------------------------------------
     // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! nearest collision from start point of segment.
     cCollisionEvent m_nearestCollision;
 
@@ -117,32 +144,35 @@ class cCollisionRecorder
 
 //===========================================================================
 /*!
-      \class    cCollisionSettings
-      \brief    This structure contains a list of settings which are passed
-                to the collision detector when checking for a collision.
+    \struct     cCollisionSettings
+    \ingroup    collisions
+    
+    \brief    
+    This structure contains a list of settings which are passed to the 
+    collision detector when checking for a collision.
 */
 //===========================================================================
 struct cCollisionSettings
 {
-    //! If true, only return the nearest collision collision event.
+    //! If \b true, only return the nearest collision collision event.
     bool m_checkForNearestCollisionOnly;
 
-    //! If true, return minimal amount of the collision
+    //! If \b true, return minimal amount of the collision.
     bool m_returnMinimalCollisionData;
 
-    //! If true, then collision detector shall check for collisions on visible objects only.
+    //! If \b true, then collision detector shall check for collisions on visible objects only.
     bool m_checkVisibleObjectsOnly;
 
-    //! If true, then collision detector shall check for collisions on haptic enabled objects only.
+    //! If \b true, then collision detector shall check for collisions on haptic enabled objects only.
     bool m_checkHapticObjectsOnly;
 
-    //! If true, then collision can occure on both sides of triangles
+    //! If \b true, then collision can occur on both sides of triangles.
     bool m_checkBothSidesOfTriangles;
 
-    //! If true, then adjust for object motion. (dynamic proxy model)
+    //! If \b true, then adjust for object motion. (dynamic proxy model).
     bool m_adjustObjectMotion;
 
-    //! Radius of the tool or cursor.
+    //! Radius of the virtual tool or cursor.
     double m_collisionRadius;
 };
 

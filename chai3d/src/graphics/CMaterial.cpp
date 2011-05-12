@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -24,7 +24,7 @@
 
 //===========================================================================
 /*!
-    Constructor of cMeaterial
+    Constructor of cMaterial.
 
     \fn     cMaterial::cMaterial()
 */
@@ -52,7 +52,8 @@ cMaterial::cMaterial()
 
 //===========================================================================
 /*!
-    Set the transparency level (by setting the alpha value for all color properties)
+    Set the transparency level (by setting the alpha value for all color 
+    properties).
 
     \fn     void cMaterial::setTransparencyLevel(const float a_levelTransparency)
     \param  a_levelTransparency  Level of transparency.
@@ -73,7 +74,7 @@ void cMaterial::setTransparencyLevel(float a_levelTransparency)
 
 //===========================================================================
 /*!
-    Set the level of shininess. Value are clamped to range from 0 --> 128
+    Set the level of shininess. Value are clamped to range from 0 --> 128.
 
     \fn     void cMaterial::setShininess(const GLuint a_shininess)
     \param  a_shininess  Level of shininess
@@ -90,7 +91,7 @@ void cMaterial::setShininess(GLuint a_shininess)
     Set the level of stiffness. Clamped to be a non-negative value.
 
     \fn     void cMaterial::setStiffness(const double a_stiffness)
-    \param  a_stiffness  Level of stiffness
+    \param  a_stiffness  Level of stiffness.
 */
 //===========================================================================
 void cMaterial::setStiffness(double a_stiffness)
@@ -146,7 +147,7 @@ void cMaterial::setViscosity(double a_viscosity)
     Set the frequency of vibration. Clamped to be a non-negative value.
 
     \fn     void cMaterial::setVibrationFrequency(double a_vibrationFrequency)
-    \param  a_vibrationFrequency  Frequency of vibration [Hz}
+    \param  a_vibrationFrequency  Frequency of vibration [Hz].
 */
 //===========================================================================
 void cMaterial::setVibrationFrequency(double a_vibrationFrequency)
@@ -159,7 +160,7 @@ void cMaterial::setVibrationFrequency(double a_vibrationFrequency)
 /*!
     Set the amplitude of vibration. Clamped to be a non-negative value.
 
-    \fn     void cMaterial::setVibrationAmplitude(a_vibrationAmplitude)
+    \fn     void cMaterial::setVibrationAmplitude(double a_vibrationAmplitude)
     \param  a_vibrationAmplitude  Amplitude of vibration [N].
 */
 //===========================================================================
@@ -174,7 +175,7 @@ void cMaterial::setVibrationAmplitude(double a_vibrationAmplitude)
     Set the maximum force applied by the magnet [N].
 
     \fn     void cMaterial::setMagnetMaxForce(double a_magnetMaxForce)
-    \param  a_magnetMaxForce  Maximum force of magnet
+    \param  a_magnetMaxForce  Maximum force of magnet.
 */
 //===========================================================================
 void cMaterial::setMagnetMaxForce(double a_magnetMaxForce)
@@ -188,7 +189,8 @@ void cMaterial::setMagnetMaxForce(double a_magnetMaxForce)
     Set the maximum distance from the object where the force can be perceived [m]
 
     \fn     void cMaterial::setMagnetMaxDistance(double a_magnetMaxDistance)
-    \param  a_magnetMaxDistance  Maximum distance where magnet is active.
+    \param  a_magnetMaxDistance  Maximum distance from object where 
+                                 magnet is active.
 */
 //===========================================================================
 void cMaterial::setMagnetMaxDistance(double a_magnetMaxDistance)
@@ -199,7 +201,7 @@ void cMaterial::setMagnetMaxDistance(double a_magnetMaxDistance)
 
 //===========================================================================
 /*!
-    Set the maximum force threshold for the stick and slip model [N]
+    Set the maximum force threshold for the stick and slip model [N].
 
     \fn     void cMaterial::setStickSlipForceMax(double a_stickSlipForceMax)
     \param  a_stickSlipForceMax  Maximum force threshold.
@@ -243,12 +245,3 @@ void cMaterial::render()
 }
 
 
-void cMaterial::print() const
-{
-  CHAI_DEBUG_PRINT("A %0.2f,%0.2f,%0.2f,%0.2f, D %0.2f,%0.2f,%0.2f,%0.2f S %0.2f,%0.2f,%0.2f,%0.2f E %0.2f,%0.2f,%0.2f,%0.2f \n",
-  m_ambient[0],m_ambient[1],m_ambient[2],m_ambient[3],
-  m_diffuse[0],m_diffuse[1],m_diffuse[2],m_diffuse[3],
-  m_specular[0],m_specular[1],m_specular[2],m_specular[3],
-  m_emission[0],m_emission[1],m_emission[2],m_emission[3]
-  );
-}

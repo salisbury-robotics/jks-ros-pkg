@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-	\author:	Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+	\author	Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -31,12 +31,17 @@ using std::string;
 
 //===========================================================================
 /*!
-    \file   CString.h
+    \file       CString.h
+    \ingroup    math
+
     \brief
-    The following functions convert booleans, integers, float and doubles
-    into strings.
+    <b> Math </b> \n 
+    Strings.
 */
 //===========================================================================
+
+//! Compute the length of a string.
+int cStringLength(const char* a_string);
 
 //! Convert a boolean into a string.
 void cStr(string& a_string, const bool& a_value);

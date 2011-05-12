@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -34,25 +34,44 @@
 
 //===========================================================================
 /*!
-      \file     CCollisionAABB.h
-      \class    cCollisionAABB
-      \brief    cCollisionAABB provides methods to create an Axis-Aligned
-                Bounding Box collision detection tree, and to use
-                this tree to check for the intersection of a line segment
-                with a mesh.
+    \file       CCollisionAABB.h
+
+    \brief    
+    <b> Collision Detection </b> \n 
+    Axis-Aligned Bounding Box Tree (AABB) - Main Interface.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cCollisionAABB
+    \ingroup    collisions
+
+    \brief    
+    cCollisionAABB provides methods to create an Axis-Aligned Bounding Box 
+    collision detection tree, and to use this tree to check for the 
+    intersection of a line segment with a mesh.
 */
 //===========================================================================
 class cCollisionAABB : public cGenericCollision
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cAABBTree.
     cCollisionAABB(vector<cTriangle>* a_triangles, bool a_useNeighbors);
 
     //! Destructor of cAABBTree.
     virtual ~cCollisionAABB();
 
+
+	//-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Build the AABB Tree for the first time.
     void initialize(double a_radius = 0);
 
@@ -66,13 +85,21 @@ class cCollisionAABB : public cGenericCollision
     //! Return the root node of the collision tree.
     cCollisionAABBNode* getRoot() { return (m_root); }
 
+
   protected:
+
+	//-----------------------------------------------------------------------
     // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! Pointer to the list of triangles in the mesh.
     vector<cTriangle> *m_triangles;
 
     //! Pointer to an array of leaf nodes for the AABB Tree.
     cCollisionAABBLeaf *m_leaves;
+
+    //! Pointer to array of internal nodes.
+    cCollisionAABBInternal *m_internalNodes;
 
     //! Pointer to the root of the AABB Tree.
     cCollisionAABBNode *m_root;

@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Lev Povalahev
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Lev Povalahev
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -25,25 +25,27 @@
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-// global functions
-//---------------------------------------------------------------------------
+// GLOBAL UTILITY FUNCTIONS:
+//--------------------------------------------------------------------------- 
+
 static int TGAReadError = 0;
 
 static void ReadData(std::ifstream &file, char* data, uint size)
 {
     if (!file.is_open())
         return;
-    uint a = file.tellg();
+    int a = (int)file.tellg();
     a+= size;
     file.read(data, size);
 
-    uint g = file.tellg();
+    int g = (int)file.tellg();
 
     if (a != g)
     {
         TGAReadError = 1;
     }
 }
+
 
 //---------------------------------------------------------------------------
 cFileLoaderTGA::cFileLoaderTGA()

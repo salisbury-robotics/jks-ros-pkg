@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -33,10 +33,11 @@ cViewport* cViewport::lastActiveViewport = 0;
 
     \fn         cViewport::cViewport(HWND a_winHandle, cCamera *a_camera,
                 const bool a_stereoEnabled, PIXELFORMATDESCRIPTOR* a_pixelFormat=0)
-    \param      a_winHandle    Handle to the actual win32 window
-    \param      a_camera       The camera through which this viewport should be rendered
-    \param      a_stereoEnabled    If \b true, a stereo rendering context is created
-    \param      a_pixelFormat  If non-zero, this custom pixel format is used to initialize the viewport
+    \param      a_winHandle    Handle to the actual win32 window.
+    \param      a_camera       The camera through which this viewport should be rendered.
+    \param      a_stereoEnabled    If \b true, a stereo rendering context is created.
+    \param      a_pixelFormat  If non-zero, this custom pixel format is used 
+                               to initialize the viewport.
 */
 //===========================================================================
 cViewport::cViewport(HWND a_winHandle, cCamera *a_camera, const bool a_stereoEnabled, PIXELFORMATDESCRIPTOR* a_pixelFormat)
@@ -129,7 +130,7 @@ cViewport::~cViewport()
 
 //===========================================================================
 /*!
-      Enable or disable stereo rendering on this viewport
+      Enable or disable stereo rendering on this viewport. \n
 
       Note that it is not possible to change the pixel format of a window
       in Windows, so if you create a viewport that doesn't have stereo support,
@@ -161,7 +162,7 @@ void cViewport::setStereoOn(bool a_stereoEnabled)
 
 //===========================================================================
 /*!
-        Clean up the current rendering context
+        Clean up the current rendering context.
 
         \fn     bool cViewport::cleanup()
 */
@@ -174,7 +175,7 @@ bool cViewport::cleanup()
     int result = ReleaseDC(m_winHandle, m_glDC);
     if (result == 0) status = false;
 
-    result = wglDeleteContext(m_glContext);    
+    result = wglDeleteContext(m_glContext);
     if (result == 0) status = false;
 
     m_glContext = 0;
@@ -198,11 +199,11 @@ bool cViewport::update(bool resizeOnly)
 {
 
     // Clean up the old rendering context if necessary
-    if ((resizeOnly == false) && m_glDC) cleanup();    
+    if ((resizeOnly == false) && m_glDC) cleanup();
 
     // declare variables
     int formatIndex;
-    
+
     // viewport is not yet enabled
     m_enabled = false;
 
@@ -213,7 +214,7 @@ bool cViewport::update(bool resizeOnly)
     if (m_winHandle == NULL) { return (false); }
 
     // Find out the rectangle to which we should be rendering
-    
+
     // If we're using the entire window...
     if (m_forceRenderArea.left == -1)
     {
@@ -238,7 +239,7 @@ bool cViewport::update(bool resizeOnly)
     {
         m_activeRenderingArea = m_forceRenderArea;
     }
-    
+
     // retrieve handle of the display device context
     m_glDC = ::GetDC(m_winHandle);
 
@@ -276,7 +277,7 @@ bool cViewport::update(bool resizeOnly)
         if (m_glContext == 0)
         {
             return(false);
-        }    
+        }
 
         wglMakeCurrent(m_glDC, m_glContext);
     }
@@ -299,24 +300,25 @@ bool cViewport::update(bool resizeOnly)
 
 //===========================================================================
 /*!
-    Call this method to render the OpenGL world inside the viewport.
+    Call this method to render the OpenGL world inside the viewport. \n
 
-    The default rendering option (CHAI_STEREO_DEFAULT) tells the
+    The default rendering option (\e CHAI_STEREO_DEFAULT) tells the
     viewport to decide whether it's rendering in stereo, and - if so - to
     render a full stereo pair.  The other rendering options let you specify a
-    specific image index (mono, left, or right).
+    specific image index (mono, left, or right). \n
 
-    The actual rendering is done in the renderView() function, once this 
-    function decides which frame to render.
+    The actual rendering is done in the renderView() function, once this
+    function decides which frame to render. \n
 
-    Usually you want to use CHAI_STEREO_DEFAULT.  The best reasons not to are:
+    Usually you want to use \e CHAI_STEREO_DEFAULT.  
+    The best reasons not to are: \n
 
     (1) I have a stereo context, but sometimes I want to render in mono for
         a while.  Alternatively, I could just disable stereo rendering
-        temporarily.
+        temporarily. \n
 
     (2) I have a stereo context, but I have a lot of computation to do and I
-        want to get control back between the left and right frames.    
+        want to get control back between the left and right frames. \n
 
     \fn         bool cViewport::render(int imageIndex)
     \param      imageIndex Either CHAI_STEREO_DEFAULT, CHAI_MONO, CHAI_STEREO_LEFT, or CHAI_STEREO_RIGHT
@@ -362,7 +364,7 @@ bool cViewport::render(int imageIndex)
 
 //===========================================================================
 /*!
-    Renders the OpenGL scene in the buffer specified by a_imageIndex
+    Renders the OpenGL scene in the buffer specified by \e imageIndex.
 
     \fn         void cViewport::renderView(const int a_imageIndex)
     \param      a_imageIndex  CHAI_MONO, CHAI_STEREO_LEFT or CHAI_STEREO_RIGHT
@@ -438,7 +440,7 @@ bool cViewport::renderView(const int a_imageIndex)
     {
         glDrawBuffer(GL_BACK);
     }
-    
+
     // set viewport size
     int width = m_activeRenderingArea.right - m_activeRenderingArea.left;
     int height = m_activeRenderingArea.top - m_activeRenderingArea.bottom;
@@ -455,7 +457,7 @@ bool cViewport::renderView(const int a_imageIndex)
     // Swap buffers
     // If stereo is enabled, we only swap after the _right_ image is drawn
     if (m_stereoEnabled == 0 || a_imageIndex == CHAI_STEREO_RIGHT)
-    {        
+    {
         SwapBuffers(m_glDC);
     }
 
@@ -469,22 +471,23 @@ bool cViewport::renderView(const int a_imageIndex)
 
 //===========================================================================
 /*!
-     Select an object on displayed in the viewport. This method casts a 
+     Select an object on displayed in the viewport. This method casts a
      virtual ray through the viewport and asks the world for the first
-     object hit by that ray.
-     
+     object hit by that ray. \n
+
      It's most useful if you want to allow the user to use the mouse to
-     click on objects in your virtual scene.
-     
+     click on objects in your virtual scene. \n
+
      Use getLastSelectedObject(), getLastSelectedTriangle(), and
      getLastSelectedPoint() to extract information about the results of
-     this operation.
+     this operation. \n
 
      \fn        bool cViewport::select(const unsigned int a_windowPosX,
-                const unsigned int a_windowPosY, const bool a_selectVisibleObjectsOnly)
+                       const unsigned int a_windowPosY,
+                       cCollisionSettings* a_collisionSettings)
      \param     a_windowPosX  X coordinate position of mouse click.
      \param     a_windowPosY  Y coordinate position of mouse click.
-     \param     a_selectVisibleObjectsOnly  Should we ignore invisible objects?
+     \param     a_collisionSettings  Settings used for performing collision detection.
      \return    Return \b true if an object has been hit.
 */
 //===========================================================================
@@ -549,7 +552,7 @@ void cViewport::setCamera(cCamera *a_camera)
     You can use this to specify a specific rectangle to which you want this
     viewport to render within the window.  Supply -1 for each coordinate
     to return to the default behavior (rendering to the whole window).
-    The _positive_ y axis goes _up_.
+    The \e _positive_ y axis goes \e _up_.
 
     \fn     void cViewport::setRenderArea(RECT& r)
     \param  r  The rendering area within the GL context
@@ -565,7 +568,7 @@ void cViewport::setRenderArea(RECT& r)
 //===========================================================================
 /*!
     Clients should call this when the scene associated with
-    this viewport may need re-initialization, e.g. after a 
+    this viewport may need re-initialization, e.g. after a
     switch to or from fullscreen.  Automatically called from update()
     when the viewport creates a new GL context.
 
@@ -581,7 +584,7 @@ void cViewport::onDisplayReset()
 //===========================================================================
 /*!
     Project a world-space point from 3D to 2D, using my viewport xform, my
-    camera's projection matrix, and his world's modelview matrix
+    camera's projection matrix, and his world's modelview matrix.
 
     \fn     void cViewport::projectPoint(cVector3d& a_point)
     \param  a_point     The point to transform
@@ -599,7 +602,7 @@ cVector3d cViewport::projectPoint(cVector3d& a_point)
     gluProject(a_point.x, a_point.y, a_point.z,
                modelview, projection,
                viewport,&result.x,&result.y,&result.z);
-    
+
     return (result);
 }
 

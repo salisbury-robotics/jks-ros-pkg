@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Lev Povalahev
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Lev Povalahev
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -40,33 +40,47 @@ using std::string;
 using std::vector;
 //---------------------------------------------------------------------------
 
-// Clients can use this to tell the 3ds loader how to behave in terms
-// of vertex merging.
-//
-// If 'true' (default), loaded 3ds files will have three _distinct_ vertices
-// per triangle, with no vertex re-use.
-extern bool g_3dsLoaderShouldGenerateExtraVertices;
-
-//---------------------------------------------------------------------------
-
 //===========================================================================
 /*!
-      \file CFileLoader3DS.h
-      \brief    The following file provides a parser to load 3d images
-                supporting the 3d studio max format.
+    \file       CFileLoader3DS.h
+
+    \brief    
+    <b> Files </b> \n 
+    3DS Format 3D Model Loader.
 */
 //===========================================================================
 
-//! Load a 3d image by providing a filename and mesh in which object is loaded.
+//---------------------------------------------------------------------------
+// GLOBAL UTILITY FUNCTIONS:
+//--------------------------------------------------------------------------- 
+
+/*!
+    \ingroup    files
+    \brief
+    Loads a 3DS image file by providing a filename and mesh in which object is loaded.
+*/
 bool cLoadFile3DS(cMesh* iMesh, const string& iFileName);
 
+/*!
+    Clients can use this to tell the 3ds loader how to behave in terms
+    of vertex merging. \n
 
-/////////////////////////////////////////////////////////////////////////////
+    If \b true (default), loaded 3ds files will have three _distinct_ vertices
+    per triangle, with no vertex re-use.
+*/
+extern bool g_3dsLoaderShouldGenerateExtraVertices;
+
+
+//---------------------------------------------------------------------------
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+
+//===========================================================================
 /*
   The remainder of this file comes from Lev Povalahev's l3ds.h
   copyright (c) 2001-2002 Lev Povalahev
 */
-/////////////////////////////////////////////////////////////////////////////
+//===========================================================================
 
 #if defined(_MSVC)
 // Tell VC++ not to pad any structures
@@ -74,12 +88,12 @@ bool cLoadFile3DS(cMesh* iMesh, const string& iFileName);
 #pragma pack(1)
 #endif
 
-/////////////////////////////////////////////////////////////////////////////
+//===========================================================================
 // copyright (c) 2001-2002 Lev Povalahev
 // this is a 3ds importer version 2
 //
 // Modified by Dan Morris, 2004
-/////////////////////////////////////////////////////////////////////////////
+//===========================================================================
 
 typedef unsigned int uint;
 typedef unsigned char byte;
@@ -218,7 +232,7 @@ struct LMap
 class LObject
 {
   public:
-    // the default constructor, initilializes the m_name here
+    // the default constructor, initializes the m_name here
     LObject();
 
     // the destructor frees memory (m_name)
@@ -367,13 +381,13 @@ class LMesh : public LObject
     // the destructor
     virtual ~LMesh();
 
-    // clears the mesh, deleteing all data
+    // clears the mesh, deleting all data
     void Clear();
 
     // returns the number of vertices in the mesh
     uint GetVertexCount();
 
-    // sets the the size fo the vertex array - for internal use
+    // sets the the size of the vertex array - for internal use
     void SetVertexArraySize(uint value);
 
     // returns the number of triangles in the mesh
@@ -412,7 +426,7 @@ class LMesh : public LObject
     // sets the color
     void SetColor(const LColor3 &vec, uint index);
 
-    // sets the tangent at a given index to "vec" - for internal use    
+    // sets the tangent at a given index to "vec" - for internal use
     void SetTangent(const LVector3 &vec, uint index);
 
     // sets the binormal at a given index to "vec" - for internal use
@@ -729,16 +743,16 @@ class L3DS : public LImporter
     // reads a char from the buffer
     char ReadChar();
 
-    //reada a floatvalue from the buffer
+    // reads a float value from the buffer
     float ReadFloat();
 
-    //reads an unsigned byte from the buffer
+    // reads an unsigned byte from the buffer
     byte ReadByte();
 
-    //reads an asciiz string
+    // reads an asciiz string
     int ReadASCIIZ(char *buf, int max_count);
 
-    // seek wihtin the buffer
+    // seek within the buffer
     void Seek(int offset, int origin);
 
     // returns the position of the cursor
@@ -753,7 +767,7 @@ class L3DS : public LImporter
     // skip to the end of chunk "chunk"
     void SkipChunk(const LChunk &chunk);
 
-    // goes to the beginning of the data in teh given chunk
+    // goes to the beginning of the data in the given chunk
     void GotoChunk(const LChunk &chunk);
 
     // the function read the color chunk (any of the color chunks)
@@ -774,7 +788,7 @@ class L3DS : public LImporter
     // read a trimesh chunk
     void ReadMesh(const LChunk &parent);
 
-    // reads the face list, face materials, smoothing groups... and fill rthe information into the mesh
+    // reads the face list, face materials, smoothing groups... and fill the information into the mesh
     void ReadFaceList(const LChunk &chunk, LMesh &mesh);
 
     // reads the material
@@ -794,6 +808,8 @@ class L3DS : public LImporter
 #pragma pack(pop)
 #endif
 
+//---------------------------------------------------------------------------
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 //---------------------------------------------------------------------------
 #endif
 //---------------------------------------------------------------------------

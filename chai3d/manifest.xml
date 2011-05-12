@@ -1,5 +1,5 @@
 <package>
-  <description brief="Eigen">
+  <description brief="chai3d">
     This package contains version 3 of the Eigen C++ template
     library for linear algebra. It automatically downloads, extracts
     a tarball. For each major release of the Eigen
@@ -13,13 +13,13 @@
     future versions EIGEN2_SUPPORT will be removed. 
   </description>
 
-  <author>Gaeal Guennebaud and Benoit Jacob</author>
-  <license>LGPL</license>
+  <author>www.chai3d.org</author>
+  <license>GPL-2</license>
   <review status="3rdparty doc reviewed" notes="ticket:2879"/>
-  <url>http://eigen.tuxfamily.org/</url>
+  <url>www.chai3d.org</url>
   <export>
-    <cpp cflags="-I${prefix}/include -DEIGEN_USE_NEW_STDVECTOR -DEIGEN2_SUPPORT" lflags="" /> <!-- stage 30 -->
-    <doxymaker external="http://eigen.tuxfamily.org/api/"/>
+    <cpp cflags="-I${prefix}/src -D_LINUX" lflags="-L${prefix}/lib -lchai3d -L${prefix}/external/DHD/lib/lin-x86_64 -ldhd" />
+    <doxymaker external=""/>
   </export>
   <platform os="ubuntu" version="9.04"/>
   <platform os="ubuntu" version="9.10"/>

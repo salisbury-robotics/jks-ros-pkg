@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -38,17 +38,17 @@ void cSleepMs(unsigned int a_interval)
 #endif
 
 #if defined(_LINUX)
-  struct timespec t;
-  t.tv_sec  = a_interval/1000000;
-  t.tv_nsec = a_interval%1000000;
-  nanosleep (&t, NULL);
+    struct timespec t;
+    t.tv_sec  = a_interval/1000000;
+    t.tv_nsec = a_interval%1000000;
+    nanosleep (&t, NULL);
 #endif
 
-#if defined(_APPLE)
-  struct timespec t;
-  t.tv_sec  = a_interval/1000000;
-  t.tv_nsec = a_interval%1000000;
-  nanosleep (&t, NULL);
+#if defined(_MACOSX)
+    struct timespec t;
+    t.tv_sec  = a_interval/1000000;
+    t.tv_nsec = a_interval%1000000;
+    nanosleep (&t, NULL);
 #endif
 }
 

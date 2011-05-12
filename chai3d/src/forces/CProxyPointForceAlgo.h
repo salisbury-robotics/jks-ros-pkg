@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -33,18 +33,30 @@ class cWorld;
 
 //===========================================================================
 /*!
-      \file     CProxyPointForceAlgo.h
-      \class    cProxyPointForceAlgo
-      \brief    Implements the finger-proxy algorithm for computing
-                interaction forces between a point force device and meshes.
+    \file       CProxyPointForceAlgo.h
+
+    \brief 
+    <b> Force Rendering Algorithms </b> \n 
+    Finger-Proxy Model.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cProxyPointForceAlgo
+    \ingroup    forces 
+    
+    \brief    
+    Implements the finger-proxy algorithm for computing interaction forces 
+    between a point force device and meshes.
 */
 //===========================================================================
 class cProxyPointForceAlgo : public cGenericPointForceAlgo
 {
   public:
-    //----------------------------------------------------------------------
-    // CONSTRUCTOR:
-    //----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
 
     //! Constructor of cProxyPointForceAlgo.
     cProxyPointForceAlgo();
@@ -60,7 +72,7 @@ class cProxyPointForceAlgo : public cGenericPointForceAlgo
     //! Initialize the algorithm.
     void initialize(cWorld* a_world, const cVector3d& a_initialGlobalPosition);
 
-    //! Reset the algorithm. Set proxy position to device position
+    //! Reset the algorithm. Set proxy position to device position.
     void reset();
 
     //! Calculate interaction forces between device and meshes.
@@ -86,7 +98,7 @@ class cProxyPointForceAlgo : public cGenericPointForceAlgo
     //! Get last specified position of device in world coordinates.
     inline cVector3d getDeviceGlobalPosition() const { return (m_deviceGlobalPos); }
 
-    //! Get last computed force vector in world coordinates
+    //! Get last computed force vector in world coordinates.
     inline cVector3d getForce() { return (m_lastGlobalForce); }
 
     //! Return most recently calculated normal force.
@@ -122,16 +134,18 @@ class cProxyPointForceAlgo : public cGenericPointForceAlgo
     //! Use the dynamic proxy algorithm to deal with mobile objects?
     bool m_useDynamicProxy;
 
-    //! Use force shading
+    //! Use force shading.
     bool m_useForceShading;
 
-    //! Dynamic friction hysteresis multiplier
-    //! In CHAI's proxy, the angle computed from the coefficient is multiplied
-    //! by this constant to avoid rapidly oscillating between slipping and sticking
-    //! without having to turn the dynamic friction level way down.
+    /*!
+        Dynamic friction hysteresis multiplier
+        In CHAI's proxy, the angle computed from the coefficient is multiplied
+        by this constant to avoid rapidly oscillating between slipping and sticking
+        without having to turn the dynamic friction level way down.
+    */
     double m_frictionDynHysteresisMultiplier;
 
-    //! Maximum force shading angle (radians) threshold between normals of triangle
+    //! Maximum force shading angle (radians) threshold between normals of triangle.
     double m_forceShadingAngleThreshold;
 
     //! Collision cettings
@@ -141,16 +155,16 @@ class cProxyPointForceAlgo : public cGenericPointForceAlgo
     // METHODS - RESOLUTION / ERRORS
     //----------------------------------------------------------------------
 
-    // set epsilon base value
+    //! Set epsilon base value.
     void setEpsilonBaseValue(double a_value);
 
-    // read current epsilon value
+    //! Read current epsilon value.
     double getEpsilonBaseValue() { return (m_epsilonBaseValue); }
 
 
   protected:
 
-    //! Test whether the proxy has reached the goal point
+    //! Test whether the proxy has reached the goal point.
     virtual bool goalAchieved(const cVector3d& a_proxy, const cVector3d& a_goal) const;
 
     //! Compute the next goal position of the proxy.
@@ -191,36 +205,53 @@ class cProxyPointForceAlgo : public cGenericPointForceAlgo
     //! Number of contacts between proxy and triangles (0, 1, 2 or 3).
     unsigned int m_numContacts;
 
-    //! Radius of the proxy
+    //! Radius of the proxy.
     double m_radius;
+
 
     //----------------------------------------------------------------------
     // MEMBERS - TOOLS REQUIRED FOR THE PROXY ALGORITHM
     //----------------------------------------------------------------------
 
-    //! Collision detection recorder for searchin first constraint.
+    //! Collision detection recorder for searching first constraint.
     cCollisionRecorder m_collisionRecorderConstraint0;
 
-    //! Collision detection recorder for searchin second constraint.
+    //! Collision detection recorder for searching second constraint.
     cCollisionRecorder m_collisionRecorderConstraint1;
 
-    //! Collision detection recorder for searchin third constraint.
+    //! Collision detection recorder for searching third constraint.
     cCollisionRecorder m_collisionRecorderConstraint2;
 
-    //! To address numerical errors during geometrical computation,
-    //! several epsilon values are computed and used.
+    /*!
+        To address numerical errors during geometric computation,
+        several epsilon values are computed and used.
+    */
+
+    //! epsilon value - used for handling numerical limits.
     double m_epsilonInitialValue;
+
+    //! epsilon value - used for handling numerical limits.
     double m_epsilon;
+
+    //! epsilon value - used for handling numerical limits.
     double m_epsilonCollisionDetection;
+
+    //! epsilon value - used for handling numerical limits.
     double m_epsilonBaseValue;
+
+    //! epsilon value - used for handling numerical limits.
     double m_epsilonMinimalValue;
 
-    //! value of state machine
+    //! Value of state machine.
     unsigned int m_algoCounter;
 
-    // implementation of the proxy algorithm 
+    //! Implementation of the proxy algorithm - constraint 0.
     bool computeNextProxyPositionWithContraints0(const cVector3d& a_goalGlobalPos);
+
+	//! Implementation of the proxy algorithm - constraint 1.
     bool computeNextProxyPositionWithContraints1(const cVector3d& a_goalGlobalPos);
+
+	//! Implementation of the proxy algorithm - constraint 2.
     bool computeNextProxyPositionWithContraints2(const cVector3d& a_goalGlobalPos);
 };
 

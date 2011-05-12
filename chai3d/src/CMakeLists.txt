@@ -17,6 +17,7 @@ SET(COLLISIONS_GROUP
 )
 
 SET(DEVICES_GROUP
+    devices/CDeltaDevices.cpp       # should be okay on Mac once we get libs
     devices/CCallback.cpp
     devices/CFreedom6SDevice.cpp
     devices/CGenericDevice.cpp
@@ -28,7 +29,6 @@ SET(DEVICES_GROUP
 
 IF(WIN32)
 	SET(DEVICES_GROUP ${DEVICES_GROUP}
-        devices/CDeltaDevices.cpp       # should be okay on Mac once we get libs
 		devices/CDriverSensoray626.cpp
 		devices/CDriverServotogo.cpp
 		devices/CFalconDevice.cpp
@@ -132,7 +132,7 @@ SOURCE_GROUP(timers     FILES ${TIMERS_GROUP})
 SOURCE_GROUP(tools      FILES ${TOOLS_GROUP})
 SOURCE_GROUP(widgets    FILES ${WIDGETS_GROUP})
 
-ADD_LIBRARY(chai3d_complete
+ADD_LIBRARY(chai3d
     ${COLLISIONS_GROUP}
     ${DEVICES_GROUP}
     ${DISPLAY_GROUP}
@@ -148,7 +148,7 @@ ADD_LIBRARY(chai3d_complete
     ${WIDGETS_GROUP}
 )
 
-SET_TARGET_PROPERTIES(chai3d_complete PROPERTIES
+SET_TARGET_PROPERTIES(chai3d PROPERTIES
     DEBUG_POSTFIX   "_d"
 )
 
@@ -156,12 +156,12 @@ SET_TARGET_PROPERTIES(chai3d_complete PROPERTIES
 IF(APPLE)
     FIND_LIBRARY(OPENGL_LIBRARY OpenGL)
     FIND_LIBRARY(GLUT_LIBRARY GLUT)
-    TARGET_LINK_LIBRARIES(chai3d_complete ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
+    TARGET_LINK_LIBRARIES(chai3d ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
 ENDIF(APPLE)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC)
-    SET_TARGET_PROPERTIES(chai3d_complete PROPERTIES
+    SET_TARGET_PROPERTIES(chai3d PROPERTIES
         PREFIX      "../"
     )
 ENDIF(MSVC)

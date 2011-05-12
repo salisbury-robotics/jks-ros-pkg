@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -30,7 +30,6 @@
     Constructor of cEffectMagnet.
 
     \fn  cEffectMagnet::cEffectMagnet(cGenericObject* a_parent):cGenericEffect(a_parent)
-
     \param  a_parent Parent object.
 */
 //===========================================================================
@@ -44,14 +43,14 @@ cEffectMagnet::cEffectMagnet(cGenericObject* a_parent):cGenericEffect(a_parent)
     Compute the resulting force effect.
 
     \fn  bool cEffectMagnet::computeForce(const cVector3d& a_toolPos,
-                                           const cVector3d& a_toolVel,
-                                           const unsigned int& a_toolID,
-                                           cVector3d& a_reactionForce);
+                                          const cVector3d& a_toolVel,
+                                          const unsigned int& a_toolID,
+                                          cVector3d& a_reactionForce);
     \param  a_toolPos Position of tool.
     \param  a_toolVel Velocity of tool.
-    \param  a_toolID  Identification number of force algorythm
+    \param  a_toolID  Identification number of force algorithm.
     \param  a_reactionForce  Return the computed force here.
-    \return  Return false if no interaction force is computed
+    \return  Return false if no interaction force is computed.
 */
 //===========================================================================
 bool cEffectMagnet::computeForce(const cVector3d& a_toolPos,
@@ -101,7 +100,14 @@ bool cEffectMagnet::computeForce(const cVector3d& a_toolPos,
             forceMagnitude = param.x * val * val + param.y * val + param.z;
         }
 
+        // compute magnetic force
         a_reactionForce = cMul(forceMagnitude, cNormalize(cSub(m_parent->m_interactionProjectedPoint, a_toolPos)));
+
+        // add damping component
+        double viscosity = m_parent->m_material.getViscosity();
+        cVector3d viscousForce = cMul(-viscosity, a_toolVel);
+        a_reactionForce.add(viscousForce);
+
         return (true);
     }
     else

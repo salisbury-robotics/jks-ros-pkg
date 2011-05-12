@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -40,6 +40,7 @@ cGenericHapticDevice::cGenericHapticDevice() : cGenericDevice()
     m_specifications.m_maxTorqueStiffness            = 0.1; // [N*m/Rad]
     m_specifications.m_maxGripperTorque              = 0.1; // [N]
     m_specifications.m_maxGripperTorqueStiffness     = 0.1; // [N*m/m]
+    m_specifications.m_maxLinearDamping              = 0.0; // [N/(m/s)]
     m_specifications.m_workspaceRadius               = 0.1; // [m]
     m_specifications.m_sensedPosition                = false;
     m_specifications.m_sensedRotation                = false;
@@ -54,17 +55,48 @@ cGenericHapticDevice::cGenericHapticDevice() : cGenericDevice()
     m_prevTorque.zero();
     m_prevGripperTorque = 0.0;
 
-    m_prevPosition.zero();
-    m_prevRotation.identity();
-    m_prevGripperPosition = 0.0;
-
-    m_linearVelocity.zero();
     m_angularVelocity.zero();
     m_gripperVelocity = 0.0;
 
-    clockLinearVelocity.reset();
-    clockAngularVelocity.reset();
-    clockGripperVelocity.reset();
+    // start the general clock of the device
+    m_clockGeneral.reset();
+    m_clockGeneral.start();
+
+    // reset history tables
+    double time = m_clockGeneral.getCurrentTimeSeconds();
+
+    m_indexHistoryPos       = 0;
+    m_indexHistoryPosWin    = CHAI_DEVICE_HISTORY_SIZE-1;
+    for (int i=0; i<CHAI_DEVICE_HISTORY_SIZE; i++)
+    {
+        m_historyPos[i].m_pos.zero();
+        m_historyPos[i].m_time = time;
+    }
+
+    m_indexHistoryRot       = 0;
+    m_indexHistoryPosWin    = CHAI_DEVICE_HISTORY_SIZE-1;
+    for (int i=0; i<CHAI_DEVICE_HISTORY_SIZE; i++)
+    {
+        m_historyRot[i].m_rot.identity();
+        m_historyRot[i].m_time = time;
+    }
+
+    m_indexHistoryGripper   = 0;
+    m_indexHistoryPosWin    = CHAI_DEVICE_HISTORY_SIZE-1;
+    for (int i=0; i<CHAI_DEVICE_HISTORY_SIZE; i++)
+    {
+        m_historyGripper[i].m_value = 0.0;
+        m_historyGripper[i].m_time = time;
+    }
+
+    // Window time interval for measuring linear velocity
+    m_linearVelocityWindowSize  = 0.015; // [s]
+
+    // Window time interval for measuring angular velocity
+    m_angularVelocityWindowSize  = 0.015; // [s]
+
+    // Window time interval for measuring gripper velocity
+    m_gripperVelocityWindowSize  = 0.015; // [s]
 }
 
 
@@ -138,8 +170,8 @@ int cGenericHapticDevice::command(int a_command, void* a_data)
             // read user switch from end-effector
             case CHAI_CMD_GET_SWITCH_0:
             {
-                int* status = (int *) a_data;
-                int temp;
+                bool* status = (bool *) a_data;
+                bool temp;
                 result = getUserSwitch(0, temp);
                 *status = temp;
             }
@@ -149,10 +181,10 @@ int cGenericHapticDevice::command(int a_command, void* a_data)
             case CHAI_CMD_GET_SWITCH_MASK:
             {
                 // Force the result to be 0 or 1, since bit 0 should carry button 0's value
-                int* status = (int *) a_data;
-                int temp;
+                bool* status = (bool *) a_data;
+                bool temp;
                 result = getUserSwitch(0, temp);
-                *status = temp ? 1 : 0;
+                *status = temp;
             }
             break;
 
@@ -179,7 +211,7 @@ int cGenericHapticDevice::command(int a_command, void* a_data)
     \param  a_force  Force command.
     \param  a_torque  Torque command.
     \param  a_gripperTorque  Gripper torque command.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cGenericHapticDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d& a_torque,
@@ -199,7 +231,7 @@ int cGenericHapticDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVecto
     // return status
     if ((error0 != 0) || (error1 != 0) || (error2 != 0))
     {
-        // an error has occured
+        // an error has occurred
         return (-1);
     }
     else
@@ -216,46 +248,52 @@ int cGenericHapticDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVecto
 
     \fn     void cGenericHapticDevice::estimateLinearVelocity(cVector3d& a_newPosition)
     \param  a_newPosition  New position of the device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 void cGenericHapticDevice::estimateLinearVelocity(cVector3d& a_newPosition)
 {
-    // time limits
-    const double TIME_MIN = 0.02;  // [s]
-    const double TIME_MAX = 0.10;  // [s]
+    // get current time
+    double time = m_clockGeneral.getCurrentTimeSeconds();
 
-
-    // read clock in seconds
-    double time = clockLinearVelocity.stop();
-
-    // check time
-    if (time < TIME_MIN) { return; }
-
-    // check if previous position remains the same
-    if ((m_prevPosition.equals(a_newPosition)) && (time < TIME_MAX))
+    // check the time interval between the current and previous sample
+    if ((time - m_historyPos[m_indexHistoryPos].m_time) < CHAI_DEVICE_MIN_ACQUISITION_TIME)
     {
         return;
     }
 
-    // compute velocity
-    if (time == 0)
-    {
-        m_linearVelocity.zero();
-    }
-    else
-    {
-        cVector3d result;
-        a_newPosition.subr(m_prevPosition, result);
-        result.divr(time, m_linearVelocity);
-    }
-
     // store new value
-    m_prevPosition = a_newPosition;
+    m_indexHistoryPos = (m_indexHistoryPos + 1) % CHAI_DEVICE_HISTORY_SIZE;
+    m_historyPos[m_indexHistoryPos].m_time = time;
+    m_historyPos[m_indexHistoryPos].m_pos  = a_newPosition;
 
-    // restart clock
-    clockLinearVelocity.reset();
-    clockLinearVelocity.start();
+    // search table to find a sample that occurred before current time
+    // minus time window interval
+    int i=0;
+    bool completed = false;
+    while ((i < CHAI_DEVICE_HISTORY_SIZE) && (!completed))
+    {
+        double interval = time - m_historyPos[m_indexHistoryPosWin].m_time;
+        if ((interval < m_linearVelocityWindowSize) || (i == (CHAI_DEVICE_HISTORY_SIZE-1)))
+        {
+            // compute result
+            cVector3d result;
+            m_historyPos[m_indexHistoryPos].m_pos.subr(m_historyPos[m_indexHistoryPosWin].m_pos, result);
+            if (interval > 0)
+            {
+                result.divr(interval, m_linearVelocity);
+                completed = true;
+            }
+            else
+            {
+                completed = true;
+            }
+        }
+        else
+        {
+            m_indexHistoryPosWin = (m_indexHistoryPosWin + 1) % CHAI_DEVICE_HISTORY_SIZE;
+        }
+    }
 }
 
 
@@ -269,34 +307,8 @@ void cGenericHapticDevice::estimateLinearVelocity(cVector3d& a_newPosition)
 //===========================================================================
 void cGenericHapticDevice::estimateAngularVelocity(cMatrix3d& a_newRotation)
 {
-    // read clock in seconds
-    double time = clockAngularVelocity.stop();
-
-    // check if previous position remains the same
-    const double TIME_MAX = 0.01;  // [s]
-    if ((m_prevRotation.equals(a_newRotation)) && (time < TIME_MAX))
-    {
-        return;
-    }
-
-    // compute velocity
-    if (time == 0)
-    {
-        m_angularVelocity.zero();
-    }
-    else
-    {
-        // TODO: COMPUTE ANGULAR VELOCITY BY LOOKING AT TWO FRAMES
-        // LET'S PUT ZERO FOR NOW.
-        m_angularVelocity.zero();
-    }
-
-    // store new value
-    m_prevRotation = a_newRotation;
-
-    // restart clock
-    clockAngularVelocity.reset();
-    clockAngularVelocity.start();
+    // TODO: TO BE COMPLETED!
+    m_angularVelocity.zero();
 }
 
 
@@ -310,24 +322,45 @@ void cGenericHapticDevice::estimateAngularVelocity(cMatrix3d& a_newRotation)
 //===========================================================================
 void cGenericHapticDevice::estimateGripperVelocity(double a_newGripperPosition)
 {
-    // read clock in seconds
-    double time = 0.000001 * (double)clockGripperVelocity.stop();
+    // get current time
+    double time = m_clockGeneral.getCurrentTimeSeconds();
 
-    // compute velocity
-    if (time == 0)
+    // check the time interval between the current and previous sample
+    if ((time - m_historyGripper[m_indexHistoryGripper].m_time) < CHAI_DEVICE_MIN_ACQUISITION_TIME)
     {
-        m_gripperVelocity = 0.0;
-    }
-    else
-    {
-        m_gripperVelocity = (a_newGripperPosition - m_prevGripperPosition) / time;
+        return;
     }
 
     // store new value
-    m_prevGripperPosition = a_newGripperPosition;
+    m_indexHistoryGripper = (m_indexHistoryGripper + 1) % CHAI_DEVICE_HISTORY_SIZE;
+    m_historyGripper[m_indexHistoryGripper].m_time  = time;
+    m_historyGripper[m_indexHistoryGripper].m_value = a_newGripperPosition;
 
-    // restart clock
-    clockGripperVelocity.reset();
-    clockGripperVelocity.start();
+    // search table to find a sample that occurred before current time
+    // minus time window interval
+    int i=0;
+    bool completed = false;
+    while ((i < CHAI_DEVICE_HISTORY_SIZE) && (!completed))
+    {
+        double interval = time - m_historyGripper[m_indexHistoryGripperWin].m_time;
+        if ((interval < m_gripperVelocityWindowSize) || (i == (CHAI_DEVICE_HISTORY_SIZE-1)))
+        {
+            // compute result
+            if (interval > 0)
+            {
+                m_gripperVelocity = (m_historyGripper[m_indexHistoryGripper].m_value - 
+                                     m_historyGripper[m_indexHistoryGripperWin].m_value) / interval;
+                completed = true;
+            }
+            else
+            {
+                completed = true;
+            }
+        }
+        else
+        {
+            m_indexHistoryGripperWin = (m_indexHistoryGripperWin + 1) % CHAI_DEVICE_HISTORY_SIZE;
+        }
+    }
 }
 

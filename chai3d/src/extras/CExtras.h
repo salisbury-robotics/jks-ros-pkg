@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -42,7 +42,7 @@
 #include <sys/mman.h>
 #endif
 
-#if defined(_APPLE)
+#if defined(_MACOSX)
 #include <mach/mach_time.h>
 #include <mach/kern_return.h>
 #include <sys/mman.h>
@@ -58,10 +58,18 @@
 
 //===========================================================================
 /*!
-    \file   CExtras.h
-    \brief  Contains a set of OS independant usefull functions.
+    \file       CExtras.h
+    \ingroup    extras
+
+    \brief  
+    <b> Extras </b> \n 
+	Additional Useful Functions.
 */
 //===========================================================================
+
+//---------------------------------------------------------------------------
+// GENERAL PUPOSE FUNCTIONS:
+//---------------------------------------------------------------------------
 
 //! Suspends the execution of the current thread for a specified interval.
 void cSleepMs(unsigned int a_interval);

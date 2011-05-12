@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -81,8 +81,9 @@ cCamera::cCamera(cWorld* a_parentWorld)
 
       These vectors are used in the usual gluLookAt sense.
 
-      \fn         bool cCamera::set(const cVector3d& a_localPosition,
-                  const cVector3d& a_localLookAt, const cVector3d& a_localUp)
+      \fn         bool cCamera::set(const cVector3d& a_localPosition, 
+				  const cVector3d& a_localLookAt,
+                  const cVector3d& a_localUp)
 
       \param      a_localPosition  The position of the camera in local coordinates
       \param      a_localLookAt  The Point in local space at which the camera looks
@@ -90,7 +91,8 @@ cCamera::cCamera(cWorld* a_parentWorld)
                   the top of the image)
 */
 //===========================================================================
-bool cCamera::set(const cVector3d& a_localPosition, const cVector3d& a_localLookAt,
+bool cCamera::set(const cVector3d& a_localPosition, 
+				  const cVector3d& a_localLookAt,
                   const cVector3d& a_localUp)
 {
     // copy new values to temp variables
@@ -206,10 +208,12 @@ void cCamera::setClippingPlanes(const double a_distanceNear, const double a_dist
     Check for collision detection between an x-y position (typically a mouse
     click) and an object in the scene
 
-    \fn         bool cCamera::select(const int a_windowPosX, const int a_windowPosY,
-                const int a_windowWidth, const int a_windowHeight, cGenericObject*& a_selectedObject,
-                cTriangle*& a_selectedTriangle, cVector3d& a_selectedPoint, double a_selectedDistance,
-                const bool a_visibleObjectsOnly);
+    \fn         bool cCamera::select(const int a_windowPosX,
+                     const int a_windowPosY,
+                     const int a_windowWidth,
+                     const int a_windowHeight,
+                     cCollisionRecorder& a_collisionRecorder,
+                     cCollisionSettings& a_collisionSettings)
      
      \param     a_windowPosX        X coordinate position of mouse click.
      \param     a_windowPosY        Y coordinate position of mouse click.

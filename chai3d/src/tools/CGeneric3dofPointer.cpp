@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Federico Barbagli
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Federico Barbagli
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -26,10 +26,10 @@
 
 //==========================================================================
 /*!
-      Constructor of cGeneric3dofPointer.
+    Constructor of cGeneric3dofPointer.
 
-      \fn       cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
-      \param    a_world  World in which the tool will operate.
+    \fn       cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
+    \param    a_world  World in which the tool will operate.
 */
 //===========================================================================
 cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
@@ -46,6 +46,12 @@ cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
 
     // set a default device for the moment
     m_device = new cGenericHapticDevice();
+
+	// initialize temp variables
+	m_tempMeshProxyContact0 = NULL;
+	m_tempMeshProxyContact1 = NULL;
+	m_tempMeshProxyContact2 = NULL;
+
 
     //-------------------------------------------------------------------
     // FORCE MODELS SUPPORTED BY THE TOOL
@@ -67,6 +73,7 @@ cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
     // force settings
     m_forceON = true;
     m_forceStarted = false;
+
 
     //-------------------------------------------------------------------
     // GRAPHICAL MODEL OF THE TOOL
@@ -116,6 +123,7 @@ cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
     // This sets both the rendering radius and the actual proxy radius
     setRadius(0.05);
 
+
     //-------------------------------------------------------------------
     // WORKSPACE AND POSITION
     //-------------------------------------------------------------------
@@ -136,9 +144,9 @@ cGeneric3dofPointer::cGeneric3dofPointer(cWorld* a_world)
 
 //==========================================================================
 /*!
-      Destructor of cGeneric3dofPointer.
+    Destructor of cGeneric3dofPointer.
 
-      \fn       cGeneric3dofPointer::~cGeneric3dofPointer()
+    \fn       cGeneric3dofPointer::~cGeneric3dofPointer()
 */
 //===========================================================================
 cGeneric3dofPointer::~cGeneric3dofPointer()
@@ -159,12 +167,12 @@ cGeneric3dofPointer::~cGeneric3dofPointer()
 
     \fn       void cGeneric3dofPointer::initialize(const bool a_resetEncoders=false)
     \param    a_resetEncoders  If true, this resets the device's 0 position
-              to the current position (if this device supports re-zero'ing).
-              That means that if your device supports re-zero'ing (e.g. Phantom
-              premiums), you should be careful about calling this function
-              in the middle of your program with a_resetEncoders set to 'true'.
-              Or if you do call it with a_resetEncoders set to true, you should
-              make sure your user knows to hold the Phantom in place.
+                to the current position (if this device supports re-zero'ing).
+                That means that if your device supports re-zero'ing (e.g. Phantom
+                premiums), you should be careful about calling this function
+                in the middle of your program with a_resetEncoders set to 'true'.
+                Or if you do call it with a_resetEncoders set to true, you should
+                make sure your user knows to hold the Phantom in place.
     \return   0 indicates success, non-zero indicates an error
 */
 //===========================================================================
@@ -176,30 +184,16 @@ int cGeneric3dofPointer::initialize(const bool a_resetEncoders)
         return (-1);
     }
 
-    // open link to device
-    if (m_device->open() != 0)
-    {
-        return (-1);
-    }
-
-    // initialize (calibrate) device
-    if (m_device->initialize(a_resetEncoders) != 0)
-    {
-        return (-1);
-    }
-
-    // read position from device
-    updatePose();
-
-    // close link to device
-    if (m_device->close() != 0)
-    {
-        return -1;
-    }
-
     // initialize all force models
     m_proxyPointForceModel->initialize(m_world, m_deviceGlobalPos);
     m_potentialFieldsForceModel->initialize(m_world, m_deviceGlobalPos);
+
+	// if device encoders need to be initialize, call initialize function here.
+	// otherwise normal initialization is perform in the start() function
+	if (a_resetEncoders)
+	{
+		m_device->initialize(true);
+	}
 
     // exit
     return 0;
@@ -208,10 +202,10 @@ int cGeneric3dofPointer::initialize(const bool a_resetEncoders)
 
 //==========================================================================
 /*!
-      Starts communication with the haptic device.
+    Starts communication with the haptic device.
 
-      \fn       void cGeneric3dofPointer::start()
-      \return   0 indicates success, non-zero indicates an error
+    \fn       void cGeneric3dofPointer::start()
+    \return   0 indicates success, non-zero indicates an error
 */
 //===========================================================================
 int cGeneric3dofPointer::start()
@@ -222,17 +216,28 @@ int cGeneric3dofPointer::start()
         return -1;
     }
 
+	int result = 0;
+
     // open connection to device
-    return m_device->open();
+    result = m_device->open();
+
+	// initialize device
+	if (result == 0)
+	{
+		result = m_device->initialize();
+	}
+
+	// resturn result
+	return (result);
 }
 
 
 //==========================================================================
 /*!
-      Stop system. Apply zero force to device
+    Stop system. Apply zero force to device
 
-      \fn       void cGeneric3dofPointer::stop()
-      \return   0 indicates success, non-zero indicates an error
+    \fn       void cGeneric3dofPointer::stop()
+    \return   0 indicates success, non-zero indicates an error
 */
 //===========================================================================
 int cGeneric3dofPointer::stop()
@@ -247,10 +252,10 @@ int cGeneric3dofPointer::stop()
 
 //==========================================================================
 /*!
-      Sets the virtual volume in which the virtual tool will be moving.
+    Sets the virtual volume in which the virtual tool will be moving.
 
-      \fn       void cGeneric3dofPointer::setWorkspaceRadius(const double& a_workspaceRadius)
-      \param    a_workspaceRadius   Radius of the workspace.
+    \fn       void cGeneric3dofPointer::setWorkspaceRadius(const double& a_workspaceRadius)
+    \param    a_workspaceRadius   Radius of the workspace.
 */
 //===========================================================================
 void cGeneric3dofPointer::setWorkspaceRadius(const double& a_workspaceRadius)
@@ -273,9 +278,33 @@ void cGeneric3dofPointer::setWorkspaceRadius(const double& a_workspaceRadius)
 
 //==========================================================================
 /*!
-      Update position of pointer and orientation of wrist.
+    Define a scale factor between the physical workspace of the haptic device
+    and the workspace span by the virtual tool.
 
-      \fn       void cGeneric3dofPointer::updatePose()
+    \fn       void cGeneric3dofPointer::setWorkspaceScaleFactor(const double& a_workspaceScaleFactor)
+    \param    a_workspaceScaleFactor   Workspace scale factor.
+*/
+//===========================================================================
+void cGeneric3dofPointer::setWorkspaceScaleFactor(const double& a_workspaceScaleFactor)
+{
+    // make sure that input value is bigger than zero
+    double value = cAbs(a_workspaceScaleFactor);
+    if (value == 0) { return; }
+
+    // update scale factor
+    m_workspaceScaleFactor = value;
+
+    // compute the new scale factor between the workspace of the tool
+    // and one of the haptic device
+    m_workspaceRadius =  m_workspaceScaleFactor * m_device->getSpecifications().m_workspaceRadius;
+}
+
+
+//==========================================================================
+/*!
+    Update position of pointer and orientation of wrist.
+
+    \fn       void cGeneric3dofPointer::updatePose()
 */
 //===========================================================================
 void cGeneric3dofPointer::updatePose()
@@ -303,7 +332,7 @@ void cGeneric3dofPointer::updatePose()
     m_deviceLocalRot.mulr(m_globalRot, m_deviceGlobalRot);
 
     // read switches
-    m_device->getUserSwitch(0, m_userSwitches);
+    m_userSwitch0 = getUserSwitch(0);
 
     // read velocity of the device in local coordinates
     m_device->getLinearVelocity(vel);
@@ -318,10 +347,10 @@ void cGeneric3dofPointer::updatePose()
 
 //===========================================================================
 /*!
-      Compute the interaction forces between the tool and the virtual
-      object inside the virtual world.
+    Compute the interaction forces between the tool and the virtual
+    object inside the virtual world.
 
-      \fn       void cGeneric3dofPointer::computeInteractionForces()
+    \fn       void cGeneric3dofPointer::computeInteractionForces()
 */
 //===========================================================================
 void cGeneric3dofPointer::computeInteractionForces()
@@ -330,20 +359,68 @@ void cGeneric3dofPointer::computeInteractionForces()
     cVector3d force;
     force.zero();
 
-    // compute forces in world coordinates for each point force algorithm
-    force.add(m_potentialFieldsForceModel->computeForces(m_deviceGlobalPos, m_deviceGlobalVel));
+	// reset all object for which the proxy model may have been in contact with.
+
+	if (m_tempMeshProxyContact0 != NULL)
+	{
+		m_tempMeshProxyContact0->m_interactionInside = false;
+		m_tempMeshProxyContact0 = NULL;
+	}
+	if (m_tempMeshProxyContact1 != NULL)
+	{
+		m_tempMeshProxyContact1->m_interactionInside = false;
+		m_tempMeshProxyContact1 = NULL;
+	}
+	if (m_tempMeshProxyContact2 != NULL)
+	{
+		m_tempMeshProxyContact2->m_interactionInside = false;
+		m_tempMeshProxyContact2 = NULL;
+	}
+
+	// compute interaction force between tool and mesh objects
     force.add(m_proxyPointForceModel->computeForces(m_deviceGlobalPos, m_deviceGlobalVel));
 
-    // copy result
+	// flag each mesh for which the proxy may be interactinbg with. This information is 
+	// necessary for the haptic effects to be computed on all mesh objects.
+
+	if (m_proxyPointForceModel->m_contactPoint0->m_object != NULL)
+	{
+		m_tempMeshProxyContact0 = m_proxyPointForceModel->m_contactPoint0->m_object;
+		m_tempMeshProxyContact0->m_interactionInside = true;
+		m_tempMeshProxyContact0->m_interactionProjectedPoint = m_proxyPointForceModel->m_contactPoint0->m_localPos;
+	}
+	if (m_proxyPointForceModel->m_contactPoint1->m_object != NULL)
+	{
+		m_tempMeshProxyContact1 = m_proxyPointForceModel->m_contactPoint1->m_object;
+		m_tempMeshProxyContact1->m_interactionInside = true;
+		m_tempMeshProxyContact1->m_interactionProjectedPoint = m_proxyPointForceModel->m_contactPoint1->m_localPos;
+	}
+	if (m_proxyPointForceModel->m_contactPoint2->m_object != NULL)
+	{
+		m_tempMeshProxyContact2 = m_proxyPointForceModel->m_contactPoint2->m_object;
+		m_tempMeshProxyContact2->m_interactionInside = true;
+		m_tempMeshProxyContact2->m_interactionProjectedPoint = m_proxyPointForceModel->m_contactPoint2->m_localPos;
+	}
+
+    // compute interaction forces (haptic effects) in world coordinates between tool and all
+	// objects for which haptic effects have been programmed
+    force.add(m_potentialFieldsForceModel->computeForces(m_deviceGlobalPos, m_deviceGlobalVel));
+
+	// store the mesh objects the proxy force model may be encountering
+	m_tempMeshProxyContact0 = m_proxyPointForceModel->m_contactPoint0->m_object;
+	m_tempMeshProxyContact1 = m_proxyPointForceModel->m_contactPoint1->m_object;
+	m_tempMeshProxyContact2 = m_proxyPointForceModel->m_contactPoint2->m_object;
+ 
+	// copy result
     m_lastComputedGlobalForce.copyfrom(force);
 }
 
 
 //==========================================================================
 /*!
-      Apply the latest computed force to the device.
+    Apply the latest computed force to the device.
 
-      \fn       void cGeneric3dofPointer::applyForces()
+    \fn       void cGeneric3dofPointer::applyForces()
 */
 //===========================================================================
 void cGeneric3dofPointer::applyForces()
@@ -382,10 +459,10 @@ void cGeneric3dofPointer::applyForces()
 
 //==========================================================================
 /*!
-      Render the current tool in OpenGL.
+    Render the current tool in OpenGL.
 
-      \fn       void cGeneric3dofPointer::render(const int a_renderMode=0)
-      \param    a_renderMode  rendering mode; see cGenericObject.cpp.
+    \fn       void cGeneric3dofPointer::render(const int a_renderMode=0)
+    \param    a_renderMode  rendering mode; see cGenericObject.cpp.
 */
 //===========================================================================
 void cGeneric3dofPointer::render(const int a_renderMode)
@@ -412,7 +489,7 @@ void cGeneric3dofPointer::render(const int a_renderMode)
     m_proxySphere->setRot(m_deviceLocalRot);
 
     // Button 0 determines the color of the proxy
-    if (m_userSwitches & 1)
+    if (m_userSwitch0)
     {
         m_proxySphere->m_material = m_materialProxyButtonPressed;
     }
@@ -422,7 +499,7 @@ void cGeneric3dofPointer::render(const int a_renderMode)
     }
 
     // if proxy and device sphere are enabled, draw
-    if ((m_proxySphere->getShow()) && (m_deviceSphere->getShow()))
+    if ((m_proxySphere->getShowEnabled()) && (m_deviceSphere->getShowEnabled()))
     {
         glDisable(GL_LIGHTING);
         glLineWidth(1.0);
@@ -438,13 +515,13 @@ void cGeneric3dofPointer::render(const int a_renderMode)
 
 //==========================================================================
 /*!
-      Set the radius of the proxy. The value passed as parameter corresponds
-      to the size of the sphere which is rendered graphically. The physical
-      size of the proxy, one which collides with the triangles is set to
-      CHAI_SCALE_PROXY_RADIUS * a_radius.
+    Set the radius of the proxy. The value passed as parameter corresponds
+    to the size of the sphere which is rendered graphically. The physical
+    size of the proxy, one which collides with the triangles is set to
+    CHAI_SCALE_PROXY_RADIUS * a_radius.
 
-      \fn       void cGeneric3dofPointer::setRadius(const double& a_radius)
-      \param    a_radius  radius of pointer.
+    \fn       void cGeneric3dofPointer::setRadius(const double& a_radius)
+    \param    a_radius  radius of pointer.
 */
 //===========================================================================
 void cGeneric3dofPointer::setRadius(const double& a_radius)
@@ -465,7 +542,7 @@ void cGeneric3dofPointer::setRadius(const double& a_radius)
 
 //==========================================================================
 /*!
-    Turns forces ON
+    Turns forces \b ON.
 
     \fn     void cGeneric3dofPointer::setForcesON()
     \return   0 indicates success, non-zero indicates an error
@@ -485,7 +562,7 @@ int cGeneric3dofPointer::setForcesON()
 
 //==========================================================================
 /*!
-    Turns forces OFF
+    Turns forces \b OFF.
 
     \fn       void cGeneric3dofPointer::setForcesOFF()
     \return   0 indicates success, non-zero indicates an error
@@ -494,13 +571,16 @@ int cGeneric3dofPointer::setForcesON()
 int cGeneric3dofPointer::setForcesOFF()
 {
     m_forceON = false;
+    m_lastComputedLocalForce.zero();
+    m_lastComputedGlobalForce.zero();
+    applyForces();
     return 0;
 }
 
 
 //==========================================================================
 /*!
-    Check if the tool is currently interacting with the given object
+    Check if the tool is currently interacting with the given object.
 
     \fn       bool cGeneric3dofPointer::isInContact(cGenericObject* a_object)
     \return   Return \e true if the tool is interacting with the object
@@ -508,9 +588,9 @@ int cGeneric3dofPointer::setForcesOFF()
 //===========================================================================
 bool cGeneric3dofPointer::isInContact(cGenericObject* a_object)
 {
-    /////////////////////////////////////////////////////////////////////////
-    // check proxy algorithm
-    /////////////////////////////////////////////////////////////////////////
+    //-------------------------------------------------------------------
+    // CHECK PROXY ALGORITHM
+    //-------------------------------------------------------------------
 
     // contact 0
     if (m_proxyPointForceModel->m_contactPoint0->m_object == a_object)
@@ -519,20 +599,23 @@ bool cGeneric3dofPointer::isInContact(cGenericObject* a_object)
     }
 
     // contact 1
-    if (m_proxyPointForceModel->m_contactPoint1->m_object == a_object)
+    if ((m_proxyPointForceModel->m_contactPoint0->m_object != NULL) &&
+        (m_proxyPointForceModel->m_contactPoint1->m_object == a_object))
     {
         return (true);
     }
 
     // contact 2
-    if (m_proxyPointForceModel->m_contactPoint2->m_object == a_object)
+    if ((m_proxyPointForceModel->m_contactPoint0->m_object != NULL) &&
+        (m_proxyPointForceModel->m_contactPoint1->m_object != NULL) &&
+        (m_proxyPointForceModel->m_contactPoint2->m_object == a_object))
     {
         return (true);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    // check potential field algorithm
-    /////////////////////////////////////////////////////////////////////////
+    //-------------------------------------------------------------------
+    // CHECK POTENTIAL FIELD ALGORITHM
+    //-------------------------------------------------------------------
     unsigned int num = m_potentialFieldsForceModel->m_interactionRecorder.m_interactions.size();
     unsigned int i = 0;
     while (i < num)
