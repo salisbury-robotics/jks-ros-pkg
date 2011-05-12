@@ -14,12 +14,22 @@ SET(CMAKE_CONFIGURATION_TYPES "Debug;Release"
 #-----------------------------------------------------------------------------
 # Output directories.
 
-SET(CHAI3D_LIBRARY_PATH "${CHAI3D_BINARY_DIR}/lib")
-SET(CHAI3D_RUNTIME_PATH "${CHAI3D_BINARY_DIR}/bin")
+#SET(CHAI3D_LIBRARY_PATH "${CHAI3D_BINARY_DIR}/lib")
+#SET(CHAI3D_RUNTIME_PATH "${CHAI3D_BINARY_DIR}/bin")
+SET(CHAI3D_LIBRARY_PATH "${PROJECT_SOURCE_DIR}/lib")
+SET(CHAI3D_RUNTIME_PATH "${PROJECT_SOURCE_DIR}/bin")
 
 SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CHAI3D_LIBRARY_PATH})
 SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CHAI3D_LIBRARY_PATH})
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CHAI3D_RUNTIME_PATH})
+
+#set the default path for built executables to the "bin" directory
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+#set the default path for built libraries to the "lib" directory
+set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+
+
+
 
 #-----------------------------------------------------------------------------
 # Platform-specific definitions and binary directory configuration.
