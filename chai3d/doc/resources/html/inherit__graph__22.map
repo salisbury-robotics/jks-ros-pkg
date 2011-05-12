@@ -1,0 +1,12 @@
+<map id="G" name="G">
+<area shape="rect" href="$classc_generic_device.html" title="cGenericDevice Provides an general interface to communicate with hardware devices..." alt="" coords="7,85,119,115"/>
+<area shape="rect" href="$classc_driver_sensoray626.html" title="cDriverSensoray626 offers an interface to the Sensoray 626 boards." alt="" coords="175,32,313,61"/>
+<area shape="rect" href="$classc_driver_servotogo.html" title="cDriverServotogo offers an interface to the Servo2Go boards." alt="" coords="184,85,304,115"/>
+<area shape="rect" href="$classc_generic_haptic_device.html" title="cGenericHapticDevice describes a virtual class from which all 2D or 3D point contact..." alt="" coords="169,139,319,168"/>
+<area shape="rect" href="$classc_delta_device.html" title="cDeltaDevice implements an interface to the omega.x and delta.x haptic devices from..." alt="" coords="387,5,485,35"/>
+<area shape="rect" href="$classc_falcon_device.html" title="cFalconDevice describes an interface to the Falcon haptic device from Novint Technlogies..." alt="" coords="383,59,489,88"/>
+<area shape="rect" href="$classc_freedom6_s_device.html" title="cFreedom6SDevice describes an interface to the Freedom6S haptic device from MPB Technologies..." alt="" coords="369,112,503,141"/>
+<area shape="rect" href="$classc_my_custom_device.html" title="cMyCustomDevice provides a basic template which allows to very easily interface CHAI..." alt="" coords="371,165,501,195"/>
+<area shape="rect" href="$classc_phantom_device.html" title="cPhantomDevice describes an interface to the Phantom haptic devices from Sensable..." alt="" coords="376,219,496,248"/>
+<area shape="rect" href="$classc_virtual_device.html" title="Class which interfaces with the virtual device." alt="" coords="384,272,488,301"/>
+</map>
