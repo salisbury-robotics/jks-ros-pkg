@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -28,7 +28,8 @@
 /*!
     Constructor of cShapeTorus.
 
-    \fn     cShapeTorus::cShapeTorus(const double& a_insideRadius, const double& a_outsideRadius)
+    \fn     cShapeTorus::cShapeTorus(const double& a_insideRadius, 
+                                     const double& a_outsideRadius)
     \param  a_insideRadius    Inside radius of torus
     \param  a_outsideRadius   Outside radius of torus
 */
@@ -39,7 +40,7 @@ cShapeTorus::cShapeTorus(const double& a_insideRadius, const double& a_outsideRa
     setSize(a_insideRadius, a_outsideRadius);
 
     // resolution of the graphical model
-    m_resultion = 64;
+    m_resolution = 64;
 
     // set material properties
     m_material.setShininess(100);
@@ -60,9 +61,9 @@ cShapeTorus::cShapeTorus(const double& a_insideRadius, const double& a_outsideRa
 //===========================================================================
 void cShapeTorus::render(const int a_renderMode)
 {
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
     // Conditions for object to be rendered
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
 
     if(((a_renderMode == CHAI_RENDER_MODE_NON_TRANSPARENT_ONLY) &&
         (m_useTransparency == true)) ||
@@ -74,21 +75,24 @@ void cShapeTorus::render(const int a_renderMode)
             return;
         }
 
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
     // Rendering code here
-    /////////////////////////////////////////////////////////////////////////
+    //-----------------------------------------------------------------------
 
     // render material properties
-    m_material.render();
+    if (m_useMaterialProperty)
+    {
+        m_material.render();
+    }
 
     // render texture property if defined
-    if (m_texture != NULL)
+    if ((m_texture != NULL) && (m_useTextureMapping))
     {
         m_texture->render();
     }
 
     // draw sphere
-    glutSolidTorus(m_innerRadius, m_outerRadius, m_resultion, m_resultion);
+    glutSolidTorus(m_innerRadius, m_outerRadius, m_resolution, m_resolution);
 
     // turn off texture rendering if it has been used
     glDisable(GL_TEXTURE_2D);

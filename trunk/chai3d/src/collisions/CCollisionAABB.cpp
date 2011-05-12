@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,15 +12,17 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
 #include "collisions/CCollisionAABB.h"
+#include <iostream>
+using namespace std;
 //---------------------------------------------------------------------------
 //! Pointer to first free location in array of AABB tree nodes.
 cCollisionAABBInternal* g_nextFreeNode;
@@ -41,10 +43,11 @@ cCollisionAABB::cCollisionAABB(vector<cTriangle> *a_triangles, bool a_useNeighbo
     m_triangles = a_triangles;
 
     // initialize members
-    m_root = NULL;
-    m_leaves = NULL;
-    m_numTriangles = 0;
-    m_useNeighbors = a_useNeighbors;
+    m_internalNodes = NULL;
+    m_root          = NULL;
+    m_leaves        = NULL;
+    m_numTriangles  = 0;
+    m_useNeighbors  = a_useNeighbors;
 }
 
 
@@ -59,15 +62,25 @@ cCollisionAABB::~cCollisionAABB()
 {
 
     // clear collision tree
-    if (m_root != NULL) delete [] m_root;
+    if (m_root != NULL)
+    {
+        delete [] m_internalNodes;
+        m_root = NULL;
+    }
 
     // Delete the allocated array of leaf nodes
     //
     // If there's only one triangle, m_root = m_leaves
     // and we've already deleted the leaves...
     if (m_numTriangles > 1)
-      if (m_leaves) delete [] m_leaves;
-}    
+    {
+        if (m_leaves)
+        {
+            delete [] m_leaves;
+            m_leaves = NULL;
+        }
+    }
+}
 
 
 //===========================================================================
@@ -80,7 +93,7 @@ cCollisionAABB::~cCollisionAABB()
     the bounding boxes of its two children and is aligned with the axes.
 
     \fn       void cCollisionAABB::initialize(double a_radius)
-    \param    a_radius radius to add arround the triangles.
+    \param    a_radius radius to add around the triangles.
 */
 //===========================================================================
 void cCollisionAABB::initialize(double a_radius)
@@ -92,6 +105,7 @@ void cCollisionAABB::initialize(double a_radius)
     if (m_root != NULL)
     {
         delete[] m_root;
+        m_root = NULL;
     }
 
     // reset triangle counter
@@ -101,11 +115,11 @@ void cCollisionAABB::initialize(double a_radius)
     // the tree.
     for (i = 0; i < m_triangles->size(); ++i)
     {
-      cTriangle* nextTriangle = &(*m_triangles)[i];
-      if (nextTriangle->allocated())
-      {
-        m_numTriangles++;
-      }
+        cTriangle* nextTriangle = &(*m_triangles)[i];
+        if (nextTriangle->allocated())
+        {
+            m_numTriangles++;
+        }
     }
 
     // check if the number of triangles is equal to zero
@@ -117,26 +131,24 @@ void cCollisionAABB::initialize(double a_radius)
 
     // create a leaf node for each triangle
     m_leaves = new cCollisionAABBLeaf[m_numTriangles];
-    for (i = 0; i < m_numTriangles; ++i)
+    int j=0;
+    for (i = 0; i < m_triangles->size(); ++i)
     {
-      cTriangle* nextTriangle = &(*m_triangles)[i];
-      if (nextTriangle->allocated())
-      {
-        new(&(m_leaves[i])) cCollisionAABBLeaf(nextTriangle);
-      }
-    }
-
-    for (i = 0; i < m_numTriangles; ++i)
-    {
-        m_leaves[i].fitBBox(a_radius);
+        cTriangle* nextTriangle = &(*m_triangles)[i];
+        if (nextTriangle->allocated())
+        {
+            m_leaves[j].initialize(nextTriangle, a_radius);
+            j++;
+        }
     }
 
     // allocate an array to hold all internal nodes of the binary tree
     if (m_numTriangles >= 2)
     {
-      g_nextFreeNode = new cCollisionAABBInternal[m_numTriangles];
-      m_root = g_nextFreeNode;
-      new(g_nextFreeNode++) cCollisionAABBInternal(m_numTriangles, m_leaves, 0);
+        g_nextFreeNode = new cCollisionAABBInternal[m_numTriangles];
+        m_internalNodes = g_nextFreeNode;
+        m_root = g_nextFreeNode;
+        g_nextFreeNode->initialize(m_numTriangles, m_leaves, 0);
     }
 
     // there is only one triangle, so the tree consists of just one leaf
@@ -164,13 +176,13 @@ void cCollisionAABB::initialize(double a_radius)
     triangle-segment intersection testing is called.
 
     \fn       bool cCollisionAABB::computeCollision(cVector3d& a_segmentPointA,
-              cVector3d& a_segmentPointB, cCollisionRecorder* a_recorder,
-              cCollisionSettings* a_settings)
+              cVector3d& a_segmentPointB, cCollisionRecorder& a_recorder,
+              cCollisionSettings& a_settings)
     \param    a_segmentPointA  Initial point of segment.
     \param    a_segmentPointB  End point of segment.
     \param    a_recorder  Stores all collision events
     \param    a_settings  Contains collision settings information.
-    \return   Return true if a collision event has occured.
+    \return   Return true if a collision event has occurred.
 */
 //===========================================================================
 bool cCollisionAABB::computeCollision(cVector3d& a_segmentPointA, cVector3d& a_segmentPointB,
@@ -190,8 +202,10 @@ bool cCollisionAABB::computeCollision(cVector3d& a_segmentPointA, cVector3d& a_s
 
     // test for intersection between the line segment and the root of the
     // collision tree; the root will recursively call children down the tree
-    bool result = m_root->computeCollision(a_segmentPointA, a_segmentPointB, lineBox,
-        a_recorder, a_settings);
+    bool result = m_root->computeCollision(a_segmentPointA, 
+                                           a_segmentPointB, 
+                                           lineBox,
+                                           a_recorder, a_settings);
 
     // return whether there was an intersection
     return result;

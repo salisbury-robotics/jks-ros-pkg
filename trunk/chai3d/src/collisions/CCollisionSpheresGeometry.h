@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -45,23 +45,42 @@ typedef map<cCollisionSpheresPoint *, cCollisionSpheresEdge *,
 
 //===========================================================================
 /*!
-    \file     CCollisionSpheresGeometry.h
-    \class    cCollisionSpheresPoint
-    \brief    cCollisionSpheresPoint defines points used in the primitive
-              shapes.
+    \file       cCollisionSpheresGeometry.h
+
+    \brief  
+    <b> Collision Detection </b> \n
+    Spherical Bounding Box Tree - Implementation.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cCollisionSpheresPoint
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheresPoint defines points used in the primitive shapes.
 */
 //===========================================================================
 class cCollisionSpheresPoint
 {
   public:
-    // CONSTRUCTOR:
+    
+    //-----------------------------------------------------------------------
+    // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresPoint.
     cCollisionSpheresPoint(double a_x = 0,
                            double a_y = 0,
                            double a_z = 0)
                            { m_pos.x = a_x;  m_pos.y = a_y;  m_pos.z = a_z; }
 
-    // PROPERTIES:
+
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+    
     //! Position of the point.
     cVector3d m_pos;
 
@@ -72,16 +91,25 @@ class cCollisionSpheresPoint
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresEdge
-      \brief    cCollisionSpheresEdge defines edges of shape primitives.
+    \class      cCollisionSpheresEdge
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheresEdge defines edges of shape primitives.
 */
 //===========================================================================
 class cCollisionSpheresEdge
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresEdge.
     cCollisionSpheresEdge() { }
+
+    //! Constructor of cCollisionSpheresEdge.
     cCollisionSpheresEdge(cCollisionSpheresPoint *a_a,
                           cCollisionSpheresPoint *a_b)
                           { initialize(a_a,a_b); }
@@ -89,8 +117,12 @@ class cCollisionSpheresEdge
     //! Destructor of cCollisionSpheresEdge.
     virtual ~cCollisionSpheresEdge() {}
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
-    //! Initialization
+    //-----------------------------------------------------------------------
+    
+    //! Initialization.
     void initialize(cCollisionSpheresPoint *a_a, cCollisionSpheresPoint *a_b);
 
     //! Return the center of the edge.
@@ -100,8 +132,13 @@ class cCollisionSpheresEdge
     inline double getRadius() const
         { if (m_D <= 0.0) return 0.0; return sqrt(m_D)/2; }
 
+
   private:
-    // PROPERTIES:
+    
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The two vertices of the edge.
     cCollisionSpheresPoint *m_end[2];
 
@@ -118,23 +155,34 @@ class cCollisionSpheresEdge
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresGenericShape
-      \brief    cCollisionSpheresGenericShape is an abstract class for shape
-                primitives (such as triangles or lines) which are surrounded
-                by spheres for the collision detector.
+    \class      cCollisionSpheresGenericShape
+    \ingroup    collisions
+    
+    \brief    
+    cCollisionSpheresGenericShape is an abstract class for shape
+    primitives (such as triangles or lines) which are surrounded
+    by spheres for the collision detector.
 */
 //===========================================================================
 class cCollisionSpheresGenericShape
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresGenericShape.
     cCollisionSpheresGenericShape() : m_sphere(NULL) { }
 
     //! Destructor of cCollisionSpheresGenericShape.
     virtual ~cCollisionSpheresGenericShape() {}
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
+    //----------------------------------------------------------------------
+
     //! Return center.
     virtual const cVector3d &getCenter() const = 0;
 
@@ -157,12 +205,21 @@ class cCollisionSpheresGenericShape
     bool operator<(cCollisionSpheresGenericShape* a_other)
         { return (getCenter().get(m_split) < a_other->getCenter().get(m_split)); }
 
-    // STATIC PROPERTIES:
+    
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! Axis on which to sort.
     static int m_split;
 
+
   private:
-    // PROPERTIES:
+    
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! Pointer to the collision sphere surrounding the primitive.
     cCollisionSpheresLeaf *m_sphere;
 };
@@ -170,27 +227,38 @@ class cCollisionSpheresGenericShape
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresTri
-      \brief    cCollisionSpheresTri defines the triangle primitives that
-                make up the mesh and are bounded by the collision spheres.
-                It is essentially just a wrapper around a cTriangle object,
-                to which it has a pointer (m_original).
+    \class      cCollisionSpheresTri
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheresTri defines the triangle primitives that
+    make up the mesh and are bounded by the collision spheres.
+    It is essentially just a wrapper around a cTriangle object,
+    to which it has a pointer (m_original).
 */
 //===========================================================================
 class cCollisionSpheresTri : public cCollisionSpheresGenericShape
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresTri.
     cCollisionSpheresTri(cVector3d a,
                          cVector3d b,
                          cVector3d c,
                          double a_extendedRadius);
 
-    //! Destructor of cCollisionSpheresTri
+    //! Destructor of cCollisionSpheresTri.
     virtual ~cCollisionSpheresTri() {};
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+    
     //! Return whether triangle collides with given line.
     bool computeCollision(cCollisionSpheresGenericShape *a_other,
                           cCollisionRecorder& a_recorder,
@@ -208,8 +276,13 @@ class cCollisionSpheresTri : public cCollisionSpheresGenericShape
     //! Sets the cTriangle object in the mesh associated with this triangle.
     void setOriginal(cTriangle* a_original) { m_original = a_original; }
 
+
   protected:
-    // PROPERTIES:
+	
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The vertices of the triangle.
     cCollisionSpheresPoint m_corner[3];
 
@@ -229,16 +302,22 @@ class cCollisionSpheresTri : public cCollisionSpheresGenericShape
 
 //===========================================================================
 /*!
-      \class    cCollisionSpheresLine
-      \brief    cCollisionSpheresLine defines a line primitive that may
-                collide with other primitives.  It is used by the proxy
-                algorithm.
+    \class      cCollisionSpheresLine
+    \ingroup    collisions
+
+    \brief    
+    cCollisionSpheresLine defines a line primitive that may collide with 
+    other primitives.  It is used for instance by the proxy algorithm.
 */
 //===========================================================================
 class cCollisionSpheresLine : public cCollisionSpheresGenericShape
 {
   public:
-    // CONSTRUCTOR:
+    
+    //-----------------------------------------------------------------------
+    // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cCollisionSpheresLine.
     cCollisionSpheresLine(cVector3d& a_segmentPointA,
                           cVector3d& a_segmentPointB);
@@ -246,7 +325,11 @@ class cCollisionSpheresLine : public cCollisionSpheresGenericShape
     //! Destructor of cCollisionSpheresLine.
     virtual ~cCollisionSpheresLine() {}
 
-    //! METHODS:
+
+	//-----------------------------------------------------------------------
+    // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Return the center of the line.
     inline const cVector3d &getCenter() const  { return m_center; }
 
@@ -264,9 +347,13 @@ class cCollisionSpheresLine : public cCollisionSpheresGenericShape
     //! Get direction vector of the line.
     cVector3d getSegmentPointB() { return m_segmentPointB; }
 
+
   protected:
   
-    // PROPERTIES:
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
     //! The center of the line.
     cVector3d m_center;
 

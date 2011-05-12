@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -23,6 +23,17 @@
 #include "graphics/CMacrosGL.h"
 //---------------------------------------------------------------------------
 
+//===========================================================================
+/*!
+    Align the current -z axis with a reference frame; à la gluLookAt.
+
+    \fn     void cLookAt(const cVector3d& a_eye, const cVector3d& a_at, 
+                         const cVector3d& a_up)      
+    \param  a_eye  Position of eye.
+    \param  a_at  Lookat position.
+    \param  a_up  Up direction.
+*/
+//===========================================================================
 void cLookAt(const cVector3d& a_eye, const cVector3d& a_at, const cVector3d& a_up)
 {
     // Define our look vector (z axis)

@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,19 +12,21 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
+#include "extras/CGlobals.h"
 #include "devices/CFalconDevice.h"
 //---------------------------------------------------------------------------
-#ifndef _DISABLE_FALCON_DEVICE_SUPPORT
+#if defined(_ENABLE_FALCON_DEVICE_SUPPORT)
 //---------------------------------------------------------------------------
-#include "extras/CGlobals.h"
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //---------------------------------------------------------------------------
+
 #ifndef DLLVERSIONINFO
 typedef struct _DllVersionInfo
 {
@@ -73,6 +75,10 @@ int (__stdcall *hdFalconSetForce)      (int a_deviceID,
 // Initialize dhd dll reference count
 int cFalconDevice::m_dllcount = 0;
 
+//---------------------------------------------------------------------------
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+
 //===========================================================================
 /*!
     Constructor of cFalconDevice.
@@ -84,12 +90,13 @@ cFalconDevice::cFalconDevice(unsigned int a_deviceNumber)
 {
     // set specifications
     m_specifications.m_manufacturerName              = "Novint Technologies";
-    m_specifications.m_modelName                     = "falcon";
+    m_specifications.m_modelName                     = "Falcon";
     m_specifications.m_maxForce                      = 8.0;     // [N]
-    m_specifications.m_maxForceStiffness             = 4000.0;  // [N/m]
+    m_specifications.m_maxForceStiffness             = 3000.0;  // [N/m]
     m_specifications.m_maxTorque                     = 0.0;     // [N*m]
     m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
     m_specifications.m_maxGripperTorque              = 0.0;     // [N]
+    m_specifications.m_maxLinearDamping              = 20.0;    // [N/(m/s)]
     m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
     m_specifications.m_workspaceRadius               = 0.04;    // [m]
     m_specifications.m_sensedPosition                = true;
@@ -121,7 +128,7 @@ cFalconDevice::cFalconDevice(unsigned int a_deviceNumber)
         if (testFunction == NULL)
         {
             // failed, old version is installed.
-            printf("Error - Please update the drivers of your Novint Falcon haptic device.");
+            printf("ERROR: Please update the drivers of your Novint Falcon haptic device.\n");
             return;
         }
     }
@@ -222,7 +229,7 @@ cFalconDevice::~cFalconDevice()
 
 //===========================================================================
 /*!
-    Open connection to delta device.
+    Open connection to Falcon haptic device.
 
     \fn     int cFalconDevice::open()
 */
@@ -251,7 +258,7 @@ int cFalconDevice::open()
 
 //===========================================================================
 /*!
-    Close connection to delta device.
+    Close connection to Falcon haptic device.
 
     \fn     int cFalconDevice::close()
 */
@@ -277,7 +284,7 @@ int cFalconDevice::close()
 
 //===========================================================================
 /*!
-    Calibrate delta device.
+    Calibrate Falcon haptic device.
 
     This function does nothing right now; the a_resetEncoders parameter is ignored.
 
@@ -316,11 +323,11 @@ unsigned int cFalconDevice::getNumDevices()
 
 //===========================================================================
 /*!
-    Read the position of the device. Units are in meters.
+    Read the position of the device. Units are meters [m].
 
     \fn     int cFalconDevice::getPosition(cVector3d& a_position)
     \param  a_position  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFalconDevice::getPosition(cVector3d& a_position)
@@ -341,11 +348,11 @@ int cFalconDevice::getPosition(cVector3d& a_position)
 
 //===========================================================================
 /*!
-    Send a force [N] to the haptic device
+    Send a force [N] to the Falcon haptic device.
 
     \fn     int cFalconDevice::setForce(cVector3d& a_force)
     \param  a_force  Force command to be applied to device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFalconDevice::setForce(cVector3d& a_force)
@@ -361,51 +368,47 @@ int cFalconDevice::setForce(cVector3d& a_force)
 
 //===========================================================================
 /*!
-    Read the status of the user switch [1 = ON / 0 = OFF].
+    Read the status of the user switch [1 = \e ON / 0 = \e OFF].
 
-    \fn     int cFalconDevice::getUserSwitch(int a_switchIndex, int& a_status)
+    \fn     int cFalconDevice::getUserSwitch(int a_switchIndex, bool& a_status)
     \param  a_switchIndex  index number of the switch.
     \param  a_status result value from reading the selected input switch.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
-int cFalconDevice::getUserSwitch(int a_switchIndex, int& a_status)
+int cFalconDevice::getUserSwitch(int a_switchIndex, bool& a_status)
 {
     // check if drivers are installed
     if (!m_driverInstalled) return (-1);
     
-    int result = 0;
+    bool result = false;
     int button = hdFalconGetButtons(m_deviceID);
 
     switch (a_switchIndex)
     {
         case 0:
-            result = button & 1;
+			if (button & 1) { result = true; }
             break;
 
         case 1:
-            result = button & 2;
+            if (button & 2) { result = true; }
             break;
 
         case 2:
-            result = button & 3;
+            if (button & 4) { result = true; }
             break;
 
         case 3:
-            result = button & 4;
+            if (button & 8) { result = true; }
             break;
     }
 
-    if (result > 0)
-    {
-        a_status = 1;
-    }
-    else
-    {
-        a_status = 0;
-    }
+	// return result
+	a_status = result;
 
     return (0);
 }
 
-#endif
+//---------------------------------------------------------------------------
+#endif //_ENABLE_FALCON_DEVICE_SUPPORT
+//---------------------------------------------------------------------------

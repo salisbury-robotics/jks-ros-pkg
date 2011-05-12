@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -38,7 +38,7 @@
     \param    a_segmentPointB  End point of segment.
     \param    a_recorder  Returns pointer to nearest collided object.
     \param    a_settings  Structure which contains some rules about how the
-                          collision detection should be performed. 
+                          collision detection should be performed.
     \return   Return true if the line segment intersects one or more triangles.
 */
 //===========================================================================

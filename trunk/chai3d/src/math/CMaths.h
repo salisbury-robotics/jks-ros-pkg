@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -28,8 +28,12 @@
 
 //===========================================================================
 /*!
-    \file   CMaths.h
-    \brief  Contains various mathematical utility functions.
+    \file       CMaths.h
+    \ingroup    math
+
+    \brief      
+    <b> Math </b> \n 
+    General Utility Functions.
 */
 //===========================================================================
 
@@ -69,8 +73,8 @@ inline bool cPositiveBound(const double& a_value, const double& a_boundMax)
 /*!
     Compute absolute value.
 
-    \param    a_value  Input value
-    \return   Return the absolute value of \e value
+    \param    a_value  Input value.
+    \return   Return the absolute value of \e value.
 */
 //===========================================================================
 template<class T> inline T cAbs(const T a_value)
@@ -81,7 +85,7 @@ template<class T> inline T cAbs(const T a_value)
 
 //===========================================================================
 /*!
-    Compute maximum between two values
+    Compute maximum between two values.
 
     \param    a_value1  First value.
     \param    a_value2  Second value.
@@ -99,7 +103,7 @@ template<class T> inline T cMax(const T a_value1, const T a_value2)
 
 //===========================================================================
 /*!
-    Compute minimum between two values
+    Compute minimum between two values.
 
     \param    a_value1  First value.
     \param    a_value2  Second value.
@@ -268,7 +272,7 @@ template<class T> inline T cClamp(const T a_value, const T a_low, const T a_high
 
 //===========================================================================
 /*!
-    Clamp the input to the range 0 - infinity.
+    Clamp the input to the range 0 - \e infinity.
 
     \param    a_value  Input value.
     \return   Return clamped value.
@@ -439,7 +443,8 @@ inline double cRadToDeg(const double& a_angleRad)
 
 //===========================================================================
 /*!
-    Compute the addition between two vectors. Result = Vector1 + Vector2.
+    Compute the addition between two vectors. \n
+    \e Result = \e Vector1 + \e Vector2
 
     \param    a_vector1  First vector.
     \param    a_vector2  Second vector.
@@ -457,8 +462,8 @@ inline cVector3d cAdd(const cVector3d& a_vector1, const cVector3d& a_vector2)
 
 //===========================================================================
 /*!
-    Compute the addition between three vectors.
-    Result = Vector1 + Vector2 + Vector3.
+    Compute the addition between three vectors. \n
+    \e Result = \e Vector1 + \e Vector2 + \e Vector3
 
     \param    a_vector1  First vector.
     \param    a_vector2  Second vector.
@@ -477,7 +482,8 @@ inline cVector3d cAdd(const cVector3d& a_vector1, const cVector3d& a_vector2, co
 
 //===========================================================================
 /*!
-    Compute the subtraction between two vectors. Result = Vector1 - Vector2.
+    Compute the subtraction between two vectors. \n
+    \e Result = \e Vector1 - \e Vector2
 
     \param    a_vector1  First vector.
     \param    a_vector2  Second vector.
@@ -503,7 +509,7 @@ inline cVector3d cSub(const cVector3d& a_vector1, const cVector3d& a_vector2)
 //===========================================================================
 inline cVector3d cNegate(const cVector3d& a_vector)
 {
-    return cVector3d(a_vector.x*-1.0,a_vector.y*-1.0,a_vector.z*-1.0);    
+    return cVector3d(a_vector.x*-1.0,a_vector.y*-1.0,a_vector.z*-1.0);
 }
 
 
@@ -550,7 +556,7 @@ inline cVector3d cDivVect(const double& a_value, const cVector3d& a_vector)
 {
     return cVector3d(
       a_value / a_vector.x,a_value / a_vector.y,a_value / a_vector.z
-      );    
+      );
 }
 
 
@@ -588,7 +594,7 @@ inline double cDot(const cVector3d& a_vector1, const cVector3d& a_vector2)
 
 //===========================================================================
 /*!
-    Compute the normalized vector (length = 1) of an input vector.
+    Compute the normalized vector (\e length = 1) of an input vector.
 
     \param    a_vector  Input vector.
     \return   Returns the normalized vector.
@@ -623,7 +629,7 @@ inline double cDistance(const cVector3d& a_point1, const cVector3d& a_point2)
 
     \param    a_point1  First point.
     \param    a_point2  Second point.
-    \return   Return squared distance between points
+    \return   Return squared distance between points.
 */
 //===========================================================================
 inline double cDistanceSq(const cVector3d& a_point1, const cVector3d& a_point2)
@@ -631,25 +637,28 @@ inline double cDistanceSq(const cVector3d& a_point1, const cVector3d& a_point2)
   return ( a_point1.distancesq(a_point2) );
 }
 
-                 
+
 //===========================================================================
 /*!
      Determine whether two vectors represent the same point.
 
-     \fn       bool inline cEqualPoints(const cVector3d& v1, const cVector3d& v2,
-                           const double epsilon=CHAI_SMALL)
+     \fn       bool inline cEqualPoints(const cVector3d& v1,
+                                        const cVector3d& v2,
+                                        const double epsilon=CHAI_SMALL)
      \param    v1  First point.
      \param    v2  Second point.
      \param    epsilon  Two points will be considered equal if each
                         component is within epsilon units.  Defaults
-                        to CHAI_SMALL.
+                        to \e CHAI_SMALL.
      \return   Return whether the two vectors represent the same point.
 */
 //===========================================================================
-bool inline cEqualPoints(const cVector3d& v1, const cVector3d& v2, const double epsilon=CHAI_SMALL)
+bool inline cEqualPoints(const cVector3d& v1,
+                         const cVector3d& v2,
+                         const double epsilon=CHAI_SMALL)
 {
     // Accelerated path for exact equality
-    if (epsilon == 0.0) {      
+    if (epsilon == 0.0) {
         if ( (v1.x == v2.x) && (v1.y == v2.y) && (v1.z == v2.z) ) return true;
         else return false;
     }
@@ -657,7 +666,7 @@ bool inline cEqualPoints(const cVector3d& v1, const cVector3d& v2, const double 
     if ((fabs(v1.x-v2.x) < epsilon) &&
         (fabs(v1.y-v2.y) < epsilon) &&
         (fabs(v1.z-v2.z) < epsilon)) return true;
-    else return false;    
+    else return false;
 }
 
 
@@ -827,7 +836,8 @@ inline cMatrix3d cRotMatrix(const cVector3d& a_axis, const double& a_angleRad)
     \return   Returns input matrix after rotation.
 */
 //===========================================================================
-inline cMatrix3d cRotate(const cMatrix3d& a_matrix, const cVector3d& a_axis,
+inline cMatrix3d cRotate(const cMatrix3d& a_matrix,
+                         const cVector3d& a_axis,
 						 const double& a_angleRad)
 {
     cMatrix3d result;
@@ -844,12 +854,13 @@ inline cMatrix3d cRotate(const cMatrix3d& a_matrix, const cVector3d& a_axis,
     \param    a_point  Point to project on plane.
     \param    a_planePoint   Point on plane.
     \param    n              Plane normal.
-    \return   Returns the projection of \e a_point on plane.
+    \return   Returns the projection of \e point on \e plane.
 */
 //===========================================================================
 inline cVector3d cProjectPointOnPlane(const cVector3d& a_point,
-                                      const cVector3d& a_planePoint, const cVector3d& n)
-{    
+                                      const cVector3d& a_planePoint,
+                                      const cVector3d& n)
+{
     // compute a projection matrix
     cMatrix3d projectionMatrix;
 
@@ -878,7 +889,7 @@ inline cVector3d cProjectPointOnPlane(const cVector3d& a_point,
     \param    a_planePoint0  Point 0 on plane.
     \param    a_planePoint1  Point 1 on plane.
     \param    a_planePoint2  Point 2 on plane.
-    \return   Returns the projection of \e a_point on plane.
+    \return   Returns the projection of \e point on \e plane.
 */
 //===========================================================================
 inline cVector3d cProjectPointOnPlane(const cVector3d& a_point,
@@ -896,23 +907,26 @@ inline cVector3d cProjectPointOnPlane(const cVector3d& a_point,
     v01.crossr(v02, n);
     n.normalize();
 
-    return cProjectPointOnPlane(a_point,a_planePoint0,n);  
+    return cProjectPointOnPlane(a_point,a_planePoint0,n);
 }
 
 
 //===========================================================================
 /*!
-    Projects a 3D point on a plane composed of three points. This functions
-    returns two parameters a_v01 and a_v02 which correspond to the factors
-    which express: projectedPoint = a_planePoint0 + a_v01 * V01 + a_v02 * V02,
-    where V01 = a_planePoint1 - a_planePoint0 and V02 = a_planePoint2 - a_planePoint0
+    Projects a 3D point on a plane composed of three points. \n
+    This function returns two parameters \e v01 and \e v02 which correspond 
+    to the factord which express the following relation: 
+    \e projectedPoint = \e planePoint0 + \e v01 * \e V01 + \e v02 * \e V02 \n
+    where: \n
+    \e V01 = \e planePoint1 - \e planePoint0, and \n
+    \e V02 = \e planePoint2 - \e planePoint0
 
     \param    a_point  Point to project on plane.
     \param    a_planePoint0  Point 0 on plane.
     \param    a_planePoint1  Point 1 on plane.
     \param    a_planePoint2  Point 2 on plane.
-    \param    returned factor a_v01
-    \param    returned factor a_v02
+    \param    a_v01  returned factor.
+    \param    a_v02  returned factor.
 */
 //===========================================================================
 inline void cProjectPointOnPlane(const cVector3d& a_point,
@@ -1022,7 +1036,7 @@ inline cVector3d cProjectPointOnSegment(const cVector3d& a_point,
 
 //===========================================================================
 /*!
-    Project a vector V0 onto a second vector V1.
+    Project a vector \e V0 onto a second vector \e V1.
 
     \param    a_vector0  Vector 0.
     \param    a_vector1  Vector 1.
@@ -1074,19 +1088,19 @@ inline cVector3d cComputeSurfaceNormal(const cVector3d& a_surfacePoint0,
 
 //===========================================================================
 /*!
-    Returns true if p is contained in the bounding box defined by min and max
+    Returns true if \e point is contained in the bounding box defined by min and max
 
-    \param    p Test point
+    \param    a_point Test point
     \param    box_min Minimum coordinate in the boundary box
     \param    box_max Maximum coordinate in the boundary box
     \return   Returns true if p is in [box_min,box_max], inclusive
 */
 //===========================================================================
-inline bool cBoxContains(const cVector3d& p, const cVector3d& box_min, const cVector3d& box_max)
+inline bool cBoxContains(const cVector3d& a_point, const cVector3d& box_min, const cVector3d& box_max)
 {
-    if ((p.x >= box_min.x) && (p.x <= box_max.x) &&
-        (p.y >= box_min.y) && (p.y <= box_max.y) &&
-        (p.z >= box_min.z) && (p.z <= box_max.z))
+    if ((a_point.x >= box_min.x) && (a_point.x <= box_max.x) &&
+        (a_point.y >= box_min.y) && (a_point.y <= box_max.y) &&
+        (a_point.z >= box_min.z) && (a_point.z <= box_max.z))
         return true;
     return false;
 }
@@ -1095,19 +1109,20 @@ inline bool cBoxContains(const cVector3d& p, const cVector3d& box_min, const cVe
 //===========================================================================
 /*!
     Returns the number of intersection points between a segment AB and
-    a sphere of radius R. The number of points can be 0, 1 or 2.
-    If two intersection points are detected, a_collisionPoint0 will be
-    the closest one to a_segmentPointA of segment AB
+    a sphere of radius \e R. \n
+    The number of points can be \e 0, \e 1 or \e 2. \n
+    If two intersection points are detected, \e collisionPoint0 will be
+    the closest one to \e segmentPointA of segment AB.
 
-    \param    a_segmentPointA       First point of segment AB
-    \param    a_segmentPointB       Second point of segment AB
+    \param    a_segmentPointA       First point of segment AB.
+    \param    a_segmentPointB       Second point of segment AB.
     \param    a_spherePos           Position of sphere center.
     \param    a_sphereRadius        Radius of sphere.
-    \param    a_collisionPoint0     Intersection point 0 if detected
+    \param    a_collisionPoint0     Intersection point 0 if detected.
     \param    a_collisionNormal0    Surface normal at intersection point 0
-    \param    a_collisionPoint1     Intersection point 1 if detected
+    \param    a_collisionPoint1     Intersection point 1 if detected.
     \param    a_collisionNormal1    Surface normal at intersection point 1
-    \return   Returns the number of intersection points found
+    \return   Returns the number of intersection points found.
 */
 //===========================================================================
 inline int cIntersectionSegmentSphere(cVector3d& a_segmentPointA,
@@ -1215,10 +1230,10 @@ inline int cIntersectionSegmentSphere(cVector3d& a_segmentPointA,
 //===========================================================================
 /*!
     Returns the number of intersection points between a segment AB and
-    a open topless cylinder of radius R. The number of intersection points
-    can be 0, 1 or 2. If two intersection points are detected,
-    a_collisionPoint0 will be the point one topoint a_segmentPointA of
-    segment AB.
+    a open topless cylinder of radius \e R. \n
+    The number of intersection points can be \e 0, \e 1 or \e 2. \n
+    If two intersection points are detected, \e collisionPoint0 will
+    correspond to the point nearest to \e segmentPointA of segment AB.
 
     \param    a_segmentPointA       First point of segment AB
     \param    a_segmentPointB       Second point of segment AB
@@ -1275,7 +1290,7 @@ inline int cIntersectionSegmentToplessCylinder(
         bool valid_u0 = true;
         bool valid_u1 = true;
 
-        // check if solutions allong segment
+        // check if solutions along segment
         double lengthAB = segmentAB.length();
         if (!cContains(u0, 0.0, lengthAB)) { valid_u0 = false; }
         if (!cContains(u1, 0.0, lengthAB)) { valid_u1 = false; }
@@ -1337,16 +1352,16 @@ inline int cIntersectionSegmentToplessCylinder(
 //===========================================================================
 /*!
     Returns true if segment AB intersects triangle defined by
-    its three vertices (V0, V1, V2)
+    its three vertices (\e V0, \e V1, \e V2).
 
     \param    a_segmentPointA   First point of segment AB
     \param    a_segmentPointB   Second point of segment AB
     \param    a_triangleVertex0 Vertex 0 of triangle
     \param    a_triangleVertex1 Vertex 1 of triangle
     \param    a_triangleVertex2 Vertex 2 of triangle
-    \param    a_collisionPoint  If a collision occures, collision point is returned here
-    \param    a_collisionNormal Surface normal at the point where the collision occured
-    \return   Return true id collision occures, otherwise return false
+    \param    a_collisionPoint  If a collision occurs, collision point is returned here
+    \param    a_collisionNormal Surface normal at the point where the collision occurred
+    \return   Return true id collision occurs, otherwise return false
 */
 //===========================================================================
 inline bool cIntersectionSegmentTriangle(
@@ -1360,7 +1375,7 @@ inline bool cIntersectionSegmentTriangle(
 {
     // This value controls how close rays can be to parallel to the triangle
     // surface before we discard them
-    #define CHAI_INTERSECT_EPSILON 10e-14f
+    const double CHAI_INTERSECT_EPSILON = 10e-14f;
 
     // compute a ray and check its length
     cVector3d rayDir;
@@ -1408,7 +1423,7 @@ inline bool cIntersectionSegmentTriangle(
         // Square distance between ray origin and collision point.
         double distanceSquare = a_segmentPointA.distancesq(t_I);
 
-        // check if collision occured within segment. If yes, report collision
+        // check if collision occurred within segment. If yes, report collision
         if (distanceSquare <= segmentLengthSquare)
         {
             a_collisionPoint = cAdd(a_segmentPointA, cMul(t_T, rayDir));
@@ -1421,7 +1436,7 @@ inline bool cIntersectionSegmentTriangle(
         }
     }
 
-    // no collision occured
+    // no collision occurred
     return (false);
 }
 

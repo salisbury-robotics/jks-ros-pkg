@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,23 +12,25 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Stephen Sinclair (
-    \author:    http://www.mpb-technologies.ca/
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Stephen Sinclair (
+    \author    http://www.mpb-technologies.ca/
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
+#include "extras/CGlobals.h"
 #include "devices/CFreedom6SDevice.h"
 //---------------------------------------------------------------------------
-#ifndef _DISABLE_MPB_DEVICE_SUPPORT
+#if defined(_ENABLE_MPB_DEVICE_SUPPORT)
 //---------------------------------------------------------------------------
-#include "extras/CGlobals.h"
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //---------------------------------------------------------------------------
 HINSTANCE hf6sDLL = NULL;
 //---------------------------------------------------------------------------
 // Copied from f6s.h in the Freedom6S API
+//---------------------------------------------------------------------------
 
 typedef enum
 {
@@ -66,6 +68,10 @@ F6SRC (*f6s_GetVelocityGL)( HF6S hf6s, double linearVel[3],  double angularVel[3
 
 // Initialize dhd dll reference count
 int cFreedom6SDevice::m_activeFreedom6SDevices = 0;
+
+//---------------------------------------------------------------------------
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
 
 //===========================================================================
 /*!
@@ -122,6 +128,7 @@ cFreedom6SDevice::cFreedom6SDevice() : cGenericHapticDevice()
     m_specifications.m_maxTorqueStiffness            = 3.000;   // [N*m/Rad]
     m_specifications.m_maxGripperTorque              = 0.000;   // [N*m]
     m_specifications.m_maxGripperTorqueStiffness     = 0.000;   // [N/m]
+    m_specifications.m_maxLinearDamping              = 3.5;     // [N/(m/s)]
     m_specifications.m_workspaceRadius               = 0.100;   // [m]
     m_specifications.m_sensedPosition                = true;
     m_specifications.m_sensedRotation                = true;
@@ -236,11 +243,11 @@ unsigned int cFreedom6SDevice::getNumDevices()
 
 //===========================================================================
 /*!
-    Read the position of the device. Units are in meters.
+    Read the position of the device. Units are meters [m].
 
     \fn     int cFreedom6SDevice::getPosition(cVector3d& a_position)
     \param  a_position  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::getPosition(cVector3d& a_position)
@@ -253,12 +260,13 @@ int cFreedom6SDevice::getPosition(cVector3d& a_position)
     f6s_GetPositionMatrixGL(m_hf6s, kinemat);
 
     // kinemat is a row-major 4x4 rotation/translation matrix
-    m_prevPosition.x = kinemat[14];
-    m_prevPosition.y = kinemat[12];
-    m_prevPosition.z = kinemat[13];
+    cVector3d result;
+    result.x = kinemat[14];
+    result.y = kinemat[12];
+    result.z = kinemat[13];
 
     // return result
-    a_position = m_prevPosition;
+    a_position = result;
 
     // success
     return (0);
@@ -271,7 +279,7 @@ int cFreedom6SDevice::getPosition(cVector3d& a_position)
 
     \fn     int cFreedom6SDevice::getLinearVelocity(cVector3d& a_linearVelocity)
     \param  a_linearVelocity  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::getLinearVelocity(cVector3d& a_linearVelocity)
@@ -304,7 +312,7 @@ int cFreedom6SDevice::getLinearVelocity(cVector3d& a_linearVelocity)
 
     \fn     int cFreedom6SDevice::getRotation(cMatrix3d& a_rotation)
     \param  a_rotation  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::getRotation(cMatrix3d& a_rotation)
@@ -321,7 +329,7 @@ int cFreedom6SDevice::getRotation(cMatrix3d& a_rotation)
 
     \fn     int cFreedom6SDevice::getAngularVelocity(cVector3d& a_angularVelocity)
     \param  a_angularVelocity  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::getAngularVelocity(cVector3d& a_angularVelocity)
@@ -354,7 +362,7 @@ int cFreedom6SDevice::getAngularVelocity(cVector3d& a_angularVelocity)
 
     \fn     int cFreedom6SDevice::getGripperAngleRad(double& a_angle)
     \param  a_angle  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::getGripperAngleRad(double& a_angle)
@@ -370,7 +378,7 @@ int cFreedom6SDevice::getGripperAngleRad(double& a_angle)
 
     \fn     int cFreedom6SDevice::setForce(cVector3d& a_force)
     \param  a_force  Force command to be applied to device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::setForce(cVector3d& a_force)
@@ -405,7 +413,7 @@ int cFreedom6SDevice::setForce(cVector3d& a_force)
 
     \fn     int cFreedom6SDevice::setTorque(cVector3d& a_torque)
     \param  a_torque Force command to be applied to device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::setTorque(cVector3d& a_torque)
@@ -440,7 +448,7 @@ int cFreedom6SDevice::setTorque(cVector3d& a_torque)
 
     \fn     int cFreedom6SDevice::setGripperTorque(double a_gripperTorque)
     \param  a_gripperTorque  Torque command to be sent to gripper.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::setGripperTorque(double a_gripperTorque)
@@ -459,7 +467,7 @@ int cFreedom6SDevice::setGripperTorque(double a_gripperTorque)
     \param  a_force  Force command.
     \param  a_torque  Torque command.
     \param  a_gripperTorque  Gripper torque command.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cFreedom6SDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d& a_torque, double a_gripperTorque)
@@ -494,14 +502,17 @@ int cFreedom6SDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d&
 /*!
     Read the status of the user switch [1 = ON / 0 = OFF].
 
-    \fn     int cFreedom6SDevice::getUserSwitch(int a_switchIndex, int& a_status)
+    \fn     int cFreedom6SDevice::getUserSwitch(int a_switchIndex, bool& a_status)
     \param  a_switchIndex  index number of the switch.
     \param  a_status result value from reading the selected input switch.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
-int cFreedom6SDevice::getUserSwitch(int a_switchIndex, int& a_status)
+int cFreedom6SDevice::getUserSwitch(int a_switchIndex, bool& a_status)
 {
+	// no switch implemented
+	a_status = false;
+
     // success
     return (0);
 }

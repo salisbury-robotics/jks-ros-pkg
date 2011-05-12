@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Force Dimension - www.forcedimension.com
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Force Dimension - www.forcedimension.com
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -23,12 +23,24 @@
 #ifndef CDeltaDevicesH
 #define CDeltaDevicesH
 //---------------------------------------------------------------------------
-#ifndef _DISABLE_DELTA_DEVICE_SUPPORT
+#if defined(_ENABLE_DELTA_DEVICE_SUPPORT)
 //---------------------------------------------------------------------------
 #include "devices/CGenericHapticDevice.h"
 //---------------------------------------------------------------------------
 
-#ifdef _WIN32
+//===========================================================================
+/*!
+    \file       CDeltaDevices.h
+
+    \brief
+    <b> Devices </b> \n 
+    Delta & Omega Haptic Device.
+*/
+//===========================================================================
+
+#if defined(_WIN32)
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 /* devices */
 #define DHD_DEVICE_NONE            0
@@ -42,6 +54,7 @@
 #define DHD_DEVICE_OMEGA33_LEFT   36
 #define DHD_DEVICE_OMEGA331       35
 #define DHD_DEVICE_OMEGA331_LEFT  37
+#define DHD_DEVICE_FALCON         60
 #define DHD_DEVICE_CONTROLLER     81
 #define DHD_DEVICE_CONTROLLER_HR  82
 #define DHD_DEVICE_CUSTOM         91
@@ -81,68 +94,78 @@
 #define DHD_VELOCITY_WINDOWING     0
 #define DHD_VELOCITY_AVERAGING     1
 
-#endif
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
+#endif  // _WIN32
 
 //---------------------------------------------------------------------------
 
 //===========================================================================
 /*!
-    \file   CDeltaDevices.h
-    \class  cDeltaDevice
-    \brief  cDeltaDevice describes an interface to the Delta and Omega haptic
-			devices from Force Dimension.
+    \class      cDeltaDevice
+    \ingroup    devices  
+    
+    \brief  
+    cDeltaDevice implements an interface to  the omega.x and delta.x
+    haptic devices from Force Dimension.
 */
 //===========================================================================
 class cDeltaDevice : public cGenericHapticDevice
 {
   public:
 
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
-    //! Constructor of cDeltaDevices.
+    //-----------------------------------------------------------------------
+    //! Constructor of cDeltaDevice.
     cDeltaDevice(unsigned int a_deviceNumber = 0);
 
-    //! Destructor of cGenericDevice.
+    //! Destructor of cDeltaDevice.
     virtual ~cDeltaDevice();
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
-    //! Open connection to haptic device (0 indicates success)
+    //-----------------------------------------------------------------------
+
+    //! Open connection to haptic device (0 indicates success).
     int open();
 
-    //! Close connection to haptic device (0 indicates success)
+    //! Close connection to haptic device (0 indicates success).
     int close();
 
-    //! Initialize or calibrate haptic device (0 indicates success)
+    //! Initialize or calibrate haptic device (0 indicates success).
     int initialize(const bool a_resetEncoders=false);
 
     //! Returns the number of devices available from this class of device.
     unsigned int getNumDevices();
 
-    //! Read the position of the device. Units are in meters.
+    //! Read the position of the device. Units are meters [m].
     int getPosition(cVector3d& a_position);
 
-    //! Read the linear velocity of the device
+    //! Read the linear velocity of the device. Units are meters per second [m/s].
     int getLinearVelocity(cVector3d& a_linearVelocity);
 
-    //! Read the orientation frame of the device end-effector
+    //! Read the orientation frame of the device end-effector.
     int getRotation(cMatrix3d& a_rotation);
 
-    //! Read the gripper angle in radian
+    //! Read the gripper angle in radian.
     int getGripperAngleRad(double& a_angle);
 
-    //! Send a force [N] to the haptic device
+    //! Send a force [N] to the haptic device.
     int setForce(cVector3d& a_force);
 
-    //! Send a torque [N*m] to the haptic device
+    //! Send a torque [N*m] to the haptic device.
     int setTorque(cVector3d& a_torque);
 
-    //! Send a torque [N*m] to the gripper
+    //! Send a torque [N*m] to the gripper.
     int setGripperTorque(double a_gripperTorque);
 
     //! Send a force [N] and a torque [N*m] and gripper torque [N*m] to the haptic device.
     int setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d& a_torque, double a_gripperTorque);
 
-    //! read the status of the user switch [1 = ON / 0 = OFF]
-    int getUserSwitch(int a_switchIndex, int& a_status);
+    //! read the status of the user switch [\b true = \b ON / \b false = \b OFF].
+    int getUserSwitch(int a_switchIndex, bool& a_status);
+
 
     //-----------------------------------------------------------------------
     // METHODS RESTRICTED TO FORCE DIMENSION DEVICES ONLY:
@@ -151,30 +174,58 @@ class cDeltaDevice : public cGenericHapticDevice
     //! Return the Force Dimension type of the current device.
     int getDeviceType() { return m_deviceType; }
 
-    //! Overrides the force button switch located at the base of the device
+    //! Overrides the force button switch located at the base of the device.
     int enableForces(bool a_value);
 
   protected:
 
-    //! Reference count used to control access to the dhd dll
+    //! Reference count used to control access to the dhd dll.
     static int m_activeDeltaDevices;
 
-    //! Device ID number
+    //! Device ID number.
     int m_deviceID;
 
     //! Which FD device is actually instantiated here?
     int m_deviceType;
 
-    //! Last position of user switch
+    //! structure for modeling a low-pass filter user switches.
     int m_userSwitchCount[8];
+
+    //! Last state of user switch.
 	int m_userSwitchStatus[8];
+
+    //! Timeguard for user switch.
     cPrecisionClock m_userSwitchClock[8];
 
-    //! Read user switch from end-effector
+    //! Read user switch from end-effector.
     int getUserSwitch(int a_deviceID);
 
-    //! Have forces been enable yet since the connexion to the device was opened?
+    //! Have forces been enable yet since the connection to the device was opened?
     bool statusEnableForcesFirstTime;
+
+    //! status of DHD API calls.
+    #ifndef DOXYGEN_SHOULD_SKIP_THIS
+    static bool sdhdGetDeviceCount;
+    static bool sdhdGetDeviceID;
+    static bool sdhdGetSystemType;
+    static bool sdhdOpenID;
+    static bool sdhdClose;
+    static bool sdhdGetButton;
+    static bool sdhdReset;
+    static bool sdhdGetPosition;
+    static bool sdhdGetLinearVelocity;
+    static bool sdhdSetForce;
+    static bool sdhdGetOrientationRad;
+    static bool sdhdSetTorque;
+    static bool sdhdGetOrientationFrame;
+    static bool sdhdSetForceAndGripperForce;
+    static bool sdhdGetGripperThumbPos;
+    static bool sdhdGetGripperFingerPos;
+    static bool sdhdEnableExpertMode;
+    static bool sdhdDisableExpertMode;
+    static bool sdhdEnableForce;
+    static bool sdhdIsLeftHanded;
+    #endif  // DOXYGEN_SHOULD_SKIP_THIS
 };
 
 //---------------------------------------------------------------------------

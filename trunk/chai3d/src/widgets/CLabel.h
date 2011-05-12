@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 	
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -31,30 +31,49 @@
 
 //===========================================================================
 /*!
-      \class      cLabel
-      \brief      This class provides functionalities to display one line
-                  of text.
+    \file       CLabel.h
+
+    \brief 
+    <b> Widgets </b> \n 
+    String Label.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cLabel
+    \ingroup    widgets  
+
+    \brief      
+    This class provides functionalities to display one line of text.
 */
 //===========================================================================
 class cLabel : public cGenericObject
 {
   public:
 
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
 
-    //! Constructor of cLabel
+    //! Constructor of cLabel.
     cLabel();
 
-    //! Destructor of cFont
+    //! Destructor of cLabel.
     virtual ~cLabel();
 
-    //! Font
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
+    //! Font type.
     cFont* m_font;
 
-    //! Font color
+    //! Font color.
     cColorf m_fontColor;
 
-    //! String
+    //! String to be displayed.
     string m_string;
 
     //! Render object in OpenGL.

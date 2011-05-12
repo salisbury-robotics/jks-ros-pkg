@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,18 +12,43 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Force Dimension - www.forcedimension.com
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Force Dimension - www.forcedimension.com
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
+#include "extras/CGlobals.h"
 #include "devices/CDeltaDevices.h"
 //---------------------------------------------------------------------------
-#ifndef _DISABLE_DELTA_DEVICE_SUPPORT
+#if defined(_ENABLE_DELTA_DEVICE_SUPPORT)
 //---------------------------------------------------------------------------
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+
+// DHD-API function availability
+bool cDeltaDevice::sdhdGetDeviceCount              = true;
+bool cDeltaDevice::sdhdGetDeviceID                 = true;
+bool cDeltaDevice::sdhdGetSystemType               = true;
+bool cDeltaDevice::sdhdOpenID                      = true;
+bool cDeltaDevice::sdhdClose                       = true;
+bool cDeltaDevice::sdhdGetButton                   = true;
+bool cDeltaDevice::sdhdReset                       = true;
+bool cDeltaDevice::sdhdGetPosition                 = true;
+bool cDeltaDevice::sdhdGetLinearVelocity           = true;
+bool cDeltaDevice::sdhdSetForce                    = true;
+bool cDeltaDevice::sdhdGetOrientationRad           = true;
+bool cDeltaDevice::sdhdSetTorque                   = true;
+bool cDeltaDevice::sdhdGetOrientationFrame         = true;
+bool cDeltaDevice::sdhdSetForceAndGripperForce     = true;
+bool cDeltaDevice::sdhdGetGripperThumbPos          = true;
+bool cDeltaDevice::sdhdGetGripperFingerPos         = true;
+bool cDeltaDevice::sdhdEnableExpertMode            = true;
+bool cDeltaDevice::sdhdDisableExpertMode           = true;
+bool cDeltaDevice::sdhdEnableForce                 = true;
+bool cDeltaDevice::sdhdIsLeftHanded                = true;
 
 #if defined(_WIN32)
 HINSTANCE dhdDLL = NULL;
@@ -52,12 +77,13 @@ bool (__stdcall *dhdIsLeftHanded)              (char ID);
 #else
 #include "dhdc.h"
 #endif
-
 //---------------------------------------------------------------------------
 
 // Initialize dhd dll reference count
 int cDeltaDevice::m_activeDeltaDevices = 0;
 
+//---------------------------------------------------------------------------
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 //---------------------------------------------------------------------------
 
 //===========================================================================
@@ -82,7 +108,6 @@ cDeltaDevice::cDeltaDevice(unsigned int a_deviceNumber)
     m_activeDeltaDevices++;
 
 #if defined(_WIN32)
-
     // load dhd.dll library
     if (dhdDLL==NULL)
     {
@@ -97,31 +122,94 @@ cDeltaDevice::cDeltaDevice(unsigned int a_deviceNumber)
 
     // load different callbacks
     dhdGetDeviceCount           = (int (__stdcall*)(void))GetProcAddress(dhdDLL, "dhdGetDeviceCount");
+    if (dhdGetDeviceCount == NULL) { sdhdGetDeviceCount = false; }
+
     dhdGetDeviceID              = (int (__stdcall*)(void))GetProcAddress(dhdDLL, "dhdGetDeviceID");
+    if (dhdGetDeviceID == NULL) { sdhdGetDeviceID = false; }
+
     dhdGetSystemType            = (int (__stdcall*)(char))GetProcAddress(dhdDLL, "dhdGetSystemType");
+    if (dhdGetSystemType == NULL) { sdhdGetSystemType = false; }
+
     dhdOpenID                   = (int (__stdcall*)(char))GetProcAddress(dhdDLL, "dhdOpenID");
+    if (dhdOpenID == NULL) { sdhdOpenID = false; }
+
     dhdClose                    = (int (__stdcall*)(char))GetProcAddress(dhdDLL, "dhdClose");
+    if (dhdClose == NULL) { sdhdClose = false; }
+
     dhdGetButton                = (int (__stdcall*)(int, char))GetProcAddress(dhdDLL, "dhdGetButton");
+    if (dhdGetButton == NULL) { sdhdGetButton = false; }
+
     dhdReset                    = (int (__stdcall*)(char))GetProcAddress(dhdDLL, "dhdReset");
+    if (dhdReset == NULL) { sdhdReset = false; }
+
     dhdGetPosition              = (int (__stdcall*)(double*, double*, double*, char))GetProcAddress(dhdDLL, "dhdGetPosition");
+    if (dhdGetPosition == NULL) { sdhdGetPosition = false; }
+
     dhdSetForce                 = (int (__stdcall*)(double, double, double, char))GetProcAddress(dhdDLL, "dhdSetForce");
+    if (dhdSetForce == NULL) { sdhdSetForce = false; }
+
     dhdGetOrientationRad        = (int( __stdcall*)(double*, double*, double*, char))GetProcAddress(dhdDLL, "dhdGetOrientationRad");
+    if (dhdGetOrientationRad == NULL) { sdhdGetOrientationRad = false; }
+
     dhdSetTorque                = (int (__stdcall*)(double, double, double, char))GetProcAddress(dhdDLL, "dhdSetTorque");
+    if (dhdSetTorque == NULL) { sdhdSetTorque = false; }
+
     dhdGetOrientationFrame      = (int (__stdcall*)(double[3][3], char ID))GetProcAddress(dhdDLL, "dhdGetRotatorMatrix");
     if (dhdGetOrientationFrame == NULL)
     {
         dhdGetOrientationFrame  = (int (__stdcall*)(double[3][3], char ID))GetProcAddress(dhdDLL, "dhdGetOrientationFrame");
     }
-    dhdGetLinearVelocity        = (int (__stdcall*)(double *vx, double *vy, double *vz, char ID))GetProcAddress(dhdDLL, "dhdGetLinearVelocity");
-    dhdSetForceAndGripperForce  = (int (__stdcall*)(double fx, double fy, double fz, double f, char ID))GetProcAddress(dhdDLL, "dhdSetForceAndGripperForce");
-    dhdGetGripperThumbPos       = (int (__stdcall*)(double *tx, double *ty, double *tz,  char ID))GetProcAddress(dhdDLL, "dhdGetGripperThumbPos");
-    dhdGetGripperFingerPos      = (int (__stdcall*)(double *fx, double *fy, double *fz,  char ID))GetProcAddress(dhdDLL, "dhdGetGripperFingerPos");
-    dhdEnableExpertMode         = (int (__stdcall*)(void))GetProcAddress(dhdDLL, "dhdEnableExpertMode");
-    dhdDisableExpertMode        = (int (__stdcall*)(void))GetProcAddress(dhdDLL, "dhdDisableExpertMode");
-    dhdEnableForce              = (int (__stdcall*)(unsigned char val, char ID))GetProcAddress(dhdDLL, "dhdEnableForce");
-    dhdIsLeftHanded             = (bool(__stdcall*)(char ID))GetProcAddress(dhdDLL, "dhdIsLeftHanded");
+    if (dhdGetOrientationFrame == NULL) { sdhdGetOrientationFrame = false; }
 
+    dhdGetLinearVelocity        = (int (__stdcall*)(double *vx, double *vy, double *vz, char ID))GetProcAddress(dhdDLL, "dhdGetLinearVelocity");
+    if (dhdGetLinearVelocity == NULL) { sdhdGetLinearVelocity = false; }
+
+    dhdSetForceAndGripperForce  = (int (__stdcall*)(double fx, double fy, double fz, double f, char ID))GetProcAddress(dhdDLL, "dhdSetForceAndGripperForce");
+    if (dhdSetForceAndGripperForce == NULL) { sdhdSetForceAndGripperForce = false; }
+
+    dhdGetGripperThumbPos       = (int (__stdcall*)(double *tx, double *ty, double *tz,  char ID))GetProcAddress(dhdDLL, "dhdGetGripperThumbPos");
+    if (dhdGetGripperThumbPos == NULL) { sdhdGetGripperThumbPos = false; }
+
+    dhdGetGripperFingerPos      = (int (__stdcall*)(double *fx, double *fy, double *fz,  char ID))GetProcAddress(dhdDLL, "dhdGetGripperFingerPos");
+    if (dhdGetGripperFingerPos == NULL) { sdhdGetGripperFingerPos = false; }
+
+    dhdEnableExpertMode         = (int (__stdcall*)(void))GetProcAddress(dhdDLL, "dhdEnableExpertMode");
+    if (dhdEnableExpertMode == NULL) { sdhdEnableExpertMode = false; }
+
+    dhdDisableExpertMode        = (int (__stdcall*)(void))GetProcAddress(dhdDLL, "dhdDisableExpertMode");
+    if (dhdDisableExpertMode == NULL) { sdhdDisableExpertMode = false; }
+
+    dhdEnableForce              = (int (__stdcall*)(unsigned char val, char ID))GetProcAddress(dhdDLL, "dhdEnableForce");
+    if (dhdEnableForce == NULL) { sdhdEnableForce = false; }
+
+    dhdIsLeftHanded             = (bool(__stdcall*)(char ID))GetProcAddress(dhdDLL, "dhdIsLeftHanded");
+    if (dhdIsLeftHanded == NULL) { sdhdIsLeftHanded = false; }
 #endif
+
+    // display a message if some function calls are missing
+    if (   (!sdhdGetDeviceCount)
+        || (!sdhdGetDeviceID)
+        || (!sdhdGetSystemType)
+        || (!sdhdOpenID)
+        || (!sdhdClose)
+        || (!sdhdGetButton)
+        || (!sdhdReset)
+        || (!sdhdGetPosition)
+        || (!sdhdGetLinearVelocity)
+        || (!sdhdSetForce)
+        || (!sdhdGetOrientationRad)
+        || (!sdhdSetTorque)
+        || (!sdhdGetOrientationFrame)
+        || (!sdhdSetForceAndGripperForce)
+        || (!sdhdGetGripperThumbPos)
+        || (!sdhdGetGripperFingerPos)
+        || (!sdhdEnableExpertMode)
+        || (!sdhdDisableExpertMode)
+        || (!sdhdEnableForce)
+        || (!sdhdIsLeftHanded))
+    {
+        printf("NOTICE: For optimal performances, please update the drivers of your Force Dimension haptic device.\n");
+    }
 
     // get the number ID of the device we wish to communicate with
     m_deviceID = a_deviceNumber;
@@ -188,7 +276,7 @@ cDeltaDevice::~cDeltaDevice()
 
 //===========================================================================
 /*!
-    Open connection to delta device.
+    Open connection to the omega.x or delta.x device.
 
     \fn     int cDeltaDevice::open()
 */
@@ -200,6 +288,9 @@ int cDeltaDevice::open()
 
     // if system is already opened then return
     if (m_systemReady) return (0);
+
+    // check if DHD-API call is available
+    if (!sdhdOpenID) return (-1);
 
     // try to open the device
     int result = dhdOpenID(m_deviceID);
@@ -219,10 +310,37 @@ int cDeltaDevice::open()
     statusEnableForcesFirstTime = true;
 
     // read the device type
-    m_deviceType = dhdGetSystemType(m_deviceID);
+    m_deviceType = DHD_DEVICE_OMEGA;
+    if (sdhdGetSystemType)
+    {
+        m_deviceType = dhdGetSystemType(m_deviceID);
+    }
 
     // left/right hand
-    bool leftHandOnly = dhdIsLeftHanded(m_deviceID);
+    bool leftHandOnly = false;
+    if (sdhdIsLeftHanded)
+    {
+        leftHandOnly = dhdIsLeftHanded(m_deviceID);
+    }
+
+    // default information
+    m_specifications.m_modelName                     = "omega";
+    m_specifications.m_maxForce                      = 12.0;    // [N]
+    m_specifications.m_maxForceStiffness             = 5000.0;  // [N/m]
+    m_specifications.m_maxTorque                     = 0.0;     // [N*m]
+    m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
+    m_specifications.m_maxGripperTorque              = 0.0;     // [N]
+    m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
+    m_specifications.m_maxLinearDamping              = 40.0;    // [N/(m/s)]
+    m_specifications.m_workspaceRadius               = 0.075;   // [m]
+    m_specifications.m_sensedPosition                = true;
+    m_specifications.m_sensedRotation                = false;
+    m_specifications.m_sensedGripper                 = false;
+    m_specifications.m_actuatedPosition              = true;
+    m_specifications.m_actuatedRotation              = false;
+    m_specifications.m_actuatedGripper               = false;
+    m_specifications.m_leftHand                      = true;
+    m_specifications.m_rightHand                     = true;
 
     // setup information regarding device
     switch (m_deviceType)
@@ -239,7 +357,14 @@ int cDeltaDevice::open()
             m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
             m_specifications.m_maxGripperTorque              = 0.0;     // [N]
             m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
+            m_specifications.m_maxLinearDamping              = 40.0;    // [N/(m/s)]
             m_specifications.m_workspaceRadius               = 0.15;    // [m]
+            m_specifications.m_sensedPosition                = true;
+            m_specifications.m_sensedRotation                = false;
+            m_specifications.m_sensedGripper                 = false;
+            m_specifications.m_actuatedPosition              = true;
+            m_specifications.m_actuatedRotation              = false;
+            m_specifications.m_actuatedGripper               = false;
             m_specifications.m_leftHand                      = true;
             m_specifications.m_rightHand                     = true;
         }
@@ -255,6 +380,7 @@ int cDeltaDevice::open()
             m_specifications.m_maxTorqueStiffness            = 1.0;     // [N*m/Rad]
             m_specifications.m_maxGripperTorque              = 0.0;     // [N]
             m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
+            m_specifications.m_maxLinearDamping              = 40.0;    // [N/(m/s)]
             m_specifications.m_workspaceRadius               = 0.15;    // [m]
             m_specifications.m_sensedPosition                = true;
             m_specifications.m_sensedRotation                = true;
@@ -280,6 +406,7 @@ int cDeltaDevice::open()
             m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
             m_specifications.m_maxGripperTorque              = 0.0;     // [N]
             m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
+            m_specifications.m_maxLinearDamping              = 40.0;    // [N/(m/s)]
             m_specifications.m_workspaceRadius               = 0.075;   // [m]
             m_specifications.m_sensedPosition                = true;
             m_specifications.m_sensedRotation                = false;
@@ -302,6 +429,7 @@ int cDeltaDevice::open()
             m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
             m_specifications.m_maxGripperTorque              = 0.0;     // [N]
             m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
+            m_specifications.m_maxLinearDamping              = 40.0;    // [N/(m/s)]
             m_specifications.m_workspaceRadius               = 0.075;   // [m]
             m_specifications.m_sensedPosition                = true;
             m_specifications.m_sensedRotation                = true;
@@ -324,6 +452,7 @@ int cDeltaDevice::open()
             m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
             m_specifications.m_maxGripperTorque              = 8.0;     // [N]
             m_specifications.m_maxGripperTorqueStiffness     = 10.0;    // [N*m/m]
+            m_specifications.m_maxLinearDamping              = 40.0;    // [N/(m/s)]
             m_specifications.m_workspaceRadius               = 0.075;   // [m]
             m_specifications.m_sensedPosition                = true;
             m_specifications.m_sensedRotation                = true;
@@ -335,6 +464,31 @@ int cDeltaDevice::open()
             m_specifications.m_rightHand                     = !leftHandOnly;
         }
         break;
+
+        //------------------------------------------------------------------
+        // falcon device
+        //------------------------------------------------------------------
+        case(DHD_DEVICE_FALCON):
+        {
+            m_specifications.m_manufacturerName              = "Novint Technologies";
+            m_specifications.m_modelName                     = "Falcon";
+            m_specifications.m_maxForce                      = 8.0;     // [N]
+            m_specifications.m_maxForceStiffness             = 3000.0;  // [N/m]
+            m_specifications.m_maxTorque                     = 0.0;     // [N*m]
+            m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
+            m_specifications.m_maxGripperTorque              = 0.0;     // [N]
+            m_specifications.m_maxLinearDamping              = 20.0;    // [N/(m/s)]
+            m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N*m/m]
+            m_specifications.m_workspaceRadius               = 0.04;    // [m]
+            m_specifications.m_sensedPosition                = true;
+            m_specifications.m_sensedRotation                = false;
+            m_specifications.m_sensedGripper                 = false;
+            m_specifications.m_actuatedPosition              = true;
+            m_specifications.m_actuatedRotation              = false;
+            m_specifications.m_actuatedGripper               = false;
+            m_specifications.m_leftHand                      = true;
+            m_specifications.m_rightHand                     = true;
+        }
     }
 
     return (result);
@@ -343,7 +497,7 @@ int cDeltaDevice::open()
 
 //===========================================================================
 /*!
-    Close connection to delta device.
+    Close connection to the omega.x or delta.x device.
 
     \fn     int cDeltaDevice::close()
 */
@@ -352,6 +506,9 @@ int cDeltaDevice::close()
 {
     // check if the system has been opened previously
     if (!m_systemReady) return (-1);
+
+    // check if DHD-API call is available
+    if (!sdhdClose) return (-1);
 
     // yes, the device is open so let's close it
     int result = dhdClose(m_deviceID);
@@ -368,7 +525,7 @@ int cDeltaDevice::close()
 
 //===========================================================================
 /*!
-    Calibrate delta device.
+    Calibrate the omega.x or delta.x device.
 
     This function does nothing right now; the a_resetEncoders parameter is ignored.
 
@@ -387,7 +544,7 @@ int cDeltaDevice::initialize(const bool a_resetEncoders)
 /*!
     Returns the number of devices available from this class of device.
 
-    \fn     unsigned int cDeltaDevice::getNumDevices();
+    \fn      unsigned int cDeltaDevice::getNumDevices();
     \return  Returns the result
 */
 //===========================================================================
@@ -396,6 +553,9 @@ unsigned int cDeltaDevice::getNumDevices()
     // check if the system is available
     if (!m_systemAvailable) return (0);
 
+    // check if DHD-API call is available
+    if (!sdhdGetDeviceCount) return (1);
+
     int result = dhdGetDeviceCount();
     return (result);
 }
@@ -403,11 +563,11 @@ unsigned int cDeltaDevice::getNumDevices()
 
 //===========================================================================
 /*!
-    Read the position of the device. Units are in meters.
+    Read the position of the device. Units are meters [m].
 
     \fn     int cDeltaDevice::getPosition(cVector3d& a_position)
     \param  a_position  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::getPosition(cVector3d& a_position)
@@ -415,11 +575,16 @@ int cDeltaDevice::getPosition(cVector3d& a_position)
     // check if the system is available
     if (!m_systemAvailable) return (-1);
 
+    // check if DHD-API call is available
+    if (!sdhdGetPosition) return (-1);
+
     int error = -1;
     double x,y,z;
     error = dhdGetPosition(&x, &y, &z, m_deviceID);
     a_position.set(x, y, z);
+#if !defined(_MACOSX) & !defined(_LINUX)
     estimateLinearVelocity(a_position);
+#endif
     return (error);
 }
 
@@ -430,7 +595,7 @@ int cDeltaDevice::getPosition(cVector3d& a_position)
 
     \fn     int cDeltaDevice::getLinearVelocity(cVector3d& a_linearVelocity)
     \param  a_linearVelocity  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::getLinearVelocity(cVector3d& a_linearVelocity)
@@ -439,13 +604,12 @@ int cDeltaDevice::getLinearVelocity(cVector3d& a_linearVelocity)
     if (!m_systemAvailable) return (-1);
 
     int error = 0;
-    /*
-    int error = -1;
+
+#if defined(_MACOSX) | defined(_LINUX)
     double vx,vy,vz;
     error = dhdGetLinearVelocity(&vx, &vy, &vz, m_deviceID);
-
     m_linearVelocity.set(vx, vy, vz);
-    */
+#endif
 
     a_linearVelocity = m_linearVelocity;
 
@@ -459,7 +623,7 @@ int cDeltaDevice::getLinearVelocity(cVector3d& a_linearVelocity)
 
     \fn     int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
     \param  a_rotation  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
@@ -467,7 +631,7 @@ int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
     // check if the system is available
     if (!m_systemAvailable) return (-1);
 
-    int error = -1;
+    int error = 0;
     cMatrix3d frame;
     frame.identity();
 
@@ -481,7 +645,12 @@ int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
             // read angles
             cVector3d angles;
             angles.set(0,0,0);
-            error = dhdGetOrientationRad(&angles.x, &angles.y, &angles.z, m_deviceID);
+
+            // check if DHD-API call is available
+            if (sdhdGetOrientationRad)
+            {
+                error = dhdGetOrientationRad(&angles.x, &angles.y, &angles.z, m_deviceID);
+            }
 
             // compute rotation matrix
             angles.mul(1.5);
@@ -503,7 +672,10 @@ int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
             rot[1][0] = 0.0; rot[1][1] = 1.0; rot[1][2] = 0.0;
             rot[2][0] = 0.0; rot[2][1] = 0.0; rot[2][2] = 1.0;
 
-            error = dhdGetOrientationFrame(rot, m_deviceID);
+            if (sdhdGetOrientationFrame)
+            {
+                error = dhdGetOrientationFrame(rot, m_deviceID);
+            }
 
             cMatrix3d result;
             frame.m[0][0] = rot[0][0];
@@ -532,7 +704,7 @@ int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
 
     \fn     int cDeltaDevice::getGripperAngleRad(double& a_angle)
     \param  a_angle  Return value.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::getGripperAngleRad(double& a_angle)
@@ -553,7 +725,7 @@ int cDeltaDevice::getGripperAngleRad(double& a_angle)
 
     \fn     int cDeltaDevice::setForce(cVector3d& a_force)
     \param  a_force  Force command to be applied to device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::setForce(cVector3d& a_force)
@@ -563,6 +735,9 @@ int cDeltaDevice::setForce(cVector3d& a_force)
 
     // check if forces need to be enable (happens only once)
     if (statusEnableForcesFirstTime) { enableForces(true); }
+
+    // check if DHD-API call is available
+    if (!sdhdSetForce) return (-1);
 
     int error = dhdSetForce(a_force.x, a_force.y, a_force.z, m_deviceID);
     m_prevForce = a_force;
@@ -576,7 +751,7 @@ int cDeltaDevice::setForce(cVector3d& a_force)
 
     \fn     int cDeltaDevice::setTorque(cVector3d& a_torque)
     \param  a_torque Force command to be applied to device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::setTorque(cVector3d& a_torque)
@@ -586,6 +761,9 @@ int cDeltaDevice::setTorque(cVector3d& a_torque)
 
     // check if forces need to be enable (happens only once)
     if (statusEnableForcesFirstTime) { enableForces(true); }
+
+    // check if DHD-API call is available
+    if (!sdhdSetTorque) return (-1);
 
     int error = dhdSetTorque(a_torque.x, a_torque.y, a_torque.z, m_deviceID);
     m_prevTorque = a_torque;
@@ -599,7 +777,7 @@ int cDeltaDevice::setTorque(cVector3d& a_torque)
 
     \fn     int cDeltaDevice::setGripperTorque(double a_gripperTorque)
     \param  a_gripperTorque  Torque command to be sent to gripper.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::setGripperTorque(double a_gripperTorque)
@@ -625,7 +803,7 @@ int cDeltaDevice::setGripperTorque(double a_gripperTorque)
     \param  a_force  Force command.
     \param  a_torque  Torque command.
     \param  a_gripperTorque  Gripper torque command.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d& a_torque, double a_gripperTorque)
@@ -635,6 +813,29 @@ int cDeltaDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d& a_t
 
     // check if forces need to be enable (happens only once)
     if (statusEnableForcesFirstTime) { enableForces(true); }
+
+    // apply force and gripper torque
+    if (!m_specifications.m_actuatedRotation)
+    {
+        if (sdhdSetForceAndGripperForce)
+        {
+            dhdSetForceAndGripperForce(a_force.x, a_force.y, a_force.z, a_gripperTorque, m_deviceID);
+        }
+        else if (sdhdSetForce)
+        {
+            dhdSetForce(a_force.x, a_force.y, a_force.z, m_deviceID);
+        }
+    }
+    else if ((sdhdSetForce) && (sdhdSetTorque) && (m_specifications.m_actuatedRotation))
+    {
+        dhdSetForce(a_force.x, a_force.y, a_force.z, m_deviceID);
+        dhdSetTorque(a_torque.x, a_torque.y, a_torque.z, m_deviceID);
+    }
+
+    else if (sdhdSetForce)
+    {
+        dhdSetForce(a_force.x, a_force.y, a_force.z, m_deviceID);
+    }
 
     int error = 0;
     m_prevForce = a_force;
@@ -646,33 +847,40 @@ int cDeltaDevice::setForceAndTorqueAndGripper(cVector3d& a_force, cVector3d& a_t
 
 //===========================================================================
 /*!
-    Read the status of the user switch [1 = ON / 0 = OFF].
+    Read the status of the user switch [1 = \e ON / 0 = \e OFF].
 
-    \fn     int cDeltaDevice::getUserSwitch(int a_switchIndex, int& a_status)
+    \fn     int cDeltaDevice::getUserSwitch(int a_switchIndex, bool& a_status)
     \param  a_switchIndex  index number of the switch.
     \param  a_status result value from reading the selected input switch.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
-int cDeltaDevice::getUserSwitch(int a_switchIndex, int& a_status)
+int cDeltaDevice::getUserSwitch(int a_switchIndex, bool& a_status)
 {
     // check if the system is available
     if (!m_systemAvailable) return (-1);
 
     int error = 0;
-    a_status = getUserSwitch(m_deviceID);
+    if (getUserSwitch(m_deviceID) == 0)
+	{
+		a_status = false;
+	}
+	else
+	{
+		a_status = true;
+	};
     return (error);
 }
 
 
 //===========================================================================
 /*!
-    Read the user switch of the end-effector
+    Read the user switch of the end-effector.
     This function implements a small filter to avoid reading glitches.
 
     \fn         int cDeltaDevice::getUserSwitch(int a_deviceID)
     \param      a_deviceID  device ID.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::getUserSwitch(int a_deviceID)
@@ -696,7 +904,10 @@ int cDeltaDevice::getUserSwitch(int a_deviceID)
     }
     else
     {
-        // timeout has occured, we read the status again
+        // check if DHD-API call is available
+        if (!sdhdGetButton) return (m_userSwitchStatus[a_deviceID]);
+
+        // timeout has occurred, we read the status again
         int switchStatus;
         switchStatus = dhdGetButton(0, (char)a_deviceID);
 
@@ -726,17 +937,22 @@ int cDeltaDevice::getUserSwitch(int a_deviceID)
 
 //===========================================================================
 /*!
-    Enables/Disables the motors of the omega.x device.
+    Enable/Disable the motors of the omega.x device.
     This function overrides the force button located at the base of the
     device or on the controller panel.
 
     \fn         int cDeltaDevice::enableForces(bool a_value)
     \param      a_value  force status.
-    \return     Return 0 if no error occured.
+    \return     Return 0 if no error occurred.
 */
 //===========================================================================
 int cDeltaDevice::enableForces(bool a_value)
 {
+    // check if DHD-API call is available
+    if (!sdhdEnableExpertMode) return (-1);
+    if (!sdhdEnableForce) return (-1);
+    if (!sdhdDisableExpertMode) return (-1);
+
     if (a_value)
     {
         // enable forces
@@ -757,5 +973,5 @@ int cDeltaDevice::enableForces(bool a_value)
 }
 
 //---------------------------------------------------------------------------
-#endif //_DISABLE_DELTA_DEVICE_SUPPORT
+#endif //_ENABLE_DELTA_DEVICE_SUPPORT
 //---------------------------------------------------------------------------

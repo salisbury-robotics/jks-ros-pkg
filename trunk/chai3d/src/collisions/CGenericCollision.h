@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -29,23 +29,43 @@ using std::vector;
 
 //===========================================================================
 /*!
-      \file     cGenericCollision.h
-      \class    cGenericCollision
-      \brief    cGenericCollision is an abstract class for collision-detection
-                algorithms for meshes with line segments.
+    \file   cGenericCollision.h
+    
+    \brief  
+    <b> Collision Detection </b> \n
+    Base Class.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!
+    \class      cGenericCollision
+    \ingroup    collisions  
+    
+    \brief    
+    cGenericCollision is an abstract class for collision-detection
+    algorithms for meshes with line segments.
 */
 //===========================================================================
 class cGenericCollision
 {
   public:
+
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
-    //! Constructor of cGenericCollision
+    //-----------------------------------------------------------------------
+
+    //! Constructor of cGenericCollision.
     cGenericCollision();
 
-    //! Destructor of cGenericCollision
+    //! Destructor of cGenericCollision.
     virtual ~cGenericCollision() {};
 
-    // VIRTUAL METHODS:
+
+	//-----------------------------------------------------------------------
+    // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Do any necessary initialization, such as building trees.
     virtual void initialize(double a_radius = 0) {};
 
@@ -59,20 +79,31 @@ class cGenericCollision
                                   cCollisionSettings& a_settings)
                                   { return (false); }
 
-    // METHODS:
     //! Set level of collision tree to display.
     void setDisplayDepth(int a_depth) { m_displayDepth = a_depth; }
 
     //! Read level of collision tree being displayed.
     double getDisplayDepth() const { return (m_displayDepth); }
 
-    //! Color properties of the collision object
+
+	//-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
+    //! Color properties of the collision object.
     cMaterial m_material;
 
+
   protected:
+
+	//-----------------------------------------------------------------------
     // MEMBERS:
-    //! Level of collision tree to render... negative values force rendering
-    //! up to and including this level, positive values render _just_ this level
+    //-----------------------------------------------------------------------
+
+    /*!
+        Level of collision tree to render... negative values force rendering
+        up to and including this level, positive values render _just_ this level.
+    */
     int m_displayDepth;
 };
 

@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Dan Morris
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Dan Morris
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -32,7 +32,8 @@
 
 //===========================================================================
 /*!
-    Default constructor for abstract class cFont
+    Default constructor for abstract class cFont.
+
     \fn         cFont::cFont()
 */
 //===========================================================================
@@ -46,7 +47,8 @@ cFont::cFont()
 
 //===========================================================================
 /*!
-    Use this to obtain an actual, non-virtual font object
+    Use this to obtain an actual, non-virtual font object.
+
     \fn         static cFont* cFont::createFont()
     \return     Returns a pointer to an actual cFont object that you can
                 use for rendering.  The caller is responsible for deleting
@@ -74,11 +76,12 @@ cFont* cFont::createFont()
 
 //===========================================================================
 /*!
-    Use this to copy data from an existing font object
+    Use this to copy data from an existing font object.
+
     \fn         static cFont* cFont::createFont(const cFont* oldFont);
     \return     Returns a pointer to an actual cFont object that you can
-    use for rendering.  The caller is responsible for deleting
-    this object.  Returns 0 if no font can be constructed.
+                use for rendering.  The caller is responsible for deleting
+                this object.  Returns 0 if no font can be constructed.
 */
 //===========================================================================
 cFont* cFont::createFont(const cFont* oldFont)
@@ -99,7 +102,8 @@ cFont* cFont::createFont(const cFont* oldFont)
 
 //===========================================================================
 /*!
-    Get the width of a particular character
+    Get the width of a particular character.
+
     \fn         int cFont::getCharacterWidth(const unsigned char& a_char)
     \return     Returns the width of this character in pixels, or -1 for an error
     \param      a_char    The character (e.g. 'a') to look up.  Characters less than
@@ -116,7 +120,8 @@ int cFont::getCharacterWidth(const unsigned char& a_char)
 
 //===========================================================================
 /*!
-    Change the font face, possibly marking the font for re-initialization
+    Change the font face, possibly marking the font for re-initialization.
+
     \fn         void cFont::setFontFace(const char* a_faceName)
     \param      a_faceName The new face name
 */
@@ -129,7 +134,6 @@ void cFont::setFontFace(const char* a_faceName)
     // Convert to lowercase
     for(int i=0; i<len; i++) m_fontFace[i] = tolower(m_fontFace[i]);
 }
-
 
 // Constants needed for GLUT fonts
 void* glut_bitmap_fonts[7] = {
@@ -170,7 +174,8 @@ const char* glut_stroke_font_names[2] = {
 
 //===========================================================================
 /*!
-    Return the index of the current font in the table of font name
+    Return the index of the current font in the table of font name.
+
     \fn         int cGLUTBitmapFont::getBestFontMatch()
     \return     -1 for error or an index into glut_bitmap_fonts
 */
@@ -223,6 +228,7 @@ int cGLUTBitmapFont::getBestFontMatch()
 //===========================================================================
 /*!
     Renders an actual string of text, initializing the font if necessary.
+
     \fn         int cGLUTBitmapFont::renderString(const char* a_str)
     \param      a_str The string to render; should not include newlines
     \return     0 for success, -1 for error
@@ -242,7 +248,8 @@ int cGLUTBitmapFont::renderString(const char* a_str)
 
 //===========================================================================
 /*!
-  Get the width of a particular character
+  Get the width of a particular character.
+
   \fn         int cGLUTBitmapFont::getCharacterWidth(const unsigned char& a_char)
   \return     Returns the width of this character in pixels, or -1 for an error
   \param      a_char    The character (e.g. 'a') to look up.  Characters less than
@@ -260,7 +267,8 @@ int cGLUTBitmapFont::getCharacterWidth(const unsigned char& a_char)
 
 //===========================================================================
 /*!
-    Constructor for cWin32BitmapFont
+    Constructor for cWin32BitmapFont.
+
     \fn         cWin32BitmapFont::cWin32BitmapFont()
 */
 //===========================================================================
@@ -294,7 +302,8 @@ cWin32BitmapFont::cWin32BitmapFont()
 
 //===========================================================================
 /*!
-  Destructor for cWin32BitmapFont
+  Destructor for cWin32BitmapFont.
+
   \fn         cWin32BitmapFont::~cWin32BitmapFont()
 */
 //===========================================================================
@@ -307,9 +316,10 @@ cWin32BitmapFont::~cWin32BitmapFont()
 //===========================================================================
 /*!
     Renders an actual string of text, initializing the font if necessary.
+
     \fn         int cWin32BitmapFont::renderString(const char* a_str)
-    \param      a_str The string to render; should not include newlines
-    \return     0 for success, -1 for error
+    \param      a_str  The string to render; should not include newlines.
+    \return     return 0 for success, -1 for error.
 */
 //===========================================================================
 int cWin32BitmapFont::renderString(const char* a_str)
@@ -338,9 +348,10 @@ int cWin32BitmapFont::renderString(const char* a_str)
 
 //===========================================================================
 /*!
-    Change the font face, possibly marking the font for re-initialization
+    Change the font face, possibly marking the font for re-initialization.
+
     \fn         void cWin32BitmapFont::setFontFace(const char* a_faceName)
-    \param      a_faceName The new face name
+    \param      a_faceName  The new face name.
 */
 //===========================================================================
 void cWin32BitmapFont::setFontFace(const char* a_faceName)
@@ -355,9 +366,10 @@ void cWin32BitmapFont::setFontFace(const char* a_faceName)
 
 //===========================================================================
 /*!
-    Change the font size, possibly marking the font for re-initialization
+    Change the font size, possibly marking the font for re-initialization.
+
     \fn         void cWin32BitmapFont::setPointSize(const float& a_pointSize)
-    \param      a_pointSize The new font size
+    \param      a_pointSize  The new font size.
 */
 //===========================================================================
 void cWin32BitmapFont::setPointSize(const float& a_pointSize)
@@ -466,8 +478,9 @@ int cWin32BitmapFont::initialize()
 //===========================================================================
 /*!
     Clean up a win32 bitmapped font
+
     \fn         int cWin32BitmapFont::uninitialize()
-    \return     0 for success, -1 for error
+    \return     Returns 0 for success, -1 for error.
 */
 //===========================================================================
 int cWin32BitmapFont::uninitialize()
@@ -485,10 +498,11 @@ int cWin32BitmapFont::uninitialize()
 //===========================================================================
 /*!
     Get the width of a particular character
+
     \fn         int cWin32BitmapFont::getCharacterWidth(const unsigned char& a_char)
-    \return     Returns the width of this character in pixels, or -1 for an error
     \param      a_char    The character (e.g. 'a') to look up.  Characters less than
                           32 ('A') will generate errors.
+    \return     Returns the width of this character in pixels, or -1 for an error.
 */
 //===========================================================================
 int cWin32BitmapFont::getCharacterWidth(const unsigned char& a_char)

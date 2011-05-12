@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -30,9 +30,9 @@
 
 //==========================================================================
 /*!
-      Constructor of cWorld.
+    Constructor of cWorld.
 
-      \fn       cWorld::cWorld()
+    \fn       cWorld::cWorld()
 */
 //===========================================================================
 cWorld::cWorld()
@@ -54,10 +54,10 @@ cWorld::cWorld()
 
 //===========================================================================
 /*!
-      Destructor of cWorld.  Deletes the world, all his children, and all
-      his textures.
+    Destructor of cWorld.  Deletes the world, all his children, and all
+    his textures.
 
-      \fn       cWorld::~cWorld()
+    \fn       cWorld::~cWorld()
 */
 //===========================================================================
 cWorld::~cWorld()
@@ -384,31 +384,15 @@ void cWorld::render(const int a_renderMode)
     for all objects in this world.  If there is more than one collision,
     the one closest to a_segmentPointA is the one returned.
 
-    For any dynamic objects in the world with valid position and rotation
-    histories (as indicated by the m_historyValid member of cGenericObject), the
-    first endpoint of the segment is adjusted so that it is in the same location
-    relative to the moved object as it was at the previous haptic iteration
-    (provided the object's m_lastRot and m_lastPos were updated), so that
-    collisions between the segment and the moving object can be properly detected.
-    If the returned collision is with a moving object, the actual parameter
-    corresponding to a_segmentPointA is set to the adjusted position for
-    that object.
-
-    If a collision(s) is located, information about the (closest) collision is
-    stored in the corresponding parameters \e a_colObject, \e a_colTriangle,
-    \e a_colPoint, and \e a_colDistance.
-
+	\fn	bool cWorld::computeCollisionDetection(cVector3d& a_segmentPointA,
+                                       cVector3d& a_segmentPointB,
+                                       cCollisionRecorder& a_recorder,
+                                       cCollisionSettings& a_settings)
     \param  a_segmentPointA  Start point of segment.  Value may be changed if
                              returned collision is with a moving object.
     \param  a_segmentPointB  End point of segment.
-    \param  a_colObject      Pointer to nearest collided object.
-    \param  a_colTriangle    Pointer to nearest collided triangle.
-    \param  a_colPoint       Position of nearest collision.
-    \param  a_colDistance    Distance between segment origin and nearest collision point.
-    \param  a_visibleObjectsOnly  Should we ignore invisible objects?
-    \param  a_proxyCall      If this is > 0, this is a call from a proxy, and the value
-                             of a_proxyCall specifies which call this is.  -1 for
-                             non-proxy calls.
+    \param  a_recorder  Stores all collision events
+    \param  a_settings  Contains collision settings information.
 */
 //===========================================================================
 bool cWorld::computeCollisionDetection(cVector3d& a_segmentPointA,

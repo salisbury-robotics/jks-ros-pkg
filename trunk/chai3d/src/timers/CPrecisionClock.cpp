@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,23 +12,23 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
 #include "timers/CPrecisionClock.h"
 //---------------------------------------------------------------------------
-#ifndef _WIN32
-#include <sys/time.h>
+#if defined(_MACOSX) || defined(_LINUX)
+#include "dhdc.h"
 #endif
 //---------------------------------------------------------------------------
 
 //===========================================================================
 /*!
-    Constructor of cPrecisionClock. Clock is initialized to zero.
+    Constructor of cPrecisionClock. The clock is initialized to zero.
 
     \fn		cPrecisionClock::cPrecisionClock()
 */
@@ -38,9 +38,9 @@ cPrecisionClock::cPrecisionClock()
     // clock is currently off
     m_on = false;
 
-#ifdef _WIN32
-    // test for high performance timer on the local machine. Some old computers
-    // may not offer this feature
+#if defined(_WIN32)
+    // test if high performance clock is available on the local machine. 
+	// Some old computers may not offer this feature.
     QueryPerformanceFrequency (&m_freq);
     if (m_freq.QuadPart <= 0)
     {
@@ -54,10 +54,10 @@ cPrecisionClock::cPrecisionClock()
     m_highres = true;
 #endif
 
-    // initialize current time
+    // initialize the time counter
     m_timeAccumulated = 0.0;
 
-    // initialize timeout
+    // initialize timeout period
     m_timeoutPeriod = 0.0;
 }
 
@@ -83,29 +83,31 @@ cPrecisionClock::~cPrecisionClock()
 //===========================================================================
 void cPrecisionClock::reset()
 {
-    // initialize current time of timer
+    // initialize clock to zero
     m_timeAccumulated = 0.0;
+
+	// store current CPU time as starting time
     m_timeStart = getCPUTimeSeconds();
 }
 
 
 //===========================================================================
 /*!
-    Start the clock from its current time value. To read the latest time
-    from the clock, use getCurrentTime().
+    Start or restart the clock. To read the latest time
+    from the clock, use method getCurrentTime.
 
-    \fn         double cPrecisionClock::start()
-    \param      bool resetClock: Should we start counting from zero?
-    \return     Returns the current clock time
+    \fn         double cPrecisionClock::start(bool a_resetClock)
+    \param      a_resetClock  Should we start counting from zero?
+    \return     Returns the current clock time.
 */
 //===========================================================================
-double cPrecisionClock::start(bool resetClock)
+double cPrecisionClock::start(bool a_resetClock)
 {
-    // store cpu time when timer was started
+ 	// store current CPU time as starting time
     m_timeStart = getCPUTimeSeconds();
 
-    if (resetClock)
-        m_timeAccumulated = 0.0; 
+    if (a_resetClock)
+        m_timeAccumulated = 0.0;
 
     // timer is now on
     m_on = true;
@@ -125,7 +127,7 @@ double cPrecisionClock::start(bool resetClock)
 //===========================================================================
 double cPrecisionClock::stop()
 {
-    
+
     // How much time has now elapsed in total running "sessions"?
     m_timeAccumulated += getCPUTimeSeconds() - m_timeStart;
 
@@ -140,9 +142,9 @@ double cPrecisionClock::stop()
 //===========================================================================
 /*!
     Set the period in \e microseconds before timeout occurs. Do not forget
-    to set the timer on by calling start()
+    to set the timer on by calling method \e start()
 
-    \fn         void cPrecisionClock::setTimeoutPeriod(long a_timeoutPeriod);
+    \fn         void cPrecisionClock::setTimeoutPeriodSeconds(double a_timeoutPeriod)
     \param      a_timeoutPeriod  Timeout period in \e seconds.
 */
 //===========================================================================
@@ -179,7 +181,7 @@ bool cPrecisionClock::timeoutOccurred()
 /*!
     Read the current time of timer. Result is returned in \e seconds.
 
-    \fn			double cPrecisionClock::getCurrentTime()
+    \fn			double cPrecisionClock::getCurrentTimeSeconds()
     \return		Return current time in \e seconds
 */
 //===========================================================================
@@ -206,7 +208,7 @@ double cPrecisionClock::getCPUTimeSeconds()
 {
 
     // Windows implementation
-#ifdef _WIN32
+#if defined(_WIN32)
 
     if (m_highres)
     {
@@ -215,7 +217,7 @@ double cPrecisionClock::getCPUTimeSeconds()
         return (double)curtime / (double)m_freq.QuadPart;
     }
 
-    else 
+    else
     {
         return ((double)(GetTickCount())) / 1000.0;
     }
@@ -223,11 +225,7 @@ double cPrecisionClock::getCPUTimeSeconds()
     // POSIX implementation
 #else
 
-    timeval t;
-    gettimeofday(&t,0);
-
-    // Convert everything to sec
-    return (double)t.tv_sec + ((double)t.tv_usec) / 1000000.0;
+    return dhdGetTime();
 
 #endif
 

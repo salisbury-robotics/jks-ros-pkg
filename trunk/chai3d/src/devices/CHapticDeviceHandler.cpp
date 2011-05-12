@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -82,7 +82,8 @@ cHapticDeviceHandler::~cHapticDeviceHandler()
 
 //===========================================================================
 /*!
-    Updates information regarding the devices that are connected to your computer
+    Updates information regarding the devices that are connected to 
+    your computer.
 
     \fn     void cHapticDeviceHandler::update()
 */
@@ -107,7 +108,7 @@ void cHapticDeviceHandler::update()
     //-----------------------------------------------------------------------
     // search for Force Dimension devices
     //-----------------------------------------------------------------------
-    #ifndef _DISABLE_DELTA_DEVICE_SUPPORT
+    #if defined(_ENABLE_DELTA_DEVICE_SUPPORT)
 
     // reset index number
     index = 0;
@@ -137,7 +138,7 @@ void cHapticDeviceHandler::update()
             }
         }
     }
-    else 
+    else
     {
         delete device;
     }
@@ -146,7 +147,7 @@ void cHapticDeviceHandler::update()
     //-----------------------------------------------------------------------
     // search for Novint Falcon device
     //-----------------------------------------------------------------------
-    #ifndef _DISABLE_FALCON_DEVICE_SUPPORT
+    #if defined(_ENABLE_FALCON_DEVICE_SUPPORT)
 
     // reset index number
     index = 0;
@@ -188,7 +189,7 @@ void cHapticDeviceHandler::update()
     //-----------------------------------------------------------------------
     // search for MPB Technologies devices
     //-----------------------------------------------------------------------
-    #ifndef _DISABLE_MPB_DEVICE_SUPPORT
+    #if defined(_ENABLE_MPB_DEVICE_SUPPORT)
 
     // reset index number
     index = 0;
@@ -215,36 +216,46 @@ void cHapticDeviceHandler::update()
     //-----------------------------------------------------------------------
     // search for Sensable Technologies devices
     //-----------------------------------------------------------------------
-    #ifndef _DISABLE_PHANTOM_DEVICE_SUPPORT
+    #if defined(_ENABLE_PHANTOM_DEVICE_SUPPORT)
 
     // reset index number
     index = 0;
-    bool available = true;
 
-    // if the device is available, add it to the list and keep on searching
-    if (available)
+    // create a first device of this class
+    device = new cPhantomDevice(index);
+
+    // check for how many devices of this type that are available
+    count = device->getNumDevices();
+
+    // if there are one or more devices available, then store them in the device table
+    if (count > 0)
     {
-        // create a new instance of the device
-        device = new cPhantomDevice(index);
+        // store first device
+        m_devices[m_numDevices] = device;
+        m_numDevices++;
 
-        // check if its available
-        available = device->isSystemAvailable();
-        if (available)
+        // search for other devices
+        if (count > 1)
         {
-            m_devices[m_numDevices] = device;
-            m_numDevices++;
+            for (i=1; i<count; i++)
+            {
+                index++;
+                device = new cPhantomDevice(index);
+                m_devices[m_numDevices] = device;
+                m_numDevices++;
+            }
         }
-        else
-        {
-            delete device;
-        }
+    }
+    else
+    {
+        delete device;
     }
 
     #endif
     //-----------------------------------------------------------------------
     // search for MyCustom device
     //-----------------------------------------------------------------------
-    #ifndef _DISABLE_MY_CUSTOM_DEVICE_SUPPORT
+    #if defined(_ENABLE_MY_CUSTOM_DEVICE_SUPPORT)
 
     // reset index number
     index = 0;
@@ -283,11 +294,11 @@ void cHapticDeviceHandler::update()
     //-----------------------------------------------------------------------
     // search for CHAI 3D Virtual Device
     // Note:
-    // Virtual devices should always be listed last. The desired behaviour
-    // is that an application first searches for physiqual devices. If none
+    // Virtual devices should always be listed last. The desired behavior
+    // is that an application first searches for physical devices. If none
     // are found, it may launch a virtual device
     //-----------------------------------------------------------------------
-    #ifndef _DISABLE_VIRTUAL_DEVICE_SUPPORT
+    #if defined(_ENABLE_VIRTUAL_DEVICE_SUPPORT)
 
     // reset index number
     index = 0;
@@ -305,6 +316,8 @@ void cHapticDeviceHandler::update()
         m_devices[m_numDevices] = device;
         m_numDevices++;
     }
+
+    // if no devices have been found then we try to launch a virtual haptic device
 	else if (m_numDevices == 0)
 	{
 		// delete previous device
@@ -336,11 +349,11 @@ void cHapticDeviceHandler::update()
 /*!
     Returns the specifications of the ith device.
 
-    \fn     int cHapticDeviceHandler::getDeviceSpecifications(cHapticDeviceSpec&
+    \fn     int cHapticDeviceHandler::getDeviceSpecifications(cHapticDeviceInfo&
             a_deviceSpecifications, unsigned int a_index)
     \param  a_deviceSpecifications  Returned result
     \param  a_index   Index number of the device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cHapticDeviceHandler::getDeviceSpecifications(cHapticDeviceInfo& a_deviceSpecifications, unsigned int a_index)
@@ -365,7 +378,7 @@ int cHapticDeviceHandler::getDeviceSpecifications(cHapticDeviceInfo& a_deviceSpe
             unsigned int a_index)
     \param  a_hapticDevice  Handle to device
     \param  a_index   Index number of the device.
-    \return Return 0 if no error occured.
+    \return Return 0 if no error occurred.
 */
 //===========================================================================
 int cHapticDeviceHandler::getDevice(cGenericHapticDevice*& a_hapticDevice, unsigned int a_index)

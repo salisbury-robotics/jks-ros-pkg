@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -48,7 +48,6 @@ cThread::cThread()
 //===========================================================================
 cThread::~cThread()
 {
-
 }
 
 
@@ -57,7 +56,7 @@ cThread::~cThread()
     Creates a thread to execute within the address space of the calling process.
     Parameters include a pointer to the function and its priority level.
 
-    \fn		void cThread::set(void* a_function, CThreadPriority a_level)
+    \fn		void cThread::set(void (*a_function)(void), CThreadPriority a_level)
     \param  a_function Pointer to thread function
     \param  a_level Priority level of thread.
 */
@@ -65,7 +64,7 @@ cThread::~cThread()
 void cThread::set(void (*a_function)(void), CThreadPriority a_level)
 {
     // create thread
-#if defined (_WIN32)
+#if defined(_WIN32)
     CreateThread(
           0,
           0,
@@ -76,7 +75,7 @@ void cThread::set(void (*a_function)(void), CThreadPriority a_level)
       );
 #endif
 
-#if defined (_LINUX) || defined (_APPLE)
+#if defined (_LINUX) || defined (_MACOSX)
     pthread_create(
           &m_handle,
           0,
@@ -95,14 +94,14 @@ void cThread::set(void (*a_function)(void), CThreadPriority a_level)
     Adjust the priority level of the thread.
 
     \fn		void cThread::setPriority(CThreadPriority a_level)
-    \param a_level  Priority level of the thread
+    \param  a_level  Priority level of the thread
 */
 //===========================================================================
 void cThread::setPriority(CThreadPriority a_level)
 {
     m_priorityLevel = a_level;
 
-#if defined(WIN32)
+#if defined(_WIN32)
     switch (m_priorityLevel)
     {
         case CHAI_THREAD_PRIORITY_GRAPHICS:
@@ -115,7 +114,7 @@ void cThread::setPriority(CThreadPriority a_level)
     }
 #endif
 
-#if defined(_LINUX) || defined(_APPLE)
+#if defined(_LINUX) || defined(_MACOSX)
     struct sched_param sp;
     memset(&sp, 0, sizeof(struct sched_param));
 

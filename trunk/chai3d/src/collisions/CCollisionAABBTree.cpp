@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -79,8 +79,8 @@ void cCollisionAABBLeaf::render(int a_depth)
       Create a bounding box to enclose the three vertices of the triangle
       belonging to the leaf node.
 
-      \fn       void cCollisionAABBLeaf::fitBBox()
-      \param    a_radius Radius arround the triangle
+      \fn       void cCollisionAABBLeaf::fitBBox(double a_radius)
+      \param    a_radius Radius around the triangle
 */
 //===========================================================================
 void cCollisionAABBLeaf::fitBBox(double a_radius)
@@ -110,17 +110,17 @@ void cCollisionAABBLeaf::fitBBox(double a_radius)
     this leaf node by calling the triangle's collision detection method.
 
     \fn       bool cCollisionAABBLeaf::computeCollision(cVector3d& a_segmentPointA,
-              cVector3d& a_segmentDirection, cCollisionAABBBox &a_lineBox,
-              cTriangle*& a_colTriangle, cVector3d& a_colPoint, double& a_colSquareDistance)
+                                          cVector3d& a_segmentPointB,
+                                          cCollisionAABBBox& a_lineBox,
+                                          cCollisionRecorder& a_recorder,
+                                          cCollisionSettings& a_settings)
     \param    a_segmentPointA  Initial point of segment.
     \param    a_segmentPointB  End point of segment.
     \param    a_lineBox  A bounding box for the incoming segment, for quick
                          discarding of collision tests.
-    \param    a_colTriangle  Returns pointer to nearest collided triangle.
-    \param    a_colPoint  Returns position of nearest collision.
-    \param    a_colSquareDistance  Returns distance between ray origin and
-                                   collision point.
-    \return   Return true if the line segment intersects the leaf's triangle.
+    \param    a_recorder  Stores all collision events.
+    \param    a_settings  Contains collision settings information.
+    \return   Return \b true if the line segment intersects the leaf's triangle.
 */
 //===========================================================================
 bool cCollisionAABBLeaf::computeCollision(cVector3d& a_segmentPointA,
@@ -141,21 +141,6 @@ bool cCollisionAABBLeaf::computeCollision(cVector3d& a_segmentPointA,
 
     // return result
     return (result);
-}
-
-
-//===========================================================================
-/*!
-    Destructor of cCollisionAABBInternal.
-
-    \fn       cCollisionAABBInternal::~cCollisionAABBInternal()
-*/
-//===========================================================================
-cCollisionAABBInternal::~cCollisionAABBInternal()
-{
-
-    // Note that we don't delete leaf nodes here; they're stored in one big
-    // array and can't be deleted individually...
 }
 
 
@@ -192,22 +177,24 @@ void cCollisionAABBInternal::render(int a_depth)
 
 //===========================================================================
 /*!
-    Create an internal AABB tree node.
+    Initialize an internal AABB tree node.
 
-    \fn       cCollisionAABBInternal::cCollisionAABBInternal(
-              unsigned int a_numLeaves, cCollisionAABBLeaf *a_leaves,
-              unsigned int a_depth)
+    \fn       void cCollisionAABBInternal::initialize(unsigned int a_numLeaves,
+                                        cCollisionAABBLeaf *a_leaves,
+                                        unsigned int a_depth)
     \param    a_numLeaves  Number of leaves in subtree rooted at this node.
     \param    a_leaves  Pointer to the location in the array of leafs for the
                         first leaf under this internal node.
     \param    a_depth  Depth of this node in the collision tree.
-    \return   Return a pointer to a new cCollisionAABBInternal node.
 */
 //===========================================================================
-cCollisionAABBInternal::cCollisionAABBInternal(unsigned int a_numLeaves,
-                                               cCollisionAABBLeaf *a_leaves,
-                                               unsigned int a_depth)
+void cCollisionAABBInternal::initialize(unsigned int a_numLeaves,
+                                        cCollisionAABBLeaf *a_leaves,
+                                        unsigned int a_depth)
 {
+    // increment free node counter
+    g_nextFreeNode++;
+
     // set depth of this node and initialize left and right subtree pointers
     m_depth = a_depth;
     m_leftSubTree = NULL;
@@ -235,7 +222,26 @@ cCollisionAABBInternal::cCollisionAABBInternal(unsigned int a_numLeaves,
         }
         else
         {
-            std::swap(a_leaves[i], a_leaves[--mid]);
+            mid--;
+            //std::swap(a_leaves[i], a_leaves[mid]);
+
+            cTriangle *t_triangle           = a_leaves[i].m_triangle;
+            cCollisionAABBBox t_bbox        = a_leaves[i].m_bbox;
+            int t_depth                     = a_leaves[i].m_depth;
+            cCollisionAABBNode* t_parent    = a_leaves[i].m_parent;
+            int t_nodeType                  = a_leaves[i].m_nodeType;
+
+            a_leaves[i].m_triangle = a_leaves[mid].m_triangle;
+            a_leaves[i].m_bbox     = a_leaves[mid].m_bbox;
+            a_leaves[i].m_depth    = a_leaves[mid].m_depth;
+            a_leaves[i].m_parent   = a_leaves[mid].m_parent;
+            a_leaves[i].m_nodeType = a_leaves[mid].m_nodeType;
+
+            a_leaves[mid].m_triangle = t_triangle;
+            a_leaves[mid].m_bbox     = t_bbox;
+            a_leaves[mid].m_depth    = t_depth;
+            a_leaves[mid].m_parent   = t_parent;
+            a_leaves[mid].m_nodeType = t_nodeType;
         }
     }
 
@@ -253,7 +259,8 @@ cCollisionAABBInternal::cCollisionAABBInternal(unsigned int a_numLeaves,
     if (mid >= 2)
     {
         m_rightSubTree = g_nextFreeNode;
-        new(g_nextFreeNode++) cCollisionAABBInternal(mid, &a_leaves[0], m_depth + 1);
+        g_nextFreeNode->initialize(mid, &a_leaves[0], m_depth + 1);
+        //new(g_nextFreeNode++) cCollisionAABBInternal(mid, &a_leaves[0], m_depth + 1);
     }
 
     // if there is only one triangle in the right subtree, the right subtree
@@ -268,7 +275,8 @@ cCollisionAABBInternal::cCollisionAABBInternal(unsigned int a_numLeaves,
     if (a_numLeaves - mid >= 2)
     {
         m_leftSubTree = g_nextFreeNode;
-        new(g_nextFreeNode++) cCollisionAABBInternal(a_numLeaves - mid, &a_leaves[mid], m_depth + 1);
+        g_nextFreeNode->initialize(a_numLeaves - mid, &a_leaves[mid], m_depth + 1);
+        // new(g_nextFreeNode++) cCollisionAABBInternal(a_numLeaves - mid, &a_leaves[mid], m_depth + 1);
     }
 
     // if there is only one triangle in the left subtree, the left subtree
@@ -385,20 +393,18 @@ bool hitBoundingBox(const double a_minB[3], const double a_maxB[3], const double
     parameters) information about the intersected triangle of the mesh closest
     to the segment origin.
 
-    \fn       bool cCollisionAABBInternal::computeCollision(
-              cVector3d& a_segmentPointA, cVector3d& a_segmentDirection,
-              cCollisionAABBBox &a_lineBox, cTriangle*& a_colTriangle,
-              cVector3d& a_colPoint, double& a_colSquareDistance)
+    \fn       bool cCollisionAABBInternal::computeCollision(cVector3d& a_segmentPointA,
+                                              cVector3d& a_segmentPointB,
+                                              cCollisionAABBBox &a_lineBox,
+                                              cCollisionRecorder& a_recorder,
+                                              cCollisionSettings& a_settings)
     \param    a_segmentPointA  Initial point of segment.
-    \param    a_segmentDirection  Direction of ray from first to second
-                                  segment points (i.e., proxy to goal).
+    \param    a_segmentPointB  End point of segment.
     \param    a_lineBox  A bounding box for the incoming segment, for quick
                          discarding of collision tests.
-    \param    a_colTriangle  Returns pointer to nearest collided triangle.
-    \param    a_colPoint  Returns position of nearest collision.
-    \param    a_colSquareDistance  Returns distance between ray origin and
-                                   collision point.
-    \return   Return true if line segment intersects a triangle in the subtree.
+    \param    a_recorder  Stores all collision events.
+    \param    a_settings  Contains collision settings information.
+    \return   Return \b true if line segment intersects a triangle in the subtree.
 */
 //===========================================================================
 bool cCollisionAABBInternal::computeCollision(cVector3d& a_segmentPointA,
@@ -416,16 +422,6 @@ bool cCollisionAABBInternal::computeCollision(cVector3d& a_segmentPointA,
 
     if (m_testLineBox)
     {
-      // Avoid unnecessary copying by casting straight to double...
-      //double minB[3];
-      //double maxB[3];
-      //double origin[3];
-      //double dir[3];
-      //minB[0] = m_bbox.getLowerX(); minB[1] = m_bbox.getLowerY(); minB[2] = m_bbox.getLowerZ();
-      //maxB[0] = m_bbox.getUpperX(); maxB[1] = m_bbox.getUpperY(); maxB[2] = m_bbox.getUpperZ();
-      //origin[0] = a_segmentPointA.x; origin[1] = a_segmentPointA.y; origin[2] = a_segmentPointA.z;
-      //dir[0] = a_segmentDirection.x; dir[1] = a_segmentDirection.y; dir[2] = a_segmentDirection.z;
-      //if (!hitBoundingBox(minB, maxB, origin, dir))
       if (!hitBoundingBox(
         (const double*)(&m_bbox.m_min),
         (const double*)(&m_bbox.m_max),

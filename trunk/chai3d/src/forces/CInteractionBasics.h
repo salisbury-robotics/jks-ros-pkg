@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -34,10 +34,22 @@ class cGenericObject;
 
 //===========================================================================
 /*!
-      \file     CInteractionBasics.h
-      \struct   cInteractionEvent
-      \brief    cInteractionEvent stores all information related to the
-      intersection between a point and an object.
+    \file       CInteractionBasics.h
+
+    \brief 
+    <b> Force Rendering Algorithms </b> \n 
+    Interaction Events.
+*/
+//===========================================================================
+
+//===========================================================================
+/*!  
+    \struct     cInteractionEvent
+    \ingroup    forces 
+    
+    \brief    
+    cInteractionEvent stores all information related to the intersection 
+    between a point and an object.
 */
 //===========================================================================
 struct cInteractionEvent
@@ -45,7 +57,7 @@ struct cInteractionEvent
     //! Pointer to the interaction object.
     cGenericObject* m_object;
 
-    //! Is the pointer located inside the object
+    //! Is the pointer located inside the object.
     bool m_isInside;
 
     //! Position of the interaction point in reference to the objects coordinate frame (local coordinates).
@@ -57,7 +69,7 @@ struct cInteractionEvent
     //! Nearest point to the object surface in local coordinates
     cVector3d m_localSurfacePos;
 
-    //! initialize all data
+    //! Initialize all data contained in current event.
     void clear()
     {
         m_object    = NULL;
@@ -68,51 +80,69 @@ struct cInteractionEvent
     }
 };
 
+//===========================================================================
+/*!
+    \class      cInteractionSettings
+    \ingroup    forces 
+    
+    \brief    
+    This structure contains a list of settings which are passed
+    to the interaction detector when checking for an interaction.
+*/
+//===========================================================================
+struct cInteractionSettings
+{
+    //! If \b true, then collision detector shall check for collisions on visible objects only.
+    bool m_checkVisibleObjectsOnly;
+
+    //! If \b true, then collision detector shall check for collisions on haptic enabled objects only.
+    bool m_checkHapticObjectsOnly;
+};
+
 
 //===========================================================================
 /*!
-      \class    cInteractionRecorder
-      \brief    cInteractionRecorder stores a list of interaction events.
+    \class      cInteractionRecorder
+    \ingroup    forces 
+
+    \brief    
+    cInteractionRecorder stores a list of interaction events.
 */
 //===========================================================================
 class cInteractionRecorder
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
-    //! Constructor of cCollisionRecorder
+    //-----------------------------------------------------------------------
+
+    //! Constructor of cCollisionRecorder.
     cInteractionRecorder() { clear(); }
 
-    //! Destructor of cCollisionRecorder
+    //! Destructor of cCollisionRecorder.
     virtual ~cInteractionRecorder() {};
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
-    //! Clear all records.
+    //-----------------------------------------------------------------------
+
+    //! Clear all interaction event records.
     void clear()
     {
         m_interactions.clear();
     }
 
+
+    //-----------------------------------------------------------------------
     // MEMBERS:
-    //! List of interactions.
+    //-----------------------------------------------------------------------
+
+    //! List of interaction events stored in recorder.
     vector<cInteractionEvent> m_interactions;
 };
 
-
-//===========================================================================
-/*!
-      \class    cInteractionSettings
-      \brief    This structure contains a list of settings which are passed
-                to the interaction detector when checking for an interaction.
-*/
-//===========================================================================
-struct cInteractionSettings
-{
-    //! If true, then collision detector shall check for collisions on visible objects only.
-    bool m_checkVisibleObjectsOnly;
-
-    //! If true, then collision detector shall check for collisions on haptic enabled objects only.
-    bool m_checkHapticObjectsOnly;
-};
 
 //---------------------------------------------------------------------------
 #endif

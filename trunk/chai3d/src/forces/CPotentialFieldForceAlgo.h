@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -28,41 +28,66 @@
 
 //===========================================================================
 /*!
-      \file     CPotentialFieldForceAlgo.h
-      \class    cPotentialFieldForceAlgo
-      \brief    cPotentialFieldForceAlgo is an abstract class for algorithms
-                that compute single point force contacts.
+    \file       CPotentialFieldForceAlgo.h
+
+    \brief 
+    <b> Force Rendering Algorithms </b> \n 
+    Potential Field.
+*/
+//===========================================================================
+
+//===========================================================================
+/*! 
+    \class      cPotentialFieldForceAlgo
+    \ingroup    forces 
+    
+    \brief    
+    cPotentialFieldForceAlgo is an abstract class for algorithms that 
+    compute single point force contacts.
 */
 //===========================================================================
 class cPotentialFieldForceAlgo : public cGenericPointForceAlgo
 {
   public:
+
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
-    //! Constructor of cPotentialFieldForceAlgo.
+    //-----------------------------------------------------------------------
+    
+      //! Constructor of cPotentialFieldForceAlgo.
     cPotentialFieldForceAlgo();
 
     //! Destructor of cPotentialFieldForceAlgo.
     virtual ~cPotentialFieldForceAlgo() {};
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Initialize the algorithm by passing the initial position of the device.
     void initialize(cWorld* a_world, const cVector3d& a_initialPos) { m_world = a_world; };
 
     //! Compute the next force given the updated position of the device.
     virtual cVector3d computeForces(const cVector3d& a_toolPos, const cVector3d& a_toolVel);
 
-    //! Interactions recorder settings
+    //! Interactions recorder settings.
     cInteractionSettings m_interactionSettings;
 
-    //! Interactions recorder
+    //! Interactions recorder.
     cInteractionRecorder m_interactionRecorder;
 
 
   private:
-    //! Identification number for this force algorythm
+
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
+    //! Identification number for this force algorithm.
     unsigned int m_IDN;
 
-    //! IDN counter for all
+    //! IDN counter for all.
     static unsigned int m_IDNcounter;
 };
 

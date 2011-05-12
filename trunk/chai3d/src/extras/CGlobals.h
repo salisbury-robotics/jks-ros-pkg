@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -24,9 +24,24 @@
 //---------------------------------------------------------------------------
 
 //===========================================================================
-// WINDOWS OS
+/*!
+    \file       CGlobals.h
+    \ingroup    extras
+
+    \brief  
+    <b> Extras </b> \n 
+	General CHAI3D Settings.
+*/
 //===========================================================================
-#ifdef _WIN32
+
+//---------------------------------------------------------------------------
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+
+//===========================================================================
+// WIN32 / WIN64 OS
+//===========================================================================
+#if defined(_WIN32)
     //--------------------------------------------------------------------
     // GENERAL
     //--------------------------------------------------------------------
@@ -39,12 +54,20 @@
     //--------------------------------------------------------------------
     // HAPTIC DEVICES
     //--------------------------------------------------------------------
+    #define _ENABLE_CUSTOM_DEVICE_SUPPORT
+    #define _ENABLE_DELTA_DEVICE_SUPPORT
+    #define _ENABLE_FALCON_DEVICE_SUPPORT
+    #define _ENABLE_MPB_DEVICE_SUPPORT
+    #define _ENABLE_PHANTOM_DEVICE_SUPPORT
+    #define _ENABLE_SENSORAY626_DEVICE_SUPPORT
+    #define _ENABLE_SERVOTOGO_DEVICE_SUPPORT
+    #define _ENABLE_VIRTUAL_DEVICE_SUPPORT
 
 
     //--------------------------------------------------------------------
     // BBCP - BORLAND BUILDER
     //--------------------------------------------------------------------
-    #ifdef _BBCP
+    #if defined(_BBCP)
 
         // printf
         #define CHAI_DEBUG_PRINT printf
@@ -57,13 +80,15 @@
     //--------------------------------------------------------------------
     // MSVC - MICROSOFT VISUAL STUDIO
     //--------------------------------------------------------------------
-    #ifdef _MSVC
+    #if  defined(_MSVC)
 
         // turn off annoying compiler warnings
+        #pragma warning(disable: 4267)
         #pragma warning(disable: 4305)
-        #pragma warning(disable: 4800)
         #pragma warning(disable: 4786)
-
+        #pragma warning(disable: 4800)
+		#pragma warning(disable: 4996)
+        
         // printf
         #include <conio.h>
         #define CHAI_DEBUG_PRINT _cprintf
@@ -75,11 +100,15 @@
 
 #endif
 
+
 //===========================================================================
 // LINUX OS
 //===========================================================================
-#ifdef _LINUX
+#if defined(_LINUX)
 
+  //--------------------------------------------------------------------
+  // GENERAL
+  //--------------------------------------------------------------------
 	// printf
 	#define CHAI_DEBUG_PRINT printf
 
@@ -88,25 +117,31 @@
 	#include <string.h>
 
 	// open gl
-	#include "gl/gl.h"
-	#include "gl/glut.h"
+	#include "GL/gl.h"
+	#include "GL/glut.h"
 
 	// threads
-	#include "pthread.h"	
+	#include "pthread.h"
 
-	// devices
-    #define _DISABLE_FALCON_DEVICE_SUPPORT
-	#define _DISABLE_PHANTOM_DEVICE_SUPPORT
-	#define _DISABLE_MPB_DEVICE_SUPPORT
-	#define _DISABLE_VIRTUAL_DEVICE_SUPPORT
+  //--------------------------------------------------------------------
+  // HAPTIC DEVICES
+  //--------------------------------------------------------------------
+	#define _ENABLE_CUSTOM_DEVICE_SUPPORT
+	#define _ENABLE_DELTA_DEVICE_SUPPORT
+
+  // disabled devices
+  //#define _ENABLE_PHANTOM_DEVICE_SUPPORT
 
 #endif
 
 //===========================================================================
 // MAC OS
 //===========================================================================
-#ifdef _APPLE
+#if defined(_MACOSX)
 
+  //--------------------------------------------------------------------
+  // GENERAL
+  //--------------------------------------------------------------------
 	// printf
 	#define CHAI_DEBUG_PRINT printf
 
@@ -118,16 +153,13 @@
 	#include "GLUT/glut.h"
 
 	// threads
-	#include "pthread.h"	
+	#include "pthread.h"
 
-	// devices
-	#define _DISABLE_FALCON_DEVICE_SUPPORT
-	#define _DISABLE_PHANTOM_DEVICE_SUPPORT
-	#define _DISABLE_MPB_DEVICE_SUPPORT
-	#define _DISABLE_VIRTUAL_DEVICE_SUPPORT
-	
-    // TODO: remove this when we get Delta libs going
-    #define _DISABLE_DELTA_DEVICE_SUPPORT
+  //--------------------------------------------------------------------
+  // HAPTIC DEVICES
+  //--------------------------------------------------------------------
+	#define _ENABLE_CUSTOM_DEVICE_SUPPORT
+	#define _ENABLE_DELTA_DEVICE_SUPPORT
 
 #endif
 
@@ -135,16 +167,17 @@
 //===========================================================================
 // GENERAL
 //===========================================================================
-// maximum length of a path
-#define CHAI_SIZE_PATH 255
+//! maximum length of a path
+#define CHAI_SIZE_PATH		255
 
-// maximum length of a object name
-#define CHAI_SIZE_NAME 64
+//! maximum length of a object name
+#define CHAI_SIZE_NAME		64
 
-// a large double
-#define CHAI_DBL_MAX 9999999
+//! a large double
+#define CHAI_DBL_MAX	    9999999
 
-
+//---------------------------------------------------------------------------
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
 //---------------------------------------------------------------------------
 #endif
 //---------------------------------------------------------------------------

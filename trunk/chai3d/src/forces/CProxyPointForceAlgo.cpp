@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -98,8 +98,8 @@ cProxyPointForceAlgo::cProxyPointForceAlgo()
     in which the algorithm is to operate, and setting the initial position
     of the device.
 
-    \fn       void cProxyPointForceAlgo::initialize(cWorld* a_world,
-              const cVector3d& a_initialPos)
+    \fn       void cProxyPointForceAlgo::initialize(cWorld* a_world, 
+					const cVector3d& a_initialGlobalPosition)
     \param    a_world  Pointer to world in which force algorithm is operating.
     \param    a_initialGlobalPosition  Initial position of the device.
 */
@@ -218,7 +218,7 @@ cVector3d cProxyPointForceAlgo::computeForces(const cVector3d& a_toolPos,
     The process is repeated if necessary, bringing the proxy to its
     final location.
 
-    \fn   void cProxyPointForceAlgo::computeNextBestProxyPosition(cVector3d a_goal)
+    \fn		void cProxyPointForceAlgo::computeNextBestProxyPosition(const cVector3d& a_goal)
 	\param  a_goal  The goal towards which to move the proxy, subject to constraints
 */
 //===========================================================================
@@ -350,7 +350,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints0(const cVector
                                                   m_collisionSettings);
 
 
-    // check if collision occured between proxy and goal positions.
+    // check if collision occurred between proxy and goal positions.
     double collisionDistance;
     if (hit)
     {
@@ -377,7 +377,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints0(const cVector
 
         if (hit)
         {
-            // a collision has occured and we check if the distance from the
+            // a collision has occurred and we check if the distance from the
             // proxy to the collision is smaller than epsilon. If yes, then
             // we reduce the epsilon term in order to avoid possible "pop through"
             // effect if we suddenly push the proxy "up" again.
@@ -402,7 +402,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints0(const cVector
         return (false);
     }
 
-    // a first collision has occured
+    // a first collision has occurred
     m_algoCounter = 1;
 
     //-----------------------------------------------------------------------
@@ -511,7 +511,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints1(const cVector
                                                    m_collisionRecorderConstraint1,
                                                    m_collisionSettings);
 
-    // check if collision occured between proxy and goal positions.
+    // check if collision occurred between proxy and goal positions.
     double collisionDistance;
     if (hit)
     {
@@ -522,7 +522,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints1(const cVector
         }
         else
         {
-            // a collision has occured and we check if the distance from the
+            // a collision has occurred and we check if the distance from the
             // proxy to the collision is smaller than epsilon. If yes, then
             // we reduce the epsilon term in order to avoid possible "pop through"
             // effect if we suddenly push the proxy "up" again.
@@ -552,7 +552,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints1(const cVector
         return (false);
     }
 
-    // a second collision has occured
+    // a second collision has occurred
     m_algoCounter = 2;
 
     //-----------------------------------------------------------------------
@@ -677,7 +677,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints2(const cVector
                                                    m_collisionRecorderConstraint2,
                                                    m_collisionSettings);
 
-    // check if collision occured between proxy and goal positions.
+    // check if collision occurred between proxy and goal positions.
     double collisionDistance;
     if (hit)
     {
@@ -688,7 +688,7 @@ bool cProxyPointForceAlgo::computeNextProxyPositionWithContraints2(const cVector
         }
         else
         {
-            // a collision has occured and we check if the distance from the
+            // a collision has occurred and we check if the distance from the
             // proxy to the collision is smaller than epsilon. If yes, then
             // we reduce the epsilon term in order to avoid possible "pop through"
             // effect if we suddenly push the proxy "up" again.
@@ -800,20 +800,24 @@ bool cProxyPointForceAlgo::goalAchieved(const cVector3d& a_proxy, const cVector3
 
 //===========================================================================
 /*!
-  Attempt to move the proxy, subject to friction constraints.  This is called
-  from computeNextBestProxyPosition when the proxy is ready to move along a
-  known surface.
+    Attempt to move the proxy, subject to friction constraints.  This is called
+    from computeNextBestProxyPosition when the proxy is ready to move along a
+    known surface.
 
-  \fn   void cProxyPointForceAlgo::testFrictionAndMoveProxy(const cVector3d& goal, const cVector3d& proxy,
-             cVector3d normal, cGenericObject* parent)
-  \param    goal        The location to which we'd like to move the proxy
-  \param    proxy       The current position of the proxy
-  \param    normal      The surface normal at the obstructing surface
-  \param    parent      The surface along which we're moving
+    \fn   void cProxyPointForceAlgo::testFrictionAndMoveProxy(const cVector3d& a_goal, 
+												    const cVector3d& a_proxy,
+												    cVector3d& a_normal, 
+												    cGenericObject* a_parent)
+    \param    a_goal        The location to which we'd like to move the proxy
+    \param    a_proxy       The current position of the proxy
+    \param    a_normal      The surface normal at the obstructing surface
+    \param    a_parent      The surface along which we're moving
 */
 //===========================================================================
-void cProxyPointForceAlgo::testFrictionAndMoveProxy(const cVector3d& a_goal, const cVector3d& a_proxy,
-  cVector3d& a_normal, cGenericObject* a_parent)
+void cProxyPointForceAlgo::testFrictionAndMoveProxy(const cVector3d& a_goal, 
+													const cVector3d& a_proxy,
+													cVector3d& a_normal, 
+													cGenericObject* a_parent)
 {
     // check if friction is enabled
     if (m_useFriction == false)

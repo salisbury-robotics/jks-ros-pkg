@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,16 +12,17 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
 //---------------------------------------------------------------------------
+#include "extras/CGlobals.h"
 #include "devices/CVirtualDevice.h"
 //---------------------------------------------------------------------------
-#ifndef _DISABLE_DELTA_DEVICE_SUPPORT
+#if defined(_ENABLE_VIRTUAL_DEVICE_SUPPORT)
 //---------------------------------------------------------------------------
 
 //===========================================================================
@@ -36,13 +37,13 @@ cVirtualDevice::cVirtualDevice()
     // settings:
     m_specifications.m_manufacturerName              = "CHAI 3D";
     m_specifications.m_modelName                     = "virtual";
-    m_specifications.m_maxForce                      = 10.0; // [N]
-    m_specifications.m_maxForceStiffness             = 2000.0; // [N/m]
-    m_specifications.m_maxTorque                     = 0.0;  // [N*m]
-    m_specifications.m_maxTorqueStiffness            = 0.0;  // [N*m/Rad]
-    m_specifications.m_maxGripperTorque              = 0.0;  // [N]
-    m_specifications.m_maxGripperTorqueStiffness     = 0.0;  // [N/m]
-    m_specifications.m_workspaceRadius               = 0.15; // [m]
+    m_specifications.m_maxForce                      = 10.0;    // [N]
+    m_specifications.m_maxForceStiffness             = 2000.0;  // [N/m]
+    m_specifications.m_maxTorque                     = 0.0;     // [N*m]
+    m_specifications.m_maxTorqueStiffness            = 0.0;     // [N*m/Rad]
+    m_specifications.m_maxGripperTorque              = 0.0;     // [N]
+    m_specifications.m_maxGripperTorqueStiffness     = 0.0;     // [N/m]
+    m_specifications.m_workspaceRadius               = 0.15;    // [m]
     m_specifications.m_sensedPosition                = true;
     m_specifications.m_sensedRotation                = false;
     m_specifications.m_sensedGripper                 = false;
@@ -191,7 +192,7 @@ unsigned int cVirtualDevice::getNumDevices()
 
 //===========================================================================
 /*!
-    Read the position of the device. Units are in meters.
+    Read the position of the device. Units are meters [m].
 
     \fn     int cVirtualDevice::getPosition(cVector3d& a_position)
     \param  a_position  Return value.
@@ -217,7 +218,7 @@ int cVirtualDevice::getPosition(cVector3d& a_position)
 
 //===========================================================================
 /*!
-    Read the orientation frame of the device end-effector
+    Read the orientation frame of the device end-effector.
 
     \fn     int cVirtualDevice::getRotation(cMatrix3d& a_rotation)
     \param  a_rotation  Return value.
@@ -239,7 +240,7 @@ int cVirtualDevice::getRotation(cMatrix3d& a_rotation)
 
 //===========================================================================
 /*!
-    Send a force [N] to the haptic device
+    Send a force [N] to the haptic device.
 
     \fn     int cVirtualDevice::setForce(cVector3d& a_force)
     \param  a_force  Force command to be applied to device.
@@ -282,29 +283,29 @@ int cVirtualDevice::getForce(cVector3d& a_force)
 
 //===========================================================================
 /*!
-    Read the status of the user switch [1 = ON / 0 = OFF].
+    Read the status of the user switch [\b true = \e ON / \b false = \e OFF].
 
-    \fn     int cVirtualDevice::getUserSwitch(int a_switchIndex, int& a_status)
+    \fn     int cVirtualDevice::getUserSwitch(int a_switchIndex, bool& a_status)
     \param  a_switchIndex  index number of the switch.
     \param  a_status result value from reading the selected input switch.
 */
 //===========================================================================
-int cVirtualDevice::getUserSwitch(int a_switchIndex, int& a_status)
+int cVirtualDevice::getUserSwitch(int a_switchIndex, bool& a_status)
 {
     if (!m_systemReady)
     {
-        a_status = 0;
+        a_status = false;
         return (-1);
     }
 
-    a_status = ((bool)(*m_pDevice).Button0) ? 1 : 0;
+    a_status = ((bool)(*m_pDevice).Button0);
 
     return (0);
 }
 
 
 //---------------------------------------------------------------------------
-#endif
+#endif  // _ENABLE_VIRTUAL_DEVICE_SUPPORT
 //---------------------------------------------------------------------------
 
 

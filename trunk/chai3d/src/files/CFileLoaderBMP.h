@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -22,6 +22,21 @@
 #ifndef CFileLoaderBMPH
 #define CFileLoaderBMPH
 //---------------------------------------------------------------------------
+
+//===========================================================================
+/*!
+	\file     CFileLoaderBMP.h
+
+	\brief    
+	<b> Files </b> \n 
+    BMP Format Image Loader.
+*/
+//===========================================================================
+
+//---------------------------------------------------------------------------
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+
 #if defined(_WIN32)
 
 #include <windows.h>
@@ -30,10 +45,10 @@
 
 #pragma pack(push,1)
 
-typedef unsigned char BYTE;
-typedef short WORD;
-typedef int DWORD;
-typedef long LONG;
+typedef unsigned char  BYTE;
+typedef unsigned short WORD;
+typedef unsigned int   DWORD;
+typedef int            LONG;
 
 typedef struct tagRGBQUAD {
   BYTE    rgbBlue; 
@@ -79,18 +94,27 @@ using std::string;
 const short BITMAP_MAGIC_NUMBER = 19778;
 const int   RGB_BYTE_SIZE       = 3;
 
+//---------------------------------------------------------------------------
+#endif  // DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+
 //===========================================================================
 /*!
-      \file     CFileLoaderBMP.h
-      \class    cFileLoaderBMP
-      \brief    cFileLoaderBMP provides a class to load BMp bitmap
-                images into memory.
+    \class      cFileLoaderBMP
+    \ingroup    files 
+    
+    \brief    
+    cFileLoaderBMP provides a class to load BMP bitmap images into memory.
 */
 //===========================================================================
 class cFileLoaderBMP
 {
   public:
+    
+    //-----------------------------------------------------------------------
     // CONSTRUCTOR & DESTRUCTOR:
+    //-----------------------------------------------------------------------
+
     //! Constructor of cFileLoaderBMP.
     cFileLoaderBMP();
 
@@ -100,11 +124,15 @@ class cFileLoaderBMP
     //! Destructor of cFileLoaderBMP.
     ~cFileLoaderBMP();
 
+
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+    
     //! Load bitmap image file.
     bool loadBMP(char* iFileName);
 
-    //! Get pinter to bitmap
+    //! Get pinter to bitmap.
     unsigned char* pBitmap() const { return (m_pBitmap); }
 
     //! Get width of image.
@@ -113,7 +141,7 @@ class cFileLoaderBMP
     //! Get height of image.
     unsigned int getHeight() { return (m_height); }
 
-    //! Get the number of bits per pixels
+    //! Get the number of bits per pixels.
     unsigned short getBpp() { return (m_bpp); }
 
     //! Read last error message.
@@ -122,25 +150,29 @@ class cFileLoaderBMP
     //! Has any image been loaded?
     bool isLoaded() { return (m_loaded); }
 
+
   private:
-    //variables
-    //! Header file information
+
+    //-----------------------------------------------------------------------
+    // MEMBERS:
+    //-----------------------------------------------------------------------
+
+    //! Header file information.
     BITMAPFILEHEADER m_bmfh;
 
-    //! Header file information
+    //! Header file information.
     BITMAPINFOHEADER m_bmih;
 
-    /// The width in bytes of the image
+    /// The width in bytes of the image.
     unsigned int m_byteWidth;
 
-    // The width in bytes of the added image
+    // The width in bytes of the added image.
     unsigned int m_padWidth;
 
-    // Size of the data in the file
+    // Size of the data in the file.
     unsigned int m_dataSize;
 
-    // MEMBERS:
-    //! color data
+    //! color data.
     RGBQUAD *m_colors;
 
     //! Has image been loaded correctly?
@@ -161,7 +193,10 @@ class cFileLoaderBMP
     //! pixel data
     unsigned char* m_pBitmap;
 
+    //-----------------------------------------------------------------------
     // METHODS:
+    //-----------------------------------------------------------------------
+
     //! Reset internal variables. This function is called by the constructor.
     void reset(void);
 

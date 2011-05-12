@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,11 +12,11 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \author:    Dan Morris
-    \author:    Chris Sewell
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \author    Dan Morris
+    \author    Chris Sewell
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -62,7 +62,7 @@ cMesh::cMesh(cWorld* a_world)
     // Not by default... this is really a debugging tool.
     m_showFrame = false;
 
-    // set default collision detector        
+    // set default collision detector
     m_collisionDetector = new cCollisionBrute(&m_triangles);
 
     // by default, only triangle vertices have their normals rendered
@@ -102,7 +102,6 @@ cMesh::~cMesh()
     // Delete any allocated display lists
     if (m_displayList != -1)
       glDeleteLists(m_displayList,1);
-    
 }
 
 
@@ -110,14 +109,15 @@ cMesh::~cMesh()
 /*!
     Access the first vertex list in any of my children (use carefully)
 
-    \fn        ector<cVertex>* cMesh::pVerticesNonEmpty()
+    \fn       vector<cVertex>* cMesh::pVerticesNonEmpty()
 
 */
 //===========================================================================
 vector<cVertex>* cMesh::pVerticesNonEmpty()
 {
     if (m_vertices.size() > 0) return pVertices();
-    else {
+    else 
+    {
         unsigned int i, numChildren;
         numChildren = m_children.size();
         for (i=0; i<numChildren; i++)
@@ -125,7 +125,7 @@ vector<cVertex>* cMesh::pVerticesNonEmpty()
             cGenericObject *nextObject = m_children[i];
 
             // check if nextObject is a mesh.
-            cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);            
+            cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);
             if (nextMesh)
             {
                 vector<cVertex>* pv = nextMesh->pVerticesNonEmpty();
@@ -142,7 +142,7 @@ vector<cVertex>* cMesh::pVerticesNonEmpty()
      Returns the specified triangle... if a_includeChildren is false, I just
      index into my triangle array (no boundary checking, since this is called
      often).
-     
+
      If a_includeChildren is true, I start counting through my own triangle
      array, then each of my children... in the process, I'm going to call
      getNumTriangles(true) on each of my children, so this is a recursive
@@ -155,12 +155,11 @@ vector<cVertex>* cMesh::pVerticesNonEmpty()
 //===========================================================================
 cTriangle* cMesh::getTriangle(unsigned int a_index, bool a_includeChildren)
 {
-
     // The easy case...
     if (a_includeChildren == false) return &(m_triangles[a_index]);
 
     // Now we have to possibly search through children...
-    
+
     // First do a sanity check to make sure this is a reasonable
     // triangle...
     if (a_index >= getNumTriangles(true)) return 0;
@@ -181,7 +180,7 @@ cTriangle* cMesh::getTriangle(unsigned int a_index, bool a_includeChildren)
         cGenericObject *nextObject = m_children[i];
 
         // check if nextObject is a mesh.
-        cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);            
+        cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);
         if (nextMesh)
         {
              // How many triangles does he have?
@@ -217,55 +216,55 @@ cTriangle* cMesh::getTriangle(unsigned int a_index, bool a_includeChildren)
 //===========================================================================
 cVector3d cMesh::getCenterOfMass(const bool a_includeChildren)
 {
+    cVector3d com(0,0,0);
+    unsigned long n_vertices = m_vertices.size();
 
-  cVector3d com(0,0,0);
-  unsigned long n_vertices = m_vertices.size();
-
-  if (n_vertices != 0) {
-    for(unsigned int curVertex = 0; curVertex<n_vertices; curVertex++)
+    if (n_vertices != 0) 
     {
-      cVector3d p = m_vertices[curVertex].getPos();
-      com += p;
+        for(unsigned int curVertex = 0; curVertex<n_vertices; curVertex++)
+        {
+            cVector3d p = m_vertices[curVertex].getPos();
+            com += p;
+        }
+        com /= ((double)(n_vertices));
     }
-    com /= ((double)(n_vertices));
-  }
 
-  if (a_includeChildren == 0) {    
-    return com;
-  }
-
-  unsigned long total_vertices = getNumVertices(true);
-
-  double contribution;
-  if (n_vertices == 0) contribution = 0.0;
-  else contribution = ((double)n_vertices) / ((double)total_vertices);
-  
-  com *= contribution;
-
-  unsigned int i, numChildren;
-  numChildren = m_children.size();
-  for (i=0; i<numChildren; i++)
-  {
-    cGenericObject *nextObject = m_children[i];
-
-    // check if nextObject is a mesh.
-    cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);            
-    if (nextMesh)
+    if (a_includeChildren == 0) 
     {
-      // How many vertices does he have?
-      long n_local_vertices = nextMesh->getNumVertices(true);
+        return com;
+    }
 
-      // What's his contribution to the com?
-      cVector3d local_center = nextMesh->getCenterOfMass(1);
-      double local_contribution;
-      if (n_local_vertices == 0) local_contribution = 0;
-      else local_contribution = (((double)n_local_vertices) / ((double)total_vertices));
-      com = com + (local_center * local_contribution);
+    unsigned long total_vertices = getNumVertices(true);
 
-    } // ...if this child was a mesh
-  } // ...for each child
- 
-  return com;
+    double contribution;
+    if (n_vertices == 0) contribution = 0.0;
+    else contribution = ((double)n_vertices) / ((double)total_vertices);
+
+    com *= contribution;
+
+    unsigned int i, numChildren;
+    numChildren = m_children.size();
+    for (i=0; i<numChildren; i++)
+    {
+        cGenericObject *nextObject = m_children[i];
+
+        // check if nextObject is a mesh.
+        cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);
+        if (nextMesh)
+        {
+            // How many vertices does he have?
+            long n_local_vertices = nextMesh->getNumVertices(true);
+
+            // What's his contribution to the com?
+            cVector3d local_center = nextMesh->getCenterOfMass(1);
+            double local_contribution;
+            if (n_local_vertices == 0) local_contribution = 0;
+            else local_contribution = (((double)n_local_vertices) / ((double)total_vertices));
+            com = com + (local_center * local_contribution);
+        } // ...if this child was a mesh
+    } // ...for each child
+
+    return com;
 }
 
 
@@ -275,7 +274,7 @@ cVector3d cMesh::getCenterOfMass(const bool a_includeChildren)
      Returns the specified vertex... if a_includeChildren is false, I just
      index into my vertex array (no boundary checking, since this is called
      often).
-     
+
      If a_includeChildren is true, I start counting through my own vertex
      array, then each of my children... in the process, I'm going to call
      getNumVertices(true) on each of my children, so this is a recursive
@@ -314,7 +313,7 @@ cVertex* cMesh::getVertex(unsigned int a_index, bool a_includeChildren)
         cGenericObject *nextObject = m_children[i];
 
         // check if nextObject is a mesh.
-        cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);            
+        cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);
         if (nextMesh)
         {
              // How many vertices does he have?
@@ -364,7 +363,7 @@ unsigned int cMesh::getNumVertices(bool a_includeChildren) const
             cGenericObject *nextObject = m_children[i];
 
             // check if nextObject is a mesh.
-            cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);            
+            cMesh* nextMesh = dynamic_cast<cMesh*>(nextObject);
             if (nextMesh)
             {
                 numVertices = numVertices + nextMesh->getNumVertices(a_includeChildren);
@@ -420,14 +419,15 @@ void cMesh::useDisplayList(const bool a_useDisplayList, const bool a_affectChild
 
 //===========================================================================
 /*!
-     This enables the use of vertex arraysfor mesh rendering. This
+     This enables the use of vertex arrays for mesh rendering. This
      mode can be faster than the classical approach, however crashes
-     sometime occure on certain types of graphic cards.
+     sometime occur on certain types of graphic cards.
 
      In general, if you aren't having problems with rendering performance,
      don't bother with this.
 
-     \fn       void cMesh::useDisplayList(const bool a_useDisplayList, const bool a_affectChildren)
+     \fn       void cMesh::useVertexArrays(const bool a_useVertexArrays,
+										   const bool a_affectChildren)
      \param    a_useVertexArrays  If \b true, this mesh will be rendered using vertex array technique
      \param    a_affectChildren  If \b true, then children also modified.
 */
@@ -544,7 +544,8 @@ void cMesh::addVertices(const cVector3d* a_vertexPositions,
   const unsigned int& a_numVertices)
 {
     const cVector3d* end = a_vertexPositions + a_numVertices;
-    while(a_vertexPositions != end) {
+    while(a_vertexPositions != end) 
+    {
         newVertex(*a_vertexPositions);
         a_vertexPositions++;
     }
@@ -741,7 +742,7 @@ bool cMesh::loadFromFile(const string& a_fileName)
 /*!
      Compute surface normals for every vertex in the mesh, by averaging
      the face normals of the triangle that include each vertex.
-     
+
      \fn       void cMesh::computeAllNormals(const bool a_affectChildren=false)
      \param    a_affectChildren  If \b true, then children are also updated.
 */
@@ -756,9 +757,9 @@ void cMesh::computeAllNormals(const bool a_affectChildren)
 
     // If we have vertices and we have triangles, compute normals
     // for all triangles
-    if (ntriangles !=0 && ntriangles != 0) 
+    if (ntriangles !=0 && ntriangles != 0)
     {
-    
+
         // used to grab positions of vertices
         vector<cVertex>* vertex_vector = pVertices();
         vertex_array = (cVertex*) &((*vertex_vector)[0]);
@@ -768,11 +769,11 @@ void cMesh::computeAllNormals(const bool a_affectChildren)
         cVertex* curv = startv;
 
         // set all normals to zero
-        while(curv != endv) 
+        while(curv != endv)
         {
-          curv->m_normal.zero();
-          curv->m_nTriangles = 0;
-          curv++;
+            curv->m_normal.zero();
+            curv->m_nTriangles = 0;
+            curv++;
         }
 
         cTriangle* starttri = &(m_triangles[0]);
@@ -833,20 +834,20 @@ void cMesh::computeAllNormals(const bool a_affectChildren)
 
     // normalize all normals (_after_ doing child-normal computations, in case
     // I share vertices with my children)
-    while(curv != endv) {
-      /*
-      if (curv->m_nTriangles) 
-      {
-        curv->m_normal /= (double)(curv->m_nTriangles);
-      }
-      */
-      if (curv->m_normal.lengthsq() > CHAI_SMALL)
-      {
-        curv->m_normal.normalize();
-      }
-      curv++;
+    while(curv != endv) 
+    {
+        /*
+        if (curv->m_nTriangles)
+        {
+            curv->m_normal /= (double)(curv->m_nTriangles);
+        }
+        */
+        if (curv->m_normal.lengthsq() > CHAI_SMALL)
+        {
+            curv->m_normal.normalize();
+        }
+        curv++;
     }
-
 }
 
 
@@ -869,7 +870,7 @@ void cMesh::updateGlobalPositions(const bool a_frameOnly)
     {
         m_vertices[i].computeGlobalPosition(m_globalPos,m_globalRot);
     }
-    
+
 }
 
 
@@ -899,10 +900,10 @@ void cMesh::setTransparencyLevel(const float a_level, const bool a_applyToTextur
     // otherwise enable it.
     if (a_level < 1.0)
     {
-        enableTransparency(true);
+        setUseTransparency(true);
     } else
     {
-        enableTransparency(false);
+        setUseTransparency(false);
     }
 
     // apply new value to material
@@ -943,7 +944,7 @@ void cMesh::setTransparencyLevel(const float a_level, const bool a_applyToTextur
 /*!
      Set color of each vertex.
 
-     \fn        void cMesh::setVertexColor(const cColorb& a_color, const bool a_affectChildren=false)
+     \fn        void cMesh::setVertexColor(const cColorf& a_color, const bool a_affectChildren)
      \param     a_color   New color to be applied to each vertex
      \param     a_affectChildren  If \b true, then children also modified.
 */
@@ -994,33 +995,33 @@ void cMesh::setVertexColor(const cColorf& a_color, const bool a_affectChildren)
 void cMesh::offsetVertices(const cVector3d& a_offset, const bool a_affectChildren,
                             const bool a_updateCollisionDetector)
 {
-  // update this object
-  int vertexcount = m_vertices.size();
-  for(int i=0; i<vertexcount; i++)
-  {
-    m_vertices[i].m_localPos.add(a_offset);
-  }
-
-  m_boundaryBoxMin+=a_offset;
-  m_boundaryBoxMax+=a_offset;
-
-  // propagate changes to my children
-  if (a_affectChildren)
-  {
-    for (unsigned int i=0; i<m_children.size(); i++)
+    // update this object
+    int vertexcount = m_vertices.size();
+    for(int i=0; i<vertexcount; i++)
     {
-      cGenericObject *nextObject = m_children[i];
-
-      cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
-      if (nextMesh)
-      {                
-        nextMesh->offsetVertices(a_offset, a_affectChildren, a_updateCollisionDetector);
-      }
+        m_vertices[i].m_localPos.add(a_offset);
     }
-  }
 
-  if (a_updateCollisionDetector && m_collisionDetector)
-    m_collisionDetector->initialize();
+    m_boundaryBoxMin+=a_offset;
+    m_boundaryBoxMax+=a_offset;
+
+    // propagate changes to my children
+    if (a_affectChildren)
+    {
+        for (unsigned int i=0; i<m_children.size(); i++)
+        {
+            cGenericObject *nextObject = m_children[i];
+
+            cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
+            if (nextMesh)
+            {
+                nextMesh->offsetVertices(a_offset, a_affectChildren, a_updateCollisionDetector);
+            }
+        }
+    }
+
+    if (a_updateCollisionDetector && m_collisionDetector)
+        m_collisionDetector->initialize();
 }
 
 
@@ -1039,177 +1040,190 @@ void cMesh::offsetVertices(const cVector3d& a_offset, const bool a_affectChildre
 void cMesh::extrude(const double a_extrudeDistance, const bool a_affectChildren,
                     const bool a_updateCollisionDetector)
 {
-  // update this object
-  int vertexcount = m_vertices.size();
-  for(int i=0; i<vertexcount; i++)
-  {
-    m_vertices[i].m_localPos.add(cMul(a_extrudeDistance,m_vertices[i].m_normal));
-  }  
-
-  // This is an O(N) operation, as is the extrusion, so it seems okay to call
-  // this by default...
-  updateBoundaryBox();
-
-  // propagate changes to my children
-  if (a_affectChildren)
-  {
-    for (unsigned int i=0; i<m_children.size(); i++)
+    // update this object
+    int vertexcount = m_vertices.size();
+    for(int i=0; i<vertexcount; i++)
     {
-      cGenericObject *nextObject = m_children[i];
-
-      cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
-      if (nextMesh)
-      {                
-        nextMesh->extrude(a_extrudeDistance, a_affectChildren,a_updateCollisionDetector);
-      }
+        m_vertices[i].m_localPos.add(cMul(a_extrudeDistance,m_vertices[i].m_normal));
     }
-  }
 
-  if (a_updateCollisionDetector && m_collisionDetector)
-    m_collisionDetector->initialize();
+    // This is an O(N) operation, as is the extrusion, so it seems okay to call
+    // this by default...
+    updateBoundaryBox();
+
+    // propagate changes to my children
+    if (a_affectChildren)
+    {
+        for (unsigned int i=0; i<m_children.size(); i++)
+        {
+            cGenericObject *nextObject = m_children[i];
+
+            cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
+            if (nextMesh)
+            {
+                nextMesh->extrude(a_extrudeDistance, a_affectChildren,a_updateCollisionDetector);
+            }
+        }
+    }
+
+    if (a_updateCollisionDetector && m_collisionDetector)
+        m_collisionDetector->initialize();
 }
 
 
 //===========================================================================
 /*!
-  Reverse the normal for every vertex on this model.  Useful for models
-  that started with inverted faces and thus gave inward-pointing normals.
+    Reverse the normal for every vertex on this model.  Useful for models
+    that started with inverted faces and thus gave inward-pointing normals.
 
-  \fn        void cMesh::reverseAllNormals(bool a_affectChildren=0);
-  \param     a_affectChildren  If \b true, children are also modified.
+    \fn        void cMesh::reverseAllNormals(bool a_affectChildren=0);
+    \param     a_affectChildren  If \b true, children are also modified.
 */
 //===========================================================================
 void cMesh::reverseAllNormals(const bool a_affectChildren)
 {
-  // reverse normals for this object
-  if (m_vertices.size() > 0)
-  {
-    vector<cVertex>* vertex_vector = pVertices();
-    cVertex* vertex_array = (cVertex*) &((*vertex_vector)[0]);
-    int vertexcount = vertex_vector->size();
+	// reverse normals for this object
+	if (m_vertices.size() > 0)
+	{
+		vector<cVertex>* vertex_vector = pVertices();
+		cVertex* vertex_array = (cVertex*) &((*vertex_vector)[0]);
+		int vertexcount = vertex_vector->size();
 
-    for(int i=0; i<vertexcount; i++)
-    {
-      vertex_array[i].m_normal.mul(-1.0);
-    }
-  }
+		for(int i=0; i<vertexcount; i++)
+		{
+			vertex_array[i].m_normal.mul(-1.0);
+		}
+	}
 
-  // propagate changes to my children
-  if (a_affectChildren)
-  {
-    for (unsigned int i=0; i<m_children.size(); i++)
-    {
-      cGenericObject *nextObject = m_children[i];
+	// propagate changes to my children
+	if (a_affectChildren)
+	{
+		for (unsigned int i=0; i<m_children.size(); i++)
+		{
+			cGenericObject *nextObject = m_children[i];
 
-      cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
-      if (nextMesh)
-      {                
-        nextMesh->reverseAllNormals(true);
-      }
-    }
-  }  
+			cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
+			if (nextMesh)
+			{
+			nextMesh->reverseAllNormals(true);
+			}
+		}
+	}
 }
 
 
-// A function to put a triangle in vertex-sorted order, used for removing
-// redundant triangles
-inline void sort_triangle(cTriangle& t) {
+//---------------------------------------------------------------------------
+/*!
+	A function to put a triangle in vertex-sorted order, used for removing
+	redundant triangles.
+*/
+//---------------------------------------------------------------------------
+inline void sort_triangle(cTriangle& t)
+{
   register unsigned int tmp;
   if (t.m_indexVertex0 > t.m_indexVertex1)
     { tmp = t.m_indexVertex1; t.m_indexVertex1 = t.m_indexVertex0; t.m_indexVertex0 = tmp; }
   if (t.m_indexVertex1 > t.m_indexVertex2)
     { tmp = t.m_indexVertex2; t.m_indexVertex2 = t.m_indexVertex1; t.m_indexVertex1 = tmp; }
   else return;
-  if (t.m_indexVertex0 > t.m_indexVertex1) 
+  if (t.m_indexVertex0 > t.m_indexVertex1)
     { tmp = t.m_indexVertex1; t.m_indexVertex1 = t.m_indexVertex0; t.m_indexVertex0 = tmp; }
 }
 
 
-// A comparator for sorting triangles, used for removing
-// redundant triangles
-struct lt_ctriangle {
-  inline bool operator()(const cTriangle& in_t1, const cTriangle& in_t2)
-  {
-    // Sort both triangles so we're comparing them in vertex-sorted order
-    cTriangle t1 = in_t1;
-    sort_triangle(t1);
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+//---------------------------------------------------------------------------
+/*!
+	A comparator for sorting triangles, used for removing redundant
+	triangles.
+*/
+//---------------------------------------------------------------------------
+struct lt_ctriangle
+{
+	inline bool operator()(const cTriangle& in_t1, const cTriangle& in_t2)
+	{
+		// Sort both triangles so we're comparing them in vertex-sorted order
+		cTriangle t1 = in_t1;
+		sort_triangle(t1);
 
-    cTriangle t2 = in_t2;
-    sort_triangle(t2);
+		cTriangle t2 = in_t2;
+		sort_triangle(t2);
 
-    // Do the comparison
-    if      (t1.m_indexVertex0 < t2.m_indexVertex0) return true;
-    else if (t1.m_indexVertex0 > t2.m_indexVertex0) return false;
-    else if (t1.m_indexVertex1 < t2.m_indexVertex1) return true;
-    else if (t1.m_indexVertex1 > t2.m_indexVertex1) return false;
-    else if (t1.m_indexVertex2 < t2.m_indexVertex2) return true;
-    return false;
-  }
+		// Do the comparison
+		if      (t1.m_indexVertex0 < t2.m_indexVertex0) return true;
+		else if (t1.m_indexVertex0 > t2.m_indexVertex0) return false;
+		else if (t1.m_indexVertex1 < t2.m_indexVertex1) return true;
+		else if (t1.m_indexVertex1 > t2.m_indexVertex1) return false;
+		else if (t1.m_indexVertex2 < t2.m_indexVertex2) return true;
+		return false;
+	}
 };
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 
 //===========================================================================
 /*!
-Remove redundant triangles from this model.  Does not use vertex positions
-at all, just removed triangles with redundant indices and obviously-
-degenerate triangles.
+	Remove redundant triangles from this model.  Does not use vertex positions
+	at all, just removed triangles with redundant indices and obviously-
+	degenerate triangles.
 
-\fn        void cMesh::removeRedundantTriangles(bool a_affectChildren=0);
-\param     a_affectChildren  If \b true, children are also modified.
+	\fn        void cMesh::removeRedundantTriangles(bool a_affectChildren=0);
+	\param     a_affectChildren  If \b true, children are also modified.
 */
 //===========================================================================
 void cMesh::removeRedundantTriangles(const bool a_affectChildren)
 {
+    // remove redundant triangles from this mesh
 
-  // remove redundant triangles from this mesh
-
-  // move everything from a vector into a set, sorted by triangles,
-  // and remove degenerate triangles.
-  std::set<cTriangle,lt_ctriangle> sorted_tris;
-  unsigned int ntris = m_triangles.size();
-    unsigned int i;
-  for(i=0; i<ntris; i++) {
-    cTriangle t = m_triangles[i];
-
-    // Remove degenerate triangles
-    if (
-      t.m_indexVertex0 == t.m_indexVertex1 ||
-      t.m_indexVertex0 == t.m_indexVertex2 ||
-      t.m_indexVertex1 == t.m_indexVertex2)
-      continue;
-
-    // Put this triangle in the sorted list
-    sorted_tris.insert(t);
-  }
-
-  // clear the vector
-  m_triangles.clear();
-
-  // move everything back from the set to the vector
-  ntris = sorted_tris.size();
-
-  std::set<cTriangle,lt_ctriangle>::iterator iter = sorted_tris.begin();
-  std::set<cTriangle,lt_ctriangle>::iterator end = sorted_tris.end();
-  while(iter != end) {
-    m_triangles.push_back(*iter);
-    iter++;
-  }
-
-  // clear the set before recursing
-  sorted_tris.clear();
-
-  // propagate changes to my children
-  if (a_affectChildren==false) return;
-
-  for (i=0; i<m_children.size(); i++)
-  {
-    cGenericObject *nextObject = m_children[i];
-    cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
-    if (nextMesh)
+    // move everything from a vector into a set, sorted by triangles,
+    // and remove degenerate triangles.
+    std::set<cTriangle,lt_ctriangle> sorted_tris;
+    unsigned int ntris = m_triangles.size();
+        unsigned int i;
+    for(i=0; i<ntris; i++) 
     {
-      nextMesh->removeRedundantTriangles(true);
+        cTriangle t = m_triangles[i];
+
+        // Remove degenerate triangles
+        if (
+        t.m_indexVertex0 == t.m_indexVertex1 ||
+        t.m_indexVertex0 == t.m_indexVertex2 ||
+        t.m_indexVertex1 == t.m_indexVertex2)
+        continue;
+
+        // Put this triangle in the sorted list
+        sorted_tris.insert(t);
     }
-  }
+
+    // clear the vector
+    m_triangles.clear();
+
+    // move everything back from the set to the vector
+    ntris = sorted_tris.size();
+
+    std::set<cTriangle,lt_ctriangle>::iterator iter = sorted_tris.begin();
+    std::set<cTriangle,lt_ctriangle>::iterator end = sorted_tris.end();
+    while(iter != end) 
+    {
+        m_triangles.push_back(*iter);
+        iter++;
+    }
+
+    // clear the set before recursing
+    sorted_tris.clear();
+
+    // propagate changes to my children
+    if (a_affectChildren==false) return;
+
+    for (i=0; i<m_children.size(); i++)
+    {
+        cGenericObject *nextObject = m_children[i];
+        cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
+        if (nextMesh)
+        {
+            nextMesh->removeRedundantTriangles(true);
+        }
+    }
 }
 
 
@@ -1253,7 +1267,7 @@ void cMesh::setNormalsProperties(const double a_length, const cColorf& a_color,
      Enable or disable the graphic rendering of normal vectors at each vertex,
      optionally propagating the operation to my children
 
-     \fn        void cMesh::showNormals(const bool& a_showNormals,
+     \fn        void cMesh::setShowNormals(const bool& a_showNormals,
                 const bool a_affectChildren, const bool a_trianglesOnly)
      \param     a_showNormals If \b true, normal vectors are rendered graphically
      \param     a_affectChildren  If \b true, then children also modified
@@ -1261,8 +1275,8 @@ void cMesh::setNormalsProperties(const double a_length, const cColorf& a_color,
                                 vertices that are used in triangles.
 */
 //===========================================================================
-void cMesh::showNormals(const bool& a_showNormals, const bool a_affectChildren,
-                        const bool a_trianglesOnly)
+void cMesh::setShowNormals(const bool& a_showNormals, const bool a_affectChildren,
+                           const bool a_trianglesOnly)
 {
     m_showNormals = a_showNormals;
     m_showNormalsForTriangleVerticesOnly = a_trianglesOnly;
@@ -1277,7 +1291,7 @@ void cMesh::showNormals(const bool& a_showNormals, const bool a_affectChildren,
             cMesh *nextMesh = dynamic_cast<cMesh*>(nextObject);
             if (nextMesh)
             {
-                nextMesh->showNormals(a_showNormals, a_affectChildren);
+                nextMesh->setShowNormals(a_showNormals, a_affectChildren);
             }
         }
     }
@@ -1311,7 +1325,7 @@ void cMesh::updateBoundaryBox()
     vector<cVertex>* vertex_vector = pVertices();
     if (vertex_vector == 0) return;
     cVertex* vertex_array = (cVertex*) &((*vertex_vector)[0]);
-    
+
     // loop over all my triangles
     for(unsigned int i=0; i<m_triangles.size(); i++)
     {
@@ -1440,14 +1454,14 @@ bool TriangleSort2(const cTriangle* t1, const cTriangle* t2)
 //===========================================================================
 /*!
     Find pairs of neighboring triangles that share specific vertices,
-    given vectors of those triangles sorted by the x-coordinates of those vertices 
-    (first, second, or third), using a merge join.  We define two triangles to 
-    be neighbors if and only if they have a common vertex (within some distance 
+    given vectors of those triangles sorted by the x-coordinates of those vertices
+    (first, second, or third), using a merge join.  We define two triangles to
+    be neighbors if and only if they have a common vertex (within some distance
     tolerance).  In this function, we are only concerned about matching triangles
-    whose vertex v1 in search1 is shared (within tolerance) with vertex v2 in 
+    whose vertex v1 in search1 is shared (within tolerance) with vertex v2 in
     search2; this function should be called once for each possible combination
     (order doesn't matter) of v1=0..2 and v2=0..2 to find all neighbors.  Two
-    shared vertices must have equal x-coordinates (within tolerance), which allows 
+    shared vertices must have equal x-coordinates (within tolerance), which allows
     us to check for matches using a merge join on lists sorted by x-coordinate.
     (Using y-coordinates or z-coordinates would have been equally valid.)
 
@@ -1465,12 +1479,12 @@ void cMesh::findNeighbors(std::vector<cTriangle*>* search1,
     unsigned int i = 0;
     unsigned int j = 0;
 
-        // In this loop, we want to find triangles from search1 that have vertex #v1 
-        // (v1 = 0, 1, or 2) equal to vertex #v2 (v2 = 0, 1, or 2) of a triangle from 
+        // In this loop, we want to find triangles from search1 that have vertex #v1
+        // (v1 = 0, 1, or 2) equal to vertex #v2 (v2 = 0, 1, or 2) of a triangle from
         // search2.  Since both lists are sorted, we use a merge join.
     while ((i < search1->size()) && (j < search2->size()))
-    {      
-      // If the x coordinate of vertex #v1 of triangle #i in search1 is the same as 
+    {
+      // If the x coordinate of vertex #v1 of triangle #i in search1 is the same as
             // the x-coordinate of vertex #v2 of triangle #j in search2 (matching x-
             // coordinates is a necessary but not sufficient condition that the vertices
             // are shared)...
@@ -1492,7 +1506,7 @@ void cMesh::findNeighbors(std::vector<cTriangle*>* search1,
                         (*search2)[jj]->getVertex(v2)->getPos().x) < 0.0000001))
           {
                         // If vertex #v1 of triangle #i in search1 is in fact equal (in x, y, and
-                        // z coordinates) to vertex #v2 of triangle #jj in search2, we have 
+                        // z coordinates) to vertex #v2 of triangle #jj in search2, we have
                         // found a pair of neighbors.
             if (((*search1)[i] != (*search2)[jj]) &&
                 (cEqualPoints((*search1)[i]->getVertex(v1)->getPos(),
@@ -1517,7 +1531,7 @@ void cMesh::findNeighbors(std::vector<cTriangle*>* search1,
               for (ii=0; (!found) && (ii<(*search2)[jj]->m_neighbors->size()); ii++)
                 if ((*((*search2)[jj]->m_neighbors))[ii] == (*search1)[i])
                   found = true;
-                            
+
                           // If not, add it now.
               if (!found)
                 (*search2)[jj]->m_neighbors->push_back((*search1)[i]);
@@ -1560,6 +1574,7 @@ void cMesh::createBruteForceCollisionDetector(bool a_affectChildren,
     if (m_collisionDetector != NULL)
     {
         delete m_collisionDetector;
+        m_collisionDetector = NULL;
     }
 
     // create AABB collision detector
@@ -1610,7 +1625,7 @@ void cMesh::createTriangleNeighborList(bool a_affectChildren)
 
     std::vector<cTriangle*>* sort1 = new std::vector<cTriangle*>(*sort0);
     std::vector<cTriangle*>* sort2 = new std::vector<cTriangle*>(*sort1);
- 
+
     // Sort each list by the appropriate vertex index
     std::sort(sort0->begin(), sort0->end(), TriangleSort0);
     std::sort(sort1->begin(), sort1->end(), TriangleSort1);
@@ -1622,14 +1637,14 @@ void cMesh::createTriangleNeighborList(bool a_affectChildren)
       // Create the neighbor array
       if (m_triangles[i].m_neighbors) {
           m_triangles[i].m_neighbors->clear();
-      } else { 
+      } else {
           m_triangles[i].m_neighbors = new std::vector<cTriangle*>;
       }
       // Include each triangle as its own neighbor
       m_triangles[i].m_neighbors->push_back(&(m_triangles[i]));
     }
 
-    
+
     // Find pairs of triangles for which vertex #0 of one is shared with
     // vertex #0 of the other...
     findNeighbors(sort0, sort0, 0, 0);
@@ -1681,8 +1696,10 @@ void cMesh::createTriangleNeighborList(bool a_affectChildren)
 /*!
      Set up an AABB collision detector for this mesh and (optionally) its children
 
-     \fn       void cMesh::createAABBCollisionDetector(bool a_affectChildren,
-                                                       bool a_useNeighbors)
+     \fn       void cMesh::createAABBCollisionDetector(double a_radius,
+                                        bool a_affectChildren,
+                                        bool a_useNeighbors)
+	 \param	   a_radius  Bounding radius.
      \param    a_affectChildren   Create collision detectors for children?
      \param    a_useNeighbors     Create neighbor lists?
 */
@@ -1695,6 +1712,7 @@ void cMesh::createAABBCollisionDetector(double a_radius,
     if (m_collisionDetector != NULL)
     {
         delete m_collisionDetector;
+        m_collisionDetector = NULL;
     }
 
     // create AABB collision detector
@@ -1723,7 +1741,6 @@ void cMesh::createAABBCollisionDetector(double a_radius,
                 nextMesh->createAABBCollisionDetector(a_radius,
                                                       a_affectChildren,
                                                       a_useNeighbors);
-                nextMesh->m_collisionDetector->initialize(a_radius);
             }
         }
     }
@@ -1734,10 +1751,12 @@ void cMesh::createAABBCollisionDetector(double a_radius,
 /*!
      Set up a sphere tree collision detector for this mesh and (optionally) its children
 
-     \fn     void cMesh::createSphereTreeCollisionDetector(bool a_affectChildren,
-                                                           bool a_useNeighbors)
-     \param  a_affectChildren   Create collision detectors for children?
-     \param  a_useNeighbors     Create neighbor lists?
+     \fn     void cMesh::createSphereTreeCollisionDetector(double a_radius,
+                                              bool a_affectChildren,
+                                              bool a_useNeighbors)
+	 \param	   a_radius  Bounding radius.
+     \param    a_affectChildren   Create collision detectors for children?
+     \param    a_useNeighbors     Create neighbor lists?
 */
 //===========================================================================
 void cMesh::createSphereTreeCollisionDetector(double a_radius,
@@ -1748,6 +1767,7 @@ void cMesh::createSphereTreeCollisionDetector(double a_radius,
     if (m_collisionDetector != NULL)
     {
       delete m_collisionDetector;
+      m_collisionDetector = NULL;
     }
 
     // create sphere tree collision detector
@@ -1761,7 +1781,7 @@ void cMesh::createSphereTreeCollisionDetector(double a_radius,
     {
         createTriangleNeighborList(false);
     }
-    
+
     // update children if required
     if (a_affectChildren)
     {
@@ -1781,11 +1801,37 @@ void cMesh::createSphereTreeCollisionDetector(double a_radius,
 }
 
 
+
 //===========================================================================
 /*!
-     Render this mesh in OpenGL.  This method actually just prepares some 
+	For mesh objects, this information is computed by the virtual tool
+	when computing the finger-proxy model. More information can be found in 
+	file CGeneric3dofPointer.cpp undr methof computeInteractionForces()
+	Both variables m_interactionProjectedPoint and m_interactionInside are
+	assigned values based on the objects encountered by the proxy.
+
+    \fn     void cMesh::computeLocalInteraction(const cVector3d& a_toolPos,
+                                                const cVector3d& a_toolVel,
+                                                const unsigned int a_IDN)
+    \param  a_toolPos  Position of the tool.
+    \param  a_toolVel  Velocity of the tool.
+    \param  a_IDN  Identification number of the force algorithm.
+*/
+//===========================================================================
+void cMesh::computeLocalInteraction(const cVector3d& a_toolPos,
+                                    const cVector3d& a_toolVel,
+                                    const unsigned int a_IDN)
+{
+    // m_interactionProjectedPoint
+    // m_interactionInside
+}
+
+
+//===========================================================================
+/*!
+     Render this mesh in OpenGL.  This method actually just prepares some
      OpenGL state, and uses renderMesh to actually do the rendering.
-     
+
      \fn       void cMesh::render(const int a_renderMode)
      \param    a_renderMode  Rendering mode (see cGenericObject)
 */
@@ -1833,7 +1879,6 @@ void cMesh::render(const int a_renderMode)
 //===========================================================================
 void cMesh::invalidateDisplayList(const bool a_affectChildren)
 {
-
     // Delete my display list if necessary
     if (m_displayList != -1)
     {
@@ -1869,6 +1914,12 @@ void cMesh::invalidateDisplayList(const bool a_affectChildren)
 //===========================================================================
 void cMesh::renderNormals(const bool a_trianglesOnly)
 {
+    // check if any normals to render
+    if ((m_vertices.size() == 0))
+    {
+        return;
+    }
+
     // disable lighting
     glDisable(GL_LIGHTING);
 
@@ -1883,7 +1934,7 @@ void cMesh::renderNormals(const bool a_trianglesOnly)
     cVertex* vertex_array = (cVertex*) &((*vertex_vector)[0]);
 
     if (a_trianglesOnly) {
-    
+
       glBegin(GL_LINES);
 
       // render vertex normals
@@ -1903,13 +1954,13 @@ void cMesh::renderNormals(const bool a_trianglesOnly)
           normal0->mulr(m_showNormalsLength, normal);
           vertex0->addr(normal, normalPos);
           glVertex3dv((const double *)&normalPos);
-         
+
           // render normal 1 of triangle
           glVertex3dv((const double *)vertex1);
           normal1->mulr(m_showNormalsLength, normal);
           vertex1->addr(normal, normalPos);
           glVertex3dv((const double *)&normalPos);
-         
+
           // render normal 2 of triangle
           glVertex3dv((const double *)vertex2);
           normal2->mulr(m_showNormalsLength, normal);
@@ -1931,7 +1982,7 @@ void cMesh::renderNormals(const bool a_trianglesOnly)
         if (m_vertices[i].m_allocated == false) continue;
         cVector3d v = m_vertices[i].m_localPos;
         cVector3d n = m_vertices[i].m_normal;
-        
+
         // render normal 0 of triangle
         glVertex3d(v.x,v.y,v.z);
         n.mul(m_showNormalsLength);
@@ -1940,7 +1991,7 @@ void cMesh::renderNormals(const bool a_trianglesOnly)
       }
       glEnd();
     }
-   
+
 
     // enable lighting
     glEnable(GL_LIGHTING);
@@ -2274,7 +2325,6 @@ void cMesh::renderMesh(const int a_renderMode)
 }
 
 
-
 //===========================================================================
 /*!
     Users can call this function when it's necessary to re-initialize the OpenGL
@@ -2289,7 +2339,7 @@ void cMesh::onDisplayReset(const bool a_affectChildren)
 {
     invalidateDisplayList();
     if (m_texture != NULL) m_texture->markForUpdate();
-    
+
     // Use the superclass method to call the same function on the rest of the
     // scene graph...
     cGenericObject::onDisplayReset(a_affectChildren);

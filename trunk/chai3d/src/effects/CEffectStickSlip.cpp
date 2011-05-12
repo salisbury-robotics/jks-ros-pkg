@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,9 +12,9 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -30,8 +30,7 @@
 /*!
     Constructor of cEffectStickSlip.
 
-    \fn  cEffectStickSlip::cEffectStickSlip(cGenericObject* a_parent):cGenericEffect(a_parent)
-
+    \fn     cEffectStickSlip::cEffectStickSlip(cGenericObject* a_parent):cGenericEffect(a_parent)
     \param  a_parent Parent object.
 */
 //===========================================================================
@@ -55,7 +54,7 @@ cEffectStickSlip::cEffectStickSlip(cGenericObject* a_parent):cGenericEffect(a_pa
                                            cVector3d& a_reactionForce);
     \param  a_toolPos Position of tool.
     \param  a_toolVel Velocity of tool.
-    \param  a_toolID  Identification number of force algorythm
+    \param  a_toolID  Identification number of force algorithm
     \param  a_reactionForce  Return the computed force here.
     \return  Return false if no interaction force is computed
 */

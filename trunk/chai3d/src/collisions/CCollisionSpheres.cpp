@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -62,7 +62,6 @@ cCollisionSpheres::cCollisionSpheres(vector<cTriangle> *a_triangles,
     m_material.m_diffuse.set(0.1, 0.8, 0.1, 0.3);
     m_material.m_specular.set(0.1, 1.0, 0.1, 0.3);
     m_material.setShininess(100);
-
 }
 
 
@@ -98,7 +97,7 @@ cCollisionSpheres::~cCollisionSpheres()
     the bounding spheres of its two children.
 
     \fn       void cCollisionSpheres::initialize(double a_radius)
-    \param    a_radius radius to add arround the triangles.
+    \param    a_radius radius to add around the triangles.
 */
 //===========================================================================
 void cCollisionSpheres::initialize(double a_radius)
@@ -197,13 +196,14 @@ void cCollisionSpheres::render()
     intersection testing is called.
 
     \fn       bool cCollisionSpheres::computeCollision(cVector3d& a_segmentPointA,
-              cVector3d& a_segmentPointB, cCollisionRecorder& a_recorder,
-              cCollisionSettings& a_settings)
+                                         cVector3d& a_segmentPointB,
+                                         cCollisionRecorder& a_recorder,
+                                         cCollisionSettings& a_settings)
     \param    a_segmentPointA  Initial point of segment.
     \param    a_segmentPointB  End point of segment.
     \param    a_recorder  Stores all collision events
     \param    a_settings  Contains collision settings information.
-    \return   Return true if a collision event has occured.
+    \return   Return \b true if a collision event has occurred.
 */
 //===========================================================================
 bool cCollisionSpheres::computeCollision(cVector3d& a_segmentPointA,
@@ -268,8 +268,7 @@ bool cCollisionSpheres::computeCollision(cVector3d& a_segmentPointA,
 /*!
     Constructor of cCollisionSpheresSphere.
 
-    \fn         cCollisionSpheresSphere::cCollisionSpheresSphere(
-                  cCollisionSpheresSphere *a_parent)
+    \fn         cCollisionSpheresSphere::cCollisionSpheresSphere(cCollisionSpheresSphere *a_parent)
     \param      a_parent     Pointer to parent of this node in the sphere tree.
     \return     Return a pointer to new cCollisionSpheresSphere instance.
 */
@@ -294,11 +293,11 @@ cCollisionSpheresSphere::cCollisionSpheresSphere(cCollisionSpheresSphere *a_pare
     \fn       bool cCollisionSpheresSphere::computeCollision(cCollisionSpheresSphere *a_sa,
               cCollisionSpheresSphere *a_sb, cCollisionRecorder& a_recorder,
               cCollisionSettings& a_settings)
-    \param    a_segmentPointA  Initial point of segment.
-    \param    a_segmentPointB  End point of segment.
+    \param    a_sa  Node 0.
+    \param    a_sb  Node 1.
     \param    a_recorder  Stores all collision events
     \param    a_settings  Contains collision settings information.
-    \return   Return true if a collision event has occured.
+    \return   Return true if a collision event has occurred.
 */
 //===========================================================================
 bool cCollisionSpheresSphere::computeCollision(cCollisionSpheresSphere *a_sa,
@@ -353,11 +352,13 @@ cCollisionSpheresNode::cCollisionSpheresNode(Plist &a_primList,
 /*!
     Constructor of cCollisionSpheresNode.
 
-    \fn       cCollisionSpheresNode::cCollisionSpheresNode(
-              std::vector<cTriangle>* a_tris, cCollisionSpheresSphere *a_parent)
-    \param    a_tris  Pointer to vector of triangles to use for collision
-                      detection.
+    \fn       cCollisionSpheresNode::cCollisionSpheresNode(std::vector<cTriangle>* a_tris,
+                 cCollisionSpheresSphere *a_parent,
+                 double a_extendedRadius) :
+                 cCollisionSpheresSphere(a_parent)
+    \param    a_tris  Pointer to vector of triangles to use for collision detection.
     \param    a_parent  Pointer to the parent of this node in sphere tree.
+    \param    a_extendedRadius  Bounding radius.
 */
 //===========================================================================
 cCollisionSpheresNode::cCollisionSpheresNode(std::vector<cTriangle>* a_tris,
@@ -562,17 +563,14 @@ void cCollisionSpheresNode::swapptr(void **a_a, void **a_b)
     collision spheres.  If so, return (in the output parameters) information
     about the intersected triangle of the mesh closest to the segment origin.
 
-    \fn       bool cCollisionSpheresNode::computeCollision(
-              cCollisionSpheresNode *a_sa, cGenericObject*& a_colObject,
-              cTriangle*& a_colTriangle, cVector3d& a_colPoint,
-              double& a_colSquareDistance, cCollisionSpheresSphere *a_sb)
-    \param    a_sa  The root of one sphere tree to check for collision.
-    \param    a_colObject  Returns pointer to nearest collided object.
-    \param    a_colTriangle  Returns pointer to nearest collided triangle.
-    \param    a_colPoint  Returns position of nearest collision.
-    \param    a_colSquareDistance  Returns distance between ray origin and
-                                   collision point.
+    \fn       bool cCollisionSpheresNode::computeCollision(cCollisionSpheresNode *a_sa,
+                                             cCollisionSpheresSphere *a_sb,
+                                             cCollisionRecorder& a_recorder,
+                                             cCollisionSettings& a_settings)
+    \param    a_sa  Root of one sphere tree to check for collision.
     \param    a_sb  Root of other sphere tree to check for collision.
+    \param    a_recorder  Stores all collision events
+    \param    a_settings  Contains collision settings information.
     \return   Return whether any primitives within the two sphere trees collide.
 */
 //===========================================================================
@@ -638,9 +636,11 @@ cCollisionSpheresLeaf::cCollisionSpheresLeaf(cCollisionSpheresGenericShape *a_pr
     Constructor of cCollisionSpheresLeaf.
 
     \fn       cCollisionSpheresLeaf::cCollisionSpheresLeaf(cTriangle* a_tri,
-              cCollisionSpheresSphere *a_parent)
+                                             cCollisionSpheresSphere *a_parent,
+                                             double a_extendedRadius)
     \param    a_tri  Pointer to triangle to be enclosed by new sphere leaf.
     \param    a_parent  Pointer to the parent of this node in the sphere tree.
+    \param    a_extendedRadius  Bounding radius.
     \return   Return a pointer to new cCollisionSpheresLeaf instance.
 */
 //===========================================================================
@@ -699,17 +699,15 @@ void cCollisionSpheresLeaf::draw(int a_depth)
     (line and triangle) of the two given collision spheres by calling the
     primitive's collision detection method.
 
-    \fn       bool cCollisionSpheresLeaf::computeCollision(
-              cCollisionSpheresLeaf *a_sa, cGenericObject*& a_colObject,
-              cTriangle*& a_colTriangle, cVector3d& a_colPoint,
-              double& a_colSquareDistance, cCollisionSpheresLeaf *a_sb)
+    \fn       bool cCollisionSpheresLeaf::computeCollision(cCollisionSpheresLeaf *a_sa,
+                                             cCollisionSpheresLeaf *a_sb,
+                                             cCollisionRecorder& a_recorder,
+                                             cCollisionSettings& a_settings)
+
     \param    a_sa  One sphere tree leaf to check for collision.
-    \param    a_colObject  Returns pointer to nearest collided object.
-    \param    a_colTriangle  Returns pointer to nearest collided triangle.
-    \param    a_colPoint  Returns position of nearest collision.
-    \param    a_colSquareDistance  Returns distance between ray origin and
-                                   collision point.
     \param    a_sb  Other sphere tree leaf to check for collision.
+    \param    a_recorder  Stores all collision events
+    \param    a_settings  Contains collision settings information.
     \return   Return whether primitives of the two leaves collide.
 */
 //===========================================================================

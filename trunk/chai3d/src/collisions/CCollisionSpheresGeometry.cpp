@@ -1,7 +1,7 @@
 //===========================================================================
 /*
     This file is part of the CHAI 3D visualization and haptics libraries.
-    Copyright (C) 2003-#YEAR# by CHAI 3D. All rights reserved.
+    Copyright (C) 2003-2010 by CHAI 3D. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License("GPL") version 2
@@ -12,10 +12,10 @@
     of our support services, please contact CHAI 3D about acquiring a
     Professional Edition License.
 
-    \author:    <http://www.chai3d.org>
-    \author:    Chris Sewell
-    \author:    Francois Conti
-    \version    #CHAI_VERSION#
+    \author    <http://www.chai3d.org>
+    \author    Chris Sewell
+    \author    Francois Conti
+    \version   2.1.0 $Rev: 322 $
 */
 //===========================================================================
 
@@ -25,7 +25,6 @@
 // Initialize m_split, axis on which to sort triangle primitives.
 int cCollisionSpheresGenericShape::m_split = 0;
 //---------------------------------------------------------------------------
-
 
 //===========================================================================
 /*!
@@ -67,7 +66,9 @@ void cCollisionSpheresEdge::initialize(cCollisionSpheresPoint *a_a, cCollisionSp
     a sphere.
 
     \fn       cCollisionSpheresTri::cCollisionSpheresTri(cVector3d a,
-              cVector3d b, cVector3d c);
+                                           cVector3d b,
+                                           cVector3d c,
+                                           double a_extendedRadius)
     \param    a     First vertex of the triangle.
     \param    b     Second vertex of the triangle.
     \param    c     Third vertex of the triangle.
@@ -170,15 +171,11 @@ cCollisionSpheresTri::cCollisionSpheresTri(cVector3d a,
     method of the cTriangle object associated with this triangle primitive.
 
     \fn       bool cCollisionSpheresTri::computeCollision(cCollisionSpheresGenericShape *a_other,
-              cGenericObject*& a_colObject, cTriangle*& a_colTriangle,
-              cVector3d& a_colPoint, double& a_colSquareDistance)
+                                            cCollisionRecorder& a_recorder,
+                                            cCollisionSettings& a_settings)
     \param    a_other  The line primitive to check for intersection.
-    \param    a_colObject  Returns pointer to nearest collided object.
-    \param    a_colTriangle  Returns pointer to nearest collided triangle.
-    \param    a_colPoint  Returns position of nearest collision.
-    \param    a_colSquareDistance  Returns distance between ray origin and
-                                   collision point.
-    \return   Return whether the given line intersects this triangle.
+    \param    a_recorder  Stores all collision events.
+    \param    a_settings  Contains collision settings information.
 */
 //===========================================================================
 bool cCollisionSpheresTri::computeCollision(cCollisionSpheresGenericShape *a_other,
@@ -240,16 +237,12 @@ cCollisionSpheresLine::cCollisionSpheresLine(cVector3d& a_segmentPointA,
     (this line and the given triangle) by calling the collision detection
     method of the triangle primitive.
 
-    \fn       bool cCollisionSpheresLine::computeCollision(
-              cCollisionSpheresGenericShape *a_other,
-              cGenericObject*& a_colObject, cTriangle*& a_colTriangle,
-              cVector3d& a_colPoint, double& a_colSquareDistance)
+    \fn       bool cCollisionSpheresLine::computeCollision(cCollisionSpheresGenericShape *a_other,
+                                             cCollisionRecorder& a_recorder,
+                                             cCollisionSettings& a_settings)
     \param    a_other  The triangle primitive to check for intersection.
-    \param    a_colObject  Returns pointer to nearest collided object.
-    \param    a_colTriangle  Returns pointer to nearest collided triangle.
-    \param    a_colPoint  Returns position of nearest collision.
-    \param    a_colSquareDistance  Returns distance between ray origin and
-                                   collision point.
+    \param    a_recorder  Stores all collision events.
+    \param    a_settings  Contains collision settings information.
     \return   Return whether the given triangle intersects this line.
 */
 //===========================================================================
