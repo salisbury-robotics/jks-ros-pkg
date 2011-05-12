@@ -1,0 +1,4 @@
+<map id="G" name="G">
+<area shape="rect" href="$classc_generic_texture.html" title="cGenericTexture implements a base class for handling OpenGL textures." alt="" coords="7,5,121,35"/>
+<area shape="rect" href="$classc_texture2_d.html" title="cTexture2D describes a 2D bitmap texture used for OpenGL texture&#45;mapping" alt="" coords="171,5,259,35"/>
+</map>
