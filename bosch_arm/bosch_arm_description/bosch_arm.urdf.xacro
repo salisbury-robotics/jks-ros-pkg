@@ -6,11 +6,11 @@
        name="bosch_arm" >
   
   <include filename="$(find bosch_arm_description)/urdf/base/base.urdf.xacro" />
-
+<!--
   <include filename="$(find pr2_description)/gazebo/gazebo.urdf.xacro" />
-  <!-- materials for visualization -->
+   materials for visualization -->
   <include filename="$(find pr2_description)/urdf/materials.urdf.xacro" />
 
-  <xacro:bosch_arm_base name="base"/>
+  <xacro:bosch_arm name="base"/>
 
 </robot>

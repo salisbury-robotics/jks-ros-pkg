@@ -3,8 +3,9 @@
        xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller"
        xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface"
        xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <include filename="$(find bosch_arm_description)/urdf/base/base.gazebo.xacro" />
 <!--
-  <include filename="$(find bosch_arm)/urdf/base/base.gazebo.xacro" />
   <include filename="$(find bosch_arm)/urdf/base/base.transmission.xacro" />-->
 
   <!-- DATA SOURCES -->
@@ -14,13 +15,49 @@
 
   <property name="M_PI" value="3.1415926535897931" />
   <property name="base_mass" value="1" />
+  <property name="link1_mass" value="0.5" />
+  <property name="link2_mass" value="0.1" />
+  <property name="link3_mass" value="0.05" />
+  <property name="link4_mass" value="0.05" />
+  <property name="base_z" value="0.35" />
+  <property name="link3_z" value="0.55145" />
+  <property name="link3_center_z" value="${link3_z/2}" />
+  <property name="link4_center_z" value="0.005545" />
 
   <!-- The xacro macro xacro:pr2_base contains: base, casters and wheels -->
-  <xacro:macro name="bosch_arm_base" params="name">
+  <xacro:macro name="bosch_arm" params="name">
+
     <link name="${name}_link">
 
       <inertial>
         <mass value="${base_mass}" />
+        <origin xyz="0 0 ${base_z}" />
+        <inertia ixx="5.652232699207" ixy="-0.009719934438" ixz="1.293988226423"
+                 iyy="5.669473158652" iyz="-0.007379583694" izz="3.683196351726" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 ${base_z}" rpy="${M_PI/2} 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/base-simple.stl" />
+          <!--mesh filename="package://bosch_arm_description/meshes/entire-simple.stl" /-->
+        </geometry>
+        
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 ${base_z}" rpy="${M_PI/2} 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/base-simple.stl" />
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${name}_link1">
+
+      <inertial>
+        <mass value="${link1_mass}" />
         <origin xyz="0 0 0" />
         <inertia ixx="5.652232699207" ixy="-0.009719934438" ixz="1.293988226423"
                  iyy="5.669473158652" iyz="-0.007379583694" izz="3.683196351726" />
@@ -29,7 +66,8 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://bosch_arm_description/meshes/base.stl" />
+          <mesh filename="package://bosch_arm_description/meshes/joint1-simple.stl" />
+          <!--mesh filename="package://bosch_arm_description/meshes/entire-simple.stl" /-->
         </geometry>
         
         <material name="White" />
@@ -38,13 +76,134 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://bosch_arm_description/meshes/caster_L.stl" />
+          <mesh filename="package://bosch_arm_description/meshes/joint1-simple.stl" />
         </geometry>
       </collision>
     </link>
 
+    <link name="${name}_link2">
+
+      <inertial>
+        <mass value="${link2_mass}" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="5.652232699207" ixy="-0.009719934438" ixz="1.293988226423"
+                 iyy="5.669473158652" iyz="-0.007379583694" izz="3.683196351726" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/joint2-simple.stl" />
+          <!--mesh filename="package://bosch_arm_description/meshes/entire-simple.stl" /-->
+        </geometry>
+        
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/joint2-simple.stl" />
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${name}_link3">
+
+      <inertial>
+        <mass value="${link3_mass}" />
+        <origin xyz="0 0 ${link3_center_z}" />
+        <inertia ixx="0.652232699207" ixy="-0.009719934438" ixz="1.293988226423"
+                 iyy="0.669473158652" iyz="-0.007379583694" izz="3.683196351726" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/joint3-simple.stl" />
+        </geometry>
+        
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/joint3-simple.stl" />
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${name}_link4">
+
+      <inertial>
+        <mass value="${link4_mass}" />
+        <origin xyz="0 0 ${link4_center_z}" />
+        <inertia ixx="0.652232699207" ixy="-0.009719934438" ixz="1.293988226423"
+                 iyy="0.669473158652" iyz="-0.007379583694" izz="3.683196351726" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/joint4-simple.stl" />
+        </geometry>
+        
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://bosch_arm_description/meshes/joint4-simple.stl" />
+        </geometry>
+      </collision>
+    </link>
+
+
+    <joint name="${name}_joint1" type="revolute">
+      <axis xyz="0 0 1" />
+      <origin xyz="0 0 ${base_z}" rpy="${M_PI/2} 0 0" />
+      <limit effort="100" velocity="100" lower="${-M_PI/2}" upper="${M_PI/2}" /> <!-- alpha tested velocity and effort limits -->
+      <safety_controller  k_velocity="10" />
+      <!--calibration rising="${ref_position}" /-->
+      <dynamics damping="0.0" friction="0.0" />
+      <parent link="${name}_link"/>
+      <child link="${name}_link1" />
+    </joint>
+
+    <joint name="${name}_joint2" type="revolute">
+      <axis xyz="0 0 1" />
+      <origin xyz="0 0 0" rpy=" 0 ${M_PI/2} 0" />
+      <limit effort="100" velocity="100" lower="${-M_PI/2}" upper="${M_PI/2}"/> <!-- alpha tested velocity and effort limits -->
+      <safety_controller  k_velocity="10" />
+      <dynamics damping="0.0" friction="0.0" />
+      <parent link="${name}_link1"/>
+      <child link="${name}_link2" />
+    </joint>
+
+    <joint name="${name}_joint3" type="revolute">
+      <axis xyz="0 0 1" />
+      <origin xyz=" 0 0 0" rpy="${-M_PI/2} 0 0" />
+      <limit effort="100" velocity="100" lower="${-M_PI/2}" upper="${M_PI/2}" /> <!-- alpha tested velocity and effort limits -->
+      <safety_controller  k_velocity="10" />
+      <dynamics damping="0.0" friction="0.0" />
+      <parent link="${name}_link2"/>
+      <child link="${name}_link3" />
+    </joint>
+
+    <joint name="${name}_joint4" type="continuous">
+      <axis xyz="0 0 1" />
+      <origin xyz="0 -0.04405 ${link3_z}" rpy="0 ${M_PI/2} ${M_PI}" />
+      <limit effort="100" velocity="100"/>
+      <safety_controller  k_velocity="10" />
+      <dynamics damping="0.0" friction="0.0" />
+      <parent link="${name}_link3"/>
+      <child link="${name}_link4" />
+    </joint>
+
     <!-- base_footprint is a fictitious link(frame) that is on the ground right below base_link origin,
-         navigation stack dedpends on this frame -->
+         navigation stack dedpends on this frame >
     <link name="${name}_footprint">
       <inertial>
         <mass value="1.0" />
@@ -60,9 +219,9 @@
         
         <material name="White" />
       </visual>
-      <collision>
+      <collision-->
         <!-- represent base collision with a simple rectangular model, positioned by base_size_z s.t. top
-             surface of the collision box matches the top surface of the PR2 base -->
+             surface of the collision box matches the top surface of the PR2 base >
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <box size="0.001 0.001 0.001" />
@@ -74,39 +233,10 @@
       <origin xyz="0 0 0" rpy="0 0 0" />
       <child link="${name}_link" />
       <parent link="${name}_footprint"/>
-    </joint>
-
-    <!-- visualize bellow -->
-    <link name="${name}_bellow_link">
-      <inertial>
-        <mass value="1.0" />
-        <origin xyz="0 0 0" />
-        <inertia ixx="0.01" ixy="0.0" ixz="0.0"
-                 iyy="0.01" iyz="0.0" izz="0.01" />
-      </inertial>
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <box size="0.05 0.37 0.3" />
-        </geometry>
-        <material name="Black" />
-      </visual>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <box size="0.05 0.37 0.3" />
-        </geometry>
-        <material name="Black" />
-      </collision>
-    </link>
-    <joint name="${name}_bellow_joint" type="fixed">
-      <origin xyz="-0.29 0 0.8" rpy="0 0 0" />
-      <parent link="${name}_link" />
-      <child link="${name}_bellow_link"/>
-    </joint>
+    </joint-->
 
     <!-- gazebo extensions -->
-    <xacro:bosch_arm_base_gazebo name="${name}" />
+    <xacro:bosch_arm_gazebo name="${name}" />
 
   </xacro:macro>
 
