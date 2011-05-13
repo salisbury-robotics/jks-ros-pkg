@@ -1,0 +1,15 @@
+<package>
+  <description brief="haptic_display_tools">
+
+    A module for haptic display.
+
+  </description>
+  <author>Sonny Chan</author>
+  <license> to be determined... </license>
+  <review status="unreviewed" notes=""/>
+  <url> </url>
+
+  <depend package="chai3d" />
+  <depend package="cml" />
+
+</package>
