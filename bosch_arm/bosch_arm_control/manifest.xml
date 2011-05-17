@@ -8,6 +8,9 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/bosch_arm_control</url>
+  <depend package="roscpp" />
+  <depend package="std_msgs" />
+  <depend package="gazebo" />
 
 </package>
 
