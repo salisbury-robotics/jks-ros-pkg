@@ -36,12 +36,14 @@
   <property name="base_z" value="0.35" />
   <property name="link4_y" value="-0.04405" />
   <property name="link4_z" value="0.55145" />
+  <property name="link5_x" value="0.01109" />
+  <property name="link5_y" value="0.51477" />
 
   <xacro:macro name="bosch_arm" params="name">
 
     <link name="${name}_footprint">
       <inertial>
-        <mass value="0.01" />
+        <mass value="0.001" />
         <origin xyz="0 0 0" />
         <inertia ixx="0.01" ixy="0.0" ixz="0.0"
                  iyy="0.01" iyz="0.0" izz="0.01" />
@@ -190,6 +192,59 @@
       </collision>
     </link>
 
+    <link name="${name}_link5">
+      <inertial>
+        <mass value="0.001" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="0.003878" ixy="0" ixz="0"
+                 iyy="0.000045" iyz="0" izz="0.003917" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+      </collision>
+    </link>
+    
+    
+    <link name="${name}_link6">
+      <inertial>
+        <mass value="0.001" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="0.003878" ixy="0" ixz="0"
+                 iyy="0.000045" iyz="0" izz="0.003917" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+        <material name="White" />
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+      </collision>
+    </link>
+    
+    
+    
+    
+    
     <joint name="${name}_footprint_joint" type="fixed">
       <origin xyz="0 0 ${base_z}" rpy="${M_PI/2} 0 0" />
       <child link="${name}_link" />
@@ -237,6 +292,26 @@
       <child link="${name}_link4" />
     </joint>
 
+    <joint name="${name}_joint5" type="fixed">
+      <axis xyz="0 0 1" />
+      <origin xyz="${link5_x} ${link5_y} 0" rpy="0 0 0" />
+      <limit effort="100" velocity="100"/>
+      <safety_controller  k_velocity="10" />
+      <dynamics damping="0.0" friction="0.0" />
+      <parent link="${name}_link4"/>
+      <child link="${name}_link5" />
+    </joint>
+    
+    <joint name="${name}_joint6" type="fixed">
+      <axis xyz="0 0 1" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <limit effort="100" velocity="100"/>
+      <safety_controller  k_velocity="10" />
+      <dynamics damping="0.0" friction="0.0" />
+      <parent link="${name}_link5"/>
+      <child link="${name}_link6" />
+    </joint>
+    
     <!-- gazebo extensions -->
     <xacro:bosch_arm_gazebo name="${name}" />
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="1"/>
