@@ -6,7 +6,7 @@
 // Select the matrix library to use here. Eigen is used if USE_EIGEN is defined.
 // Otherwise, CML is used. Eigen's linear equation solver has much better
 // stability than matrix inversion using CML.
-#define USE_EIGEN
+//#define USE_EIGEN
 
 // includes for matrix library
 #ifdef USE_EIGEN
