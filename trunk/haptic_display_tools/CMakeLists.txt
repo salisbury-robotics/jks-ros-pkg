@@ -10,6 +10,10 @@ INCLUDE( ${QT_USE_FILE} )
 
 include_directories(${QT_INCLUDES} )
 
+include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools)
+include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Common)
+include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Graphics)
+include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Haptics)
 
 
 #FIND_PATH(CHAI3D_BASE
