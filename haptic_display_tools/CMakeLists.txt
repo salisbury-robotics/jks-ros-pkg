@@ -1,6 +1,17 @@
 cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
+find_package(Qt4 REQUIRED)
+SET(QT_USE_QTMAIN TRUE)
+SET(QT_USE_QTCORE TRUE)
+SET(QT_USE_QTGUI TRUE)
+SET(QT_USE_QTOPENGL TRUE)
+INCLUDE( ${QT_USE_FILE} )
+
+include_directories(${QT_INCLUDES} )
+
+
+
 #FIND_PATH(CHAI3D_BASE
 #  NAMES src/chai3d.h
 #  PATHS "~/libraries/chai3d-2.1.0" ENV CHAI3D_BASE
@@ -31,21 +42,38 @@ rosbuild_genmsg()
 rosbuild_gensrv()
 
 rosbuild_add_library(haptic_display_tools 
-src/HapticDisplay.cpp
-src/HapticInstrument.cpp
-src/HapticIsosurface.cpp
-src/HapticScene.cpp
-src/IntervalCollisionDetector.cpp
-src/ModifiedMorrisSurface.cpp
-src/PointShellIsosurface.cpp
-src/WilhelmsenProjection.cpp
+src/Haptics/HapticDisplay.cpp
+src/Haptics/HapticScene.cpp
+src/Haptics/IntervalCollisionDetector.cpp
+#src/Haptics/HapticInstrument.cpp
+src/Haptics/HapticIsosurface.cpp
+src/Haptics/ModifiedMorrisSurface.cpp
+src/Haptics/PointShellIsosurface.cpp
+src/Haptics/WilhelmsenProjection.cpp
+)
+
+
+#rosbuild_add_library(graphic_display_tools 
+#src/Graphics/Mesh.cpp
+#src/Graphics/MeshRepository.cpp
+#src/Graphics/ProxyGeometry.cpp
+#src/Graphics/ShaderPackage.cpp
+#src/Graphics/SphericalCamera.cpp
+#src/Graphics/TrackballCamera.cpp
+#src/Graphics/TransferFunction.cpp
+#src/Graphics/VolumeRenderer.cpp
+#)
+
+
+rosbuild_add_library(common_display_tools 
+src/Common/Parameters.cpp
+src/Common/VolumeCutter.cpp
+src/Common/VolumeSampler.cpp
 )
 
 # Check for SSE
 rosbuild_check_for_sse()
 
-TARGET_LINK_LIBRARIES(haptic_display_tools
-  chai3d dhd HD
-  pthread rt usb-1.0
-  GL GLU glut
-)
+TARGET_LINK_LIBRARIES( haptic_display_tools   chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
+#TARGET_LINK_LIBRARIES( graphic_display_tools  chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
+TARGET_LINK_LIBRARIES( common_display_tools   chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
