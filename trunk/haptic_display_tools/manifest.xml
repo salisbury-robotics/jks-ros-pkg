@@ -11,5 +11,7 @@
 
   <depend package="chai3d" />
   <depend package="cml" />
-
+  <export>
+    <cpp cflags="-I${prefix}/src" lflags="-L${prefix}/lib -lhaptic_display_tools"/>
+  </export>
 </package>

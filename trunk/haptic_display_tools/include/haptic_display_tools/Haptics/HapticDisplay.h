@@ -75,6 +75,7 @@ public:
     void setTorsionalStiffness(double k)                { m_torsionalStiffness = k; }
     void setToolRadius(double r)                        { m_toolRadius = r; }
     void setClutch(bool b)                              { m_clutchExternal = b; }
+    void setPermutation(const cml::matrix33d &m)        { m_permutation = m; }
 
     virtual void update();
     virtual void applyForces();
