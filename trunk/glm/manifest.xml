@@ -1,0 +1,15 @@
+<package>
+  <description brief="glm">
+  </description>
+
+  <author></author>
+  <license></license>
+  <review status="unreviewed" notes=""/>
+  <url></url>
+  <export>
+    <cpp cflags="-I${prefix}" lflags="-L${prefix}/lib -lglm_ros" /> 
+  </export>
+  <platform os="ubuntu" version="9.04"/>
+  <platform os="ubuntu" version="9.10"/>
+  <platform os="ubuntu" version="10.04"/>
+</package>
