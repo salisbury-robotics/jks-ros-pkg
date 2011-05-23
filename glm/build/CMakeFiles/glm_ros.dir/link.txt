@@ -1,0 +1,1 @@
+/usr/bin/gcc  -fPIC -O3 -DNDEBUG  -pthread -shared -Wl,-soname,libglm_ros.so -o ../lib/libglm_ros.so CMakeFiles/glm_ros.dir/GLM/glm.o CMakeFiles/glm_ros.dir/GLM/glmimg.o CMakeFiles/glm_ros.dir/GLM/glm_util.o -lGL -lGLU -lglut 
