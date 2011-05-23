@@ -49,35 +49,41 @@ rosbuild_add_library(haptic_display_tools
 src/Haptics/HapticDisplay.cpp
 src/Haptics/HapticScene.cpp
 src/Haptics/IntervalCollisionDetector.cpp
-#src/Haptics/HapticInstrument.cpp
+src/Haptics/HapticInstrument.cpp
 src/Haptics/HapticIsosurface.cpp
 src/Haptics/ModifiedMorrisSurface.cpp
 src/Haptics/PointShellIsosurface.cpp
 src/Haptics/WilhelmsenProjection.cpp
-)
 
+src/Graphics/Mesh.cpp
+src/Graphics/MeshRepository.cpp
+src/Graphics/ProxyGeometry.cpp
+src/Graphics/ShaderPackage.cpp
+src/Graphics/SphericalCamera.cpp
+src/Graphics/TrackballCamera.cpp
+src/Graphics/TransferFunction.cpp
+src/Graphics/VolumeRenderer.cpp
 
-#rosbuild_add_library(graphic_display_tools 
-#src/Graphics/Mesh.cpp
-#src/Graphics/MeshRepository.cpp
-#src/Graphics/ProxyGeometry.cpp
-#src/Graphics/ShaderPackage.cpp
-#src/Graphics/SphericalCamera.cpp
-#src/Graphics/TrackballCamera.cpp
-#src/Graphics/TransferFunction.cpp
-#src/Graphics/VolumeRenderer.cpp
-#)
-
-
-rosbuild_add_library(common_display_tools 
 src/Common/Parameters.cpp
 src/Common/VolumeCutter.cpp
 src/Common/VolumeSampler.cpp
+manifest.xml
 )
+
+
+#rosbuild_add_library(graphic_display_tools
+#)
+
+
+#rosbuild_add_library(common_display_tools 
+#src/Common/Parameters.cpp
+#src/Common/VolumeCutter.cpp
+#src/Common/VolumeSampler.cpp
+#)
 
 # Check for SSE
 rosbuild_check_for_sse()
 
 TARGET_LINK_LIBRARIES( haptic_display_tools   chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
 #TARGET_LINK_LIBRARIES( graphic_display_tools  chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
-TARGET_LINK_LIBRARIES( common_display_tools   chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
+#TARGET_LINK_LIBRARIES( common_display_tools   chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
