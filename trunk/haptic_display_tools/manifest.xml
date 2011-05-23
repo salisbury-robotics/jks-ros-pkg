@@ -12,7 +12,8 @@
   <depend package="chai3d" />
   <depend package="cml" />
   <depend package="eigen" />
+  <depend package="glm" />
   <export>
-    <cpp cflags="-I${prefix}/src" lflags="-L${prefix}/lib -lhaptic_display_tools"/>
+    <cpp cflags="-I${prefix}/include" lflags="-L${prefix}/lib -lhaptic_display_tools -lQtCore -lQtGui"/>
   </export>
 </package>
