@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <pthread.h>
+#include <vector>
 
 using namespace std;
 #include <stdlib.h>
@@ -19,6 +20,7 @@ using namespace std;
 #include <sstream>
 
 #include "cc.h"
+#include "control.h"
 #include "daq.h"
 
 using namespace std;
@@ -849,4 +851,28 @@ static int printu(char * hostname, int port, char * data){
     return 0;
   }
   return 0;
+}
+
+
+vector<double> get_Joint_Pos(void){
+    double array[] = { q1, q2 - q3, q2 + q3, q4 };
+    vector<double> Pos(array, array + sizeof(array));
+
+    return Pos;
+}
+
+void set_Joint_Pos(vector<double> Pos){
+    double j1,j2,j3,j4 = 0;
+    j1 = Pos[0];
+    j2 = Pos[1];
+    j3 = Pos[2];
+    j4 = Pos[3];
+}
+
+vector<double> get_Joint_Vel(void){
+    double array[] = { v1, v2 - v3, v2 + v3, v4 };
+    vector<double> Vel(array, array + sizeof(array));
+
+    return Vel;
+
 }
