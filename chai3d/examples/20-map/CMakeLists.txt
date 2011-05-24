@@ -1,8 +1,8 @@
-ADD_EXECUTABLE(map
-    src/map.cpp
+ADD_EXECUTABLE(20-map
+    src/20-map.cpp
 )
 
-TARGET_LINK_LIBRARIES(map chai3d_complete)
+TARGET_LINK_LIBRARIES(20-map chai3d)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)

@@ -1,0 +1,54 @@
+<RCC>
+    <qresource prefix="/Shaders">
+        <file alias="Windowing.frag">Source/Shaders/Windowing.frag</file>
+        <file alias="Distance.vert">Source/Shaders/Distance.vert</file>
+        <file alias="Distance.frag">Source/Shaders/Distance.frag</file>
+        <file alias="RayCast.frag">Source/Shaders/RayCast.frag</file>
+        <file alias="Labelling.frag">Source/Shaders/Labelling.frag</file>
+        <file alias="RayCastLabels.frag">Source/Shaders/RayCastLabels.frag</file>
+        <file alias="Anaglyph.frag">Source/Shaders/Anaglyph.frag</file>
+    </qresource>
+    <qresource prefix="/">
+        <file alias="StanfordBunny.raw">Resources/StanfordBunny-128x128x120.raw</file>
+        <file>Resources/Icons/directory.png</file>
+        <file>Resources/Icons/file.png</file>
+        <file>Resources/Icons/save.png</file>
+        <file>Resources/Icons/visualization.png</file>
+        <file>Resources/Icons/volumes.png</file>
+        <file>Resources/Icons/objects.png</file>
+        <file>Resources/Icons/options.png</file>
+        <file>Resources/Icons/images.png</file>
+        <file>Resources/Monkey.obj</file>
+        <file>Resources/Icons/sss.png</file>
+        <file>Resources/Icons/open.png</file>
+        <file>Resources/Icons/haptics.png</file>
+        <file>Resources/Icons/labels.png</file>
+        <file>Resources/Icons/record.png</file>
+        <file>Resources/Icons/stop.png</file>
+    </qresource>
+    <qresource prefix="/Presets">
+        <file alias="CTComposite.tf">Resources/Presets/CT-Composite.tf</file>
+        <file alias="CTBoneSurface.tf">Resources/Presets/CT-Bone-Surface.tf</file>
+        <file alias="CTBoneDVR.tf">Resources/Presets/CT-Bone-DVR.tf</file>
+    </qresource>
+    <qresource prefix="/Instruments">
+        <file alias="drill.obj">Resources/Instruments/drill.obj</file>
+        <file alias="burr1.obj">Resources/Instruments/burr1.obj</file>
+        <file alias="burr2.obj">Resources/Instruments/burr2.obj</file>
+        <file alias="drill.mtl">Resources/Instruments/drill.mtl</file>
+        <file alias="drill_te.ppm">Resources/Instruments/drill_te.ppm</file>
+        <file alias="pointshell_b.obj">Resources/Instruments/pointshell_b.obj</file>
+        <file alias="pointshell_h.obj">Resources/Instruments/pointshell_h.obj</file>
+        <file alias="pointshell.obj">Resources/Instruments/pointshell.obj</file>
+        <file alias="cane.mtl">Resources/Instruments/cane.mtl</file>
+        <file alias="cane.obj">Resources/Instruments/cane.obj</file>
+        <file alias="cane_ps.obj">Resources/Instruments/cane_ps.obj</file>
+        <file alias="teak2.ppm">Resources/Instruments/teak2.ppm</file>
+        <file alias="peg.mtl">Resources/Instruments/peg.mtl</file>
+        <file alias="peg.obj">Resources/Instruments/peg.obj</file>
+        <file alias="peg_ps.obj">Resources/Instruments/peg_ps.obj</file>
+        <file alias="peg_ps2.obj">Resources/Instruments/peg_ps2.obj</file>
+        <file alias="wrench.mtl">Resources/Instruments/wrench.mtl</file>
+        <file alias="wrench.obj">Resources/Instruments/wrench.obj</file>
+    </qresource>
+</RCC>

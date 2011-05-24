@@ -8,7 +8,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
 PROJECT(CHAI3D)
 
-SET(CMAKE_CONFIGURATION_TYPES "Debug;Release" 
+SET(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo" 
     CACHE STRING "Available build configurations." FORCE)
     
 #-----------------------------------------------------------------------------
@@ -59,13 +59,18 @@ ENDIF(APPLE)
 IF(UNIX)
     ADD_DEFINITIONS(-D_LINUX)
     INCLUDE_DIRECTORIES("external/DHD/include")
+  IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+    SET(CHAI3D_LIBPATH "lin-x86_64")
+  ELSE()
+    SET(CHAI3D_LIBPATH "lin-i686")
+  ENDIF()
+  LINK_DIRECTORIES("lib/${CHAI3D_LIBPATH}" "external/DHD/lib/${CHAI3D_LIBPATH}")
 ENDIF(UNIX)
 
 #-----------------------------------------------------------------------------
 # Dispatch the build into the proper subdirectories.
 
 INCLUDE_DIRECTORIES("src")
-
 
 ADD_SUBDIRECTORY(src)
 #ADD_SUBDIRECTORY(external)

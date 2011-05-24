@@ -1,8 +1,8 @@
-ADD_EXECUTABLE(object
-    src/object.cpp
+ADD_EXECUTABLE(21-object
+    src/21-object.cpp
 )
 
-TARGET_LINK_LIBRARIES(object chai3d_complete)
+TARGET_LINK_LIBRARIES(21-object chai3d)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)

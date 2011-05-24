@@ -1,8 +1,8 @@
-ADD_EXECUTABLE(tooth
-    src/tooth.cpp
+ADD_EXECUTABLE(23-tooth
+    src/23-tooth.cpp
 )
 
-TARGET_LINK_LIBRARIES(tooth chai3d_complete)
+TARGET_LINK_LIBRARIES(23-tooth chai3d)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)

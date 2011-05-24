@@ -1,0 +1,12 @@
+# Blender3D MTL File: peg.blend
+# Material Count: 1
+newmtl Material
+Ns 390.196078
+Ka 0.140000 0.140000 0.140000
+Kd 0.680000 0.680000 0.680000
+Ks 1.000000 1.000000 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+
