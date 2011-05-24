@@ -1,0 +1,20 @@
+<package>
+  <description brief="sss">
+
+    The surge sim kitchen sink...
+
+  </description>
+  <author>Sonny Chan</author>
+  <license> to be determined... </license>
+  <review status="unreviewed" notes=""/>
+  <url> </url>
+
+  <depend package="chai3d" />
+  <depend package="cml" />
+  <depend package="eigen" />
+  <depend package="glm" />
+  <depend package="haptic_display_tools" />
+  <export>
+    <cpp cflags="" lflags=""/>
+  </export>
+</package>

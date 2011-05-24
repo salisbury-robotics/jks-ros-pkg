@@ -1,8 +1,8 @@
-ADD_EXECUTABLE(oring
-    src/oring.cpp
+ADD_EXECUTABLE(10-oring
+    src/10-oring.cpp
 )
 
-TARGET_LINK_LIBRARIES(oring chai3d_complete)
+TARGET_LINK_LIBRARIES(10-oring chai3d)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)

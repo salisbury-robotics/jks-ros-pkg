@@ -4,6 +4,9 @@
 # Created by Sonny Chan
 #	March 2009, Stanford University
 #-----------------------------------------------------------------------------
+SET(CMAKE_BUILD_TYPE Debug CACHE STRING
+      "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -28,6 +31,7 @@ SET(DEVICES_GROUP
     devices/CFreedom6SDevice.cpp
     devices/CGenericDevice.cpp
     devices/CGenericHapticDevice.cpp
+    devices/CPhantomDevices.cpp
     devices/CHapticDeviceHandler.cpp
     devices/CMyCustomDevice.cpp
 
@@ -155,7 +159,7 @@ ADD_LIBRARY(chai3d
 )
 
 SET_TARGET_PROPERTIES(chai3d PROPERTIES
-    DEBUG_POSTFIX   "_d"
+    DEBUG_POSTFIX   "-dbg"
 )
 
 # Find all the OpenGL frameworks if we're on Mac OS X
@@ -164,6 +168,8 @@ IF(APPLE)
     FIND_LIBRARY(GLUT_LIBRARY GLUT)
     TARGET_LINK_LIBRARIES(chai3d ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
 ENDIF(APPLE)
+
+TARGET_LINK_LIBRARIES(chai3d HD)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC)

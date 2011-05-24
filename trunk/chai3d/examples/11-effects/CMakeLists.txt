@@ -1,8 +1,8 @@
-ADD_EXECUTABLE(effects
-    src/effects.cpp
+ADD_EXECUTABLE(11-effects
+    src/11-effects.cpp
 )
 
-TARGET_LINK_LIBRARIES(effects chai3d_complete)
+TARGET_LINK_LIBRARIES(11-effects chai3d)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)

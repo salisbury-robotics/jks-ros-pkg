@@ -1,0 +1,23 @@
+# Blender3D MTL File: cane.blend
+# Material Count: 2
+newmtl Material.001
+Ns 37.254902
+Ka 0.640000 0.640000 0.640000
+Kd 0.640000 0.640000 0.640000
+Ks 0.250000 0.250000 0.250000
+Ni 1.000000
+d 1.000000
+illum 2
+
+
+newmtl Material.002_teak2.png
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 1
+map_Kd teak2.ppm
+
+
