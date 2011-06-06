@@ -21,7 +21,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #uncomment if you have defined services
 #rosbuild_gensrv()
 #rosbuild_add_executable(src/bosch_arm_teleop bosch_arm_teleop.cpp)
-rosbuild_add_executable(set_joint_angles src/set_joint_angles.cpp)
+rosbuild_add_executable(arm_server src/arm_server.cpp)
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
