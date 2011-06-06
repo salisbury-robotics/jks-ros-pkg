@@ -68,10 +68,10 @@ static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
 static void jog(void);
 
-static double t_lim1 = 0.5*constants::t_max;
-static double t_lim2 = 0.5*constants::t_max;
-static double t_lim3 = 0.5*constants::t_max;
-static double t_lim4 = 0.5*constants::t_max;
+static double t_lim1 = 0.4*constants::t_max;
+static double t_lim2 = 0.4*constants::t_max;
+static double t_lim3 = 0.4*constants::t_max;
+static double t_lim4 = 0.4*constants::t_max;
 
 static bool t_wave1 = false;
 static bool t_wave2 = false;
@@ -87,10 +87,17 @@ static double vstep4 = 0.06;//1.2;
 //static double q1l, q2l, q3l, q4l = 0.0; // last position
 //static double q1d, q2d, q3d, q4d = 0.0; // desired position
 
+/*
 static double q1home = -1073.45;
 static double q2home = -230.04;
 static double q3home = 70.848;
 static double q4home = -1064.52;
+*/
+
+static double q1home = 0;
+static double q2home = 0;
+static double q3home = 0;
+static double q4home = 0;
 
 static double q1, q1l, q1d = q1home;
 static double q2, q2l, q2d = q2home;
@@ -310,26 +317,24 @@ static void process_input(char c){
   }
   case 'e':{
     jog_step = t_lim2/Kp2;
-    q2d+=jog_step;
-    if(joint_space)q3d-=jog_step;
+    q3d+=jog_step;
+    if(joint_space)q2d+=jog_step;
     break;
   }
   case 'd':{
     jog_step = t_lim2/Kp2;
-    q2d-=jog_step;
-    if(joint_space)q3d+=jog_step;
+    q3d-=jog_step;
+    if(joint_space)q2d-=jog_step;
     break;
   }
   case 'r':{
-    jog_step = t_lim2/Kp3;
+    jog_step = t_lim3/Kp3;
     q2d+=jog_step;
-    if(joint_space)q3d+=jog_step;
     break;
   }
   case 'f':{
-    jog_step = t_lim2/Kp3;
+    jog_step = t_lim3/Kp3;
     q2d-=jog_step;
-    if(joint_space)q3d-=jog_step;
     break;
   }
   case 't':{
@@ -509,21 +514,16 @@ void * servo_loop(void *ptr){
       }
     }
     if(t_wave2 && ts.tv_sec%8 >= 4){
-      q2d+=vstep2;
-      if(joint_space)q3d-=vstep2;
+      q3d+=vstep2;
+      if(joint_space)q2d+=vstep2;
     }
     if(t_wave2 && ts.tv_sec%8 < 4){
-      q2d-=vstep2;
-      if(joint_space)q3d+=vstep2;
+      q3d-=vstep2;
+      if(joint_space)q2d-=vstep2;
     }
-    if(t_wave3 && ts.tv_sec%6 >= 3){
-      q3d+=vstep3;
-      if(joint_space)q2d+=vstep3;
-    }
-    if(t_wave3 && ts.tv_sec%6 < 3){
-      q3d-=vstep3;
-      if(joint_space)q2d-=vstep3;
-    }
+    if(t_wave3 && ts.tv_sec%6 >= 3)q2d+=vstep3;
+    if(t_wave3 && ts.tv_sec%6 < 3)q2d-=vstep3;
+
     if(t_wave4 && ts.tv_sec%2 >= 1)q4d+=vstep4;
     if(t_wave4 && ts.tv_sec%2 < 1)q4d-=vstep4;
 
@@ -568,7 +568,8 @@ void * servo_loop(void *ptr){
 
     if(flail_around){
         float tf =  (ts.tv_sec + ts.tv_nsec * 0.000000001) - flail_start;
-        float A1 = 60*16.667;
+
+        /*float A1 = 60*16.667;
         float w1 = 0.4;
         float shift1 = 0.12;
         float As1 = -0.5/shift1;
@@ -578,9 +579,9 @@ void * servo_loop(void *ptr){
         double deltapos1 = pos1-lastpos1;
         //cout<<deltapos1<<","<<q4d<<endl;
         delta_p(1,deltapos1);
-        lastpos1 = pos1;
+        lastpos1 = pos1;*/
 
-        /*float A2 = 90*7.98;
+        float A2 = 90*7.98;
         float w2 = 0.55;
         float shift2 = 0.1;
         float As2 = -0.5/shift2;
@@ -589,7 +590,7 @@ void * servo_loop(void *ptr){
         double pos2 = A2*sin(w2*tf + As2*sin(ws2*tf + sin(ws2*tf)));
         double deltapos2 = pos2-lastpos2;
         delta_p(2,deltapos2);
-        lastpos2 = pos2;*/
+        lastpos2 = pos2;
 
         float A3 =20*7.98;
         float w3 = 1.0;
@@ -701,7 +702,6 @@ void * servo_loop(void *ptr){
     write_torque(0,torque1);
     write_torque(1,torque2);
     write_torque(2,torque3);
-    //write_torque(3,torque3);
     write_torque(3,torque4);
 
     // datalogging
@@ -758,13 +758,12 @@ static void jog(void){
     break;
   }
   case 2:{
+    q3d+=dir*vstep2;
     q2d+=dir*vstep2;
-    q3d-=dir*vstep2;
     break;
   }
   case 3:{
     q2d+=dir*vstep3;
-    q3d+=dir*vstep3;
     break;
   }
   case 4:{
@@ -785,13 +784,12 @@ void delta_p(int axis, double degrees){
             break;
         }
     case 2:{
+            q3d+=degrees;
             q2d+=degrees;
-            q3d-=degrees;
             break;
         }
     case 3:{
             q2d+=degrees;
-            q3d+=degrees;
             break;
         }
     case 4:{
