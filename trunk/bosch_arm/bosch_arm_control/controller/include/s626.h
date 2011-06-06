@@ -11,6 +11,10 @@
 #ifndef __s626__h
 #define __s626__h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //===============================================================================================================
 // Register Write/Read.
 
@@ -43,6 +47,9 @@
 #define S626_IOC_AllocDMAB				0x0501		// ioc_param*
 #define S626_IOC_CloseDMAB				0x0502		// ioc_param*
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
