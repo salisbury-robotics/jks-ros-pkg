@@ -7,6 +7,10 @@
 #ifndef DEF_626DRV
 #define DEF_626DRV
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "s626types.h"
 #define S626MAGIC 0xDB
 #define GOTINTERRUPT 0xDA
@@ -245,6 +249,9 @@ typedef struct {
 	  DWORD	DMAHandle;
 } ioc_param;
 
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif	//#define DEF_626DRV

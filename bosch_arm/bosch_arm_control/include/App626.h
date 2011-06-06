@@ -9,6 +9,11 @@
 #ifndef DEF_APP626
 #define DEF_APP626
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include "s626types.h"
 // Special types ***********************************************************************************************
 
@@ -112,5 +117,10 @@ typedef VOID              (*FPTR_ERR) (DWORD ErrFlags);	// Pointer to applicatio
 // Counter overflow/index event flag masks for S626_CounterCapStatus() and S626_InterruptStatus().
 #define INDXMASK(C)		( 1 << ( ( (C) > 2 ) ? ( (C) * 2 - 1 ) : ( (C) * 2 +  4 ) ) )
 #define OVERMASK(C)		( 1 << ( ( (C) > 2 ) ? ( (C) * 2 + 5 ) : ( (C) * 2 + 10 ) ) )
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	// #ifndef DEF_APP626
