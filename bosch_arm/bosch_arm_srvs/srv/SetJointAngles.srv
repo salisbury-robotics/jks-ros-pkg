@@ -1,4 +1,4 @@
-Float32[] joint_angles
+float64[] joint_angles
 ---
 bool success                               # return true if get successful
 string status_message                      # comments if available
