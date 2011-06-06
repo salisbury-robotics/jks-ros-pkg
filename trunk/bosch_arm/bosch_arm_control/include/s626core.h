@@ -9,6 +9,10 @@
 #ifndef DEF_626CORE
 #define DEF_626CORE
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "s626types.h"
 /////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////  CONSTANTS  //////////////////////////////////////
@@ -161,7 +165,9 @@ U16		S626CORE_CounterLoadTrigGet( HBD bd, U16 chan );
 void	S626CORE_CounterSoftIndex( HBD bd, U16 chan );
 void	S626CORE_CounterPreload( HBD bd, U16 chan, U32 value );
 
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif	// #ifndef DEF_626CORE
 

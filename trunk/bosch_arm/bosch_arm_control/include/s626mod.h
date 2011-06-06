@@ -7,6 +7,9 @@
 #ifndef DEF_626MOD
 #define DEF_626MOD
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef DEF_626DRV
 #include "s626types.h"
@@ -60,5 +63,10 @@ int		S626MOD_copy_from_user		( char *dst_buffer, const char *src_buffer, int nby
 DWORD 	S626MOD_dmabuf_alloc		( void );
 void	S626MOD_dmabuf_free			( DWORD virt_adrs );
 unsigned int S626MOD_cpu_to_le32             (void *paddr );
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif	// #ifndef DEF_626MOD

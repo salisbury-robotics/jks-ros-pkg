@@ -11,6 +11,13 @@
 //* reference of programming.
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef __s626api
+#define __s626api
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "s626types.h"
 VOID                      S626_OpenBoard ( HBD, DWORD, FPTR_ISR, DWORD );
 VOID                      S626_CloseBoard ( HBD );
@@ -57,6 +64,15 @@ VOID                      S626_BackupEnableSet ( HBD, WORD );
 WORD                      S626_BackupEnableGet ( HBD );
 VOID                      S626_ChargeEnableSet ( HBD, WORD );
 WORD                      S626_ChargeEnableGet ( HBD );
-VOID                      S626_InterruptEnable ( HBD, WORD );
+//VOID                      S626_InterruptEnable ( HBD, WORD );
+void S626_InterruptEnable(unsigned int, unsigned short);
 VOID                      S626_InterruptStatus ( HBD, WORD * );
 VOID                      S626_SetErrCallback (HBD, FPTR_ERR);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+

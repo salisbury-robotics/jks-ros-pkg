@@ -3,13 +3,9 @@
 
 #include <vector>
 using namespace std;
-vector<double> get_Joint_Pos(void){
-  vector<double> t(4,0); 
-
-  return t;
-};
-void set_Joint_Pos(vector<double>){};
-vector<double> get_Joint_Vel(void){vector<double> t; return t;};
+vector<double> get_Joint_Pos(void);
+void set_Joint_Pos(vector<double>);
+vector<double> get_Joint_Vel(void);
 
 
 #endif // CONTROL_H

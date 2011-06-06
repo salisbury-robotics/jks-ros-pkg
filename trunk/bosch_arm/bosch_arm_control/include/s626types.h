@@ -5,6 +5,10 @@
 //////////////////////////////////////  TYPES  //////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Simple types.
 typedef unsigned char	U8;
 typedef unsigned short	U16;
@@ -26,5 +30,9 @@ typedef	DWORD		ULONG;
 typedef	PVOID		HANDLE;
 typedef	BYTE		BOOLEAN;
 typedef DWORD       HBD;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
