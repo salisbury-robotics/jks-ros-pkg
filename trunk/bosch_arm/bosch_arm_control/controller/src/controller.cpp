@@ -14,6 +14,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <vector>
+#include <signal.h>
 
 using namespace std;
 #include <stdlib.h>
@@ -66,8 +67,9 @@ void * servo_loop(void *ptr);
 void * servo_loop2(void *ptr);
 void delta_p(int axis, double degrees);
 void diep(char *s);
-void getudpcmd(char * buffer);
+void err(char *s);
 void * robot_server(void *ptr);
+void exit_cleanup(void);
 
 static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
@@ -147,12 +149,16 @@ static double loop_time = 0.001;
 static int newcmd = 0;
 static char cmdbuf[512];
 
+pthread_t servo;
+pthread_t robot;
+
 #ifndef TESTING
 int main(int argc, char** argv){
     static int cmd = newcmd;
     if(!setup626()){
         int result;
-        pthread_t       servo;
+
+        // start servo thread
         pthread_attr_t  attributes;
 
         pthread_attr_init(&attributes);
@@ -165,7 +171,7 @@ int main(int argc, char** argv){
         result = pthread_create(&servo, &attributes, servo_loop, NULL);
         if (result == 0) cout << "Servo thread started." << endl;
 
-        pthread_t       robot;
+        // start UDP server
         pthread_attr_t  r_attributes;
 
         pthread_attr_init(&r_attributes);
@@ -177,111 +183,30 @@ int main(int argc, char** argv){
         char c = '0';
         zero_torques();
 
+        // run
         while(1){
-            //char buf[5];
-            //memset(buf,0,5);
-            //getudpcmd(buf);
             pthread_cond_wait(&g_cond, &g_mutex);
-            /*int len = strlen(buf);
-            if(len){
-                c = buf[0];
-                for(int i = 0;i<len;i++){
-                    //process_input(buf[i]);
-                    printf("%c\r\n",buf[i]);
-                }
-            }*/
-            if(cmd != newcmd){
+            if(cmd != newcmd){// udp server issued a new command
                 cmd = newcmd;
-                //process_input(cmdbuf[i]);
                 c = cmdbuf[0];
             }
-            else if(kbhit()){
+            else if(kbhit()){// keyboard command
                 c = getchar();
                 rewind(stdout);
                 ftruncate(1,0);
             }
-            if(c){
+            if(c){// if we have a new command
                 printf("%c\r\n",c);
                 process_input(c);
-                cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
+                //cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
             }
             if(c == 'q' || c=='Q')break;
             c=0;
         }
+        // wait for servo thread to exit cleanly
         pthread_join(servo, NULL);
-        zero_torques();
-        S626_InterruptEnable (constants::board0, FALSE);
-        S626_CloseBoard(constants::board0);
-        cout << "626 closed out." << endl;
+        exit_cleanup();
     }
-}
-#endif
-
-void * servo_loop2(void *ptr){
-  static uint16_t tlast = 0;
-  static int i = 0;
-  cout<<"child start"<<endl;
-
-  while(1){
-    uint16_t time;
-    uint16_t t;
-
-    pthread_cond_signal(&g_cond);
-    pthread_mutex_unlock(&g_mutex);
-
-    do time = S626_CounterReadLatch(constants::board0,constants::cntr_chan);
-    while((uint16_t)(time - tlast) < CYCLE_COUNTS);
-    tlast = time;
-    //usleep(1000);
- if(quit){
-       cout<<"done"<<endl;
-       break;
-    }
-    pthread_mutex_lock(&g_mutex);
-    //cout<<time<<endl;
-   
-    if(i%1000==0)cout<<i<<endl;
-    i++;
-  }
-  cout<<"done1"<<endl;
-  //pthread_cond_signal(&g_cond);
-  //pthread_mutex_unlock(&g_mutex);
-  pthread_exit(NULL);//return NULL;
-  cout<<"done2"<<endl;
-  exit(0);
-}
-
-#ifdef TESTING
-int main(int argc, char** argv){
-  int result;
-  pthread_t       servo;
-  pthread_attr_t  attributes;
-
-  pthread_attr_init(&attributes);
-  pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_JOINABLE);
-
-  pthread_mutex_init(&g_mutex, NULL);
-  pthread_cond_init(&g_cond, NULL);
-  pthread_mutex_lock(&g_mutex);
-        
-  result = pthread_create(&servo, &attributes, servo_loop, NULL);
-  if (result == 0) cout << "Servo thread started." << endl;
-
-  char c = '0';
- while(1){
-   pthread_cond_wait(&g_cond, &g_mutex);
-      if(kbhit()){
-	c = getchar();
-	printf("%c\r\n",c);
-	rewind(stdout);
-	ftruncate(1,0);
-	process_input(c);
-        if(c == 'q'||c=='Q')break;
-	cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
-      }
-    }
-  pthread_join(servo, NULL);
-  exit(0);
 }
 #endif
 
@@ -524,13 +449,7 @@ void * servo_loop(void *ptr){
     tlast = time;
     
     // Jogging
-    if(jogplus|jogminus){
-      jog();
-      //q1d = q1;
-      //q2d = q2;
-      //q3d = q3;
-      //q4d = q4;
-    }
+    if(jogplus|jogminus)jog();
 
     // Triangle wave
     timespec ts;
@@ -570,23 +489,33 @@ void * servo_loop(void *ptr){
     q3 = read_encoder(3)*constants::cnt2mdeg + q3home;
     q4 = read_encoder(2)*constants::cnt2mdeg + q4home;
 
-    // position command limiting
+    // bail if something is too wrong
+    bool bail = false;
+
+    // position error limit
     float dq1 = q1d-q1;
+    float dq2 = q2d-q2;
+    float dq3 = q3d-q3;
+    float dq4 = q4d-q4;
+
+    double e_lim = constants::p_err_lim;
+    if(dq1 > e_lim || dq2 > e_lim || dq3 > e_lim || dq4 > e_lim)bail = true;
+    if(-dq1 > e_lim || -dq2 > e_lim || -dq3 > e_lim || -dq4 > e_lim)bail = true;
+    if(bail)err("position error too large");
+
+    // position command limiting
     float maxq1 = 1.0*t_lim1/Kp1;
     if(dq1 > maxq1)dq1 = maxq1;
     if(dq1 < -maxq1)dq1 = -maxq1;
 
-    float dq2 = q2d-q2;
     float maxq2 = 1.0*t_lim2/Kp2;
     if(dq2 > maxq2)dq2 = maxq2;
     if(dq2 < -maxq2)dq2 = -maxq2;
 
-    float dq3 = q3d-q3;
     float maxq3 = 1.0*t_lim3/Kp3;
     if(dq3 > maxq3)dq3 = maxq3;
     if(dq3 < -maxq3)dq3 = -maxq3;
 
-    float dq4 = q4d-q4;
     float maxq4 = 1.0*t_lim4/Kp4;
     if(dq4 > maxq4)dq4 = maxq4;
     if(dq4 < -maxq4)dq4 = -maxq4;
@@ -599,6 +528,11 @@ void * servo_loop(void *ptr){
     v2 = ((q2-q2l)/dt)*(1-lambda) + lambda*v2;
     v3 = ((q3-q3l)/dt)*(1-lambda) + lambda*v3;
     v4 = ((q4-q4l)/dt)*(1-lambda) + lambda*v4;
+
+    // velocity limit
+    double vlim = constants::v_lim;
+    if(v1 > vlim || v2 > vlim || v3 > vlim || v4 > vlim)bail = true;
+    if(bail)err("overspeed");
 
     //homepos: -1073.45,-230.04,70.848,-1064.52
     //1073.45,230.04,-70.848,1064.52,1073.45,230.625,-71.975,1064.82,0,0,0,0,2.6e-05,0.007605,-0.014651,0.0039,203554,130566366
@@ -653,8 +587,6 @@ void * servo_loop(void *ptr){
         //cout<<tf<<","<<deltapos4<<endl;
     }
 
-
-
     /*where A, w are base amplitude (in whatever units - probably rad) and frequency (in rad/sec)
       and As, ws are the "phase-shift" amplitude and frequency (in rad and rad/sec).
 
@@ -665,7 +597,6 @@ void * servo_loop(void *ptr){
 
       where shift was the "how much to shift" parameter of ~0.1 (10%).*/
 
-
     //if(ts.tv_sec != tl.tv_sec){
     // cout<<dt<<","<<v4<<endl;
     //}
@@ -674,7 +605,7 @@ void * servo_loop(void *ptr){
 
     //if(i%1000 == 0)cout<<v4c<<","<<v4d<<","<<v4<<endl;
 
-    // velocity command limiting (linear acceleration)
+    // velocity command filtering (linear acceleration)
     float dv1 = v1d-v1c;
     float maxa1 = acc1/CYCLE_HZ;
     if(dv1 > maxa1)dv1 = maxa1;
@@ -722,7 +653,15 @@ void * servo_loop(void *ptr){
     torque3 = Kp3*dq3 - Kv3*v3;
     torque4 = Kp4*dq4 - Kv4*v4;
 
-    // limit torques
+    // torque limit
+    double t_lim = constants::t_max;
+    if(torque1 > 5*t_lim || torque1 < 5*-t_lim)bail = true;
+    if(torque2 > 5*t_lim || torque2 < 5*-t_lim)bail = true;
+    if(torque3 > 5*t_lim || torque3 < 5*-t_lim)bail = true;
+    if(torque4 > 5*t_lim || torque4 < 5*-t_lim)bail = true;
+    if(bail)err("torque command over 5 times max achievable");
+
+    // clip torque commands to max
     if(torque1 > t_lim1) torque1 = t_lim1;
     if(torque1 < -t_lim1) torque1 = -t_lim1;
 
@@ -837,7 +776,6 @@ void delta_p(int axis, double degrees){
     }
 }
 
-
 static int kbhit(void){
   struct termios oldt, newt;
   int ch;
@@ -888,7 +826,7 @@ static int printu(char * hostname, int port, char * data){
   return 0;
 }
 
-void * robot_server(void *ptr){;
+void * robot_server(void *ptr){   // takes commands from a UDP socket and relays them to the main loop
     int buflen = 512;
     int port = 10051;
     struct sockaddr_in  si_me, si_other;
@@ -917,62 +855,27 @@ void * robot_server(void *ptr){;
 }
 
 void diep(char *s){
+    process_input('q');
+    pthread_kill(servo, SIGKILL);
+    exit_cleanup();
     perror(s);
     exit(1);
 }
 
-void getudpcmd(char * buffer){//buffer should be 512 long
-    /*int buflen = 5;
-    int port = 10051;
-    struct sockaddr_in  si_me, si_other;
-    int s, i;//, slen=sizeof(si_other);
-    socklen_t slen = sizeof (si_other);
-    char buf[buflen];
-
-    if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
-      diep("socket");
-    //fcntl(s, F_SETFL, O_NONBLOCK);
-
-    memset((char *) &si_me, 0, sizeof(si_me));
-    si_me.sin_family = AF_INET;
-    si_me.sin_port = htons(port);
-    si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-    if (bind(s,(struct sockaddr *) &si_me, sizeof(si_me))==-1)
-        diep("bind");
-
-    memset(buf,'\0',buflen);
-    //if (
-    int size  = recvfrom(s, buffer, buflen, 0, (struct sockaddr *) &si_other, &slen);//)==-1)diep("recvfrom()");
-    if(size>0)printf("%d",size);
-    close(s);*/
+void err(char *s){
+    //process_input('q');
+    exit_cleanup();
+    printf("Error: %s\r\n",s);
+    pthread_kill(servo, SIGTERM);
+    exit(1);
 }
 
-  /*struct sockaddr_in  si_me, si_other;
-  int s, i, slen=sizeof(si_other);
-
-  char buf[BUFLEN];
-
-  s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
-  memset((char *) &si_me, 0, sizeof(si_me));
-  si_me.sin_family = AF_INET;
-  si_me.sin_port = htons(PORT);
-  si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-  bind(s,(struct sockaddr *) &si_me, sizeof(si_me));
-
-  for (;;) {
-    memset(buf,'\0',BUFLEN);
-    //if (
-    int i = recvfrom(s, buf, BUFLEN, MSG_DONTWAIT, (struct sockaddr *) &si_other, &slen);//==-1)diep("recvfrom()");
-    printf("Received packet from %s:%d\nData: %s\r\n",
-           inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port), buf);
-    sleep(1);
-  }
-
-  close(s);
-  return 0;
-}*/
-
+void exit_cleanup(void){
+    zero_torques();
+    S626_InterruptEnable (constants::board0, FALSE);
+    S626_CloseBoard(constants::board0);
+    cout << "626 closed out." << endl;
+}
 
 vector<double> get_Joint_Pos(void){
     double array[] = { q1, q2 - q3, q2 + q3, q4 };
@@ -996,3 +899,73 @@ vector<double> get_Joint_Vel(void){
     return Vel;
 
 }
+
+//------------------Stuff for testing------------------------------------
+void * servo_loop2(void *ptr){
+  static uint16_t tlast = 0;
+  static int i = 0;
+  cout<<"child start"<<endl;
+
+  while(1){
+    uint16_t time;
+    uint16_t t;
+
+    pthread_cond_signal(&g_cond);
+    pthread_mutex_unlock(&g_mutex);
+
+    do time = S626_CounterReadLatch(constants::board0,constants::cntr_chan);
+    while((uint16_t)(time - tlast) < CYCLE_COUNTS);
+    tlast = time;
+    //usleep(1000);
+ if(quit){
+       cout<<"done"<<endl;
+       break;
+    }
+    pthread_mutex_lock(&g_mutex);
+    //cout<<time<<endl;
+
+    if(i%1000==0)cout<<i<<endl;
+    i++;
+  }
+  cout<<"done1"<<endl;
+  //pthread_cond_signal(&g_cond);
+  //pthread_mutex_unlock(&g_mutex);
+  pthread_exit(NULL);//return NULL;
+  cout<<"done2"<<endl;
+  exit(0);
+}
+
+#ifdef TESTING
+int main(int argc, char** argv){
+  int result;
+  pthread_t       servo;
+  pthread_attr_t  attributes;
+
+  pthread_attr_init(&attributes);
+  pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_JOINABLE);
+
+  pthread_mutex_init(&g_mutex, NULL);
+  pthread_cond_init(&g_cond, NULL);
+  pthread_mutex_lock(&g_mutex);
+
+  result = pthread_create(&servo, &attributes, servo_loop, NULL);
+  if (result == 0) cout << "Servo thread started." << endl;
+
+  char c = '0';
+ while(1){
+   pthread_cond_wait(&g_cond, &g_mutex);
+      if(kbhit()){
+        c = getchar();
+        printf("%c\r\n",c);
+        rewind(stdout);
+        ftruncate(1,0);
+        process_input(c);
+        if(c == 'q'||c=='Q')break;
+        cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
+      }
+    }
+  pthread_join(servo, NULL);
+  exit(0);
+}
+#endif
+//---------------------------end of stuff for testing--------------------------------------
