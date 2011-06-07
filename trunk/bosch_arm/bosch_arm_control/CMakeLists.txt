@@ -26,6 +26,7 @@ rosbuild_add_library(${PROJECT_NAME} src/robot.cpp)
 rosbuild_add_library(${PROJECT_NAME} src/s626mod.c)
 rosbuild_add_library(${PROJECT_NAME} src/s626core.c)
 rosbuild_add_executable(bosch_arm_node src/bosch_arm_driver.cpp)
+rosbuild_add_executable(bosch_arm_teleop src/teleop.cpp)
 target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 #common commands for building c++ executables and libraries
 
