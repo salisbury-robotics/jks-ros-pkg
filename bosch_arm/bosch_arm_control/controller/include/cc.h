@@ -24,6 +24,8 @@ namespace constants{
 
   const double t_max = 0.184;          // N-m - max 100% duty for RE 40
   const double v_for_t_max = 10.0;     // D/A output volts - 10 volts = max torque
+  const double v_lim = 1080;           // motor speed limit, 1080 degrees per second
+  const double p_err_lim = 360;        // position err limited to 1 motor revolution
 
   const HBD board = 0;
 }
