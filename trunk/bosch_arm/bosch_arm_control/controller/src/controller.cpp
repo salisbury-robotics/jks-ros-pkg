@@ -75,10 +75,10 @@ static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
 static void jog(void);
 
-static double t_lim1 = 0.2*constants::t_max;
-static double t_lim2 = 0.2*constants::t_max;
-static double t_lim3 = 0.2*constants::t_max;
-static double t_lim4 = 0.2*constants::t_max;
+static double t_lim1 = 0.4*constants::t_max;
+static double t_lim2 = 0.4*constants::t_max;
+static double t_lim3 = 0.4*constants::t_max;
+static double t_lim4 = 0.4*constants::t_max;
 
 static bool t_wave1 = false;
 static bool t_wave2 = false;
@@ -100,7 +100,9 @@ static double q2home = -230.04;
 static double q3home = 70.848;
 static double q4home = -1064.52;
 */
+static double home_offsets [4] = {0.0,0.0,0.0,0.0};
 
+//old
 static double q1home = 0;
 static double q2home = 0;
 static double q3home = 0;
@@ -156,6 +158,17 @@ pthread_t robot;
 int main(int argc, char** argv){
     static int cmd = newcmd;
     if(!setup626()){
+        // home, must do before starting servo loop
+        cout<<"Position the arm at the zero position, then hit Enter to continue"<<endl;
+        char ch;
+        cin.get(ch);
+        home_offsets[0] = read_encoder(0)*constants::cnt2mdeg;
+        home_offsets[1] = read_encoder(1)*constants::cnt2mdeg;
+        home_offsets[2] = read_encoder(2)*constants::cnt2mdeg;
+        home_offsets[3] = read_encoder(3)*constants::cnt2mdeg;
+        cout << "\n\n";
+        cin.clear();
+
         int result;
 
         // start servo thread
@@ -183,6 +196,7 @@ int main(int argc, char** argv){
         char c = '0';
         zero_torques();
 
+
         // run
         while(1){
             pthread_cond_wait(&g_cond, &g_mutex);
@@ -195,7 +209,7 @@ int main(int argc, char** argv){
                 rewind(stdout);
                 ftruncate(1,0);
             }
-            if(c){// if we have a new command
+            if(c){// if we have any new command
                 printf("%c\r\n",c);
                 process_input(c);
                 //cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
@@ -370,7 +384,7 @@ static void process_input(char c){
   default:
     cout<<"Key commands:"<<endl<<
       "q:\tquit"<<endl<<
-      "1,2,3,4:\tSelect motor for gain modification"<<endl<<
+      "1,2,3,4:\tSelect a motor/joint"<<endl<<
       "w:\tmotor/joint 1+"<<endl<<
       "s:\tmotor/joint 1-"<<endl<<
       "e:\tmotor/joint 2+"<<endl<<
@@ -484,10 +498,10 @@ void * servo_loop(void *ptr){
     if(t_wave4 && ts.tv_sec%2 < 1)q4d-=vstep4;
 
     // read in positions, in motor degrees
-    q1 = -read_encoder(0)*constants::cnt2mdeg + q1home;
-    q2 = -read_encoder(1)*constants::cnt2mdeg + q2home;
-    q3 = read_encoder(3)*constants::cnt2mdeg + q3home;
-    q4 = read_encoder(2)*constants::cnt2mdeg + q4home;
+    q1 = -read_encoder(0)*constants::cnt2mdeg + home_offsets[0];
+    q2 = -read_encoder(1)*constants::cnt2mdeg + home_offsets[1];
+    q3 = read_encoder(3)*constants::cnt2mdeg - home_offsets[3]; // <-- notice, out of order, need to fix wiring at some point
+    q4 = read_encoder(2)*constants::cnt2mdeg - home_offsets[2];
 
     // bail if something is too wrong
     bool bail = false;
@@ -531,7 +545,8 @@ void * servo_loop(void *ptr){
 
     // velocity limit
     double vlim = constants::v_lim;
-    if(v1 > vlim || v2 > vlim || v3 > vlim || v4 > vlim)bail = true;
+    if(v1 > vlim || v2 > 2*vlim || v3 > 2*vlim || v4 > 2*vlim)bail = true;
+    if(-v1 > vlim || -v2 > 2*vlim || -v3 > 2*vlim || -v4 > 2*vlim)bail = true;
     if(bail)err("overspeed");
 
     //homepos: -1073.45,-230.04,70.848,-1064.52
@@ -540,7 +555,7 @@ void * servo_loop(void *ptr){
     if(flail_around){
         float tf =  (ts.tv_sec + ts.tv_nsec * 0.000000001) - flail_start;
 
-        /*float A1 = 60*16.667;
+        float A1 = 32*16.667;
         float w1 = 0.4;
         float shift1 = 0.12;
         float As1 = -0.5/shift1;
@@ -550,9 +565,9 @@ void * servo_loop(void *ptr){
         double deltapos1 = pos1-lastpos1;
         //cout<<deltapos1<<","<<q4d<<endl;
         delta_p(1,deltapos1);
-        lastpos1 = pos1;*/
+        lastpos1 = pos1;
 
-        float A2 = 90*7.98;
+        float A2 = 15*7.98;
         float w2 = 0.55;
         float shift2 = 0.1;
         float As2 = -0.5/shift2;
@@ -574,7 +589,7 @@ void * servo_loop(void *ptr){
         delta_p(3,deltapos3);
         lastpos3 = pos3;
 
-        float A4 = 90*7.98;
+        float A4 = 60*7.98;
         float w4 = 0.6;
         float shift4 = 0.13;
         float As4 = -0.55/shift4;
@@ -878,8 +893,15 @@ void exit_cleanup(void){
 }
 
 vector<double> get_Joint_Pos(void){
-    double array[] = { q1, q2 - q3, q2 + q3, q4 };
-    vector<double> Pos(array, array + sizeof(array));
+    double j1,j2,j3,j4 = 0.0;
+    double motors [] = {q1,q3,q2,q4};
+    double joints [] = {0.0,0.0,0.0,0.0};
+    for(int i = 0;i<4;i++){
+        for (int j = 0;j<4;j++){
+            joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+        }
+    }
+    vector<double> Pos(joints, joints + sizeof(joints));
 
     return Pos;
 }
