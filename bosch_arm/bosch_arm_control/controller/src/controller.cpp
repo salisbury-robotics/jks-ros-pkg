@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <pthread.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdio.h>
@@ -63,15 +65,18 @@ static void process_input(char c);
 void * servo_loop(void *ptr);
 void * servo_loop2(void *ptr);
 void delta_p(int axis, double degrees);
+void diep(char *s);
+void getudpcmd(char * buffer);
+void * robot_server(void *ptr);
 
 static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
 static void jog(void);
 
-static double t_lim1 = 0.4*constants::t_max;
-static double t_lim2 = 0.4*constants::t_max;
-static double t_lim3 = 0.4*constants::t_max;
-static double t_lim4 = 0.4*constants::t_max;
+static double t_lim1 = 0.2*constants::t_max;
+static double t_lim2 = 0.2*constants::t_max;
+static double t_lim3 = 0.2*constants::t_max;
+static double t_lim4 = 0.2*constants::t_max;
 
 static bool t_wave1 = false;
 static bool t_wave2 = false;
@@ -139,9 +144,12 @@ static bool jogplus = false;
 static bool jogminus = false;
 
 static double loop_time = 0.001;
+static int newcmd = 0;
+static char cmdbuf[512];
 
 #ifndef TESTING
 int main(int argc, char** argv){
+    static int cmd = newcmd;
     if(!setup626()){
         int result;
         pthread_t       servo;
@@ -157,20 +165,48 @@ int main(int argc, char** argv){
         result = pthread_create(&servo, &attributes, servo_loop, NULL);
         if (result == 0) cout << "Servo thread started." << endl;
 
+        pthread_t       robot;
+        pthread_attr_t  r_attributes;
+
+        pthread_attr_init(&r_attributes);
+        pthread_attr_setdetachstate(&r_attributes, PTHREAD_CREATE_JOINABLE);
+
+        result = pthread_create(&robot, &r_attributes, robot_server, NULL);
+        if (result == 0) cout << "Robot server thread started." << endl;
+
         char c = '0';
         zero_torques();
 
         while(1){
+            //char buf[5];
+            //memset(buf,0,5);
+            //getudpcmd(buf);
             pthread_cond_wait(&g_cond, &g_mutex);
-            if(kbhit()){
+            /*int len = strlen(buf);
+            if(len){
+                c = buf[0];
+                for(int i = 0;i<len;i++){
+                    //process_input(buf[i]);
+                    printf("%c\r\n",buf[i]);
+                }
+            }*/
+            if(cmd != newcmd){
+                cmd = newcmd;
+                //process_input(cmdbuf[i]);
+                c = cmdbuf[0];
+            }
+            else if(kbhit()){
                 c = getchar();
-                printf("%c\r\n",c);
                 rewind(stdout);
                 ftruncate(1,0);
+            }
+            if(c){
+                printf("%c\r\n",c);
                 process_input(c);
-                if(c == 'q')break;
                 cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
             }
+            if(c == 'q' || c=='Q')break;
+            c=0;
         }
         pthread_join(servo, NULL);
         zero_torques();
@@ -240,7 +276,7 @@ int main(int argc, char** argv){
 	rewind(stdout);
 	ftruncate(1,0);
 	process_input(c);
-	if(c == 'q')break;
+        if(c == 'q'||c=='Q')break;
 	cout << "Kp1: " << Kp1 << "," <<  " Kv1: " << Kv1 << "," << "Kp2: " << Kp2 << "," <<  " Kv2: " << Kv3 << "," <<"Kp4: " << Kp4 << "," <<  " Kv4: " << Kv4 << "," << " cutoff (Hz): " << cutoff<<endl;
       }
     }
@@ -401,6 +437,7 @@ static void process_input(char c){
     }
     break;
   }
+  case 'Q'://fall through
   case 'q':{
     quit = 1;
     break;
@@ -850,6 +887,91 @@ static int printu(char * hostname, int port, char * data){
   }
   return 0;
 }
+
+void * robot_server(void *ptr){;
+    int buflen = 512;
+    int port = 10051;
+    struct sockaddr_in  si_me, si_other;
+    int s, i;//, slen=sizeof(si_other);
+    socklen_t slen = sizeof (si_other);
+
+    if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
+      diep("socket");
+
+    memset((char *) &si_me, 0, sizeof(si_me));
+    si_me.sin_family = AF_INET;
+    si_me.sin_port = htons(port);
+    si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (bind(s,(struct sockaddr *) &si_me, sizeof(si_me))==-1)
+        diep("bind");
+
+    for(;;){
+        memset(cmdbuf,'\0',buflen);
+        int size  = recvfrom(s, cmdbuf, buflen, 0, (struct sockaddr *) &si_other, &slen);
+        newcmd = !newcmd;
+        usleep(100000);
+        if(quit)break;
+    }
+    close(s);
+    pthread_exit(NULL);
+}
+
+void diep(char *s){
+    perror(s);
+    exit(1);
+}
+
+void getudpcmd(char * buffer){//buffer should be 512 long
+    /*int buflen = 5;
+    int port = 10051;
+    struct sockaddr_in  si_me, si_other;
+    int s, i;//, slen=sizeof(si_other);
+    socklen_t slen = sizeof (si_other);
+    char buf[buflen];
+
+    if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
+      diep("socket");
+    //fcntl(s, F_SETFL, O_NONBLOCK);
+
+    memset((char *) &si_me, 0, sizeof(si_me));
+    si_me.sin_family = AF_INET;
+    si_me.sin_port = htons(port);
+    si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (bind(s,(struct sockaddr *) &si_me, sizeof(si_me))==-1)
+        diep("bind");
+
+    memset(buf,'\0',buflen);
+    //if (
+    int size  = recvfrom(s, buffer, buflen, 0, (struct sockaddr *) &si_other, &slen);//)==-1)diep("recvfrom()");
+    if(size>0)printf("%d",size);
+    close(s);*/
+}
+
+  /*struct sockaddr_in  si_me, si_other;
+  int s, i, slen=sizeof(si_other);
+
+  char buf[BUFLEN];
+
+  s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  memset((char *) &si_me, 0, sizeof(si_me));
+  si_me.sin_family = AF_INET;
+  si_me.sin_port = htons(PORT);
+  si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+  bind(s,(struct sockaddr *) &si_me, sizeof(si_me));
+
+  for (;;) {
+    memset(buf,'\0',BUFLEN);
+    //if (
+    int i = recvfrom(s, buf, BUFLEN, MSG_DONTWAIT, (struct sockaddr *) &si_other, &slen);//==-1)diep("recvfrom()");
+    printf("Received packet from %s:%d\nData: %s\r\n",
+           inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port), buf);
+    sleep(1);
+  }
+
+  close(s);
+  return 0;
+}*/
 
 
 vector<double> get_Joint_Pos(void){
