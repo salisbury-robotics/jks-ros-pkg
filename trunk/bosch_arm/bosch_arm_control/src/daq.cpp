@@ -30,7 +30,7 @@ void InterruptAppISR(DWORD board);
 void ErrorFunction1(DWORD ErrFlags);
 
 static int cnt1 = 0; // count for interrupts
-static unsigned long errFlags  = 0x0; // error flags
+static unsigned long errFlags = 0x0; // error flags
 
 pthread_mutex_t	CriticalSection = PTHREAD_MUTEX_INITIALIZER;
 DWORD IntCounts[16] = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };	// Interrupt counters.
