@@ -67,9 +67,12 @@ void * servo_loop(void *ptr);
 void * servo_loop2(void *ptr);
 void delta_p(int axis, double degrees);
 void diep(char *s);
+void diep(const char *s);
 void err(char *s);
+void err(const char *s);
 void * robot_server(void *ptr);
 void exit_cleanup(void);
+void serve_request(string command);
 
 static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
@@ -137,7 +140,7 @@ static bool flail_around = false;
 static double flail_start = 0.0;
 static double lastpos1, lastpos2, lastpos3, lastpos4 = 0.0;
 
-static double q1f_start, q2f_start, q3f_start, q4f_start = 0.0;
+//static double q1f_start, q2f_start, q3f_start, q4f_start = 0.0;
 
 static int quit = 0;
 static int jog_step = 50;
@@ -150,6 +153,15 @@ static bool jogminus = false;
 static double loop_time = 0.001;
 static int newcmd = 0;
 static char cmdbuf[512];
+
+enum Mode { NONE, JOG, INCREMENT, KP, KV, FILTER };
+static Mode mode = NONE;
+
+
+/*typedef struct{
+    bool relative;
+
+}Instruction;*/
 
 pthread_t servo;
 pthread_t robot;
@@ -196,13 +208,18 @@ int main(int argc, char** argv){
         char c = '0';
         zero_torques();
 
-
         // run
         while(1){
             pthread_cond_wait(&g_cond, &g_mutex);
             if(cmd != newcmd){// udp server issued a new command
-                cmd = newcmd;
-                c = cmdbuf[0];
+                cmd = newcmd;  // reset the flag
+                // If the first character is '%', run the requested command, otherwise treat it as single-character keyboard input
+                if(cmdbuf[0] == '%'){
+                    string command(cmdbuf);
+                    command.erase(0,1);
+                    serve_request(command);
+                }
+                else c = cmdbuf[0];
             }
             else if(kbhit()){// keyboard command
                 c = getchar();
@@ -227,6 +244,7 @@ int main(int argc, char** argv){
 static void process_input(char c){
   float Kp = 1.0;
   float Kv = 1.0;
+  int dir = -1;
   switch(c){
   case '1':{
     axis = 1;
@@ -249,30 +267,66 @@ static void process_input(char c){
     break;
   }
   case '=':{
-    if(jogplus){
-      STOPJOGGING;
-    }
-    else{
-      jogplus = true;
-      jogminus = false;
-    }
-     break;
-  }
+          dir = 1;
+          // Fall through
+      }
   case '-':{
-    if(jogminus){
-      STOPJOGGING;
-    }
-    else{
-      jogminus = true;
-      jogplus = false;
-    }
-    break;
+          if(mode == INCREMENT){
+              if(joint_space){
+                  vector<double> pos = get_Joint_Pos();
+                  pos[axis-1] += 0.5*dir;  // Move 1/2 degree
+                  //cout<<q1<<','<<q2<<','<<q3<<','<<q4<<endl;
+                  set_Joint_Pos(pos);
+              }
+              else{
+                  if(axis==1){
+                      jog_step = t_lim1/Kp1;
+                      q1d+=dir*jog_step;
+                  }
+                  if(axis==2){
+                      jog_step = t_lim2/Kp2;
+                      q2d+=dir*jog_step;
+                  }
+                  if(axis==3){
+                      jog_step = t_lim3/Kp3;
+                      q3d+=dir*jog_step;
+                  }
+                  if(axis==4){
+                      jog_step = t_lim4/Kp4;
+                      q4d+=dir*jog_step;
+                  }
+              }
+          }
+          if(mode == JOG){
+              if(jogplus||jogminus){
+                  STOPJOGGING;
+              }
+              else{
+                  if(dir>0){
+                      jogplus = true;
+                      jogminus = false;
+                  }
+                  else{
+                      jogminus = true;
+                      jogplus = false;
+                  }
+              }
+          }
+          break;
   }
   case '0':{
     STOPJOGGING;
     break;
-  }    
+  }
   case 'w':{
+          mode = JOG;
+    break;
+  }
+  case 's':{
+          mode = INCREMENT;
+    break;
+  }
+  /*case 'w':{
     jog_step = t_lim1/Kp1;
     q1d+=jog_step;
     if(joint_space){
@@ -282,14 +336,14 @@ static void process_input(char c){
     break;
   }
   case 's':{
-    jog_step = t_lim1/Kp1;
-    q1d-=jog_step;
-    if(joint_space){
-      q2d-=jog_step/2;
-      q3d-=jog_step/2;
-    }
-    break;
-  }
+          jog_step = t_lim1/Kp1;
+          q1d-=jog_step;
+          if(joint_space){
+              q2d-=jog_step/2;
+              q3d-=jog_step/2;
+          }
+          break;
+      }
   case 'e':{
     jog_step = t_lim2/Kp2;
     q3d+=jog_step;
@@ -313,15 +367,20 @@ static void process_input(char c){
     break;
   }
   case 't':{
-    jog_step = t_lim4/Kp4;
-    q4d+=jog_step;
-    break;
-  }
+          //double array[] = { 90,90,90,0 };
+          //vector<double> pos(array, array + sizeof(array));
+          vector<double> pos = get_Joint_Pos();
+          pos[3] += 3;
+          set_Joint_Pos(pos);
+          //jog_step = t_lim4/Kp4;
+          //q4d+=jog_step;
+          break;
+      }
   case 'g':{
     jog_step = t_lim4/Kp4;
     q4d-=jog_step;
     break;
-  }
+  }*/
   case 'p':{
     Kp =1.1;
     break;
@@ -385,14 +444,10 @@ static void process_input(char c){
     cout<<"Key commands:"<<endl<<
       "q:\tquit"<<endl<<
       "1,2,3,4:\tSelect a motor/joint"<<endl<<
-      "w:\tmotor/joint 1+"<<endl<<
-      "s:\tmotor/joint 1-"<<endl<<
-      "e:\tmotor/joint 2+"<<endl<<
-      "d:\tmotor/joint 2-"<<endl<<
-      "r:\tmotor/joint 3+"<<endl<<
-      "f:\tmotor/joint 3-"<<endl<<
-      "t:\tmotor/joint 4+"<<endl<<
-      "g:\tmotor/joint 4-"<<endl<<
+      "=:\tpositive"<<endl<<
+      "-:\tnegative"<<endl<<
+      "w:\tmove incrementally"<<endl<<
+      "s:\tmove by jogging"<<endl<<
       "p:\tKp+"<<endl<<
       "l:\tKp-"<<endl<<
       "o:\tKv+"<<endl<<
@@ -438,11 +493,11 @@ static void process_input(char c){
 void * servo_loop(void *ptr){
   static uint16_t tlast = 0;
   static int i = 0;
-  static int j = 0;
-  static double q1c, q2c, q3c, q4c = 0; // commanded position, takes desired position and filters through acceleration
+  //static int j = 0;
+  //static double q1c, q2c, q3c, q4c = 0; // commanded position, takes desired position and filters through acceleration
   static double v1c, v2c, v3c, v4c = 0; // commanded velocity, limits velocity changes to appropriate acceleration
 
-  static timespec tl,ts;
+  static timespec tl;//,ts;
   clock_gettime(CLOCK_REALTIME, &tl); 
  
   while(1){
@@ -459,7 +514,6 @@ void * servo_loop(void *ptr){
     
     t = (time - tlast);
     float dt = (float)t*CNT2SEC;
-    //cout << "dt: " << dt << endl;
     tlast = time;
     
     // Jogging
@@ -468,7 +522,7 @@ void * servo_loop(void *ptr){
     // Triangle wave
     timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    //cout<<t_wave4<<","<<ts.tv_sec<<","<<q4d<<","<<endl;
+
     if(t_wave1 && ts.tv_sec%6 >= 3){
       q1d+=vstep1;
       if(joint_space){
@@ -549,9 +603,6 @@ void * servo_loop(void *ptr){
     if(-v1 > vlim || -v2 > 2*vlim || -v3 > 2*vlim || -v4 > 2*vlim)bail = true;
     if(bail)err("overspeed");
 
-    //homepos: -1073.45,-230.04,70.848,-1064.52
-    //1073.45,230.04,-70.848,1064.52,1073.45,230.625,-71.975,1064.82,0,0,0,0,2.6e-05,0.007605,-0.014651,0.0039,203554,130566366
-
     if(flail_around){
         float tf =  (ts.tv_sec + ts.tv_nsec * 0.000000001) - flail_start;
 
@@ -563,7 +614,6 @@ void * servo_loop(void *ptr){
 
         double pos1 = A1*sin(w1*tf + As1*sin(ws1*tf + sin(ws1*tf)));
         double deltapos1 = pos1-lastpos1;
-        //cout<<deltapos1<<","<<q4d<<endl;
         delta_p(1,deltapos1);
         lastpos1 = pos1;
 
@@ -845,7 +895,7 @@ void * robot_server(void *ptr){   // takes commands from a UDP socket and relays
     int buflen = 512;
     int port = 10051;
     struct sockaddr_in  si_me, si_other;
-    int s, i;//, slen=sizeof(si_other);
+    int s;
     socklen_t slen = sizeof (si_other);
 
     if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
@@ -861,7 +911,7 @@ void * robot_server(void *ptr){   // takes commands from a UDP socket and relays
     for(;;){
         memset(cmdbuf,'\0',buflen);
         int size  = recvfrom(s, cmdbuf, buflen, 0, (struct sockaddr *) &si_other, &slen);
-        newcmd = !newcmd;
+        if(size>0)newcmd = !newcmd;  // When this flag changes, the main loop grabs cmdbuf and runs process_input on the first character
         usleep(100000);
         if(quit)break;
     }
@@ -877,12 +927,24 @@ void diep(char *s){
     exit(1);
 }
 
+void diep(const char *s){
+    char ch[strlen(s)];
+    strcpy(ch,s);
+    diep(ch);
+}
+
 void err(char *s){
     //process_input('q');
     exit_cleanup();
     printf("Error: %s\r\n",s);
     pthread_kill(servo, SIGTERM);
     exit(1);
+}
+
+void err(const char *s){
+    char ch[strlen(s)];
+    strcpy(ch,s);
+    err(ch);
 }
 
 void exit_cleanup(void){
@@ -892,9 +954,59 @@ void exit_cleanup(void){
     cout << "626 closed out." << endl;
 }
 
+void serve_request(string command){
+    cout<<command<<endl;
+    static bool relative = false;  // is the move relative, or absolute
+    static bool rapid = true;      // rapid, or interpolated
+    bool move = false;             // do we need to move?
+
+    vector<double> current_pos = get_Joint_Pos();
+    vector<double> dest_pos = get_Joint_Pos();
+    vector<double> rel_move(4,0.0);
+
+    char data[512];
+    char cmd[10][2];
+    double op[10];
+    int argc = 0;
+
+    memset(data, 0, 512);
+    argc = sscanf(command.c_str(),"%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf",
+                  cmd[0], &op[0], cmd[1], &op[1], cmd[2], &op[2], cmd[3], &op[3], cmd[4], &op[4],
+                  cmd[5], &op[5], cmd[6], &op[6], cmd[7], &op[7], cmd[8], &op[8], cmd[9], &op[9]);
+
+    for(int i=0;i<argc/2;i++){
+        switch(cmd[i][0]){
+        case'g':{
+                int num = (int)op[i];
+                printf("num:%d\r\n",num);
+                if(num==90)relative = false;
+                if(num==91)relative = true;
+                if(num==0)rapid = true;
+                if(num==1)rapid = false;
+                break;
+            }
+        case'j':{
+                move = true;
+                int num = (int)op[i]-1;
+                if(!relative)dest_pos[num] = op[i+1];
+                if(relative)rel_move[num] = op[i+1];
+                cout<<num<<","<<op[i+1]<<endl;
+                i++;
+                break;
+            }
+        default:
+            ; // no action
+        }
+    }
+    printf("%lf,%lf,%lf,%lf\r\n",dest_pos[0],dest_pos[1],dest_pos[2],dest_pos[3]);
+    printf("%lf,%lf,%lf,%lf\r\n",rel_move[0],rel_move[1],rel_move[2],rel_move[3]);
+
+    for(int i = 0;i<4;i++)dest_pos[i]+=rel_move[i];
+    set_Joint_Pos(dest_pos);
+}
+
 vector<double> get_Joint_Pos(void){
-    double j1,j2,j3,j4 = 0.0;
-    double motors [] = {q1,q3,q2,q4};
+    double motors [] = {q1d,q3d,q2d,q4d};
     double joints [] = {0.0,0.0,0.0,0.0};
     for(int i = 0;i<4;i++){
         for (int j = 0;j<4;j++){
@@ -902,16 +1014,21 @@ vector<double> get_Joint_Pos(void){
         }
     }
     vector<double> Pos(joints, joints + sizeof(joints));
-
     return Pos;
 }
 
 void set_Joint_Pos(vector<double> Pos){
-    double j1,j2,j3,j4 = 0;
-    j1 = Pos[0];
-    j2 = Pos[1];
-    j3 = Pos[2];
-    j4 = Pos[3];
+    double motors [] = {0.0,0.0,0.0,0.0};
+    for(int i = 0;i<4;i++){
+        for (int j = 0;j<4;j++){
+            motors[i]+=constants::j2m[4*i+j]*Pos[j];  // Convert motor positions to joint positions
+        }
+    }
+    q1d = motors[0];
+    q3d = motors[1];
+    q2d = motors[2];
+    q4d = motors[3];
+    //cout<<motors[0]<<','<<motors[1]<<','<<motors[2]<<','<<motors[3]<<endl;
 }
 
 vector<double> get_Joint_Vel(void){
@@ -930,7 +1047,7 @@ void * servo_loop2(void *ptr){
 
   while(1){
     uint16_t time;
-    uint16_t t;
+    //uint16_t t;
 
     pthread_cond_signal(&g_cond);
     pthread_mutex_unlock(&g_mutex);
