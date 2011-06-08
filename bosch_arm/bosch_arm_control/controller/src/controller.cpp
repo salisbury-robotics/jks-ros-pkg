@@ -154,14 +154,11 @@ static double loop_time = 0.001;
 static int newcmd = 0;
 static char cmdbuf[512];
 
+static vector<double> cur_pos;
+static vector<double> cur_pos_act;
+
 enum Mode { NONE, JOG, INCREMENT, KP, KV, FILTER };
 static Mode mode = NONE;
-
-
-/*typedef struct{
-    bool relative;
-
-}Instruction;*/
 
 pthread_t servo;
 pthread_t robot;
@@ -169,6 +166,7 @@ pthread_t robot;
 #ifndef TESTING
 int main(int argc, char** argv){
     static int cmd = newcmd;
+    static bool streaming = false;
     if(!setup626()){
         // home, must do before starting servo loop
         cout<<"Position the arm at the zero position, then hit Enter to continue"<<endl;
@@ -211,12 +209,18 @@ int main(int argc, char** argv){
         // run
         while(1){
             pthread_cond_wait(&g_cond, &g_mutex);
-            if(cmd != newcmd){// udp server issued a new command
+            if(cmd != newcmd){ // udp server issued a new command
                 cmd = newcmd;  // reset the flag
-                // If the first character is '%', run the requested command, otherwise treat it as single-character keyboard input
-                if(cmdbuf[0] == '%'){
-                    string command(cmdbuf);
+                string command(cmdbuf);
+                if(cmdbuf[0] == '%'){  // enter streaming mode
+                    streaming = true;
                     command.erase(0,1);
+                }
+                if(streaming){
+                    if(cmdbuf[strlen(cmdbuf)] == ';'){
+                        streaming = false; // If the last character is ';', leave streaming mode
+                        command.erase(command.length()-1,1);
+                    }
                     serve_request(command);
                 }
                 else c = cmdbuf[0];
@@ -745,13 +749,19 @@ void * servo_loop(void *ptr){
     write_torque(2,torque3);
     write_torque(3,torque4);
 
+    cur_pos = get_Joint_Pos();
+    cur_pos_act = get_Joint_Pos_Actual();
+
     // datalogging
     std::string log;
     std::stringstream out;
     out << q1 << "," << q2 << "," << q3 << "," << q4 << ",";
-    out << q1d << "," << q2d << "," << q3d << "," << q4d;
-    out << "," << v1 << "," << v2 << "," << v3 << "," << v4 << ",";
-    out << torque1 << "," << torque2 << "," << torque3 << "," << torque4 << "," << i << "," << ts.tv_sec;
+    out << q1d << "," << q2d << "," << q3d << "," << q4d << ",";
+    out << v1 << "," << v2 << "," << v3 << "," << v4 << ",";
+    out << torque1 << "," << torque2 << "," << torque3 << "," << torque4 << ",";
+    out << i << "," << ts.tv_sec << ',';
+    out << cur_pos[0] << ','<< cur_pos[1] << ','<< cur_pos[2] << ','<< cur_pos[3] << ',';
+    out << cur_pos_act[0] << ','<< cur_pos_act[1] << ','<< cur_pos_act[2] << ','<< cur_pos_act[3];
     log = out.str();
     i++;
 
@@ -960,7 +970,6 @@ void serve_request(string command){
     static bool rapid = true;      // rapid, or interpolated
     bool move = false;             // do we need to move?
 
-    vector<double> current_pos = get_Joint_Pos();
     vector<double> dest_pos = get_Joint_Pos();
     vector<double> rel_move(4,0.0);
 
@@ -990,7 +999,7 @@ void serve_request(string command){
                 int num = (int)op[i]-1;
                 if(!relative)dest_pos[num] = op[i+1];
                 if(relative)rel_move[num] = op[i+1];
-                cout<<num<<","<<op[i+1]<<endl;
+                //cout<<num<<","<<op[i+1]<<endl;
                 i++;
                 break;
             }
@@ -998,8 +1007,8 @@ void serve_request(string command){
             ; // no action
         }
     }
-    printf("%lf,%lf,%lf,%lf\r\n",dest_pos[0],dest_pos[1],dest_pos[2],dest_pos[3]);
-    printf("%lf,%lf,%lf,%lf\r\n",rel_move[0],rel_move[1],rel_move[2],rel_move[3]);
+    //printf("%lf,%lf,%lf,%lf\r\n",dest_pos[0],dest_pos[1],dest_pos[2],dest_pos[3]);
+    //printf("%lf,%lf,%lf,%lf\r\n",rel_move[0],rel_move[1],rel_move[2],rel_move[3]);
 
     for(int i = 0;i<4;i++)dest_pos[i]+=rel_move[i];
     set_Joint_Pos(dest_pos);
@@ -1007,6 +1016,18 @@ void serve_request(string command){
 
 vector<double> get_Joint_Pos(void){
     double motors [] = {q1d,q3d,q2d,q4d};
+    double joints [] = {0.0,0.0,0.0,0.0};
+    for(int i = 0;i<4;i++){
+        for (int j = 0;j<4;j++){
+            joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+        }
+    }
+    vector<double> Pos(joints, joints + sizeof(joints));
+    return Pos;
+}
+
+vector<double> get_Joint_Pos_Actual(void){
+    double motors [] = {q1,q3,q2,q4};
     double joints [] = {0.0,0.0,0.0,0.0};
     for(int i = 0;i<4;i++){
         for (int j = 0;j<4;j++){
