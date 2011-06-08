@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 
   addr.sin_family = AF_INET;
   memcpy(&addr.sin_addr.s_addr, pServer->h_addr, pServer->h_length);
-  addr.sin_port = htons(50000);
+  addr.sin_port = htons(10051);
   
  
   char c;
