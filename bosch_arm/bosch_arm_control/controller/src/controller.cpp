@@ -176,7 +176,6 @@ int main(int argc, char** argv){
         home_offsets[1] = read_encoder(1)*constants::cnt2mdeg;
         home_offsets[2] = read_encoder(2)*constants::cnt2mdeg;
         home_offsets[3] = read_encoder(3)*constants::cnt2mdeg;
-        cout << "\n\n";
         cin.clear();
 
         int result;
@@ -203,7 +202,7 @@ int main(int argc, char** argv){
         result = pthread_create(&robot, &r_attributes, robot_server, NULL);
         if (result == 0) cout << "Robot server thread started." << endl;
 
-        char c = '0';
+        char c = 0;
         zero_torques();
 
         // run
@@ -755,13 +754,13 @@ void * servo_loop(void *ptr){
     // datalogging
     std::string log;
     std::stringstream out;
-    out << q1 << "," << q2 << "," << q3 << "," << q4 << ",";
-    out << q1d << "," << q2d << "," << q3d << "," << q4d << ",";
-    out << v1 << "," << v2 << "," << v3 << "," << v4 << ",";
-    out << torque1 << "," << torque2 << "," << torque3 << "," << torque4 << ",";
-    out << i << "," << ts.tv_sec << ',';
-    out << cur_pos[0] << ','<< cur_pos[1] << ','<< cur_pos[2] << ','<< cur_pos[3] << ',';
-    out << cur_pos_act[0] << ','<< cur_pos_act[1] << ','<< cur_pos_act[2] << ','<< cur_pos_act[3];
+    out << q1 << "," << q2 << "," << q3 << "," << q4 << ",";     // Motor positions
+    out << q1d << "," << q2d << "," << q3d << "," << q4d << ","; // Commanded Motor positions
+    out << v1 << "," << v2 << "," << v3 << "," << v4 << ",";     // Motor velocities
+    out << torque1 << "," << torque2 << "," << torque3 << "," << torque4 << ","; // Motor torques
+    out << i << "," << ts.tv_sec << ',';                         // Servo cycle count, timestamp
+    out << cur_pos[0] << ','<< cur_pos[1] << ','<< cur_pos[2] << ','<< cur_pos[3] << ','; // Commanded joint positions
+    out << cur_pos_act[0] << ','<< cur_pos_act[1] << ','<< cur_pos_act[2] << ','<< cur_pos_act[3]; // Actual joint positions
     log = out.str();
     i++;
 
@@ -921,8 +920,8 @@ void * robot_server(void *ptr){   // takes commands from a UDP socket and relays
     for(;;){
         memset(cmdbuf,'\0',buflen);
         int size  = recvfrom(s, cmdbuf, buflen, 0, (struct sockaddr *) &si_other, &slen);
-        if(size>0)newcmd = !newcmd;  // When this flag changes, the main loop grabs cmdbuf and runs process_input on the first character
-        usleep(100000);
+        if(size>0)newcmd++;  // When this flag changes, the main loop grabs cmdbuf and runs process_input on the first character
+        usleep(5000);
         if(quit)break;
     }
     close(s);
@@ -930,10 +929,18 @@ void * robot_server(void *ptr){   // takes commands from a UDP socket and relays
 }
 
 void diep(char *s){
-    process_input('q');
+    char dest[] = "localhost";
+    printu(dest, 10052, s);
+
+    /*process_input('q');
     pthread_kill(servo, SIGKILL);
     exit_cleanup();
     perror(s);
+    exit(1);*/
+
+    exit_cleanup();
+    perror(s);
+    pthread_kill(servo, SIGTERM);
     exit(1);
 }
 
@@ -944,7 +951,9 @@ void diep(const char *s){
 }
 
 void err(char *s){
-    //process_input('q');
+    char dest[] = "localhost";
+    printu(dest, 10052, s);
+
     exit_cleanup();
     printf("Error: %s\r\n",s);
     pthread_kill(servo, SIGTERM);
