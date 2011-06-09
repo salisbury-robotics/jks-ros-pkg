@@ -63,9 +63,12 @@ int main(int argc, char **argv)
       continue;
     if(c!='s')
       continue;
-    
-    for(int i=0;i<300;i++){
-    double pos=sin(i*0.0314);
+    int rate=200;
+    int period=1000000/rate;
+    int t=3;
+    int npts=3*rate;
+    for(int i=0;i<npts;i++){
+    double pos=5*sin(i*6.28/npts);
     sprintf(buf,"%s%f",prefix,pos);
     int n = sendto(hSock, buf, strlen(buf), 0, (sockaddr*)&addr, sizeof(addr));
     if (n < 0){
@@ -74,7 +77,8 @@ int main(int argc, char **argv)
       close(hSock);
       return 1;
     }
-    usleep(10000);
+    printf("%d:%f\n",i,buf);
+    usleep(period);
     }
   }
   shutdown(hSock, SHUT_RDWR);
