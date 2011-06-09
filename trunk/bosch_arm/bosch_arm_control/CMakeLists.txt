@@ -7,7 +7,7 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+set(ROS_BUILD_TYPE Debug)
 
 rosbuild_init()
 
@@ -25,10 +25,12 @@ rosbuild_add_library(${PROJECT_NAME} src/daq.cpp)
 rosbuild_add_library(${PROJECT_NAME} src/robot.cpp)
 rosbuild_add_library(${PROJECT_NAME} src/s626mod.c)
 rosbuild_add_library(${PROJECT_NAME} src/s626core.c)
+rosbuild_add_executable(bosch_arm_servo src/controller.cpp)
 rosbuild_add_executable(bosch_arm_node src/bosch_arm_driver.cpp)
-rosbuild_add_executable(bosch_arm_teleop src/teleop.cpp)
-rosbuild_add_executable(testsin src/testsin.cpp)
-target_link_libraries(bosch_arm_node ${PROJECT_NAME})
+rosbuild_add_executable(service_test src/service_test.cpp)
+#rosbuild_add_executable(bosch_arm_teleop src/teleop.cpp)
+#rosbuild_add_executable(testsin src/testsin.cpp)
+target_link_libraries(bosch_arm_servo ${PROJECT_NAME})
 #common commands for building c++ executables and libraries
 
 #target_link_libraries(${PROJECT_NAME} another_library)
