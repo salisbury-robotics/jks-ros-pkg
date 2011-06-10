@@ -16,7 +16,7 @@
 #include <vector>
 #include <signal.h>
 
-using namespace std;
+using namespace std; 
 #include <stdlib.h>
 #include <iostream>
 #include <string>
