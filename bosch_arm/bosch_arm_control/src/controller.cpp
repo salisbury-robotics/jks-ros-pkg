@@ -919,8 +919,8 @@ void serve_request(string command){
             ; // no action
         }
     }
-    //printf("%lf,%lf,%lf,%lf\r\n",dest_pos[0],dest_pos[1],dest_pos[2],dest_pos[3]);
-    //printf("%lf,%lf,%lf,%lf\r\n",rel_move[0],rel_move[1],rel_move[2],rel_move[3]);
+//     printf("%lf,%lf,%lf,%lf\r\n",dest_pos[0],dest_pos[1],dest_pos[2],dest_pos[3]);
+//     printf("%lf,%lf,%lf,%lf\r\n",rel_move[0],rel_move[1],rel_move[2],rel_move[3]);
 
     for(int i = 0;i<4;i++)dest_pos[i]+=rel_move[i];
     set_Joint_Pos(dest_pos);
