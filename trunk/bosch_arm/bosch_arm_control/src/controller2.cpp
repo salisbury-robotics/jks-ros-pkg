@@ -225,9 +225,11 @@ bool set_joint_angles_srv(bosch_arm_srvs::SetJointAngles::Request &req,
     return true;
 }
 
-
+//TODO: remove service
 //TODO: subscribe to command of type JointTrajectory
 //see http://www.ros.org/wiki/robot_mechanism_controllers/JointSplineTrajectoryController
+//TODO: think about the mutex
+//TODO: catesian space control
 int main(int argc, char** argv){
     static int cmd = newcmd;
     static bool streaming = false;
