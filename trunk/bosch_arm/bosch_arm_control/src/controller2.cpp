@@ -29,9 +29,9 @@ using namespace std;
 #include <ros/ros.h>
 #include "bosch_arm_srvs/SetJointAngles.h"
 #include "sensor_msgs/JointState.h"
+#include "trajectory_msgs/JointTrajectory.h";
 #include <boost/thread/thread.hpp>
 
-using namespace std;
 
 ros::Publisher joint_state_pub;
 pthread_mutex_t g_mutex;
@@ -169,8 +169,6 @@ pthread_t servo;
 pthread_t robot;
 
 void pubJointStates() {
-
-
     sensor_msgs::JointState js;
     js.name.resize(4);
     js.name[0]="joint1";
@@ -225,6 +223,22 @@ bool set_joint_angles_srv(bosch_arm_srvs::SetJointAngles::Request &req,
     return true;
 }
 
+// void trajCmdCallback(const trajectory_msgs::JointTrajectory& msg){
+// 	//add a loop that executes on point at a time
+// 	for(int i=0;i<msg.points.size(), i++){
+// 		//execute
+// 		for(int j=0;j<4;j++)
+// 			qd[i]=msg.points.position[i];
+// 		//sleep
+// 		usleep(5000);
+// 	}
+	//this code is not going to work. It would block the servo loop
+	//pr2 does it in a better way. the servo loop contains the update method for the controller
+	//so if the controller receives a command, it would change its update behavior
+	//to do this, the controller class should 
+	
+//}
+
 //TODO: remove service
 //TODO: subscribe to command of type JointTrajectory
 //see http://www.ros.org/wiki/robot_mechanism_controllers/JointSplineTrajectoryController
@@ -265,7 +279,8 @@ int main(int argc, char** argv){
         zero_torques();
 
 		joint_state_pub =  n.advertise<sensor_msgs::JointState>("/joint_states",100);
-		ros::ServiceServer service = n.advertiseService("set_joint_angles", set_joint_angles_srv);
+		ros::Subscirber traj_cmd_sub = n.subscribe("/traj_cmd", 100, trajCmdCallback);
+//		ros::ServiceServer service = n.advertiseService("set_joint_angles", set_joint_angles_srv);
 		boost::thread t2 = boost::thread::thread(boost::bind(&pubJointStates));
 		
         // run
