@@ -45,7 +45,7 @@
 
 #include <diagnostic_updater/DiagnosticStatusWrapper.h>
 #include <pr2_controller_manager/controller_manager.h>
-#include <ethercat_hardware/ethercat_hardware.h>
+#include "bosch_arm_hardware.h"
 
 #include <ros/ros.h>
 #include <std_srvs/Empty.h>

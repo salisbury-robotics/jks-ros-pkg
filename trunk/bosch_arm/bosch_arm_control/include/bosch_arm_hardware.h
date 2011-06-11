@@ -32,19 +32,19 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef ETHERCAT_HARDWARE_H
-#define ETHERCAT_HARDWARE_H
+#ifndef BOSCHARM_HARDWARE_H
+#define BOSCHARM_HARDWARE_H
 
 #include <pr2_hardware_interface/hardware_interface.h>
 
-#include <al/ethercat_AL.h>
-#include <al/ethercat_master.h>
-#include <al/ethercat_slave_handler.h>
-
-#include "ethercat_hardware/ethercat_device.h"
-#include "ethercat_hardware/ethercat_com.h"
-#include "ethercat_hardware/ethernet_interface_info.h"
-
+// #include <al/ethercat_AL.h>
+// #include <al/ethercat_master.h>
+// #include <al/ethercat_slave_handler.h>
+#include<diagnostic_msgs/DiagnosticArray.h> 
+// #include "ethercat_hardware/ethercat_device.h"
+// #include "ethercat_hardware/ethercat_com.h"
+// #include "ethercat_hardware/ethernet_interface_info.h"
+#include <diagnostic_updater/DiagnosticStatusWrapper.h>
 #include <realtime_tools/realtime_publisher.h>
 
 #include <boost/accumulators/accumulators.hpp>
@@ -59,9 +59,9 @@
 #include <pluginlib/class_loader.h>
 
 #include <std_msgs/Bool.h>
-
+#include <string>
 using namespace boost::accumulators;
- 
+using namespace std; 
 struct BoschArmHardwareDiagnostics 
 {
   BoschArmHardwareDiagnostics();
@@ -81,7 +81,7 @@ struct BoschArmHardwareDiagnostics
   unsigned reset_motors_service_count_; //!< Number of times reset_motor service has been used
   unsigned halt_motors_service_count_;  //!< Number of time halt_motor service call is used
   unsigned halt_motors_error_count_;    //!< Number of transitions into halt state due to device error
-  struct netif_counters counters_;
+  //struct netif_counters counters_;
   bool input_thread_is_stopped_;
   bool motors_halted_; //!< True if motors are halted  
 
@@ -114,7 +114,7 @@ public:
    * \param buffer_size size of proccess data buffer
    * \param number of EtherCAT slave devices
    */
-  void initialize(const string &interface, unsigned int buffer_size, BoschArmDevice **slaves, unsigned int num_slaves,
+  void initialize( unsigned int buffer_size, 
                   unsigned timeout, unsigned max_pd_retries);
 
   /*!
@@ -171,7 +171,7 @@ private:
   BoschArmHardwareDiagnostics diagnostics_; //!< Diagnostics information use by publish function
   unsigned char *diagnostics_buffer_;
   unsigned int buffer_size_;
-  BoschArmDevice **slaves_;
+  //BoschArmDevice **slaves_;
   unsigned int num_slaves_;
   string interface_;
 
@@ -189,7 +189,7 @@ private:
 
   diagnostic_msgs::DiagnosticArray diagnostic_array_;
   //! Information about Ethernet interface used for EtherCAT communication
-  EthernetInterfaceInfo ethernet_interface_info_;
+  //EthernetInterfaceInfo ethernet_interface_info_;
   vector<diagnostic_msgs::KeyValue> values_;
   diagnostic_updater::DiagnosticStatusWrapper status_;
 };
@@ -248,18 +248,18 @@ public:
   pr2_hardware_interface::HardwareInterface *hw_;
 
 private:
-  static void changeState(EtherCAT_SlaveHandler *sh, EC_State new_state);
+  //static void changeState( EC_State new_state);
 
   ros::NodeHandle node_;
 
   struct netif *ni_;
   string interface_;
 
-  EtherCAT_AL *al_;
-  EtherCAT_Master *em_;
+  //EtherCAT_AL *al_;
+  //EtherCAT_Master *em_;
 
-  BoschArmDevice *configSlave(EtherCAT_SlaveHandler *sh);
-  BoschArmDevice **slaves_;
+  //BoschArmDevice *configSlave(EtherCAT_SlaveHandler *sh);
+  //BoschArmDevice **slaves_;
   unsigned int num_slaves_;
 
   unsigned char *this_buffer_;
@@ -283,9 +283,9 @@ private:
   realtime_tools::RealtimePublisher<std_msgs::Bool> motor_publisher_;
   ros::Time motor_last_published_;
 
-  BoschArmOobCom *oob_com_;  
+  //BoschArmOobCom *oob_com_;  
 
-  pluginlib::ClassLoader<BoschArmDevice> device_loader_;
+  //pluginlib::ClassLoader<BoschArmDevice> device_loader_;
 };
 
-#endif /* ETHERCAT_HARDWARE_H */
+#endif /* BOSCHARM_HARDWARE_H */
