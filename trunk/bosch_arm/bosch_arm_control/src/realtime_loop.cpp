@@ -403,7 +403,7 @@ void *controlLoop(void *)
     }
     else
     {
-      ec.update(false, g_halt_motors);
+      ec.update(false, g_halt_motors); 
     }
     if (g_publish_trace_requested)
     {

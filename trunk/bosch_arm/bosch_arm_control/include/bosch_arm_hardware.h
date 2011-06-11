@@ -41,12 +41,12 @@
 // #include <al/ethercat_master.h>
 // #include <al/ethercat_slave_handler.h>
 #include<diagnostic_msgs/DiagnosticArray.h> 
-// #include "ethercat_hardware/ethercat_device.h"
+#include "bosch_actuator.h"
 // #include "ethercat_hardware/ethercat_com.h"
 // #include "ethercat_hardware/ethernet_interface_info.h"
 #include <diagnostic_updater/DiagnosticStatusWrapper.h>
 #include <realtime_tools/realtime_publisher.h>
-
+  
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/max.hpp>
@@ -252,15 +252,15 @@ private:
 
   ros::NodeHandle node_;
 
-  struct netif *ni_;
-  string interface_;
+//   struct netif *ni_;
+//   string interface_;
 
   //EtherCAT_AL *al_;
   //EtherCAT_Master *em_;
 
   //BoschArmDevice *configSlave(EtherCAT_SlaveHandler *sh);
-  //BoschArmDevice **slaves_;
-  unsigned int num_slaves_;
+  BoschArmDevice **slaves_;
+  static const unsigned int num_slaves_=4; //four motors.
 
   unsigned char *this_buffer_;
   unsigned char *prev_buffer_;
