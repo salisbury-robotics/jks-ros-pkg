@@ -65,7 +65,8 @@ void BoschArmHardwareDiagnostics::resetMaxTiming()
 
 BoschArmHardware::BoschArmHardware(const std::string& name) :
   hw_(0), node_(ros::NodeHandle(name)),
-  ni_(0), this_buffer_(0), prev_buffer_(0), buffer_size_(0), halt_motors_(true), reset_state_(0), 
+  //ni_(0), this_buffer_(0), prev_buffer_(0), buffer_size_(0), 
+  halt_motors_(true), reset_state_(0), 
   max_pd_retries_(10),
   diagnostics_publisher_(node_), 
   motor_publisher_(node_, "motors_halted", 1, true) 
@@ -92,7 +93,7 @@ BoschArmHardware::~BoschArmHardware()
 //   {
 //     close_socket(ni_);
 //   }
-  delete[] buffers_;
+//  delete[] buffers_;
   delete hw_;
 //  delete oob_com_;
   motor_publisher_.stop();
@@ -204,7 +205,13 @@ void BoschArmHardware::init(char *interface, bool allow_unprogrammed)
 //     slave_handles.push_back(sh);
 //   }
 // 
-//   // Configure slaves
+   // Configure slaves
+     for (unsigned int slave = 0; slave < num_slaves_; ++slave)
+     {
+         slaves_[slave]= new BoschActuator();
+         //TODO: add configSlave
+         slaves_[slave]->initialize(hw_);
+     }
 //   BOOST_FOREACH(EtherCAT_SlaveHandler *sh, slave_handles)
 //   {    
 //     unsigned slave = sh->get_station_address()-1;
@@ -253,6 +260,7 @@ void BoschArmHardware::init(char *interface, bool allow_unprogrammed)
 //   // prev_buffer should contain valid status data when update function is first used
 //   memcpy(prev_buffer_, this_buffer_, buffer_size_);
 
+  
   // Create pr2_hardware_interface::HardwareInterface
   hw_ = new pr2_hardware_interface::HardwareInterface();
   hw_->current_time_ = ros::Time::now();
@@ -261,8 +269,9 @@ void BoschArmHardware::init(char *interface, bool allow_unprogrammed)
 
   // Initialize slaves
   //set<string> actuator_names;
-  for (unsigned int slave = 0; slave < num_slaves_; ++slave)
-  {
+  //
+//   for (unsigned int slave = 0; slave < num_slaves_; ++slave)
+//   {
 //     if (slaves_[slave]->initialize(hw_, allow_unprogrammed) < 0)
 //     {
 //       EtherCAT_SlaveHandler *sh = slaves_[slave]->sh_;
@@ -271,10 +280,10 @@ void BoschArmHardware::init(char *interface, bool allow_unprogrammed)
 //       sleep(1);
 //       exit(EXIT_FAILURE);
 //     }
-  }
+//  }
 
 
-  { // Initialization is now complete. Reduce timeout of EtherCAT txandrx for better realtime performance
+//  { // Initialization is now complete. Reduce timeout of EtherCAT txandrx for better realtime performance
     // Allow timeout to be configured at program load time with rosparam.  
     // This will allow tweaks for systems with different realtime performace
 //     static const int MAX_TIMEOUT = 100000;   // 100ms = 100,000us
@@ -323,7 +332,7 @@ void BoschArmHardware::init(char *interface, bool allow_unprogrammed)
 //     }
 //     max_pd_retries = std::max(MIN_RETRIES,std::min(MAX_RETRIES,max_pd_retries));
 //     max_pd_retries_ = max_pd_retries;
-  }
+//  }
 
   diagnostics_publisher_.initialize( buffer_size_, timeout_, max_pd_retries_);
 }
@@ -537,12 +546,12 @@ void BoschArmHardware::update(bool reset, bool halt)
   // Update current time
   ros::Time update_start_time(ros::Time::now());
 
-  unsigned char *this_buffer, *prev_buffer;
+  //unsigned char *this_buffer, *prev_buffer;
   bool old_halt_motors = halt_motors_;
   bool halt_motors_error = false;  // True if motors halted due to error
 
   // Convert HW Interface commands to MCB-specific buffers
-  this_buffer = this_buffer_;
+  //this_buffer = this_buffer_;
 
   if (halt)
   {
@@ -567,42 +576,44 @@ void BoschArmHardware::update(bool reset, bool halt)
     diagnostics_.resetMaxTiming();
     diagnostics_.pd_error_ = false;
   }
-
+ros::Time txandrx_start_time(ros::Time::now());
   for (unsigned int s = 0; s < num_slaves_; ++s)
   {
     // Pack the command structures into the EtherCAT buffer
     // Disable the motor if they are halted or coming out of reset
     bool halt_device = halt_motors_ || ((s*CYCLES_PER_HALT_RELEASE+1) < reset_state_);
-    //slaves_[s]->packCommand(this_buffer, halt_device, reset_devices);
+    slaves_[s]->sendCommand( halt_device, reset_devices);
+    //TODO: set halt_motors_
+    slaves_[s]->updateState();
+    bool success=true;
     //this_buffer += slaves_[s]->command_size_ + slaves_[s]->status_size_;
   }
 
   // Transmit process data
-  ros::Time txandrx_start_time(ros::Time::now()); // Also end time for pack_command_stage
-  diagnostics_.pack_command_acc_((txandrx_start_time-update_start_time).toSec());
+    // Also end time for pack_command_stage
+//   diagnostics_.pack_command_acc_((txandrx_start_time-update_start_time).toSec());
 
   // Send/receive device proccess data
-  bool success = txandrx_PD(buffer_size_, this_buffer_, max_pd_retries_);
-
-  ros::Time txandrx_end_time(ros::Time::now());  // Also begining of unpack_state 
-  diagnostics_.txandrx_acc_((txandrx_end_time - txandrx_start_time).toSec());
-
+  //bool success = txandrx_PD(buffer_size_, this_buffer_, max_pd_retries_);
+    
+   ros::Time txandrx_end_time(ros::Time::now());  // Also begining of unpack_state 
+   diagnostics_.txandrx_acc_((txandrx_end_time - txandrx_start_time).toSec());
   hw_->current_time_ = txandrx_end_time;
 
-  if (!success)
-  {
-    // If process data didn't get sent after multiple retries, stop motors
-    halt_motors_error = true;
-    halt_motors_ = true;    
-    diagnostics_.pd_error_ = true;
-  }
-  else
-  {
+//   if (!success)
+//   {
+    /// If process data didn't get sent after multiple retries, stop motors
+//     halt_motors_error = true;
+//     halt_motors_ = true;    
+//     diagnostics_.pd_error_ = true;
+//   }
+//   else
+//   {
     // Convert status back to HW Interface
-    this_buffer = this_buffer_;
-    prev_buffer = prev_buffer_;
-    for (unsigned int s = 0; s < num_slaves_; ++s)
-    {
+//     this_buffer = this_buffer_;
+//     prev_buffer = prev_buffer_;
+//     for (unsigned int s = 0; s < num_slaves_; ++s)
+//     {       
 //       if (!slaves_[s]->unpackState(this_buffer, prev_buffer) && !reset_devices)
 //       {
 //         halt_motors_error = true;
@@ -610,22 +621,22 @@ void BoschArmHardware::update(bool reset, bool halt)
 //       }
 //       this_buffer += slaves_[s]->command_size_ + slaves_[s]->status_size_;
 //       prev_buffer += slaves_[s]->command_size_ + slaves_[s]->status_size_;
-    }
+//    }
     
     if (reset_state_)
       --reset_state_;
     
-    unsigned char *tmp = this_buffer_;
-    this_buffer_ = prev_buffer_;
-    prev_buffer_ = tmp;
-  }
+//     unsigned char *tmp = this_buffer_;
+//     this_buffer_ = prev_buffer_;
+//     prev_buffer_ = tmp;
+//  }
 
-  ros::Time unpack_end_time;
-  if (diagnostics_.collect_extra_timing_)
-  {
-    unpack_end_time = ros::Time::now();  // also start of publish time                            
-    diagnostics_.unpack_state_acc_((unpack_end_time - txandrx_end_time).toSec());
-  }
+//   ros::Time unpack_end_time;
+//   if (diagnostics_.collect_extra_timing_)
+//   {
+//     unpack_end_time = ros::Time::now();  // also start of publish time                            
+//     diagnostics_.unpack_state_acc_((unpack_end_time - txandrx_end_time).toSec());
+//   }
 
   if ((update_start_time - last_published_) > ros::Duration(1.0))
   {
@@ -654,7 +665,7 @@ void BoschArmHardware::update(bool reset, bool halt)
   if (diagnostics_.collect_extra_timing_)
   {
     ros::Time publish_end_time(ros::Time::now());  
-    diagnostics_.publish_acc_((publish_end_time - unpack_end_time).toSec());
+    diagnostics_.publish_acc_((publish_end_time - txandrx_end_time).toSec());
   }
 }
 
@@ -786,10 +797,10 @@ void BoschArmHardware::printCounters(std::ostream &os)
 }
 
 
-bool BoschArmHardware::txandrx_PD(unsigned buffer_size, unsigned char* buffer, unsigned tries)
-{
+// bool BoschArmHardware::txandrx_PD(unsigned buffer_size, unsigned char* buffer, unsigned tries)
+// {
   // Try multiple times to get proccess data to device
-   bool success = false;
+//   bool success = false;
 //   for (unsigned i=0; i<tries && !success; ++i) {
 //     // Try transmitting process data
 //     success = em_->txandrx_PD(buffer_size_, this_buffer_);
@@ -799,8 +810,8 @@ bool BoschArmHardware::txandrx_PD(unsigned buffer_size, unsigned char* buffer, u
 //     // Transmit new OOB data
 //     oob_com_->tx();
 //   }
-  return success;
-}
+//  return success;
+//}
 
 
 bool BoschArmHardware::publishTrace(int position, const string &reason, unsigned level, unsigned delay)
