@@ -47,6 +47,9 @@
 //   uint8_t checksum_;
 // }__attribute__ ((__packed__));
 
+///TODO: arm calibration for joint limit, initial orientation and joint position
+///TODO: think about all the other hard parameters(e.g. motor_torque_constant_) whether they can be or need to be calibrated
+
 class BoschActuator : public BoschArmDevice
 {
   public:
@@ -66,10 +69,6 @@ class BoschActuator : public BoschArmDevice
 
   static int32_t positionDiff(int32_t new_position, int32_t old_position);
 
-
-
-
-  
    
 };
 

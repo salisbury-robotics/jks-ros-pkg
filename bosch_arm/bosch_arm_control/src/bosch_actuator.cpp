@@ -10,6 +10,15 @@ int BoschActuator::initialize(pr2_hardware_interface::HardwareInterface * hw)
   return 0;
 }
 
+///forward kinematics, i.e. the jocabian depends on the start position.
+///right now we just manually put the arm joints at the zero position.
+///the controller should read the motor encoder and set the zero offset.
+///calibration means the physical state is consistent with the model
+///every device needs to be calibrated before use. This should
+///be in the starter part of controller.
+///the update part assumes the previous state is right.
+///doTxRx only sync the hardware and softwareinterface.
+///how to interprete the meaning is left to controllers.
 
 bool BoschActuator::doTxRx(bool halt, bool reset) 
 {
