@@ -145,10 +145,10 @@ public:
    * \param reset  when asserted this will clear diagnostic error conditions device safety disable
    * \param halt   while asserted will disable actuator, usually by disabling H-bridge
    */ 
-  virtual void sendCommand(bool halt, bool reset) {}
-
-  virtual bool updateState() {return true;}
-
+//   virtual void sendCommand(bool halt, bool reset) {}
+// 
+//   virtual bool updateState() {return true;}
+  bool doTxRx(bool halt, bool reset){return true;}
   /**
    * \brief For EtherCAT devices that publish more than one EtherCAT Status message.
    * If sub-class implements multiDiagnostics() then diagnostics() is not used.

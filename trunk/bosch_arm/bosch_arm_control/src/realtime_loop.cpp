@@ -380,6 +380,12 @@ void *controlLoop(void *)
   // Snap to the nearest second
   tick.tv_sec = tick.tv_sec;
   tick.tv_nsec = (tick.tv_nsec / period + 1) * period;
+  //prevent overflow
+  if(tick.tv_nsec>=1e9)
+  {
+    tick.tv_nsec-=1e9;
+    ++tick.tv_sec;
+  }
   clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL);
 
   last_published = now();
