@@ -48,7 +48,7 @@ class BoschArmDevice
 public:
   BoschArmDevice(){}
   virtual ~BoschArmDevice(){}
-  virtual int initialize(pr2_hardware_interface::HardwareInterface *,string) = 0;
+  virtual int initialize(pr2_hardware_interface::HardwareInterface *,TiXmlElement *) = 0;
   virtual bool doTxRx(bool halt, bool reset){return true;}
 
 };

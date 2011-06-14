@@ -54,13 +54,13 @@ public:
    * \param interface The socket interface that is connected to the EtherCAT devices (e.g., eth0)
    * \param allow_unprogrammed A boolean indicating if the driver should treat the discovery of unprogrammed boards as a fatal error.  Set to 'true' during board configuration, and set to 'false' otherwise.
    */
-  void init();
+  void init(TiXmlElement* config);
   pr2_hardware_interface::HardwareInterface *hw_;
 
 private:
   ros::NodeHandle node_;
-  BoschArmDevice **slaves_;
-  static const unsigned int num_slaves_=4; //four motors.
+  vector<BoschArmDevice *>slaves_;
+  //static const unsigned int num_slaves_=4; //four motors.
 };
 
 #endif /* BOSCHARM_HARDWARE_H */
