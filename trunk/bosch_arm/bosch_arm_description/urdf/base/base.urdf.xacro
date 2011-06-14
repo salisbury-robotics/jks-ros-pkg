@@ -6,6 +6,7 @@
 
   <include filename="$(find bosch_arm_description)/urdf/base/base.gazebo.xacro" />
   <include filename="$(find bosch_arm_description)/urdf/base/base.transmission.xacro" />
+  <include filename="$(find bosch_arm_description)/urdf/base/actuator.info.xacro" />
 
   <!-- DATA SOURCES -->
   <!-- all link geometry sizes are obtained from Function provided CAD model unless stated otherwise -->
@@ -38,6 +39,12 @@
   <property name="link4_z" value="0.55145" />
   <property name="link5_x" value="0.01109" />
   <property name="link5_y" value="0.51477" />
+
+      <property name="r1" value="0.062811565304088" />
+    <property name="r2" value="0.12524850894632" />
+    <property name="r3" value="15.9206349206349" />
+    <property name="r4" value="7.98412698412698" />
+
 
   <xacro:macro name="bosch_arm" params="name">
 
@@ -292,7 +299,7 @@
       <child link="${name}_link4" />
     </joint>
 
-    <joint name="${name}_joint5" type="fixed">
+    <!--joint name="${name}_joint5" type="fixed">
       <axis xyz="0 0 1" />
       <origin xyz="${link5_x} ${link5_y} 0" rpy="0 0 0" />
       <limit effort="100" velocity="100"/>
@@ -300,9 +307,9 @@
       <dynamics damping="0.0" friction="0.0" />
       <parent link="${name}_link4"/>
       <child link="${name}_link5" />
-    </joint>
+    </joint-->
     
-    <joint name="${name}_joint6" type="fixed">
+    <!--joint name="${name}_joint6" type="fixed">
       <axis xyz="0 0 1" />
       <origin xyz="0 0 0" rpy="0 0 0" />
       <limit effort="100" velocity="100"/>
@@ -310,15 +317,35 @@
       <dynamics damping="0.0" friction="0.0" />
       <parent link="${name}_link5"/>
       <child link="${name}_link6" />
-    </joint>
+    </joint-->
     
     <!-- gazebo extensions -->
     <xacro:bosch_arm_gazebo name="${name}" />
+    
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="1"/>
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="2"/>
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="3"/>
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="4"/>
+    
+    <xacro:actuator_macro name="actuator1" cmd_addr="1" encoder_addr="1"/>
+    <xacro:actuator_macro name="actuator2" cmd_addr="2" encoder_addr="2"/>
+    <xacro:actuator_macro name="actuator3" cmd_addr="3" encoder_addr="3"/>
+    <xacro:actuator_macro name="actuator4" cmd_addr="4" encoder_addr="4"/>
 
+
+    <joint_to_motor_transmission>
+      ${r3}, 0.0, 0.0, 0.0,
+       ${r4},  ${r4}, 0.0, 0.0,
+       ${r4},  ${r4},  ${r4}, 0.0,
+      0.0, 0.0, 0.0,  ${r4}
+    </joint_to_motor_transmission>
+
+    <motor_to_joint_transmission>
+      ${r1}, 0.0, 0.0, 0.0,
+      -${r1},  ${r2}, 0.0, 0.0,
+      0.0, -${r2},  ${r2}, 0.0,
+      0.0, 0.0, 0.0,  ${r2}
+    </motor_to_joint_transmission>
   </xacro:macro>
 
 

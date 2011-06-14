@@ -30,7 +30,7 @@ rosbuild_add_library(${PROJECT_NAME} src/bosch_actuator.cpp)
 rosbuild_add_executable(bosch_arm_node src/realtime_loop.cpp)
 #rosbuild_add_executable(bosch_arm_node src/controller.cpp)
 #rosbuild_add_executable(service_test src/service_test.cpp)
-#rosbuild_add_executable(bosch_arm_teleop src/teleop.cpp)
+rosbuild_add_executable(maptest src/maptest.cpp)
 #rosbuild_add_executable(testsin src/testsin.cpp)
 target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 #common commands for building c++ executables and libraries
