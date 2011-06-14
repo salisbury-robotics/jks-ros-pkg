@@ -77,10 +77,7 @@ void Usage(string msg = "")
 {
   fprintf(stderr, "Usage: %s [options]\n", g_options.program_);
   fprintf(stderr, "  Available options\n");
-  fprintf(stderr, "    -i, --interface <interface> Connect to EtherCAT devices on this interface\n");
-  fprintf(stderr, "    -s, --stats                 Publish statistics on the RT loop jitter on \"pr2_etherCAT/realtime\" in seconds\n");
   fprintf(stderr, "    -x, --xml <file|param>      Load the robot description from this file or parameter name\n");
-  fprintf(stderr, "    -u, --allow_unprogrammed    Allow control loop to run with unprogrammed devices\n");
   fprintf(stderr, "    -h, --help                  Print this message and exit\n");
   if (msg != "")
   {
@@ -207,19 +204,19 @@ static inline double now()
 }
 
 
-void *diagnosticLoop(void *args)
-{
-  BoschArmHardware *ec((BoschArmHardware *) args);
-  struct timespec tick;
-  clock_gettime(CLOCK_MONOTONIC, &tick);
-  while (!g_quit) {
-    ec->collectDiagnostics();
-    tick.tv_sec += 1;
-    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &tick, NULL);
-  }
-  return NULL;
-}
-
+// void *diagnosticLoop(void *args)
+// {
+//   BoschArmHardware *ec((BoschArmHardware *) args);
+//   struct timespec tick;
+//   clock_gettime(CLOCK_MONOTONIC, &tick);
+//   while (!g_quit) {
+//     ec->collectDiagnostics();
+//     tick.tv_sec += 1;
+//     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &tick, NULL);
+//   }
+//   return NULL;
+// }
+ 
 static void timespecInc(struct timespec &tick, int nsec)
 {
   tick.tv_nsec += nsec;
@@ -302,9 +299,9 @@ void *controlLoop(void *)
   // Keep history of last 3 calculation intervals.
   RTLoopHistory rt_loop_history(3, 1000.0); 
 
-  if (g_options.stats_){
-    rtpublisher = new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2);
-  }
+//   if (g_options.stats_){
+//     rtpublisher = new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2);
+//   }
 
   /// Initialize the hardware interface
   BoschArmHardware ec(name);
@@ -314,7 +311,7 @@ void *controlLoop(void *)
   ///so for each device, there is a node for it and interact with hardware interface
   ///the realtime loop also interacts with it via control manager->controller->robotstates
   ///see http://www.ros.org/wiki/ethercat_hardware/Tutorials/Integrating%20A%20New%20EtherCAT%20Device
-  ec.init(g_options.interface_, g_options.allow_unprogrammed_);
+  ec.init();
 
   /// Create controller manager
   pr2_controller_manager::ControllerManager cm(ec.hw_);
@@ -360,12 +357,12 @@ void *controlLoop(void *)
   publishDiagnostics(publisher);
 
   //Start Non-realtime diagonostic thread
-  static pthread_t diagnosticThread;
-  if ((rv = pthread_create(&diagnosticThread, NULL, diagnosticLoop, &ec)) != 0)
-  {
-    ROS_FATAL("Unable to create control thread: rv = %d", rv);
-    goto end;
-  }
+//  static pthread_t diagnosticThread;
+//   if ((rv = pthread_create(&diagnosticThread, NULL, diagnosticLoop, &ec)) != 0)
+//   {
+//     ROS_FATAL("Unable to create control thread: rv = %d", rv);
+//     goto end;
+//   }
   
   // Set to realtime scheduler for this thread
   struct sched_param thread_param;
@@ -414,7 +411,7 @@ void *controlLoop(void *)
     if (g_publish_trace_requested)
     {
       g_publish_trace_requested = false;
-      ec.publishTrace(-1,"",0,0);
+      //ec.publishTrace(-1,"",0,0);
     }
     g_halt_motors = false;
 	///control update
@@ -502,14 +499,14 @@ void *controlLoop(void *)
     g_stats.jitter_acc(jitter);
 
     // Publish realtime loops statistics, if requested
-    if (rtpublisher)
-    {
-      if (rtpublisher->trylock()) 
-      { 
-        rtpublisher->msg_.data  = jitter; 
-        rtpublisher->unlockAndPublish(); 
-      }
-    }
+//     if (rtpublisher)
+//     {
+//       if (rtpublisher->trylock()) 
+//       { 
+//         rtpublisher->msg_.data  = jitter; 
+//         rtpublisher->unlockAndPublish(); 
+//       }
+//     }
 
     // Halt the motors, if requested by a service call
     if (g_halt_requested)
@@ -679,61 +676,47 @@ int main(int argc, char *argv[])
   ros::init(argc, argv, "realtime_loop");
 
   // Parse options
-  g_options.program_ = argv[0];
-  while (1)
-  {
-    static struct option long_options[] = {
-      {"help", no_argument, 0, 'h'},
-      {"stats", no_argument, 0, 's'},
-      {"allow_unprogrammed", no_argument, 0, 'u'},
-      {"interface", required_argument, 0, 'i'},
-      {"xml", required_argument, 0, 'x'},
-    };
-    int option_index = 0;
-    int c = getopt_long(argc, argv, "hi:usx:", long_options, &option_index);
-    if (c == -1) break;
-    switch (c)
-    {
-      case 'h':
-        Usage();
-        break;
-      case 'u':
-        g_options.allow_unprogrammed_ = 1;
-        break;
-      case 'i':
-        g_options.interface_ = optarg;
-        break;
-      case 'x':
-        g_options.xml_ = optarg;
-        break;
-      case 's':
-        g_options.stats_ = 1;
-        break;
-    }
-  }
-  if (optind < argc)
-  {
-    Usage("Extra arguments");
-  }
-
-  if (!g_options.interface_)
-    Usage("You must specify a network interface");
-  if (!g_options.xml_)
-    Usage("You must specify a robot description XML file");
-
+//   g_options.program_ = argv[0];
+//   while (1)
+//   {
+//     static struct option long_options[] = {
+//       {"help", no_argument, 0, 'h'},
+//       {"xml", required_argument, 0, 'x'},
+//     };
+//     int option_index = 0;
+//     int c = getopt_long(argc, argv, "hx:", long_options, &option_index);
+//     if (c == -1) break;
+//     switch (c)
+//     {
+//       case 'h':
+//         Usage();
+//         break;
+//       case 'x':
+//         g_options.xml_ = optarg;
+//         break;
+//     }
+//   }
+//   if (optind < argc)
+//   {
+//     Usage("Extra arguments");
+//   }
+// 
+// 
+//   if (!g_options.xml_)
+//     Usage("You must specify a robot description XML file");
+  //g_options.xml_="/home/qiaozhao/bosch_arm/bosch_arm_description/bosch_arm.urdf.xacro";
+  g_options.xml_="/home/qiaozhao/bosch_arm/bosch_arm_description/model.urdf";
   ros::NodeHandle node(name);
 
   // Catch attempts to quit
-  /// so ros::spin also receives non-ros signals?
   signal(SIGTERM, quitRequested);
   signal(SIGINT, quitRequested);
   signal(SIGHUP, quitRequested);
-  ///modifies global variable which affects servo loop.
+
   ros::ServiceServer reset = node.advertiseService("reset_motors", resetMotorsService);
   ros::ServiceServer halt = node.advertiseService("halt_motors", haltMotorsService);
   ros::ServiceServer publishTrace = node.advertiseService("publish_trace", publishTraceService);
-  ///so there are only threads here, the main thread processes message queue and affects servo loop
-  ///by changing global variables. which does not use lock.
+
   //Start thread
   int rv;
   if ((rv = pthread_create(&controlThread, &controlThreadAttr, controlLoop, 0)) != 0)
@@ -744,7 +727,7 @@ int main(int argc, char *argv[])
 
   ros::spin();
   pthread_join(controlThread, (void **)&rv);
-  ///what is pid file?
+
   // Cleanup pid file
   cleanupPidFile();
 
