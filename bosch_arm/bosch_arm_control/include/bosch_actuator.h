@@ -13,7 +13,7 @@ public:
     ~BoschActuator();
 
     bool doTxRx(bool halt, bool reset);
-    int initialize(pr2_hardware_interface::HardwareInterface *,string name);
+    int initialize(pr2_hardware_interface::HardwareInterface *,TiXmlElement *xit);
     pr2_hardware_interface::Actuator actuator_;
     int cmd_addr_;
     int encoder_addr_;

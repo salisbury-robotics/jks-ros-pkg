@@ -73,20 +73,20 @@ static struct
 
 std::string g_robot_desc;
 
-void Usage(string msg = "")
+void Usage ( string msg = "" )
 {
-  fprintf(stderr, "Usage: %s [options]\n", g_options.program_);
-  fprintf(stderr, "  Available options\n");
-  fprintf(stderr, "    -x, --xml <file|param>      Load the robot description from this file or parameter name\n");
-  fprintf(stderr, "    -h, --help                  Print this message and exit\n");
-  if (msg != "")
+  fprintf ( stderr, "Usage: %s [options]\n", g_options.program_ );
+  fprintf ( stderr, "  Available options\n" );
+  fprintf ( stderr, "    -x, --xml <file|param>      Load the robot description from this file or parameter name\n" );
+  fprintf ( stderr, "    -h, --help                  Print this message and exit\n" );
+  if ( msg != "" )
   {
-    fprintf(stderr, "Error: %s\n", msg.c_str());
-    exit(-1);
+    fprintf ( stderr, "Error: %s\n", msg.c_str() );
+    exit ( -1 );
   }
   else
   {
-    exit(0);
+    exit ( 0 );
   }
 }
 
@@ -113,14 +113,14 @@ static struct
   double overrun_cm;
 
   // These values are set when realtime loop does not meet performace expections
-  bool rt_loop_not_making_timing; 
+  bool rt_loop_not_making_timing;
   double halt_rt_loop_frequency;
   double rt_loop_frequency;
 } g_stats;
 
-static void publishDiagnostics(realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> &publisher)
+static void publishDiagnostics ( realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> &publisher )
 {
-  if (publisher.trylock())
+  if ( publisher.trylock() )
   {
     accumulator_set<double, stats<tag::max, tag::mean> > zero;
     vector<diagnostic_msgs::DiagnosticStatus> statuses;
@@ -129,50 +129,50 @@ static void publishDiagnostics(realtime_tools::RealtimePublisher<diagnostic_msgs
     static double max_ec = 0, max_cm = 0, max_loop = 0, max_jitter = 0;
     double avg_ec, avg_cm, avg_loop, avg_jitter;
 
-    avg_ec           = extract_result<tag::mean>(g_stats.ec_acc);
-    avg_cm           = extract_result<tag::mean>(g_stats.cm_acc);
-    avg_loop         = extract_result<tag::mean>(g_stats.loop_acc);
-    max_ec           = std::max(max_ec, extract_result<tag::max>(g_stats.ec_acc));
-    max_cm           = std::max(max_cm, extract_result<tag::max>(g_stats.cm_acc));
-    max_loop         = std::max(max_loop, extract_result<tag::max>(g_stats.loop_acc));
+    avg_ec           = extract_result<tag::mean> ( g_stats.ec_acc );
+    avg_cm           = extract_result<tag::mean> ( g_stats.cm_acc );
+    avg_loop         = extract_result<tag::mean> ( g_stats.loop_acc );
+    max_ec           = std::max ( max_ec, extract_result<tag::max> ( g_stats.ec_acc ) );
+    max_cm           = std::max ( max_cm, extract_result<tag::max> ( g_stats.cm_acc ) );
+    max_loop         = std::max ( max_loop, extract_result<tag::max> ( g_stats.loop_acc ) );
     g_stats.ec_acc   = zero;
     g_stats.cm_acc   = zero;
     g_stats.loop_acc = zero;
 
     // Publish average loop jitter
-    avg_jitter         = extract_result<tag::mean>(g_stats.jitter_acc);
-    max_jitter         = std::max(max_jitter, extract_result<tag::max>(g_stats.jitter_acc));
+    avg_jitter         = extract_result<tag::mean> ( g_stats.jitter_acc );
+    max_jitter         = std::max ( max_jitter, extract_result<tag::max> ( g_stats.jitter_acc ) );
     g_stats.jitter_acc = zero;
 
     static bool first = true;
-    if (first)
+    if ( first )
     {
       first = false;
-      status.add("Robot Description", g_robot_desc);
+      status.add ( "Robot Description", g_robot_desc );
     }
 
-    status.addf("Max EtherCAT roundtrip (us)", "%.2f", max_ec*USEC_PER_SECOND);
-    status.addf("Avg EtherCAT roundtrip (us)", "%.2f", avg_ec*USEC_PER_SECOND);
-    status.addf("Max Controller Manager roundtrip (us)", "%.2f", max_cm*USEC_PER_SECOND);
-    status.addf("Avg Controller Manager roundtrip (us)", "%.2f", avg_cm*USEC_PER_SECOND);
-    status.addf("Max Total Loop roundtrip (us)", "%.2f", max_loop*USEC_PER_SECOND);
-    status.addf("Avg Total Loop roundtrip (us)", "%.2f", avg_loop*USEC_PER_SECOND);
-    status.addf("Max Loop Jitter (us)", "%.2f", max_jitter * USEC_PER_SECOND);
-    status.addf("Avg Loop Jitter (us)", "%.2f", avg_jitter * USEC_PER_SECOND);
-    status.addf("Control Loop Overruns", "%d", g_stats.overruns);
-    status.addf("Recent Control Loop Overruns", "%d", g_stats.recent_overruns);
-    status.addf("Last Control Loop Overrun Cause", "ec: %.2fus, cm: %.2fus", 
-                g_stats.overrun_ec*USEC_PER_SECOND, g_stats.overrun_cm*USEC_PER_SECOND);
-    status.addf("Last Overrun Loop Time (us)", "%.2f", g_stats.overrun_loop_sec * USEC_PER_SECOND);
-    status.addf("Realtime Loop Frequency", "%.4f", g_stats.rt_loop_frequency);
+    status.addf ( "Max EtherCAT roundtrip (us)", "%.2f", max_ec*USEC_PER_SECOND );
+    status.addf ( "Avg EtherCAT roundtrip (us)", "%.2f", avg_ec*USEC_PER_SECOND );
+    status.addf ( "Max Controller Manager roundtrip (us)", "%.2f", max_cm*USEC_PER_SECOND );
+    status.addf ( "Avg Controller Manager roundtrip (us)", "%.2f", avg_cm*USEC_PER_SECOND );
+    status.addf ( "Max Total Loop roundtrip (us)", "%.2f", max_loop*USEC_PER_SECOND );
+    status.addf ( "Avg Total Loop roundtrip (us)", "%.2f", avg_loop*USEC_PER_SECOND );
+    status.addf ( "Max Loop Jitter (us)", "%.2f", max_jitter * USEC_PER_SECOND );
+    status.addf ( "Avg Loop Jitter (us)", "%.2f", avg_jitter * USEC_PER_SECOND );
+    status.addf ( "Control Loop Overruns", "%d", g_stats.overruns );
+    status.addf ( "Recent Control Loop Overruns", "%d", g_stats.recent_overruns );
+    status.addf ( "Last Control Loop Overrun Cause", "ec: %.2fus, cm: %.2fus",
+                  g_stats.overrun_ec*USEC_PER_SECOND, g_stats.overrun_cm*USEC_PER_SECOND );
+    status.addf ( "Last Overrun Loop Time (us)", "%.2f", g_stats.overrun_loop_sec * USEC_PER_SECOND );
+    status.addf ( "Realtime Loop Frequency", "%.4f", g_stats.rt_loop_frequency );
 
     status.name = "Realtime Control Loop";
-    if (g_stats.overruns > 0 && g_stats.last_overrun < 30)
+    if ( g_stats.overruns > 0 && g_stats.last_overrun < 30 )
     {
-      if (g_stats.last_severe_overrun < 30)
-	status.level = 1;
+      if ( g_stats.last_severe_overrun < 30 )
+        status.level = 1;
       else
-	status.level = 0;
+        status.level = 0;
       status.message = "Realtime loop used too much time in the last 30 seconds.";
     }
     else
@@ -184,12 +184,12 @@ static void publishDiagnostics(realtime_tools::RealtimePublisher<diagnostic_msgs
     g_stats.last_overrun++;
     g_stats.last_severe_overrun++;
 
-    if (g_stats.rt_loop_not_making_timing)
+    if ( g_stats.rt_loop_not_making_timing )
     {
-      status.mergeSummaryf(status.ERROR, "Halting, realtime loop only ran at %.4f Hz", g_stats.halt_rt_loop_frequency);
+      status.mergeSummaryf ( status.ERROR, "Halting, realtime loop only ran at %.4f Hz", g_stats.halt_rt_loop_frequency );
     }
 
-    statuses.push_back(status);
+    statuses.push_back ( status );
     publisher.msg_.status = statuses;
     publisher.msg_.header.stamp = ros::Time::now();
     publisher.unlockAndPublish();
@@ -199,8 +199,8 @@ static void publishDiagnostics(realtime_tools::RealtimePublisher<diagnostic_msgs
 static inline double now()
 {
   struct timespec n;
-  clock_gettime(CLOCK_MONOTONIC, &n);
-  return double(n.tv_nsec) / NSEC_PER_SECOND + n.tv_sec;
+  clock_gettime ( CLOCK_MONOTONIC, &n );
+  return double ( n.tv_nsec ) / NSEC_PER_SECOND + n.tv_sec;
 }
 
 
@@ -216,11 +216,11 @@ static inline double now()
 //   }
 //   return NULL;
 // }
- 
-static void timespecInc(struct timespec &tick, int nsec)
+
+static void timespecInc ( struct timespec &tick, int nsec )
 {
   tick.tv_nsec += nsec;
-  while (tick.tv_nsec >= NSEC_PER_SECOND)
+  while ( tick.tv_nsec >= NSEC_PER_SECOND )
   {
     tick.tv_nsec -= NSEC_PER_SECOND;
     tick.tv_sec++;
@@ -231,12 +231,12 @@ static void timespecInc(struct timespec &tick, int nsec)
 class RTLoopHistory
 {
 public:
-  RTLoopHistory(unsigned length, double default_value) :
-    index_(0), 
-    length_(length),
-    history_(new double[length])
+  RTLoopHistory ( unsigned length, double default_value ) :
+      index_ ( 0 ),
+      length_ ( length ),
+      history_ ( new double[length] )
   {
-    for (unsigned i=0; i<length_; ++i) 
+    for ( unsigned i=0; i<length_; ++i )
       history_[i] = default_value;
   }
 
@@ -245,19 +245,19 @@ public:
     delete[] history_;
     history_ = NULL;
   }
-  
-  void sample(double value) 
+
+  void sample ( double value )
   {
-    index_ = (index_+1) % length_;
+    index_ = ( index_+1 ) % length_;
     history_[index_] = value;
   }
 
   double average() const
   {
-    double sum(0.0);
-    for (unsigned i=0; i<length_; ++i) 
+    double sum ( 0.0 );
+    for ( unsigned i=0; i<length_; ++i )
       sum+=history_[i];
-    return sum / double(length_);
+    return sum / double ( length_ );
   }
 
 protected:
@@ -267,7 +267,7 @@ protected:
 };
 
 
-void *controlLoop(void *)
+void *controlLoop ( void * )
 {
   int rv = 0;
   double last_published, last_loop_start;
@@ -276,85 +276,95 @@ void *controlLoop(void *)
   TiXmlElement *root;
   TiXmlElement *root_element;
 
-  ros::NodeHandle node(name);
+  ros::NodeHandle node ( name );
 
-  realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> publisher(node, "/diagnostics", 2);
+  realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> publisher ( node, "/diagnostics", 2 );
   realtime_tools::RealtimePublisher<std_msgs::Float64> *rtpublisher = 0;
 
   // Realtime loop should be running at least 750Hz
   // Calculate realtime loop frequency every 200mseec
   // Halt motors if average frequency over last 600msec is less than 750Hz
   double min_acceptable_rt_loop_frequency;
-  if (!node.getParam("min_acceptable_rt_loop_frequency", min_acceptable_rt_loop_frequency))
+  if ( !node.getParam ( "min_acceptable_rt_loop_frequency", min_acceptable_rt_loop_frequency ) )
   {
-    min_acceptable_rt_loop_frequency = 750.0; 
-  } 
-  else 
+    min_acceptable_rt_loop_frequency = 750.0;
+  }
+  else
   {
-    ROS_WARN("min_acceptable_rt_loop_frequency changed to %f", min_acceptable_rt_loop_frequency);
+    ROS_WARN ( "min_acceptable_rt_loop_frequency changed to %f", min_acceptable_rt_loop_frequency );
   }
   unsigned rt_cycle_count = 0;
   double last_rt_monitor_time;
   double rt_loop_monitor_period = 0.6 / 3;
   // Keep history of last 3 calculation intervals.
-  RTLoopHistory rt_loop_history(3, 1000.0); 
+  RTLoopHistory rt_loop_history ( 3, 1000.0 );
 
 //   if (g_options.stats_){
 //     rtpublisher = new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2);
 //   }
 
+
+  // Load robot description
+  TiXmlDocument xml;
+  struct stat st;
+  if ( 0 == stat ( g_options.xml_, &st ) )
+  {
+    xml.LoadFile ( g_options.xml_ );
+  }
+  else
+  {
+    ROS_INFO ( "Xml file not found, reading from parameter server" );
+    ros::NodeHandle top_level_node;
+    if ( top_level_node.getParam ( g_options.xml_, g_robot_desc ) )
+      xml.Parse ( g_robot_desc.c_str() );
+    else
+    {
+      ROS_FATAL ( "Could not load the xml from parameter server: %s", g_options.xml_ );
+      rv = -1;
+      publisher.stop();
+      delete rtpublisher;
+      ros::shutdown();
+      return ( void * ) rv;
+    }
+  }
+  root_element = xml.RootElement();
+  root = xml.FirstChildElement ( "robot" );
+  if ( !root || !root_element )
+  {
+    ROS_FATAL ( "Could not parse the xml from %s", g_options.xml_ );
+    rv = -1;
+    publisher.stop();
+    delete rtpublisher;
+    ros::shutdown();
+    return ( void * ) rv;
+  }
+
   /// Initialize the hardware interface
-  BoschArmHardware ec(name);
+  BoschArmHardware ec ( name );
   ///in ethercat_hardware.cpp ln266:slaves_[slave]->initialize(hw_, allow_unprogrammed)
   ///the hardware interface is just a data structure with no writing functions.
   ///so the slave drivers must actively read and write to its hardware interface.
   ///so for each device, there is a node for it and interact with hardware interface
   ///the realtime loop also interacts with it via control manager->controller->robotstates
   ///see http://www.ros.org/wiki/ethercat_hardware/Tutorials/Integrating%20A%20New%20EtherCAT%20Device
-  ec.init();
+  ec.init ( root );
 
   /// Create controller manager
-  pr2_controller_manager::ControllerManager cm(ec.hw_);
-
-  // Load robot description
-  TiXmlDocument xml;
-  struct stat st;
-  if (0 == stat(g_options.xml_, &st))
-  {
-    xml.LoadFile(g_options.xml_);
-  }
-  else
-  {
-    ROS_INFO("Xml file not found, reading from parameter server");
-    ros::NodeHandle top_level_node;
-    if (top_level_node.getParam(g_options.xml_, g_robot_desc))
-      xml.Parse(g_robot_desc.c_str());
-    else
-    {
-      ROS_FATAL("Could not load the xml from parameter server: %s", g_options.xml_);
-      rv = -1;
-      goto end;
-    }
-  }
-  root_element = xml.RootElement();
-  root = xml.FirstChildElement("robot");
-  if (!root || !root_element)
-  {
-      ROS_FATAL("Could not parse the xml from %s", g_options.xml_);
-      rv = -1;
-      goto end;
-  }
+  pr2_controller_manager::ControllerManager cm ( ec.hw_ );
 
   // Initialize the controller manager from robot description
-  if (!cm.initXml(root))
+  if ( !cm.initXml ( root ) )
   {
-      ROS_FATAL("Could not initialize the controller manager");
-      rv = -1;
-      goto end;
+    ROS_FATAL ( "Could not initialize the controller manager" );
+    rv = -1;
+    publisher.stop();
+    delete rtpublisher;
+    ros::shutdown();
+    return ( void * ) rv;
   }
 
   // Publish one-time before entering real-time to pre-allocate message vectors
-  publishDiagnostics(publisher);
+  publishDiagnostics ( publisher );
 
   //Start Non-realtime diagonostic thread
 //  static pthread_t diagnosticThread;
@@ -363,88 +373,88 @@ void *controlLoop(void *)
 //     ROS_FATAL("Unable to create control thread: rv = %d", rv);
 //     goto end;
 //   }
-  
+
   // Set to realtime scheduler for this thread
   struct sched_param thread_param;
   policy = SCHED_FIFO;
-  thread_param.sched_priority = sched_get_priority_max(policy);
-  pthread_setschedparam(pthread_self(), policy, &thread_param);
+  thread_param.sched_priority = sched_get_priority_max ( policy );
+  pthread_setschedparam ( pthread_self(), policy, &thread_param );
 
   struct timespec tick;
-  clock_gettime(CLOCK_REALTIME, &tick);
+  clock_gettime ( CLOCK_REALTIME, &tick );
   period = 1e+6; // 1 ms in nanoseconds
 
   // Snap to the nearest second
   tick.tv_sec = tick.tv_sec;
-  tick.tv_nsec = (tick.tv_nsec / period + 1) * period;
+  tick.tv_nsec = ( tick.tv_nsec / period + 1 ) * period;
   //prevent overflow
-  if(tick.tv_nsec>=1e9)
+  if ( tick.tv_nsec>=1e9 )
   {
     tick.tv_nsec-=1e9;
     ++tick.tv_sec;
   }
-  clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL);
+  clock_nanosleep ( CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL );
 
   last_published = now();
   last_rt_monitor_time = now();
   last_loop_start = now();
-  while (!g_quit)
+  while ( !g_quit )
   {
     // Track how long the actual loop takes
     double this_loop_start = now();
-    g_stats.loop_acc(this_loop_start - last_loop_start);
+    g_stats.loop_acc ( this_loop_start - last_loop_start );
     last_loop_start = this_loop_start;
-    
+
     double start = now();
-    if (g_reset_motors)
+    if ( g_reset_motors )
     {
       ///ec.update contains code to sync hw and hardware
-      ec.update(true, g_halt_motors);
+      ec.update ( true, g_halt_motors );
       g_reset_motors = false;
       // Also, clear error flags when motor reset is requested
       g_stats.rt_loop_not_making_timing = false;
     }
     else
     {
-      ec.update(false, g_halt_motors); 
+      ec.update ( false, g_halt_motors );
     }
-    if (g_publish_trace_requested)
+    if ( g_publish_trace_requested )
     {
       g_publish_trace_requested = false;
       //ec.publishTrace(-1,"",0,0);
     }
     g_halt_motors = false;
-	///control update
+///control update
     double after_ec = now();
     cm.update();
     double end = now();
 
-    g_stats.ec_acc(after_ec - start);
-    g_stats.cm_acc(end - after_ec);
+    g_stats.ec_acc ( after_ec - start );
+    g_stats.cm_acc ( end - after_ec );
 
-    if ((end - last_published) > 1.0)
+    if ( ( end - last_published ) > 1.0 )
     {
-      publishDiagnostics(publisher);
+      publishDiagnostics ( publisher );
       last_published = end;
     }
 
-    // Realtime loop should run about 1000Hz.  
+    // Realtime loop should run about 1000Hz.
     // Missing timing on a control cycles usually causes a controller glitch and actuators to jerk.
     // When realtime loop misses a lot of cycles controllers will perform poorly and may cause robot to shake.
     // Halt motors if realtime loop does not run enough cycles over a given period.
     ++rt_cycle_count;
-    if ((start - last_rt_monitor_time) > rt_loop_monitor_period)
+    if ( ( start - last_rt_monitor_time ) > rt_loop_monitor_period )
     {
-      // Calculate new average rt loop frequency       
-      double rt_loop_frequency = double(rt_cycle_count) / rt_loop_monitor_period;
+      // Calculate new average rt loop frequency
+      double rt_loop_frequency = double ( rt_cycle_count ) / rt_loop_monitor_period;
 
       // Use last X samples of frequency when deciding whether or not to halt
-      rt_loop_history.sample(rt_loop_frequency);
+      rt_loop_history.sample ( rt_loop_frequency );
       double avg_rt_loop_frequency = rt_loop_history.average();
-      if (avg_rt_loop_frequency < min_acceptable_rt_loop_frequency)
+      if ( avg_rt_loop_frequency < min_acceptable_rt_loop_frequency )
       {
         g_halt_motors = true;
-        if (!g_stats.rt_loop_not_making_timing)
+        if ( !g_stats.rt_loop_not_making_timing )
         {
           // Only update this value if motors when this first occurs (used for diagnostics error message)
           g_stats.halt_rt_loop_frequency = avg_rt_loop_frequency;
@@ -457,29 +467,30 @@ void *controlLoop(void *)
     }
 
     // Compute end of next period
-    timespecInc(tick, period);
+    timespecInc ( tick, period );
 
-    struct timespec before; 
-    clock_gettime(CLOCK_REALTIME, &before); 
-    if ((before.tv_sec + double(before.tv_nsec)/NSEC_PER_SECOND) > (tick.tv_sec + double(tick.tv_nsec)/NSEC_PER_SECOND))
+    struct timespec before;
+    clock_gettime ( CLOCK_REALTIME, &before );
+    if ( ( before.tv_sec + double ( before.tv_nsec ) /NSEC_PER_SECOND ) > ( tick.tv_sec + double ( tick.tv_nsec ) /NSEC_PER_SECOND ) )
     {
       // Total amount of time the loop took to run
-      g_stats.overrun_loop_sec = (before.tv_sec + double(before.tv_nsec)/NSEC_PER_SECOND) - 
-        (tick.tv_sec + double(tick.tv_nsec)/NSEC_PER_SECOND);
+      g_stats.overrun_loop_sec = ( before.tv_sec + double ( before.tv_nsec ) /NSEC_PER_SECOND ) -
+                                 ( tick.tv_sec + double ( tick.tv_nsec ) /NSEC_PER_SECOND );
 
       // We overran, snap to next "period"
       tick.tv_sec = before.tv_sec;
-      tick.tv_nsec = (before.tv_nsec / period) * period;
-      timespecInc(tick, period);
+      tick.tv_nsec = ( before.tv_nsec / period ) * period;
+      timespecInc ( tick, period );
 
       // initialize overruns
-      if (g_stats.overruns == 0){
-	g_stats.last_overrun = 1000;
-	g_stats.last_severe_overrun = 1000;
+      if ( g_stats.overruns == 0 )
+      {
+        g_stats.last_overrun = 1000;
+        g_stats.last_severe_overrun = 1000;
       }
       // check for overruns
-      if (g_stats.recent_overruns > 10)
-	g_stats.last_severe_overrun = 0;
+      if ( g_stats.recent_overruns > 10 )
+        g_stats.last_severe_overrun = 0;
       g_stats.last_overrun = 0;
 
       g_stats.overruns++;
@@ -489,27 +500,27 @@ void *controlLoop(void *)
     }
 
     // Sleep until end of period
-    clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL);
+    clock_nanosleep ( CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL );
 
     // Calculate RT loop jitter
-    struct timespec after; 
-    clock_gettime(CLOCK_REALTIME, &after); 
-    double jitter = (after.tv_sec - tick.tv_sec + double(after.tv_nsec-tick.tv_nsec)/NSEC_PER_SECOND);
+    struct timespec after;
+    clock_gettime ( CLOCK_REALTIME, &after );
+    double jitter = ( after.tv_sec - tick.tv_sec + double ( after.tv_nsec-tick.tv_nsec ) /NSEC_PER_SECOND );
 
-    g_stats.jitter_acc(jitter);
+    g_stats.jitter_acc ( jitter );
 
     // Publish realtime loops statistics, if requested
 //     if (rtpublisher)
 //     {
-//       if (rtpublisher->trylock()) 
-//       { 
-//         rtpublisher->msg_.data  = jitter; 
-//         rtpublisher->unlockAndPublish(); 
+//       if (rtpublisher->trylock())
+//       {
+//         rtpublisher->msg_.data  = jitter;
+//         rtpublisher->unlockAndPublish();
 //       }
 //     }
 
     // Halt the motors, if requested by a service call
-    if (g_halt_requested)
+    if ( g_halt_requested )
     {
       g_halt_motors = true;
       g_halt_requested = false;
@@ -517,49 +528,48 @@ void *controlLoop(void *)
   }
   ///how are enable_ and effort_ written to the actuators?
   /* Shutdown all of the motors on exit */
-  for (pr2_hardware_interface::ActuatorMap::const_iterator it = ec.hw_->actuators_.begin(); it != ec.hw_->actuators_.end(); ++it)
+  for ( pr2_hardware_interface::ActuatorMap::const_iterator it = ec.hw_->actuators_.begin(); it != ec.hw_->actuators_.end(); ++it )
   {
     it->second->command_.enable_ = false;
     it->second->command_.effort_ = 0;
   }
-  ec.update(false, true);
+  ec.update ( false, true );
 
-  //pthread_join(diagnosticThread, 0);  
+  //pthread_join(diagnosticThread, 0);
 
-end:
   publisher.stop();
   delete rtpublisher;
 
   ros::shutdown();
 
-  return (void *)rv;
+  return ( void * ) rv;
 }
 
-void quitRequested(int sig)
+void quitRequested ( int sig )
 {
   g_quit = 1;
 }
 
-bool resetMotorsService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp)
+bool resetMotorsService ( std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp )
 {
   g_reset_motors = true;
   return true;
 }
 
-bool haltMotorsService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp)
+bool haltMotorsService ( std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp )
 {
   g_halt_requested = true;
   return true;
 }
 
-bool publishTraceService(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp)
+bool publishTraceService ( std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp )
 {
   g_publish_trace_requested = true;
   return true;
 }
 
 static int
-lock_fd(int fd)
+lock_fd ( int fd )
 {
   struct flock lock;
   int rv;
@@ -569,91 +579,93 @@ lock_fd(int fd)
   lock.l_start = 0;
   lock.l_len = 0;
 
-  rv = fcntl(fd, F_SETLK, &lock);
+  rv = fcntl ( fd, F_SETLK, &lock );
   return rv;
 }
 
 #define PIDDIR "/var/tmp/run/"
 #define PIDFILE "bosch_arm_servo_loop.pid"
-static int setupPidFile(void)
+static int setupPidFile ( void )
 {
   int rv = -1;
   pid_t pid;
   int fd;
   FILE *fp = NULL;
 
-  umask(0);
-  mkdir(PIDDIR, 0777);
-  fd = open(PIDDIR PIDFILE, O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IWOTH | S_IROTH);
-  if (fd == -1)
+  umask ( 0 );
+  mkdir ( PIDDIR, 0777 );
+  fd = open ( PIDDIR PIDFILE, O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IWOTH | S_IROTH );
+  if ( fd == -1 )
   {
-    if (errno != EEXIST)
+    if ( errno != EEXIST )
     {
-      ROS_FATAL("Unable to create pid file '%s': %s", PIDDIR PIDFILE, strerror(errno));
+      ROS_FATAL ( "Unable to create pid file '%s': %s", PIDDIR PIDFILE, strerror ( errno ) );
       goto end;
     }
 
-    if ((fd = open(PIDDIR PIDFILE, O_RDWR)) < 0)
+    if ( ( fd = open ( PIDDIR PIDFILE, O_RDWR ) ) < 0 )
     {
-      ROS_FATAL("Unable to open pid file '%s': %s", PIDDIR PIDFILE, strerror(errno));
+      ROS_FATAL ( "Unable to open pid file '%s': %s", PIDDIR PIDFILE, strerror ( errno ) );
       goto end;
     }
 
-    if ((fp = fdopen(fd, "rw")) == NULL)
+    if ( ( fp = fdopen ( fd, "rw" ) ) == NULL )
     {
-      ROS_FATAL("Can't read from '%s': %s", PIDDIR PIDFILE, strerror(errno));
+      ROS_FATAL ( "Can't read from '%s': %s", PIDDIR PIDFILE, strerror ( errno ) );
       goto end;
     }
     pid = -1;
-    if ((fscanf(fp, "%d", &pid) != 1) || (pid == getpid()) || (lock_fd(fileno(fp)) == 0))
+    if ( ( fscanf ( fp, "%d", &pid ) != 1 ) || ( pid == getpid() ) || ( lock_fd ( fileno ( fp ) ) == 0 ) )
     {
       int rc;
 
-      if ((rc = unlink(PIDDIR PIDFILE)) == -1)
+      if ( ( rc = unlink ( PIDDIR PIDFILE ) ) == -1 )
       {
-        ROS_FATAL("Can't remove stale pid file '%s': %s", PIDDIR PIDFILE, strerror(errno));
+        ROS_FATAL ( "Can't remove stale pid file '%s': %s", PIDDIR PIDFILE, strerror ( errno ) );
         goto end;
       }
-    } else {
-      ROS_FATAL("Another instance of bosch arm servo loop is already running with pid: %d", pid);
+    }
+    else
+    {
+      ROS_FATAL ( "Another instance of bosch arm servo loop is already running with pid: %d", pid );
       goto end;
     }
   }
 
-  unlink(PIDDIR PIDFILE);
-  fd = open(PIDDIR PIDFILE, O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IWOTH | S_IROTH);
+  unlink ( PIDDIR PIDFILE );
+  fd = open ( PIDDIR PIDFILE, O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IWOTH | S_IROTH );
 
-  if (fd == -1)
+  if ( fd == -1 )
   {
-    ROS_FATAL("Unable to open pid file '%s': %s", PIDDIR PIDFILE, strerror(errno));
+    ROS_FATAL ( "Unable to open pid file '%s': %s", PIDDIR PIDFILE, strerror ( errno ) );
     goto end;
   }
 
-  if (lock_fd(fd) == -1)
+  if ( lock_fd ( fd ) == -1 )
   {
-    ROS_FATAL("Unable to lock pid file '%s': %s", PIDDIR PIDFILE, strerror(errno));
+    ROS_FATAL ( "Unable to lock pid file '%s': %s", PIDDIR PIDFILE, strerror ( errno ) );
     goto end;
   }
 
-  if ((fp = fdopen(fd, "w")) == NULL)
+  if ( ( fp = fdopen ( fd, "w" ) ) == NULL )
   {
-    ROS_FATAL("fdopen failed: %s", strerror(errno));
+    ROS_FATAL ( "fdopen failed: %s", strerror ( errno ) );
     goto end;
   }
 
-  fprintf(fp, "%d\n", getpid());
+  fprintf ( fp, "%d\n", getpid() );
 
   /* We do NOT close fd, since we want to keep the lock. */
-  fflush(fp);
-  fcntl(fd, F_SETFD, (long) 1);
+  fflush ( fp );
+  fcntl ( fd, F_SETFD, ( long ) 1 );
   rv = 0;
 end:
   return rv;
 }
 
-static void cleanupPidFile(void)
+static void cleanupPidFile ( void )
 {
-  unlink(PIDDIR PIDFILE);
+  unlink ( PIDDIR PIDFILE );
 }
 
 #define CLOCK_PRIO 0
@@ -661,19 +673,20 @@ static void cleanupPidFile(void)
 
 static pthread_t controlThread;
 static pthread_attr_t controlThreadAttr;
-int main(int argc, char *argv[])
+int main ( int argc, char *argv[] )
 {
   // Keep the kernel from swapping us out
-  if (mlockall(MCL_CURRENT | MCL_FUTURE) < 0) {
-    perror("mlockall");
+  if ( mlockall ( MCL_CURRENT | MCL_FUTURE ) < 0 )
+  {
+    perror ( "mlockall" );
     return -1;
   }
 
   // Setup single instance
-  if (setupPidFile() < 0) return -1;
+  if ( setupPidFile() < 0 ) return -1;
 
   // Initialize ROS and parse command-line arguments
-  ros::init(argc, argv, "realtime_loop");
+  ros::init ( argc, argv, "realtime_loop" );
 
   // Parse options
 //   g_options.program_ = argv[0];
@@ -700,33 +713,33 @@ int main(int argc, char *argv[])
 //   {
 //     Usage("Extra arguments");
 //   }
-// 
-// 
+//
+//
 //   if (!g_options.xml_)
 //     Usage("You must specify a robot description XML file");
   //g_options.xml_="/home/qiaozhao/bosch_arm/bosch_arm_description/bosch_arm.urdf.xacro";
   g_options.xml_="/home/qiaozhao/bosch_arm/bosch_arm_description/model.urdf";
-  ros::NodeHandle node(name);
+  ros::NodeHandle node ( name );
 
   // Catch attempts to quit
-  signal(SIGTERM, quitRequested);
-  signal(SIGINT, quitRequested);
-  signal(SIGHUP, quitRequested);
+  signal ( SIGTERM, quitRequested );
+  signal ( SIGINT, quitRequested );
+  signal ( SIGHUP, quitRequested );
 
-  ros::ServiceServer reset = node.advertiseService("reset_motors", resetMotorsService);
-  ros::ServiceServer halt = node.advertiseService("halt_motors", haltMotorsService);
-  ros::ServiceServer publishTrace = node.advertiseService("publish_trace", publishTraceService);
+  ros::ServiceServer reset = node.advertiseService ( "reset_motors", resetMotorsService );
+  ros::ServiceServer halt = node.advertiseService ( "halt_motors", haltMotorsService );
+  ros::ServiceServer publishTrace = node.advertiseService ( "publish_trace", publishTraceService );
 
   //Start thread
   int rv;
-  if ((rv = pthread_create(&controlThread, &controlThreadAttr, controlLoop, 0)) != 0)
+  if ( ( rv = pthread_create ( &controlThread, &controlThreadAttr, controlLoop, 0 ) ) != 0 )
   {
-    ROS_FATAL("Unable to create control thread: rv = %d", rv);
-    exit(EXIT_FAILURE);
+    ROS_FATAL ( "Unable to create control thread: rv = %d", rv );
+    exit ( EXIT_FAILURE );
   }
 
   ros::spin();
-  pthread_join(controlThread, (void **)&rv);
+  pthread_join ( controlThread, ( void ** ) &rv );
 
   // Cleanup pid file
   cleanupPidFile();
