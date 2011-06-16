@@ -199,7 +199,7 @@
       </collision>
     </link>
 
-    <link name="${name}_link5">
+    <!--link name="${name}_link5">
       <inertial>
         <mass value="0.001" />
         <origin xyz="0 0 0" />
@@ -221,10 +221,10 @@
           <box size="0.001 0.001 0.001" />
         </geometry>
       </collision>
-    </link>
+    </link-->
     
     
-    <link name="${name}_link6">
+    <!--link name="${name}_link6">
       <inertial>
         <mass value="0.001" />
         <origin xyz="0 0 0" />
@@ -246,7 +246,7 @@
           <box size="0.001 0.001 0.001" />
         </geometry>
       </collision>
-    </link>
+    </link-->
     
     
     
@@ -322,11 +322,12 @@
     <!-- gazebo extensions -->
     <xacro:bosch_arm_gazebo name="${name}" />
     
+    <!--
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="1"/>
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="2"/>
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="3"/>
     <xacro:bosch_arm_joint_transmission name="${name}" suffix="4"/>
-    
+    -->
     <xacro:actuator_macro name="actuator1" cmd_addr="1" encoder_addr="1"/>
     <xacro:actuator_macro name="actuator2" cmd_addr="2" encoder_addr="2"/>
     <xacro:actuator_macro name="actuator3" cmd_addr="3" encoder_addr="3"/>
