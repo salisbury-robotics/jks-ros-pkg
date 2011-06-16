@@ -21,6 +21,7 @@
   <depend package="realtime_tools"/>
   <depend package="diagnostic_msgs"/>
   <depend package="diagnostic_updater"/>
+  <depend package="trajectory_msgs"/>
 </package>
 
 

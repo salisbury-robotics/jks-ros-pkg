@@ -6,7 +6,7 @@
 
   <xacro:macro name="bosch_arm_joint_transmission" params="name suffix">
     <transmission type="pr2_mechanism_model/SimpleTransmission" name="${name}_joint${suffix}_trans">
-      <actuator name="${name}_joint${suffix}_motor" />
+      <actuator name="${name}${suffix}" />
       <joint name="${name}_joint${suffix}" />
       <mechanicalReduction>1</mechanicalReduction>
     </transmission>

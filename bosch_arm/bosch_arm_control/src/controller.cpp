@@ -676,8 +676,8 @@ void * servo_loop(void *ptr){
     write_torque(2,torque3);
     write_torque(3,torque4);
 
-    //cur_pos = get_Joint_Pos();
-    //cur_pos_act = get_Joint_Pos_Actual();
+    cur_pos = get_Joint_Pos();
+    cur_pos_act = get_Joint_Pos_Actual();
 
     // datalogging
     std::string log;
@@ -686,9 +686,9 @@ void * servo_loop(void *ptr){
     out << q1d << "," << q2d << "," << q3d << "," << q4d << ","; // Commanded Motor positions
     out << v1 << "," << v2 << "," << v3 << "," << v4 << ",";     // Motor velocities
     out << torque1 << "," << torque2 << "," << torque3 << "," << torque4 << ","; // Motor torques
-    out << ts.tv_sec << ','<< ts.tv_nsec;                         // Servo cycle count, timestamp
-    //out << cur_pos[0] << ','<< cur_pos[1] << ','<< cur_pos[2] << ','<< cur_pos[3] << ','; // Commanded joint positions
-    //out << cur_pos_act[0] << ','<< cur_pos_act[1] << ','<< cur_pos_act[2] << ','<< cur_pos_act[3]; // Actual joint positions
+    out << ts.tv_sec << ','<< ts.tv_nsec<<',';                         // Servo cycle count, timestamp
+    out << cur_pos[0] << ','<< cur_pos[1] << ','<< cur_pos[2] << ','<< cur_pos[3] << ','; // Commanded joint positions
+    out << cur_pos_act[0] << ','<< cur_pos_act[1] << ','<< cur_pos_act[2] << ','<< cur_pos_act[3]; // Actual joint positions
     log = out.str();
     i++;
 
