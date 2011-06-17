@@ -12,9 +12,13 @@
 #include <netinet/in.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include "bosch_arm_srvs/GetJointAngles.h"
+#include "bosch_arm_srvs/SetJointAngles.h"
 
 ros::Publisher joint_state_pub;
 sensor_msgs::JointState js;
+int hSock;
+struct hostent *pServer;
+struct sockaddr_in addr;
 void pubJointStates()
 {
   int buflen = 512;
@@ -75,18 +79,24 @@ bool get_joint_angles_srv ( bosch_arm_srvs::GetJointAngles::Request &req,
   return true;
 }
 
+bool set_joint_angles_srv ( bosch_arm_srvs::SetJointAngles::Request &req,
+                            bosch_arm_srvs::SetJointAngles::Response &res )
+{
+  //res.joint_angles=js.position;
+  char data[100];
+  sprintf ( data,"%%g90j1p%fj2p%fj3p%fj4p%f",
+                req.joint_angles[0],
+                req.joint_angles[1],
+                req.joint_angles[2],
+                req.joint_angles[3] );
+  int n = sendto ( hSock, data, strlen ( data ), 0, ( sockaddr* ) &addr, sizeof ( addr ) );
+  return true;
+}
+
 void trajCmdCallback ( const trajectory_msgs::JointTrajectory& msg )
 {
 //add a loop that executes on point at a time
-  int hSock = socket ( AF_INET, SOCK_DGRAM, 0 );
-  if ( hSock <=-1 )
-    return;
-  struct hostent *pServer = gethostbyname ( "localhost" );
-  struct sockaddr_in addr;
-  memset ( &addr, 0, sizeof ( addr ) );
-  addr.sin_family = AF_INET;
-  memcpy ( &addr.sin_addr.s_addr, pServer->h_addr, pServer->h_length );
-  addr.sin_port = htons ( 10051 );
+
 
   char data[100];
 
@@ -109,12 +119,22 @@ int main ( int argc, char **argv )
 {
   ros::init ( argc, argv, "wrapper" );
   ros::NodeHandle n;
+  hSock = socket ( AF_INET, SOCK_DGRAM, 0 );
+  if ( hSock <=-1 )
+    return -1;
+  pServer = gethostbyname ( "localhost" );
+  memset ( &addr, 0, sizeof ( addr ) );
+  addr.sin_family = AF_INET;
+  memcpy ( &addr.sin_addr.s_addr, pServer->h_addr, pServer->h_length );
+  addr.sin_port = htons ( 10051 );
 //  ros::Publisher actuator_pub = n.advertise<openarms::ArmActuators>("arm_actuators_autopilot", 1);
   joint_state_pub =  n.advertise<sensor_msgs::JointState> ( "/joint_states",100 );
   boost::thread t2 = boost::thread::thread ( boost::bind ( &pubJointStates ) );
   ros::Subscriber traj_cmd_sub = n.subscribe ( "/traj_cmd", 3, trajCmdCallback );
   ros::ServiceServer service = n.advertiseService ( "get_joint_angles",
                                                     get_joint_angles_srv );
+  ros::ServiceServer service2 = n.advertiseService ( "set_joint_angles",
+                                                    set_joint_angles_srv );
   sensor_msgs::JointState js;
   ros::Rate loop_rate ( 400 );
   while ( ros::ok() )

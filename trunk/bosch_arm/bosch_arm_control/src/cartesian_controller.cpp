@@ -16,13 +16,44 @@
 #include <stdio.h>
 #include <iostream>
 #include <vector>
-using namespace KDL;
+using namespace Eigen;
 
-class BoschArmModel
+class BoschArmKinematicModel
 {
   public:
     double L0,L3,L4;
-    vector<double> getTipPosition(vector<double> q);
+    Vector3f getTipPosition(Vector4f q)
+    {
+      Vector3f tip;
+      double q1=q(0);
+      double q2=q(1);
+      double q3=q(2);
+      double q4=q(3);
+      tip(0)= - L4*(sin(q4)*(cos(q1)*cos(q3) - sin(q1)*sin(q2)*sin(q3)) + cos(q2)*cos(q4)*sin(q1)) - L3*cos(q2)*sin(q1);
+      tip(1)=  - L4*(cos(q4)*sin(q2) + cos(q2)*sin(q3)*sin(q4)) - L3*sin(q2);
+      tip(2)=L0 - L4*(sin(q4)*(cos(q3)*sin(q1) + cos(q1)*sin(q2)*sin(q3)) - cos(q1)*cos(q2)*cos(q4)) + L3*cos(q1)*cos(q2);
+      return tip;
+    }
+    Matrix3f getJacobianLockJoint3(Vector4f qlock)
+    {
+      Matrix3f jacob;
+      double q1=qlock(0);
+      double q2=qlock(1);
+      double q3=qlock(2);
+      double q4=qlock(3);
+      jacob(0,0)=L4*(sin(q4)*(cos(q3)*sin(q1) + cos(q1)*sin(q2)*sin(q3)) - cos(q1)*cos(q2)*cos(q4)) - L3*cos(q1)*cos(q2);
+      jacob(0,1)=L4*(cos(q4)*sin(q1)*sin(q2) + cos(q2)*sin(q1)*sin(q3)*sin(q4)) + L3*sin(q1)*sin(q2);
+      jacob(0,2)=-L4*(cos(q4)*(cos(q1)*cos(q3) - sin(q1)*sin(q2)*sin(q3)) - cos(q2)*sin(q1)*sin(q4));
+      jacob(1,0)=0;
+      jacob(1,1)=-L4*(cos(q2)*cos(q4) - sin(q2)*sin(q3)*sin(q4)) - L3*cos(q2);
+      jacob(1,2)=L4*(sin(q2)*sin(q4) - cos(q2)*cos(q4)*sin(q3));
+      jacob(2,0)=- L4*(sin(q4)*(cos(q1)*cos(q3) - sin(q1)*sin(q2)*sin(q3)) + cos(q2)*cos(q4)*sin(q1)) - L3*cos(q2)*sin(q1);
+      jacob(2,1)=- L4*(cos(q1)*cos(q4)*sin(q2) + cos(q1)*cos(q2)*sin(q3)*sin(q4)) - L3*cos(q1)*sin(q2);
+      jacob(2,2)=-L4*(cos(q4)*(cos(q3)*sin(q1) + cos(q1)*sin(q2)*sin(q3)) + cos(q1)*cos(q2)*sin(q4));
+      return jacob;
+    }
+
+    
 };
 int main ( int argc, char **argv )
 {
