@@ -13,9 +13,11 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include "bosch_arm_srvs/GetJointAngles.h"
 #include "bosch_arm_srvs/SetJointAngles.h"
-
+#include <bosch_arm_control/Diagnostic.h>
 ros::Publisher joint_state_pub;
+ros::Publisher diagnostic_pub;
 sensor_msgs::JointState js;
+bosch_arm_control::Diagnostic diag;
 int hSock;
 struct hostent *pServer;
 struct sockaddr_in addr;
@@ -49,13 +51,17 @@ void pubJointStates()
   {
     memset ( cmdbuf,'\0',buflen );
     int size  = recvfrom ( s, cmdbuf, buflen, 0, ( struct sockaddr * ) &si_other, &slen );
+    
     char* pch;
     pch=strtok ( cmdbuf, "," );
     for ( int i=0;i<16;i++ )
       pch=strtok ( NULL,"," );
     js.header.stamp.sec=boost::lexical_cast<int> ( pch );
+    diag.header.stamp.sec=boost::lexical_cast<int> ( pch );
     pch=strtok ( NULL,"," );
     js.header.stamp.nsec=boost::lexical_cast<long> ( pch );
+    diag.header.stamp.nsec=boost::lexical_cast<long> ( pch );
+    diag.data=std::string(cmdbuf);
     for ( int i=0;i<4;i++ )
       pch=strtok ( NULL,"," );
     js.position.resize ( 4 );
@@ -66,6 +72,7 @@ void pubJointStates()
     }
     js.header.seq=seq++;
     joint_state_pub.publish ( js );
+    diagnostic_pub.publish(diag);
   }
   close ( s );
   return;
@@ -129,6 +136,7 @@ int main ( int argc, char **argv )
   addr.sin_port = htons ( 10051 );
 //  ros::Publisher actuator_pub = n.advertise<openarms::ArmActuators>("arm_actuators_autopilot", 1);
   joint_state_pub =  n.advertise<sensor_msgs::JointState> ( "/joint_states",100 );
+  diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ( "/diagnostics",100 );
   boost::thread t2 = boost::thread::thread ( boost::bind ( &pubJointStates ) );
   ros::Subscriber traj_cmd_sub = n.subscribe ( "/traj_cmd", 3, trajCmdCallback );
   ros::ServiceServer service = n.advertiseService ( "get_joint_angles",

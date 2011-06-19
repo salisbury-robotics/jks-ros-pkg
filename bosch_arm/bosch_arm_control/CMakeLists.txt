@@ -17,7 +17,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 #uncomment if you have defined messages
-#rosbuild_genmsg()
+rosbuild_genmsg()
 #uncomment if you have defined services
 #rosbuild_gensrv()
 #rosbuild_add_executable(src/bosch_arm_teleop bosch_arm_teleop.cpp)
@@ -34,7 +34,7 @@ rosbuild_add_executable(traj_controller src/traj_controller.cpp)
 rosbuild_add_executable(ros_wrapper src/ros_wrapper.cpp)
 rosbuild_add_executable(testsin src/testsin.cpp)
 rosbuild_add_executable(maptest src/maptest.cpp)
-rosbuild_add_executable(touch src/touch.cpp)
+rosbuild_add_executable(touch src/touch2.cpp)
 target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 #common commands for building c++ executables and libraries
 
