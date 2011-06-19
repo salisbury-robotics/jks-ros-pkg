@@ -950,6 +950,18 @@ vector<double> get_Joint_Pos_Actual(void){
     return Pos;
 }
 
+// vector<double> get_Joint_Vel(void){
+//     double motors [] = {v1,v3,v2,v4};
+//     double joints [] = {0.0,0.0,0.0,0.0};
+//     for(int i = 0;i<4;i++){
+//         for (int j = 0;j<4;j++){
+//             joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+//         }
+//     }
+//     vector<double> Pos(joints, joints + sizeof(joints));
+//     return Pos;
+// }
+
 void set_Joint_Pos(vector<double> Pos){
     double motors [] = {0.0,0.0,0.0,0.0};
     for(int i = 0;i<4;i++){

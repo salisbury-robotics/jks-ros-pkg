@@ -23,6 +23,7 @@
   <depend package="diagnostic_updater"/>
   <depend package="trajectory_msgs"/>
   <depend package="bma180"/>
+  <depend package="rosbag"/>
 </package>
 
 
