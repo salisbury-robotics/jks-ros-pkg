@@ -61,6 +61,12 @@ class DynamicPlot(QwtPlot):
         curve14.setData(time,t2)
         curve15.setData(time,t3)
         curve16.setData(time,t4)
+        curve17.setData(time2,accX1)
+        curve18.setData(time2,accY1)
+        curve19.setData(time2,accZ1)
+        curve20.setData(time2,accX2)
+        curve21.setData(time2,accY2)
+        curve22.setData(time2,accZ2)
         lock.release()
         self.replot()
 
@@ -134,7 +140,7 @@ def acc_listener(data):
 def listen():
     rospy.init_node('listener', anonymous=True)
     rospy.Subscriber("/diagnostics", Diagnostic, diag_listener)
-    #rospy.Subscriber("/bma180", bma180meas, acc_listener)
+    rospy.Subscriber("/bma180", bma180meas, acc_listener)
 
 def toggle():
     if ui.m1.isChecked():curve1.setPen(QPen(Qt.red))
@@ -169,7 +175,18 @@ def toggle():
     else: curve15.setPen(QPen(Qt.NoPen))
     if ui.t4.isChecked():curve16.setPen(QPen(Qt.darkMagenta))
     else: curve16.setPen(QPen(Qt.NoPen))
-
+    if ui.accX1.isChecked():curve17.setPen(QPen(Qt.red))
+    else: curve17.setPen(QPen(Qt.NoPen))
+    if ui.accY1.isChecked():curve18.setPen(QPen(Qt.green))
+    else: curve18.setPen(QPen(Qt.NoPen))
+    if ui.accZ1.isChecked():curve19.setPen(QPen(Qt.blue))
+    else: curve19.setPen(QPen(Qt.NoPen))
+    if ui.accX2.isChecked():curve20.setPen(QPen(Qt.darkred))
+    else: curve20.setPen(QPen(Qt.NoPen))
+    if ui.accY2.isChecked():curve21.setPen(QPen(Qt.darkgreen))
+    else: curve21.setPen(QPen(Qt.NoPen))
+    if ui.accZ2.isChecked():curve22.setPen(QPen(Qt.darkblue))
+    else: curve22.setPen(QPen(Qt.NoPen))
 
 def toggleplot():
     if plot.active == True:
@@ -181,6 +198,7 @@ def toggleplot():
 
 if __name__=="__main__":    
     length = 3000
+    reduction=10
     lock = threading.Lock()
 
     m1values = [0 for i in range(length)]
@@ -204,6 +222,15 @@ if __name__=="__main__":
     t4 = [0 for i in range(length)]
 
     time = [i for i in range(length)]
+    length2= length/reduction
+    accX1 = [0 for i in range(length2)]
+    accY1 = [0 for i in range(length2)]
+    accZ1 = [0 for i in range(length2)]
+    
+    accX2 = [0 for i in range(length2)]
+    accY2 = [0 for i in range(length2)]
+    accZ2 = [0 for i in range(length2)]
+    time2 = [i for i in range(1,length,reduction)]
 
     app = QApplication(sys.argv)
     window = QMainWindow()
@@ -283,6 +310,30 @@ if __name__=="__main__":
     curve16.attach(plot)
     curve16.setPen(QPen(Qt.NoPen))
 
+    curve17 = QwtPlotCurve("accX1")
+    curve17.attach(plot)
+    curve17.setPen(QPen(Qt.NoPen))
+    
+    curve18 = QwtPlotCurve("accY1")
+    curve18.attach(plot)
+    curve18.setPen(QPen(Qt.NoPen))
+    
+    curve19 = QwtPlotCurve("accZ1")
+    curve19.attach(plot)
+    curve19.setPen(QPen(Qt.NoPen))
+    
+    curve20 = QwtPlotCurve("accX2")
+    curve20.attach(plot)
+    curve20.setPen(QPen(Qt.NoPen))
+
+    curve21 = QwtPlotCurve("accY2")
+    curve21.attach(plot)
+    curve21.setPen(QPen(Qt.NoPen))
+    
+    curve22 = QwtPlotCurve("accZ2")
+    curve22.attach(plot)
+    curve22.setPen(QPen(Qt.NoPen))
+
     mY = QwtPlotMarker()
     mY.setLabelAlignment(Qt.AlignRight | Qt.AlignTop)
     mY.setLineStyle(QwtPlotMarker.HLine)
@@ -314,7 +365,12 @@ if __name__=="__main__":
     window.connect(ui.t2, SIGNAL("released()"), toggle)
     window.connect(ui.t3, SIGNAL("released()"), toggle)
     window.connect(ui.t4, SIGNAL("released()"), toggle)
-
+    window.connect(ui.accX1, SIGNAL("released()"), toggle)
+    window.connect(ui.accY1, SIGNAL("released()"), toggle)
+    window.connect(ui.accZ1, SIGNAL("released()"), toggle)
+    window.connect(ui.accX2, SIGNAL("released()"), toggle)
+    window.connect(ui.accX2, SIGNAL("released()"), toggle)
+    window.connect(ui.accX2, SIGNAL("released()"), toggle)
     window.show()
 
     sys.exit(app.exec_())
