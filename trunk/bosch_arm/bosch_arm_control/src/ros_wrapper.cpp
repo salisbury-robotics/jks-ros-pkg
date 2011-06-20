@@ -53,6 +53,7 @@ void pubJointStates()
     int size  = recvfrom ( s, cmdbuf, buflen, 0, ( struct sockaddr * ) &si_other, &slen );
     
     char* pch;
+    diag.data=std::string(cmdbuf);
     pch=strtok ( cmdbuf, "," );
     for ( int i=0;i<16;i++ )
       pch=strtok ( NULL,"," );
@@ -61,7 +62,7 @@ void pubJointStates()
     pch=strtok ( NULL,"," );
     js.header.stamp.nsec=boost::lexical_cast<long> ( pch );
     diag.header.stamp.nsec=boost::lexical_cast<long> ( pch );
-    diag.data=std::string(cmdbuf);
+    
     for ( int i=0;i<4;i++ )
       pch=strtok ( NULL,"," );
     js.position.resize ( 4 );
@@ -144,7 +145,7 @@ int main ( int argc, char **argv )
   ros::ServiceServer service2 = n.advertiseService ( "set_joint_angles",
                                                     set_joint_angles_srv );
   sensor_msgs::JointState js;
-  ros::Rate loop_rate ( 400 );
+  ros::Rate loop_rate ( 800 );
   while ( ros::ok() )
   {
     ros::spinOnce();

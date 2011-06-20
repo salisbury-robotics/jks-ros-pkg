@@ -34,21 +34,53 @@ int main ( int argc, char **argv )
   srv_set.request.joint_angles=srv_get.response.joint_angles;
   srv_set.request.joint_angles[0]+=adjust;
   int nstep=1;
-
+  timespec tlast;
+  tlast.tv_nsec=0;
+  tlast.tv_sec=0;
+  double last_cmd=srv_set.request.joint_angles[0];
+  double period=2.5e6;
   while ( ros::ok() )
-  {  
+  {      
+    
+    timespec tnow;
+    int32_t diff_nsec;
+    //wait for 2.5ms
+    do
+    {
+      clock_gettime(CLOCK_REALTIME, &tnow); 
+      diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_sec-tlast.tv_nsec);
+    }
+    while(diff_nsec<period);
+    
     client_set.call ( srv_set );
-    loop_rate.sleep();
+    tlast=tnow;
+    //loop_rate.sleep();
+    //get the response of the last command
     client_get.call ( srv_get );
-    q1err=srv_get.response.joint_angles[0]-srv_set.request.joint_angles[0];
+    q1err=srv_get.response.joint_angles[0]-last_cmd;
+    if ( q1err>threshold ){
+      //stop pushing
+//       do
+//       {
+//         clock_gettime(CLOCK_REALTIME, &tnow); 
+//         diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_sec-tlast.tv_nsec);
+//       }
+//       while(diff_nsec<period);
+//       srv_set.request.joint_angles=srv_get.response.joint_angles;
+//       srv_set.request.joint_angles[0]+=adjust;
+//       client_set.call ( srv_set );
+      break;
+    }
+    //save current command to compare with the next get
+    last_cmd=srv_set.request.joint_angles[0];
+    //compute new command for the next set
     if(nstep<=nacc)
     {
       srv_set.request.joint_angles[0]+=nstep*acc;
       ++nstep;
     }else
       srv_set.request.joint_angles[0]+=nstep*acc;
-    if ( q1err>threshold )
-      break;
+    
   }
   return 0;
 }
