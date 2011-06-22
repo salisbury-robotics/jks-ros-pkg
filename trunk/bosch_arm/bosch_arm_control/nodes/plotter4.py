@@ -53,10 +53,14 @@ class DynamicPlot(QwtPlot):
         curve6.setData(time,m2command)
         curve7.setData(time,m3command)
         curve8.setData(time,m4command)
-        curve9.setData(time,v1)
-        curve10.setData(time,v2)
-        curve11.setData(time,v3)
-        curve12.setData(time,v4)
+        #curve9.setData(time,v1)
+        #curve10.setData(time,v2)
+        #curve11.setData(time,v3)
+        #curve12.setData(time,v4)
+        curve9.setData(time,m1error)
+        curve10.setData(time,m2error)
+        curve11.setData(time,m3error)
+        curve12.setData(time,m4error)
         curve13.setData(time,t1)
         curve14.setData(time,t2)
         curve15.setData(time,t3)
@@ -81,7 +85,7 @@ def diag_listener(msg):
     pf = 0.5
     vf = 0.08
     tf = 100/0.184
-
+    ef = 10
     lock.acquire()
     m1values.append(data[0]*pf)
     m1values.pop(0)
@@ -99,6 +103,14 @@ def diag_listener(msg):
     m3command.pop(0)
     m4command.append(data[7]*pf)
     m4command.pop(0)
+    m1error.append(ef*(data[0]-data[4]))
+    m1error.pop(0)
+    m2error.append(ef*(data[1]-data[5]))
+    m2error.pop(0)
+    m3error.append(ef*(data[2]-data[6]))
+    m3error.pop(0)
+    m4error.append(ef*(data[3]-data[7]))
+    m4error.pop(0)
     v1.append(data[8]*vf)
     v1.pop(0)
     v2.append(data[9]*vf)
@@ -197,7 +209,7 @@ def toggleplot():
         ui.start_pause.setText("Pause")
 
 if __name__=="__main__":    
-    length = 3000
+    length = 5000
     reduction=10
     lock = threading.Lock()
 
@@ -210,6 +222,12 @@ if __name__=="__main__":
     m2command = [0 for i in range(length)]
     m3command = [0 for i in range(length)]
     m4command = [0 for i in range(length)]
+
+    m1error = [0 for i in range(length)]
+    m2error = [0 for i in range(length)]
+    m3error = [0 for i in range(length)]
+    m4error = [0 for i in range(length)]
+
 
     v1 = [0 for i in range(length)]
     v2 = [0 for i in range(length)]

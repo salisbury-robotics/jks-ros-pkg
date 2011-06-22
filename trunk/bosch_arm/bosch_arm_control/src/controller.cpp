@@ -427,7 +427,7 @@ static void process_input(char c){
 
   return;
 }
-
+timespec ts;
 void * servo_loop(void *ptr){
   static uint16_t tlast = 0;
   static int i = 0;
@@ -437,28 +437,28 @@ void * servo_loop(void *ptr){
 
   static timespec tl;//,ts;
   clock_gettime(CLOCK_REALTIME, &tl); 
- 
+  
   while(1){
-    uint16_t time;
+    
     uint16_t t;
-
+    uint16_t time_now;
     pthread_cond_signal(&g_cond);
     pthread_mutex_unlock(&g_mutex);
-    do time = S626_CounterReadLatch(constants::board0,constants::cntr_chan);
-    while((uint16_t)(time - tlast) < CYCLE_COUNTS);
-
+    do time_now = S626_CounterReadLatch(constants::board0,constants::cntr_chan);
+    while((uint16_t)(time_now - tlast) < CYCLE_COUNTS);
+    //printf("%d\n",time_now-tlast);
     if(quit)break;  // Don't move this outside the g_cond/g_mutex manipulations
     pthread_mutex_lock(&g_mutex);
     
-    t = (time - tlast);
+    t = (time_now - tlast);
     float dt = (float)t*CNT2SEC;
-    tlast = time;
+    tlast = time_now;
     
     // Jogging
     if(jogplus|jogminus)jog();
 
     // Triangle wave
-    timespec ts;
+    
     clock_gettime(CLOCK_REALTIME, &ts);
 
     if(t_wave1 && ts.tv_sec%6 >= 3){
@@ -830,7 +830,7 @@ void * robot_server(void *ptr){   // takes commands from a UDP socket and relays
         memset(cmdbuf,'\0',buflen);
         int size  = recvfrom(s, cmdbuf, buflen, 0, (struct sockaddr *) &si_other, &slen);
         if(size>0)newcmd++;  // When this flag changes, the main loop grabs cmdbuf and runs process_input on the first character
-        usleep(5000);
+        usleep(1000);
         if(quit)break;
     }
     close(s);
@@ -891,6 +891,7 @@ void serve_request(string command){
     int argc = 0;
 
     memset(data, 0, 512);
+    printf("%d,%d:\t",ts.tv_sec,ts.tv_nsec);
     argc = sscanf(command.c_str(),"%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf%1s%lf",
                   cmd[0], &op[0], cmd[1], &op[1], cmd[2], &op[2], cmd[3], &op[3], cmd[4], &op[4],
                   cmd[5], &op[5], cmd[6], &op[6], cmd[7], &op[7], cmd[8], &op[8], cmd[9], &op[9]);

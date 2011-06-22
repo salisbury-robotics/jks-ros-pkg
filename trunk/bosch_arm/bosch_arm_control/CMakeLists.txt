@@ -34,7 +34,8 @@ rosbuild_add_executable(traj_controller src/traj_controller.cpp)
 rosbuild_add_executable(ros_wrapper src/ros_wrapper.cpp)
 rosbuild_add_executable(testsin src/testsin.cpp)
 rosbuild_add_executable(maptest src/maptest.cpp)
-rosbuild_add_executable(touch src/touch2.cpp)
+rosbuild_add_executable(touch src/touch3.cpp)
+rosbuild_add_executable(calib src/calib2.cpp)
 target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 #common commands for building c++ executables and libraries
 
