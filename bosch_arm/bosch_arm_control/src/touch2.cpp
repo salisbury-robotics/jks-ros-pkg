@@ -38,7 +38,7 @@ int main ( int argc, char **argv )
   tlast.tv_nsec=0;
   tlast.tv_sec=0;
   double last_cmd=srv_set.request.joint_angles[0];
-  double period=2.5e6;
+  double period=4e6;
   while ( ros::ok() )
   {      
     
@@ -60,15 +60,15 @@ int main ( int argc, char **argv )
     q1err=srv_get.response.joint_angles[0]-last_cmd;
     if ( q1err>threshold ){
       //stop pushing
-//       do
-//       {
-//         clock_gettime(CLOCK_REALTIME, &tnow); 
-//         diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_sec-tlast.tv_nsec);
-//       }
-//       while(diff_nsec<period);
-//       srv_set.request.joint_angles=srv_get.response.joint_angles;
-//       srv_set.request.joint_angles[0]+=adjust;
-//       client_set.call ( srv_set );
+      do
+      {
+        clock_gettime(CLOCK_REALTIME, &tnow); 
+        diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_sec-tlast.tv_nsec);
+      }
+      while(diff_nsec<period);
+      srv_set.request.joint_angles=srv_get.response.joint_angles;
+      srv_set.request.joint_angles[0]+=adjust;
+      client_set.call ( srv_set );
       break;
     }
     //save current command to compare with the next get

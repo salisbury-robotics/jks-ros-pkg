@@ -13,6 +13,7 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include "bosch_arm_srvs/GetJointAngles.h"
 #include "bosch_arm_srvs/SetJointAngles.h"
+#include <bosch_arm_control/PointCommand.h>
 #include <bosch_arm_control/Diagnostic.h>
 ros::Publisher joint_state_pub;
 ros::Publisher diagnostic_pub;
@@ -123,6 +124,17 @@ void trajCmdCallback ( const trajectory_msgs::JointTrajectory& msg )
   
 
 }
+
+void singlePtCmdCallBack(const bosch_arm_control::PointCommand& msg)
+{
+  char data[100];
+  sprintf ( data,"%%g90j1p%fj2p%fj3p%fj4p%f",
+                msg.joint_angles[0],
+                msg.joint_angles[1],
+                msg.joint_angles[2],
+                msg.joint_angles[3] );
+  int n = sendto ( hSock, data, strlen ( data ), 0, ( sockaddr* ) &addr, sizeof ( addr ) );
+}
 int main ( int argc, char **argv )
 {
   ros::init ( argc, argv, "wrapper" );
@@ -144,8 +156,9 @@ int main ( int argc, char **argv )
                                                     get_joint_angles_srv );
   ros::ServiceServer service2 = n.advertiseService ( "set_joint_angles",
                                                     set_joint_angles_srv );
+  ros::Subscriber sigle_point_cmd_sub = n.subscribe( "/single_point_cmd",3, singlePtCmdCallBack);
   sensor_msgs::JointState js;
-  ros::Rate loop_rate ( 800 );
+  ros::Rate loop_rate ( 1000 );
   while ( ros::ok() )
   {
     ros::spinOnce();
