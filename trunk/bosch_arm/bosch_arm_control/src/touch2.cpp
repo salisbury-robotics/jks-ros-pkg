@@ -48,7 +48,7 @@ int main ( int argc, char **argv )
     do
     {
       clock_gettime(CLOCK_REALTIME, &tnow); 
-      diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_sec-tlast.tv_nsec);
+      diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_nsec-tlast.tv_nsec);
     }
     while(diff_nsec<period);
     
@@ -63,7 +63,7 @@ int main ( int argc, char **argv )
       do
       {
         clock_gettime(CLOCK_REALTIME, &tnow); 
-        diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_sec-tlast.tv_nsec);
+        diff_nsec=(tnow.tv_sec-tlast.tv_sec)*1000000000+(tnow.tv_nsec-tlast.tv_nsec);
       }
       while(diff_nsec<period);
       srv_set.request.joint_angles=srv_get.response.joint_angles;
