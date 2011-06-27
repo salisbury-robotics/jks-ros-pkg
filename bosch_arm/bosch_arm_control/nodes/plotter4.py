@@ -193,11 +193,11 @@ def toggle():
     else: curve18.setPen(QPen(Qt.NoPen))
     if ui.accZ1.isChecked():curve19.setPen(QPen(Qt.blue))
     else: curve19.setPen(QPen(Qt.NoPen))
-    if ui.accX2.isChecked():curve20.setPen(QPen(Qt.darkred))
+    if ui.accX2.isChecked():curve20.setPen(QPen(Qt.darkRed))
     else: curve20.setPen(QPen(Qt.NoPen))
-    if ui.accY2.isChecked():curve21.setPen(QPen(Qt.darkgreen))
+    if ui.accY2.isChecked():curve21.setPen(QPen(Qt.darkGreen))
     else: curve21.setPen(QPen(Qt.NoPen))
-    if ui.accZ2.isChecked():curve22.setPen(QPen(Qt.darkblue))
+    if ui.accZ2.isChecked():curve22.setPen(QPen(Qt.darkBlue))
     else: curve22.setPen(QPen(Qt.NoPen))
 
 def toggleplot():
@@ -209,7 +209,7 @@ def toggleplot():
         ui.start_pause.setText("Pause")
 
 if __name__=="__main__":    
-    length = 5000
+    length = 2000
     reduction=10
     lock = threading.Lock()
 
