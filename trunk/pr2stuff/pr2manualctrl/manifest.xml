@@ -1,0 +1,22 @@
+<package>
+  <description brief="pr2manualctrl">
+
+     pr2manualctrl
+
+  </description>
+  <author>Dillon McCoy</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/pr2manualctrl</url>
+  <depend package="joy"/>
+  <depend package="std_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="sensor_msgs"/>
+  <depend package="pr2_controllers_msgs"/>
+  <depend package="roscpp"/>
+  <depend package="topic_tools"/>
+  <depend package="actionlib"/>
+  <depend package="move_arm_msgs"/>
+</package>
+
+
