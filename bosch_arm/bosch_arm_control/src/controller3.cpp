@@ -1,9 +1,10 @@
 /**Socket communication layer results in lots of jittery
   *and high control noise
   *This node tries to merge previous controller and ros_wrapper
-  *There are  threads:
+  *There are two threads:
   *servo loop: performs low level controll, publishes joint state and diagnostic messages
   *main loop: listens to single point commands.
+  *most of the controller code are preserved.
 **/
 
 #include <sys/time.h>
