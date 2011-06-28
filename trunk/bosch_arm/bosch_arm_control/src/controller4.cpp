@@ -1,14 +1,22 @@
 /**This program is based on controller3.
-  *It aims to provide the plugin mechanism for controllers.
+  *It aims to design a clean interface.
+  *Two new classes are introduced.
+  *
+  *Robot: the hardware interface for bosch_arm.
+  *important interfaces are initialize, update and close.
+  *in addition to q and torque, it also manages v
+  *
+  *SimplePDController: a controller.
+  *controllers should be unaware of hardware details.
+  *important interfaces are start, update and stop.
+  *controller also take care of its own topic management.
 **/
 
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <netdb.h>
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
@@ -17,16 +25,11 @@
 #include <termios.h>
 #include <time.h>
 #include <pthread.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-
 
 #include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <vector>
-
 
 #include "cc.h"
 #include "control.h"
@@ -41,7 +44,6 @@
 #define CYCLE_HZ 1000 //Servo cycle rate
 #define CYCLE_COUNTS (TIMER_HZ/CYCLE_HZ)
 #define CNT2SEC (1/(float)TIMER_HZ)
-#define STOPJOGGING jogplus = false;jogminus = false
 
 using namespace std;
 
@@ -54,49 +56,58 @@ bosch_arm_control::Diagnostic diag;
 
 
 void * servo_loop2 ( void *ptr );
-
-
 vector<double> get_Joint_Pos_Actual ( void );
-
-
 static int quit = 0;
-// static double lambda = 1.0;
-// static double cutoff = 1000;
-// static double loop_time = 0.001;
-
-// static vector<double> cur_pos;
-// static vector<double> cur_pos_act;
 pthread_t servo;
+
 
 class Robot
 {
-public:
+ private:
   double home_offsets[4];
-  double q[4];
-  double torque[4];
+  double ql[4];
   uint16_t time_now;
+  uint16_t time_last; //for wait
+  uint16_t time_now2;
+  uint16_t time_last2;//for update computing v
+ public:  
+  double q[4];  
+  double v[4];
+  double torque[4];
+  
+  //setup the board and initialize registers.
   void initialize()
   {
     setup626();
     time_now=S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
+    time_last = time_now;
+    time_now2= time_now;
+    time_last2= time_now;
     home_offsets[0]=read_encoder ( 0 ) *constants::cnt2mdeg;
     home_offsets[1]=read_encoder ( 1 ) *constants::cnt2mdeg;
     home_offsets[2]=read_encoder ( 3 ) *constants::cnt2mdeg;
     home_offsets[3]=read_encoder ( 2 ) *constants::cnt2mdeg;
     for ( int i=0;i<4;i++ )
       q[i]=0;
+    for ( int i=0;i<4;i++ )
+      ql[i]=0;
+    for ( int i=0;i<4;i++ )
+      v[i]=0;
     zero_torques();
+    
   }
+  //convert robot time to common time.
   double convertToWallTime ( uint16_t now,uint16_t last )
   {
     uint16_t t = ( now - last );
     return ( double ) t*CNT2SEC;
   }
+  //get the hardware time
   uint16_t getTime()
   {
     return S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
   }
-  vector<double> get_Joint_Pos_Actual ( void )
+  vector<double> getJointPosition ( void )
   {
     double motors [] = {q[0],q[2],q[1],q[3]};
     double joints [] = {0.0,0.0,0.0,0.0};
@@ -111,7 +122,7 @@ public:
     return Pos;
   }
 
-  vector<double> get_Actuator_Pos ( vector<double> Pos )
+  vector<double> getMotorPosition ( vector<double> Pos )
   {
     double m [] = {0.0,0.0,0.0,0.0};
     for ( int i = 0;i<4;i++ )
@@ -128,11 +139,18 @@ public:
   }
   void update()
   {
-    time_now=S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
+    time_now2=S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
     q[0] = -read_encoder ( 0 ) *constants::cnt2mdeg + home_offsets[0];
     q[1] = -read_encoder ( 1 ) *constants::cnt2mdeg + home_offsets[1];
     q[2] = read_encoder ( 3 ) *constants::cnt2mdeg - home_offsets[2];
     q[3] = read_encoder ( 2 ) *constants::cnt2mdeg - home_offsets[3];
+    double dt=convertToWallTime(time_now2,time_last2);
+    time_last2=time_now2;
+    for(int i=0;i<4;i++)
+    {
+      v[i]=(q[i]-ql[i])/dt;
+      ql[i]=q[i];
+    }
     write_torque ( 0,torque[0] );
     write_torque ( 1,torque[1] );
     write_torque ( 2,torque[2] );
@@ -145,30 +163,24 @@ public:
     S626_CloseBoard ( constants::board0 );
     cout << "626 closed out." << endl;
   }
+  void wait()
+  {
+    do time_now=getTime();
+    while ( ( uint16_t ) ( time_now - time_last ) < CYCLE_COUNTS );
+    //printf("%d\n",(uint16_t)(time_now-time_last));
+    time_last = time_now;
+  }
 };
 
 Robot* rob_ptr;
 
 class SimplePDController
 {
-public:
-  double Kp[4];
-  double Kv[4];
+private:
   double v[4];
-  double q[4];
-  double ql[4];
-  double qd[4];
   double dq[4];
   double torque[4];
-  double e_lim;
-  double t_lims[4];
-  double t_lim;
-  double v_lims[4];
-  double cutoff;
-  double loop_time;
-  uint16_t t_now;
-  uint16_t t_last;
-  timespec ts;
+  double q[4];
   Robot* rob;
   ros::NodeHandle n;
   ros::Publisher diagnostic_pub;
@@ -176,14 +188,40 @@ public:
   ros::Subscriber sigle_point_cmd_sub;
   bosch_arm_control::Diagnostic diag;
   sensor_msgs::JointState js;
+  void safe_exit ( const char* msg )
+  {
+    rob->close();
+    ROS_ERROR ( msg );
+    //pthread_kill(servo, SIGTERM);
+    exit ( 1 );
+
+  }
+  void truncate ( double &x, double max )
+  {
+    if ( x>max )
+      x=max;
+    if ( x<-max )
+      x=-max;
+  }
   void singlePtCmdCallBack ( const bosch_arm_control::PointCommand& msg )
   {
-    vector<double> act=rob->get_Actuator_Pos ( msg.joint_angles );
+    vector<double> act=rob->getMotorPosition ( msg.joint_angles );
     for ( int i=0;i<4;i++ )
       qd[i]=act[i];
 
   }
-
+public:
+  double Kp[4];
+  double Kv[4];    
+  double qd[4];    
+  double e_lim;
+  double t_lims[4];
+  double t_lim;
+  double v_lims[4];
+  double cutoff;
+  double loop_time;
+  timespec ts;
+  
   SimplePDController ( Robot *ptr )
   {
     rob=ptr;
@@ -209,42 +247,26 @@ public:
       dq[i]=0;
       q[i]=0;
       torque[i]=0;
-      ql[i]=0;
+      //ql[i]=0;
     }
   }
   void start()
   {
     rob->initialize();
-    //set ql to 0
-    for ( int i=0;i<4;i++ )
-      ql[i]=rob->q[i];
-    t_last=rob->time_now;
   }
-  void safe_exit ( const char* msg )
-  {
-    rob->close();
-    ROS_ERROR ( msg );
-    //pthread_kill(servo, SIGTERM);
-    exit ( 1 );
+  
 
-  }
-  void truncate ( double &x, double max )
-  {
-    if ( x>max )
-      x=max;
-    if ( x<-max )
-      x=-max;
-  }
   void update()
   {
     rob->update();
-    t_now=rob->time_now;
+    //t_now=rob->time_now;
     clock_gettime ( CLOCK_REALTIME, &ts );
-    double dt=rob->convertToWallTime ( t_now,t_last );
-    t_last=t_now;
+    //double dt=rob->convertToWallTime ( t_now,t_last );
+    //t_last=t_now;
     double lambda = exp ( -2*3.14*cutoff*loop_time );
     for ( int i=0;i<4;i++ )
       q[i]=rob->q[i];
+    
     for ( int i=0;i<4;i++ )
     {
       dq[i]=qd[i]-q[i];
@@ -252,18 +274,23 @@ public:
         safe_exit ( "position error too large" );
       float dq_max=1.0*t_lims[i]/Kp[i];
       truncate ( dq[i],dq_max );
-      v[i]= ( ( q[i]-ql[i] ) /dt ) * ( 1-lambda ) + lambda*v[i];
+      v[i]= rob->v[i] * ( 1-lambda ) + lambda*v[i];
       if ( fabs ( v[i] ) >v_lims[i] )
         safe_exit ( "overspeed" );
-      ql[i]=q[i];
       torque[i]=Kp[i]*dq[i]-Kv[i]*v[i];
       if ( fabs ( torque[i] ) >5*t_lim )
         safe_exit ( "torque command over 5 times max achievable" );
       truncate ( torque[i],t_lims[i] );
     }
+    
     for ( int i=0;i<4;i++ )
       rob->torque[i]=torque[i];
 
+    logging();
+
+  }
+  void logging()
+  {
     std::string log;
     std::stringstream out;
     for ( int i=0;i<4;i++ )
@@ -274,25 +301,18 @@ public:
       out<<v[i]<<",";
     for ( int i=0;i<4;i++ )
       out<<torque[i]<<",";
-    out << ts.tv_sec << ','<< ts.tv_nsec<<',';                         // Servo cycle count, timestamp
-    for ( int i=0;i<4;i++ )
-      out<<ql[i]<<",";
-    out<<dt;
+    out << ts.tv_sec << ','<< ts.tv_nsec;
+
     log = out.str();
     diag.data=log;
     diag.header.stamp.sec=ts.tv_sec;
     diag.header.stamp.nsec=ts.tv_nsec;
     diagnostic_pub.publish ( diag );
-    vector<double> cur_pos_act = rob->get_Joint_Pos_Actual();
+    vector<double> cur_pos_act = rob->getJointPosition();
     js.header.stamp.sec=ts.tv_sec;
     js.header.stamp.nsec=ts.tv_nsec;
     js.position=cur_pos_act;
     joint_state_pub.publish ( js );
-
-  }
-  void logging()
-  {
-
   }
   void stop()
   {
@@ -372,7 +392,7 @@ int main ( int argc, char** argv )
 
 void * servo_loop2 ( void *ptr )
 {
-  uint16_t tlast = 0;
+
   ctr_ptr->start();
 //   cout<<"Position the arm at the zero position, then hit Enter to continue"<<endl;
 //   char ch;
@@ -380,14 +400,9 @@ void * servo_loop2 ( void *ptr )
 //   cin.clear();
   while ( 1 )
   {
-    uint16_t time_now;
     pthread_cond_signal ( &g_cond );
     pthread_mutex_unlock ( &g_mutex );
-    do time_now=rob_ptr->getTime();
-    while ( ( uint16_t ) ( time_now - tlast ) < CYCLE_COUNTS );
-    //printf("%d\n",(uint16_t)(time_now-tlast));
-    tlast = time_now;
-
+    rob_ptr->wait();
     if ( quit )
       break;
     pthread_mutex_lock ( &g_mutex );
