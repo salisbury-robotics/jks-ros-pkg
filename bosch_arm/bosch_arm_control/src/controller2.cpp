@@ -1,4 +1,7 @@
-//#include "daq.cpp"
+/**
+grouped variables into arrays
+deleted unnecessary functions
+**/
 #include <iostream>
 #include <algorithm>
 #include <pthread.h>
