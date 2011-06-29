@@ -131,7 +131,7 @@ def diag_listener(msg):
 
         #print data
 def acc_listener(data):
-    af = 10
+    af = 100
     lock.acquire()
     if data.iChipSelect==0:
         accX1.append(data.fAcclX*af)
