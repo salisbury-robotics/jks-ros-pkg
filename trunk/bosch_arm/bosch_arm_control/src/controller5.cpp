@@ -1,15 +1,5 @@
-/**This program is based on controller3.
-  *It aims to design a clean interface.
-  *Two new classes are introduced.
+/**This code is for a simple cartesian space controller
   *
-  *Robot: the hardware interface for bosch_arm.
-  *important interfaces are initialize, update and close.
-  *in addition to q and torque, it also manages v
-  *
-  *SimplePDController: a controller.
-  *controllers should be unaware of hardware details.
-  *important interfaces are start, update and stop.
-  *controller also take care of its own topic management.
 **/
 
 #include <sys/time.h>
@@ -36,8 +26,8 @@
 #include "daq.h"
 
 #include "ros/ros.h"
-#include "sensor_msgs/JointState.h"
-#include <bosch_arm_control/PointCommand.h>
+#include <bosch_arm_control/TipState.h>
+#include <bosch_arm_control/PointCmd.h>
 #include <bosch_arm_control/Diagnostic.h>
 
 #define TIMER_HZ 2000000 //DAQ card clock
@@ -71,7 +61,8 @@ public:
   double q[4];
   double v[4];
   double torque[4];
-
+  double v_lims[4];
+  double t_lims[4];
   //setup the board and initialize registers.
   void initialize()
   {
@@ -85,11 +76,17 @@ public:
     home_offsets[2]=read_encoder ( 3 ) *constants::cnt2mdeg;
     home_offsets[3]=read_encoder ( 2 ) *constants::cnt2mdeg;
     for ( int i=0;i<4;i++ )
+    {
       q[i]=0;
-    for ( int i=0;i<4;i++ )
       ql[i]=0;
-    for ( int i=0;i<4;i++ )
       v[i]=0;
+      t_lims[i]=0.4*constants::t_max;
+    }      
+    double vlim=constants::v_lim;
+    v_lims[0]=vlim;
+    v_lims[1]=2*vlim;
+    v_lims[2]=2*vlim;
+    v_lims[3]=2*vlim;
     zero_torques();
 
   }
@@ -134,6 +131,33 @@ public:
     return Pos2;
 
   }
+  
+  void safe_exit ( const char* msg )
+  {
+    close();
+    ROS_ERROR ( msg );
+    //pthread_kill(servo, SIGTERM);
+    exit ( 1 );
+
+  }
+  void truncate ( double &x, double max )
+  {
+    if ( x>max )
+      x=max;
+    if ( x<-max )
+      x=-max;
+  }
+  void enforce_safety()
+  {
+    for(int i=0;i<4;i++)
+    {
+      if ( fabs ( v[i] ) >v_lims[i] )
+        safe_exit ( "overspeed" );
+      if ( fabs ( torque[i] ) >5*constants::t_max )
+        safe_exit ( "torque command over 5 times max achievable" );
+      truncate ( torque[i],t_lims[i] );
+    }
+  }
   void update()
   {
     time_now2=S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
@@ -148,6 +172,7 @@ public:
       v[i]= ( q[i]-ql[i] ) /dt;
       ql[i]=q[i];
     }
+    enforce_safety();
     write_torque ( 0,torque[0] );
     write_torque ( 1,torque[1] );
     write_torque ( 2,torque[2] );
@@ -175,7 +200,7 @@ public:
 
 Robot* rob_ptr;
 
-class SimplePDController
+class SimpleCartesianController
 {
 private:
   double v[4];
@@ -185,28 +210,14 @@ private:
   Robot* rob;
   ros::NodeHandle n;
   ros::Publisher diagnostic_pub;
-  ros::Publisher joint_state_pub;
+  ros::Publisher tip_state_pub;
   ros::Subscriber sigle_point_cmd_sub;
   bosch_arm_control::Diagnostic diag;
-  sensor_msgs::JointState js;
-  void safe_exit ( const char* msg )
-  {
-    rob->close();
-    ROS_ERROR ( msg );
-    //pthread_kill(servo, SIGTERM);
-    exit ( 1 );
+  bosch_arm_control::TipState js;
 
-  }
-  void truncate ( double &x, double max )
+  void singlePtCmdCallBack ( const bosch_arm_control::PointCmd& msg )
   {
-    if ( x>max )
-      x=max;
-    if ( x<-max )
-      x=-max;
-  }
-  void singlePtCmdCallBack ( const bosch_arm_control::PointCommand& msg )
-  {
-    vector<double> act=rob->getMotorPosition ( msg.joint_angles );
+    vector<double> act=rob->getMotorPosition ( msg.coordinates );
     for ( int i=0;i<4;i++ )
       qd[i]=act[i];
 
@@ -216,31 +227,24 @@ public:
   double Kv[4];
   double qd[4];
   double e_lim;
-  double t_lims[4];
-  double t_lim;
-  double v_lims[4];
   double cutoff;
   double loop_time;
   timespec ts;
 
-  SimplePDController ( Robot *ptr )
+  SimpleCartesianController ( Robot *ptr )
   {
     rob=ptr;
     diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ( "/diagnostics",100 );
-    sigle_point_cmd_sub = n.subscribe ( "/single_point_cmd",3, &SimplePDController::singlePtCmdCallBack, this );
-    joint_state_pub =  n.advertise<sensor_msgs::JointState> ( "/joint_states",100 );
+    sigle_point_cmd_sub = n.subscribe ( "/cartesian_point_cmd",3, &SimpleCartesianController::singlePtCmdCallBack, this );
+    tip_state_pub =  n.advertise<bosch_arm_control::TipState> ( "/tip_states",100 );
     cutoff = 1000;
     loop_time = 0.001;
     e_lim = constants::p_err_lim;
-    t_lim = constants::t_max;
-    double vlim=constants::v_lim;
-    v_lims[0]=vlim;
-    v_lims[1]=2*vlim;
-    v_lims[2]=2*vlim;
-    v_lims[3]=2*vlim;
+
+    
     for ( int i=0;i<4;i++ )
     {
-      t_lims[i]=0.4*constants::t_max;
+
       Kp[i]=0.013;
       Kv[i] = 0.0001;
       qd[i]=0;
@@ -272,16 +276,11 @@ public:
     {
       dq[i]=qd[i]-q[i];
       if ( fabs ( dq[i] ) >e_lim )
-        safe_exit ( "position error too large" );
-      float dq_max=1.0*t_lims[i]/Kp[i];
-      truncate ( dq[i],dq_max );
-      v[i]= rob->v[i] * ( 1-lambda ) + lambda*v[i];
-      if ( fabs ( v[i] ) >v_lims[i] )
-        safe_exit ( "overspeed" );
-      torque[i]=Kp[i]*dq[i]-Kv[i]*v[i];
-      if ( fabs ( torque[i] ) >5*t_lim )
-        safe_exit ( "torque command over 5 times max achievable" );
-      truncate ( torque[i],t_lims[i] );
+        rob->safe_exit ( "position error too large" );
+      float dq_max=1.0*rob->t_lims[i]/Kp[i];
+      rob->truncate ( dq[i],dq_max );
+      v[i]= rob->v[i] * ( 1-lambda ) + lambda*v[i];      
+      torque[i]=Kp[i]*dq[i]-Kv[i]*v[i];      
     }
 
     for ( int i=0;i<4;i++ )
@@ -313,7 +312,7 @@ public:
     js.header.stamp.sec=ts.tv_sec;
     js.header.stamp.nsec=ts.tv_nsec;
     js.position=cur_pos_act;
-    joint_state_pub.publish ( js );
+    tip_state_pub.publish ( js );
   }
   void stop()
   {
@@ -322,7 +321,7 @@ public:
 
 };
 
-SimplePDController* ctr_ptr;
+SimpleCartesianController* ctr_ptr;
 
 static int kbhit ( void )
 {
@@ -357,7 +356,7 @@ int main ( int argc, char** argv )
   ros::init ( argc, argv, "bosch_arm_node" );
   ros::NodeHandle n;
   rob_ptr=new Robot();
-  ctr_ptr=new SimplePDController ( rob_ptr );
+  ctr_ptr=new SimpleCartesianController ( rob_ptr );
   //diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ( "/diagnostics",100 );
   //ros::Subscriber sigle_point_cmd_sub = n.subscribe ( "/single_point_cmd",3, &SimplePDController::singlePtCmdCallBack,ctr_ptr );
   int result;
