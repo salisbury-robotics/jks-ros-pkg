@@ -46,8 +46,26 @@ pthread_t servo;
 void * servo_loop2 ( void *ptr );
 vector<double> get_Joint_Pos_Actual ( void );
 
-
-
+const double r1 = 0.062811565304088; // joint 1, turns pers motor turn
+  const double r2 = 0.12524850894632;  // joint 2-3-4, turns per motor turn
+  const double r3 = 15.9206349206349;  // joint 1 motor turns per joint turn
+  const double r4 = 7.98412698412698;  // joint 2-3-4, motor turns per joint turn
+  const double m2j[16] = {            // Motor to joint position conversion matrix
+       r1, 0.0, 0.0, 0.0,
+      -r1, 0.0,  r2, 0.0,
+      0.0, r2,  -r2, 0.0,
+      0.0, 0.0, 0.0,  r2
+  };
+  const double j2m [16] = {            // Joint to motor position conversion matrix
+       r3, 0.0, 0.0, 0.0,
+       r4,  r4,  r4, 0.0,
+       r4,  r4, 0.0, 0.0,
+      0.0, 0.0, 0.0,  r4
+  };
+const double L0=0.27;
+const double L3=0.50;
+const double L4=0.48;
+const double rad_per_count=1.25663706e-3;
 class Robot
 {
 private:
@@ -58,11 +76,12 @@ private:
   uint16_t time_now2;
   uint16_t time_last2;//for update computing v
 public:
-  double q[4];
-  double v[4];
-  double torque[4];
-  double v_lims[4];
-  double t_lims[4];
+  double q[4];//actuator position
+  double v[4];//actuator speed
+  double torque[4];//actuator torque
+  double v_lims[4];//speed limit
+  double t_lims[4];//torque limit
+  double dt;
   //setup the board and initialize registers.
   void initialize()
   {
@@ -71,10 +90,10 @@ public:
     time_last = time_now;
     time_now2= time_now;
     time_last2= time_now;
-    home_offsets[0]=read_encoder ( 0 ) *constants::cnt2mdeg;
-    home_offsets[1]=read_encoder ( 1 ) *constants::cnt2mdeg;
-    home_offsets[2]=read_encoder ( 3 ) *constants::cnt2mdeg;
-    home_offsets[3]=read_encoder ( 2 ) *constants::cnt2mdeg;
+    home_offsets[0]=read_encoder ( 0 ) *rad_per_count;
+    home_offsets[1]=read_encoder ( 1 ) *rad_per_count;
+    home_offsets[2]=read_encoder ( 3 ) *rad_per_count;
+    home_offsets[3]=read_encoder ( 2 ) *rad_per_count;
     for ( int i=0;i<4;i++ )
     {
       q[i]=0;
@@ -101,36 +120,57 @@ public:
   {
     return S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
   }
-  vector<double> getJointPosition ( void )
+  
+  void motor2JointPosition(const double* motors, double* joints)
   {
-    double motors [] = {q[0],q[2],q[1],q[3]};
-    double joints [] = {0.0,0.0,0.0,0.0};
-    for ( int i = 0;i<4;i++ )
+    for(int i=0;i<4;i++)
     {
-      for ( int j = 0;j<4;j++ )
-      {
-        joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
-      }
+      joints[i]=0;
+      for(int j=0;j<4;j++)
+        joints[i]+=m2j[4*i+j]*motors[j];
     }
-    vector<double> Pos ( joints, joints + sizeof ( joints ) );
-    return Pos;
+  }
+  
+  void joint2TipPosition(const double* joints, double* tip)
+  {
+    double q1=joints[0];
+    double q2=joints[1];
+    double q3=joints[2];
+    double q4=joints[3];
+    tip[0]= - L4*(sin(q4)*(cos(q1)*cos(q3) - sin(q1)*sin(q2)*sin(q3)) + cos(q2)*cos(q4)*sin(q1)) - L3*cos(q2)*sin(q1);
+      tip[1]=  - L4*(cos(q4)*sin(q2) + cos(q2)*sin(q3)*sin(q4)) - L3*sin(q2);
+      tip[2]=L0 - L4*(sin(q4)*(cos(q3)*sin(q1) + cos(q1)*sin(q2)*sin(q3)) - cos(q1)*cos(q2)*cos(q4)) + L3*cos(q1)*cos(q2);
   }
 
-  vector<double> getMotorPosition ( vector<double> Pos )
+  void getJacobianJoint2Tip(const double* joints, double* jacobian)
   {
-    double m [] = {0.0,0.0,0.0,0.0};
-    for ( int i = 0;i<4;i++ )
-    {
-      for ( int j = 0;j<4;j++ )
-      {
-        m[i]+=constants::j2m[4*i+j]*Pos[j];  // Convert motor positions to joint positions
-      }
-    }
-    double actuators[]={m[0],m[2],m[1],m[3]};
-    vector<double> Pos2 ( actuators, actuators + sizeof ( actuators ) );
-    return Pos2;
-
+    double q1=joints[0];
+    double q2=joints[1];
+    double q3=joints[2];
+    double q4=joints[3];
+    jacobian[0]=L4*(sin(q4)*(cos(q3)*sin(q1) + cos(q1)*sin(q2)*sin(q3)) - cos(q1)*cos(q2)*cos(q4)) - L3*cos(q1)*cos(q2);
+    jacobian[1]=L4*(cos(q4)*sin(q1)*sin(q2) + cos(q2)*sin(q1)*sin(q3)*sin(q4)) + L3*sin(q1)*sin(q2);
+    jacobian[2]=L4*sin(q4)*(cos(q1)*sin(q3) + cos(q3)*sin(q1)*sin(q2));
+    jacobian[3]=-L4*(cos(q4)*(cos(q1)*cos(q3) - sin(q1)*sin(q2)*sin(q3)) - cos(q2)*sin(q1)*sin(q4));
+    jacobian[4]=0;
+    jacobian[5]=- L4*(cos(q2)*cos(q4) - sin(q2)*sin(q3)*sin(q4)) - L3*cos(q2);
+    jacobian[6]=-L4*cos(q2)*cos(q3)*sin(q4);
+    jacobian[7]= L4*(sin(q2)*sin(q4) - cos(q2)*cos(q4)*sin(q3));
+    jacobian[8]=-L4*(sin(q4)*(cos(q1)*cos(q3) - sin(q1)*sin(q2)*sin(q3)) + cos(q2)*cos(q4)*sin(q1)) - L3*cos(q2)*sin(q1);
+    jacobian[9]=- L4*(cos(q1)*cos(q4)*sin(q2) + cos(q1)*cos(q2)*sin(q3)*sin(q4)) - L3*cos(q1)*sin(q2);
+    jacobian[10]=L4*sin(q4)*(sin(q1)*sin(q3) - cos(q1)*cos(q3)*sin(q2));
+    jacobian[11]=-L4*(cos(q4)*(cos(q3)*sin(q1) + cos(q1)*sin(q2)*sin(q3)) + cos(q1)*cos(q2)*sin(q4));
   }
+  void joint2MotorPosition(const double* joints, double* motors)
+  {
+    for(int i=0;i<4;i++)
+    {
+      motors[i]=0;
+      for(int j=0;j<4;j++)
+        motors[i]+=j2m[4*i+j]*joints[j];
+    }
+  }
+  
   
   void safe_exit ( const char* msg )
   {
@@ -161,11 +201,11 @@ public:
   void update()
   {
     time_now2=S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
-    q[0] = -read_encoder ( 0 ) *constants::cnt2mdeg + home_offsets[0];
-    q[1] = -read_encoder ( 1 ) *constants::cnt2mdeg + home_offsets[1];
-    q[2] = read_encoder ( 3 ) *constants::cnt2mdeg - home_offsets[2];
-    q[3] = read_encoder ( 2 ) *constants::cnt2mdeg - home_offsets[3];
-    double dt=convertToWallTime ( time_now2,time_last2 );
+    q[0] = -read_encoder ( 0 ) *rad_per_count + home_offsets[0];
+    q[1] = -read_encoder ( 1 ) *rad_per_count + home_offsets[1];
+    q[2] = read_encoder ( 3 ) *rad_per_count - home_offsets[2];
+    q[3] = read_encoder ( 2 ) *rad_per_count - home_offsets[3];
+    dt=convertToWallTime ( time_now2,time_last2 );
     time_last2=time_now2;
     for ( int i=0;i<4;i++ )
     {
@@ -190,9 +230,9 @@ public:
     do 
     {
       time_now=getTime();
-      printf("%d\t",time_now);
+      //printf("%d\t",time_now);
     }while ( ( uint16_t ) ( time_now - time_last ) < CYCLE_COUNTS );
-    printf("***\n");
+    //printf("***\n");
     //printf("%d\n",(uint16_t)(time_now-time_last));
     time_last = time_now;
   }
@@ -203,10 +243,11 @@ Robot* rob_ptr;
 class SimpleCartesianController
 {
 private:
-  double v[4];
-  double dq[4];
-  double torque[4];
-  double q[4];
+  double xl[3];//last tip position
+  double dx[3];//tip position error
+  double q[4];//joint position
+  double tj[4];//joint effort
+  double torque[4];//motor torque
   Robot* rob;
   ros::NodeHandle n;
   ros::Publisher diagnostic_pub;
@@ -217,18 +258,16 @@ private:
 
   void singlePtCmdCallBack ( const bosch_arm_control::PointCmd& msg )
   {
-    vector<double> act=rob->getMotorPosition ( msg.coordinates );
-    for ( int i=0;i<4;i++ )
-      qd[i]=act[i];
-
+    for ( int i=0;i<3;i++ )
+      xd[i]=msg.coordinates[i];
   }
 public:
-  double Kp[4];
-  double Kv[4];
-  double qd[4];
-  double e_lim;
-  double cutoff;
-  double loop_time;
+  double x[3];
+  double Kp[3];
+  double Kv[3];
+  double xd[3];
+  double v[3];
+  double f[3];
   timespec ts;
 
   SimpleCartesianController ( Robot *ptr )
@@ -236,56 +275,101 @@ public:
     rob=ptr;
     diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ( "/diagnostics",100 );
     sigle_point_cmd_sub = n.subscribe ( "/cartesian_point_cmd",3, &SimpleCartesianController::singlePtCmdCallBack, this );
-    tip_state_pub =  n.advertise<bosch_arm_control::TipState> ( "/tip_states",100 );
-    cutoff = 1000;
-    loop_time = 0.001;
-    e_lim = constants::p_err_lim;
-
-    
-    for ( int i=0;i<4;i++ )
+    tip_state_pub =  n.advertise<bosch_arm_control::TipState> ( "/tip_states",100 );    
+    for ( int i=0;i<3;i++ )
     {
-
-      Kp[i]=0.013;
-      Kv[i] = 0.0001;
-      qd[i]=0;
+      Kp[i]=10;
+      Kv[i] = 0.1;
+      xd[i]=0;
       v[i]=0;
-      dq[i]=0;
-      q[i]=0;
-      torque[i]=0;
-      //ql[i]=0;
+      dx[i]=0;
+      x[i]=0;
+      f[i]=0;
     }
   }
   void start()
   {
     rob->initialize();
+    rob->motor2JointPosition(rob->q,q);
+    rob->joint2TipPosition(q,x);
+    for(int i=0;i<3;i++)
+    {
+      xl[i]=x[i];
+      xd[i]=x[i];
+    }
   }
-
+  
+  
 
   void update()
   {
     rob->update();
     //t_now=rob->time_now;
     clock_gettime ( CLOCK_REALTIME, &ts );
-    //double dt=rob->convertToWallTime ( t_now,t_last );
-    //t_last=t_now;
-    double lambda = exp ( -2*3.14*cutoff*loop_time );
-    for ( int i=0;i<4;i++ )
-      q[i]=rob->q[i];
-
-    for ( int i=0;i<4;i++ )
+    
+    //save the last tip position
+    for(int i=0;i<3;i++)
+      xl[i]=x[i];
+    rob->motor2JointPosition(rob->q,q);
+    rob->joint2TipPosition(q,x);
+    //PD control in cartesian space
+    for(int i=0;i<3;i++)
     {
-      dq[i]=qd[i]-q[i];
-      if ( fabs ( dq[i] ) >e_lim )
-        rob->safe_exit ( "position error too large" );
-      float dq_max=1.0*rob->t_lims[i]/Kp[i];
-      rob->truncate ( dq[i],dq_max );
-      v[i]= rob->v[i] * ( 1-lambda ) + lambda*v[i];      
-      torque[i]=Kp[i]*dq[i]-Kv[i]*v[i];      
+      
+      dx[i]=xd[i]-x[i];
+      v[i]=(x[i]-xl[i])/rob->dt;
+      f[i]=Kp[i]*dx[i]-Kv[i]*v[i];
     }
-
+    
+    //compute the torque at motor space
+    double jacobian[12];
+    rob->getJacobianJoint2Tip(q,jacobian);
+    //cout<<"jacobian transpose:"<<endl;
+    for(int i=0;i<4;i++)
+    {
+      tj[i]=0;
+      for(int j=0;j<3;j++)
+      {
+        tj[i]+=jacobian[4*j+i]*f[j];
+        //cout<<jacobian[4*j+i]<<',';
+      }
+     // cout<<endl;
+    }
+    //cout<<"-------------------"<<endl;
+    //cout<<"transmission transpose:"<<endl;
+    for(int i=0;i<4;i++)
+    {
+      torque[i]=0;
+      for(int j=0;j<4;j++)
+      {
+        torque[i]+=m2j[4*j+i]*tj[j];
+        //cout<<m2j[4*j+i]<<',';
+      }
+      //cout<<endl;
+    }
+    //cout<<"-------------------"<<endl;
+    //cout<<"m    :";
+//     for ( int i=0;i<3;i++ )
+//       cout<<f[i]<<',';
+//     cout<<endl;
     for ( int i=0;i<4;i++ )
       rob->torque[i]=torque[i];
-
+//     for(int i=0;i<4;i++)
+//       cout<<rob->q[i]<<',';
+//     cout<<endl;
+    //cout<<"m torque:";
+//     for(int i=0;i<4;i++)
+//       cout<<rob->torque[i]<<',';
+//     cout<<endl;
+    //cout<<"joint:";
+//     for(int i=0;i<4;i++)
+//       cout<<q[i]<<',';
+//     cout<<endl;
+    //cout<<"joint f:";
+//     for(int i=0;i<4;i++)
+//       cout<<tj[i]<<',';
+//     
+//     cout<<endl<<"*********************************"<<endl;
     logging();
 
   }
@@ -293,14 +377,14 @@ public:
   {
     std::string log;
     std::stringstream out;
-    for ( int i=0;i<4;i++ )
-      out<<q[i]<<",";
-    for ( int i=0;i<4;i++ )
-      out<<qd[i]<<",";
-    for ( int i=0;i<4;i++ )
+    for ( int i=0;i<3;i++ )
+      out<<x[i]<<",";
+    for ( int i=0;i<3;i++ )
+      out<<xd[i]<<",";
+    for ( int i=0;i<3;i++ )
       out<<v[i]<<",";
-    for ( int i=0;i<4;i++ )
-      out<<torque[i]<<",";
+    for ( int i=0;i<3;i++ )
+      out<<f[i]<<",";
     out << ts.tv_sec << ','<< ts.tv_nsec;
 
     log = out.str();
@@ -308,7 +392,7 @@ public:
     diag.header.stamp.sec=ts.tv_sec;
     diag.header.stamp.nsec=ts.tv_nsec;
     diagnostic_pub.publish ( diag );
-    vector<double> cur_pos_act = rob->getJointPosition();
+    vector<double> cur_pos_act(x,x+3);
     js.header.stamp.sec=ts.tv_sec;
     js.header.stamp.nsec=ts.tv_nsec;
     js.position=cur_pos_act;
@@ -376,7 +460,7 @@ int main ( int argc, char** argv )
   while ( 1 )
   {
     pthread_cond_wait ( &g_cond, &g_mutex );
-    printf("+++%d+++",rob_ptr->getTime());
+    //printf("+++%d+++",rob_ptr->getTime());
     ros::spinOnce();
     if ( kbhit() )
     {// keyboard command
@@ -384,7 +468,7 @@ int main ( int argc, char** argv )
       rewind ( stdout );
       ftruncate ( 1,0 );
     }
-    printf("%d+++\n",rob_ptr->getTime());
+    //printf("%d+++\n",rob_ptr->getTime());
     if ( c == 'q' || c=='Q' ) break;
   }
   //pthread_join ( servo, NULL );
