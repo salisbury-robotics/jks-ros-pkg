@@ -56,7 +56,22 @@ pthread_t servo;
 void * servo_loop2 ( void *ptr );
 vector<double> get_Joint_Pos_Actual ( void );
 
-
+const double r1 = 0.062811565304088; // joint 1, turns pers motor turn
+  const double r2 = 0.12524850894632;  // joint 2-3-4, turns per motor turn
+  const double r3 = 15.9206349206349;  // joint 1 motor turns per joint turn
+  const double r4 = 7.98412698412698;  // joint 2-3-4, motor turns per joint turn
+  const double m2j[16] = {            // Motor to joint position conversion matrix
+       r1, 0.0, 0.0, 0.0,
+      -r1, 0.0,  r2, 0.0,
+      0.0, r2,  -r2, 0.0,
+      0.0, 0.0, 0.0,  r2
+  };
+  const double j2m [16] = {            // Joint to motor position conversion matrix
+       r3, 0.0, 0.0, 0.0,
+       r4,  r4,  r4, 0.0,
+       r4,  r4, 0.0, 0.0,
+      0.0, 0.0, 0.0,  r4
+  };
 
 class Robot
 {
@@ -67,6 +82,7 @@ private:
   uint16_t time_last; //for wait
   uint16_t time_now2;
   uint16_t time_last2;//for update computing v
+  
 public:
   double q[4];
   double v[4];
@@ -104,15 +120,56 @@ public:
   {
     return S626_CounterReadLatch ( constants::board0,constants::cntr_chan );
   }
+  
+  void motor2JointPosition(const double* motors, double* joints)
+  {
+    for(int i=0;i<4;i++)
+    {
+      joints[i]=0;
+      for(int j=0;j<4;j++)
+        joints[i]+=m2j[4*i+j]*motors[j];
+    }
+  }
+  
+  void motor2JointPosition(const double* motors, vector<double> &joints)
+  {
+    for(int i=0;i<4;i++)
+    {
+      joints[i]=0;
+      for(int j=0;j<4;j++)
+        joints[i]+=m2j[4*i+j]*motors[j];
+    }
+  }
+  
+  void joint2MotorPosition(const double* joints, double* motors)
+  {
+    for(int i=0;i<4;i++)
+    {
+      motors[i]=0;
+      for(int j=0;j<4;j++)
+        motors[i]+=j2m[4*i+j]*joints[j];
+    }
+  }
+  
+  void joint2MotorPosition(const vector<double> &joints, double* motors)
+  {
+    for(int i=0;i<4;i++)
+    {
+      motors[i]=0;
+      for(int j=0;j<4;j++)
+        motors[i]+=j2m[4*i+j]*joints[j];
+    }
+  }
+  
   vector<double> getJointPosition ( void )
   {
-    double motors [] = {q[0],q[2],q[1],q[3]};
+    //double motors [] = {q[0],q[2],q[1],q[3]};
     double joints [] = {0.0,0.0,0.0,0.0};
     for ( int i = 0;i<4;i++ )
     {
       for ( int j = 0;j<4;j++ )
       {
-        joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+        joints[i]+=m2j[4*i+j]*q[j];  // Convert motor positions to joint positions
       }
     }
     vector<double> Pos ( joints, joints + sizeof ( joints ) );
@@ -126,11 +183,11 @@ public:
     {
       for ( int j = 0;j<4;j++ )
       {
-        m[i]+=constants::j2m[4*i+j]*Pos[j];  // Convert motor positions to joint positions
+        m[i]+=j2m[4*i+j]*Pos[j];  // Convert motor positions to joint positions
       }
     }
-    double actuators[]={m[0],m[2],m[1],m[3]};
-    vector<double> Pos2 ( actuators, actuators + sizeof ( actuators ) );
+    //double actuators[]={m[0],m[2],m[1],m[3]};
+    vector<double> Pos2 ( m, m + sizeof ( m ) );
     return Pos2;
 
   }
@@ -165,13 +222,16 @@ public:
     do 
     {
       time_now=getTime();
-      printf("%d\t",time_now);
+      //printf("%d\t",time_now);
     }while ( ( uint16_t ) ( time_now - time_last ) < CYCLE_COUNTS );
-    printf("***\n");
+    //printf("***\n");
     //printf("%d\n",(uint16_t)(time_now-time_last));
     time_last = time_now;
   }
 };
+
+
+
 
 Robot* rob_ptr;
 
@@ -209,7 +269,7 @@ private:
     vector<double> act=rob->getMotorPosition ( msg.joint_angles );
     for ( int i=0;i<4;i++ )
       qd[i]=act[i];
-
+    
   }
 public:
   double Kp[4];
@@ -377,7 +437,7 @@ int main ( int argc, char** argv )
   while ( 1 )
   {
     pthread_cond_wait ( &g_cond, &g_mutex );
-    printf("+++%d+++",rob_ptr->getTime());
+    //printf("+++%d+++",rob_ptr->getTime());
     ros::spinOnce();
     if ( kbhit() )
     {// keyboard command
@@ -385,7 +445,7 @@ int main ( int argc, char** argv )
       rewind ( stdout );
       ftruncate ( 1,0 );
     }
-    printf("%d+++\n",rob_ptr->getTime());
+    //printf("%d+++\n",rob_ptr->getTime());
     if ( c == 'q' || c=='Q' ) break;
   }
   //pthread_join ( servo, NULL );
