@@ -84,7 +84,7 @@ def diag_listener(msg):
 
     pf = 100
     vf = 100
-    tf = 100/0.184
+    tf = 500
     ef = 10
     lock.acquire()
     m1values.append(data[0]*pf)
@@ -93,7 +93,7 @@ def diag_listener(msg):
     m2values.pop(0)
     m3values.append(data[2]*pf)
     m3values.pop(0)
-    m4values.append(data[2]*pf)
+    m4values.append(data[14]*tf)
     m4values.pop(0)
     m1command.append(data[3]*pf)
     m1command.pop(0)
@@ -101,7 +101,7 @@ def diag_listener(msg):
     m2command.pop(0)
     m3command.append(data[5]*pf)
     m3command.pop(0)
-    m4command.append(data[5]*pf)
+    m4command.append(data[15]*tf)
     m4command.pop(0)
     m1error.append(ef*(data[0]-data[3]))
     m1error.pop(0)
@@ -109,7 +109,7 @@ def diag_listener(msg):
     m2error.pop(0)
     m3error.append(ef*(data[2]-data[5]))
     m3error.pop(0)
-    m4error.append(ef*(data[2]-data[5]))
+    m4error.append(data[16]*tf)
     m4error.pop(0)
     v1.append(data[6]*vf)
     v1.pop(0)
@@ -117,7 +117,7 @@ def diag_listener(msg):
     v2.pop(0)
     v3.append(data[8]*vf)
     v3.pop(0)
-    v4.append(data[8]*vf)
+    v4.append(data[16]*tf)
     v4.pop(0)
     t1.append(data[9]*tf)
     t1.pop(0)
@@ -125,7 +125,7 @@ def diag_listener(msg):
     t2.pop(0)
     t3.append(data[11]*tf)
     t3.pop(0)
-    t4.append(data[11]*tf)
+    t4.append(data[17]*tf)
     t4.pop(0)
     lock.release()
 

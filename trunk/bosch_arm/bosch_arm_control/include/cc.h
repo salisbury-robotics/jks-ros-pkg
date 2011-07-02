@@ -42,7 +42,12 @@ namespace constants{
   const double v_for_t_max = 10.0;     // D/A output volts - 10 volts = max torque
   const double v_lim = 2160;           // motor speed limit, 2160 degrees per second
   const double p_err_lim = 360;        // position err limited to 1 motor revolution
-
+  
+  const double L0=0.27;
+  const double L3=0.50;
+  const double L4=0.48;
+  const double L5=0.05;
+  const double rad_per_count=1.25663706e-3;
   const HBD board = 0;
 }
 #endif
