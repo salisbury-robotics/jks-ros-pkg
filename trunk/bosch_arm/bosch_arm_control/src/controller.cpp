@@ -23,7 +23,7 @@ using namespace std;
 #include <sstream>
 
 #include "cc.h"
-#include "control.h"
+//#include "control.h"
 #include "daq.h"
 
 using namespace std;
@@ -151,6 +151,65 @@ static Mode mode = NONE;
 
 pthread_t servo;
 pthread_t robot;
+
+vector<double> get_Joint_Pos(void){
+    double motors [] = {q1d,q3d,q2d,q4d};
+    double joints [] = {0.0,0.0,0.0,0.0};
+    for(int i = 0;i<4;i++){
+        for (int j = 0;j<4;j++){
+            joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+        }
+    }
+    vector<double> Pos(joints, joints + sizeof(joints));
+    return Pos;
+}
+
+vector<double> get_Joint_Pos_Actual(void){
+    double motors [] = {q1,q3,q2,q4};
+    double joints [] = {0.0,0.0,0.0,0.0};
+    for(int i = 0;i<4;i++){
+        for (int j = 0;j<4;j++){
+            joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+        }
+    }
+    vector<double> Pos(joints, joints + sizeof(joints));
+    return Pos;
+}
+
+// vector<double> get_Joint_Vel(void){
+//     double motors [] = {v1,v3,v2,v4};
+//     double joints [] = {0.0,0.0,0.0,0.0};
+//     for(int i = 0;i<4;i++){
+//         for (int j = 0;j<4;j++){
+//             joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
+//         }
+//     }
+//     vector<double> Pos(joints, joints + sizeof(joints));
+//     return Pos;
+// }
+
+void set_Joint_Pos(vector<double> Pos){
+    double motors [] = {0.0,0.0,0.0,0.0};
+    for(int i = 0;i<4;i++){
+        for (int j = 0;j<4;j++){
+            motors[i]+=constants::j2m[4*i+j]*Pos[j];  // Convert motor positions to joint positions
+        }
+    }
+    q1d = motors[0];
+    q3d = motors[1];
+    q2d = motors[2];
+    q4d = motors[3];
+    //cout<<motors[0]<<','<<motors[1]<<','<<motors[2]<<','<<motors[3]<<endl;
+}
+
+vector<double> get_Joint_Vel(void){
+    double array[] = { v1, v2 - v3, v2 + v3, v4 };
+    vector<double> Vel(array, array + sizeof(array));
+
+    return Vel;
+
+}
+
 
 
 int main(int argc, char** argv){
@@ -925,63 +984,5 @@ void serve_request(string command){
 
     for(int i = 0;i<4;i++)dest_pos[i]+=rel_move[i];
     set_Joint_Pos(dest_pos);
-}
-
-vector<double> get_Joint_Pos(void){
-    double motors [] = {q1d,q3d,q2d,q4d};
-    double joints [] = {0.0,0.0,0.0,0.0};
-    for(int i = 0;i<4;i++){
-        for (int j = 0;j<4;j++){
-            joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
-        }
-    }
-    vector<double> Pos(joints, joints + sizeof(joints));
-    return Pos;
-}
-
-vector<double> get_Joint_Pos_Actual(void){
-    double motors [] = {q1,q3,q2,q4};
-    double joints [] = {0.0,0.0,0.0,0.0};
-    for(int i = 0;i<4;i++){
-        for (int j = 0;j<4;j++){
-            joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
-        }
-    }
-    vector<double> Pos(joints, joints + sizeof(joints));
-    return Pos;
-}
-
-// vector<double> get_Joint_Vel(void){
-//     double motors [] = {v1,v3,v2,v4};
-//     double joints [] = {0.0,0.0,0.0,0.0};
-//     for(int i = 0;i<4;i++){
-//         for (int j = 0;j<4;j++){
-//             joints[i]+=constants::m2j[4*i+j]*motors[j];  // Convert motor positions to joint positions
-//         }
-//     }
-//     vector<double> Pos(joints, joints + sizeof(joints));
-//     return Pos;
-// }
-
-void set_Joint_Pos(vector<double> Pos){
-    double motors [] = {0.0,0.0,0.0,0.0};
-    for(int i = 0;i<4;i++){
-        for (int j = 0;j<4;j++){
-            motors[i]+=constants::j2m[4*i+j]*Pos[j];  // Convert motor positions to joint positions
-        }
-    }
-    q1d = motors[0];
-    q3d = motors[1];
-    q2d = motors[2];
-    q4d = motors[3];
-    //cout<<motors[0]<<','<<motors[1]<<','<<motors[2]<<','<<motors[3]<<endl;
-}
-
-vector<double> get_Joint_Vel(void){
-    double array[] = { v1, v2 - v3, v2 + v3, v4 };
-    vector<double> Vel(array, array + sizeof(array));
-
-    return Vel;
-
 }
 

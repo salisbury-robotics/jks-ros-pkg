@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>708</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -21,172 +21,442 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="2" column="4">
+    <item row="1" column="3" rowspan="2">
      <layout class="QGridLayout" name="gridLayout"/>
     </item>
-    <item row="2" column="2">
-     <layout class="QGridLayout" name="gridLayout_3">
-      <property name="sizeConstraint">
-       <enum>QLayout::SetDefaultConstraint</enum>
-      </property>
-      <item row="3" column="0">
-       <widget class="QPushButton" name="start_pause">
-        <property name="text">
-         <string>Pause</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
+    <item row="1" column="2" rowspan="2">
+     <layout class="QGridLayout" name="gridLayout2">
+      <item row="0" column="0">
        <widget class="QCheckBox" name="m1">
         <property name="text">
          <string>m1</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="0" column="2">
+       <widget class="QCheckBox" name="tm1">
+        <property name="text">
+         <string>tm1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
        <widget class="QCheckBox" name="m2">
         <property name="text">
          <string>m2</string>
         </property>
        </widget>
       </item>
-      <item row="12" column="0">
-       <widget class="QCheckBox" name="accX1">
-        <property name="text">
-         <string>accX1</string>
-        </property>
-       </widget>
-      </item>
-      <item row="13" column="0">
-       <widget class="QCheckBox" name="accY1">
-        <property name="text">
-         <string>accY1</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
+      <item row="2" column="0">
        <widget class="QCheckBox" name="m3">
         <property name="text">
          <string>m3</string>
         </property>
        </widget>
       </item>
-      <item row="14" column="0">
-       <widget class="QCheckBox" name="accZ1">
-        <property name="text">
-         <string>accZ1</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
+      <item row="3" column="0">
        <widget class="QCheckBox" name="m4">
         <property name="text">
          <string>m4</string>
         </property>
        </widget>
       </item>
-      <item row="15" column="0">
+      <item row="1" column="2">
+       <widget class="QCheckBox" name="tm2">
+        <property name="text">
+         <string>tm2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="tm3">
+        <property name="text">
+         <string>tm3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QCheckBox" name="tm4">
+        <property name="text">
+         <string>tm4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QCheckBox" name="q1">
+        <property name="text">
+         <string>q1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QCheckBox" name="q2">
+        <property name="text">
+         <string>q2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="q3">
+        <property name="text">
+         <string>q3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QCheckBox" name="q4">
+        <property name="text">
+         <string>q4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="2">
+       <widget class="QCheckBox" name="tq1">
+        <property name="text">
+         <string>tq1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="2">
+       <widget class="QCheckBox" name="tq2">
+        <property name="text">
+         <string>tq2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="2">
+       <widget class="QCheckBox" name="tq3">
+        <property name="text">
+         <string>tq3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="2">
+       <widget class="QCheckBox" name="tq4">
+        <property name="text">
+         <string>tq4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QCheckBox" name="x1">
+        <property name="text">
+         <string>x1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <widget class="QCheckBox" name="x2">
+        <property name="text">
+         <string>x2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QCheckBox" name="x3">
+        <property name="text">
+         <string>x3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="2">
+       <widget class="QCheckBox" name="tx1">
+        <property name="text">
+         <string>tx1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="2">
+       <widget class="QCheckBox" name="tx2">
+        <property name="text">
+         <string>tx2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="2">
+       <widget class="QCheckBox" name="tx3">
+        <property name="text">
+         <string>tx3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QCheckBox" name="accX1">
+        <property name="text">
+         <string>accX1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QCheckBox" name="accY1">
+        <property name="text">
+         <string>accY1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QCheckBox" name="accZ1">
+        <property name="text">
+         <string>accZ1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3">
        <widget class="QCheckBox" name="accX2">
         <property name="text">
          <string>accX2</string>
         </property>
        </widget>
       </item>
-      <item row="22" column="0">
-       <widget class="QCheckBox" name="t1">
-        <property name="text">
-         <string>t1</string>
-        </property>
-       </widget>
-      </item>
-      <item row="23" column="0">
-       <widget class="QCheckBox" name="t2">
-        <property name="text">
-         <string>t2</string>
-        </property>
-       </widget>
-      </item>
-      <item row="24" column="0">
-       <widget class="QCheckBox" name="t3">
-        <property name="text">
-         <string>t3</string>
-        </property>
-       </widget>
-      </item>
-      <item row="25" column="0">
-       <widget class="QCheckBox" name="t4">
-        <property name="text">
-         <string>t4</string>
-        </property>
-       </widget>
-      </item>
-      <item row="16" column="0">
+      <item row="4" column="3">
        <widget class="QCheckBox" name="accY2">
         <property name="text">
          <string>accY2</string>
         </property>
        </widget>
       </item>
-      <item row="17" column="0">
+      <item row="5" column="3">
        <widget class="QCheckBox" name="accZ2">
         <property name="text">
          <string>accZ2</string>
         </property>
        </widget>
       </item>
-      <item row="18" column="0">
-       <widget class="QCheckBox" name="v1">
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="vm1">
         <property name="text">
-         <string>v1</string>
+         <string>vm1</string>
         </property>
        </widget>
       </item>
-      <item row="19" column="0">
-       <widget class="QCheckBox" name="v2">
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="vm2">
         <property name="text">
-         <string>v2</string>
+         <string>vm2</string>
         </property>
        </widget>
       </item>
-      <item row="20" column="0">
-       <widget class="QCheckBox" name="v3">
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="vm3">
         <property name="text">
-         <string>v3</string>
+         <string>vm3</string>
         </property>
        </widget>
       </item>
-      <item row="21" column="0">
-       <widget class="QCheckBox" name="v4">
+      <item row="3" column="1">
+       <widget class="QCheckBox" name="vm4">
         <property name="text">
-         <string>v4</string>
+         <string>vm4</string>
         </property>
        </widget>
       </item>
-      <item row="8" column="0">
-       <widget class="QCheckBox" name="m1c">
+      <item row="4" column="1">
+       <widget class="QCheckBox" name="vq1">
         <property name="text">
-         <string>m1c</string>
+         <string>vq1</string>
         </property>
        </widget>
       </item>
-      <item row="9" column="0">
-       <widget class="QCheckBox" name="m2c">
+      <item row="5" column="1">
+       <widget class="QCheckBox" name="vq2">
         <property name="text">
-         <string>m2c</string>
+         <string>vq2</string>
         </property>
        </widget>
       </item>
-      <item row="10" column="0">
-       <widget class="QCheckBox" name="m3c">
+      <item row="6" column="1">
+       <widget class="QCheckBox" name="vq3">
         <property name="text">
-         <string>m3c</string>
+         <string>vq3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QCheckBox" name="vq4">
+        <property name="text">
+         <string>vq4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <widget class="QCheckBox" name="vx1">
+        <property name="text">
+         <string>vx1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="1">
+       <widget class="QCheckBox" name="vx2">
+        <property name="text">
+         <string>vx2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1">
+       <widget class="QCheckBox" name="vx3">
+        <property name="text">
+         <string>vx3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="0">
+       <widget class="QCheckBox" name="em1">
+        <property name="text">
+         <string>em1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="1">
+       <widget class="QCheckBox" name="em2">
+        <property name="text">
+         <string>em2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="2">
+       <widget class="QCheckBox" name="em3">
+        <property name="text">
+         <string>em3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="3">
+       <widget class="QCheckBox" name="em4">
+        <property name="text">
+         <string>em4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="0">
+       <widget class="QCheckBox" name="eq1">
+        <property name="text">
+         <string>eq1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="1">
+       <widget class="QCheckBox" name="eq2">
+        <property name="text">
+         <string>eq2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="2">
+       <widget class="QCheckBox" name="eq3">
+        <property name="text">
+         <string>eq3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="3">
+       <widget class="QCheckBox" name="eq4">
+        <property name="text">
+         <string>eq4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0">
+       <widget class="QCheckBox" name="ex1">
+        <property name="text">
+         <string>ex1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="1">
+       <widget class="QCheckBox" name="ex2">
+        <property name="text">
+         <string>ex2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="2">
+       <widget class="QCheckBox" name="ex3">
+        <property name="text">
+         <string>ex3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="3">
+       <widget class="QPushButton" name="start_pause">
+        <property name="text">
+         <string>Pause</string>
         </property>
        </widget>
       </item>
       <item row="11" column="0">
-       <widget class="QCheckBox" name="m4c">
+       <widget class="QCheckBox" name="cm1">
         <property name="text">
-         <string>m4c</string>
+         <string>cm1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="1">
+       <widget class="QCheckBox" name="cm2">
+        <property name="text">
+         <string>cm2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="2">
+       <widget class="QCheckBox" name="cm3">
+        <property name="text">
+         <string>cm3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="3">
+       <widget class="QCheckBox" name="cm4">
+        <property name="text">
+         <string>cm4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0">
+       <widget class="QCheckBox" name="cq1">
+        <property name="text">
+         <string>cq1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="1">
+       <widget class="QCheckBox" name="cq2">
+        <property name="text">
+         <string>cq2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="2">
+       <widget class="QCheckBox" name="cq3">
+        <property name="text">
+         <string>cq3</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="3">
+       <widget class="QCheckBox" name="cq4">
+        <property name="text">
+         <string>cq4</string>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="0">
+       <widget class="QCheckBox" name="cx1">
+        <property name="text">
+         <string>cx1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="1">
+       <widget class="QCheckBox" name="cx2">
+        <property name="text">
+         <string>cx2</string>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="2">
+       <widget class="QCheckBox" name="cx3">
+        <property name="text">
+         <string>cx3</string>
         </property>
        </widget>
       </item>
