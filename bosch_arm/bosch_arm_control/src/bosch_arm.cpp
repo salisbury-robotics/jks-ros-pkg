@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include "bosch_arm.h"
-#include "cc.h"
+#include "cc2.h"
 #include "daq.h"
 #include "ros/ros.h"
 

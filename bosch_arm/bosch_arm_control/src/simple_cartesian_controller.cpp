@@ -38,10 +38,8 @@ using namespace std;
     {
       Kp[i]=10;
       Kv[i] = 0.1;
-      xd[i]=0;
       v[i]=0;
-      dx[i]=0;
-      x[i]=0;
+      dx[i]=0;     
       f[i]=0;
       xl[i]=x[i];
       xd[i]=x[i];
@@ -134,9 +132,20 @@ using namespace std;
       out<<v[i]<<",";
     for (int i=0;i<3;i++)
       out<<f[i]<<",";
-    out << ts.tv_sec << ','<< ts.tv_nsec;
+    for (int i=0;i<3;i++)
+      out<<(x[i]-xd[i])<<",";
     for (int i=0;i<4;i++)
-      out<<','<<rob->torque[i];
+      out<<q[i]<<",";
+    for (int i=0;i<4;i++)
+      out<<tj[i]<<",";
+    for (int i=0;i<4;i++)
+      out<<rob->q[i]<<",";
+    for (int i=0;i<4;i++)
+      out<<rob->v[i]<<",";
+    for (int i=0;i<4;i++)
+      out<<rob->torque[i]<<",";
+    out << ts.tv_sec << ','<< ts.tv_nsec;
+
     log = out.str();
     diag.data=log;
     diag.header.stamp.sec=ts.tv_sec;

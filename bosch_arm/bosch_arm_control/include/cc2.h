@@ -25,24 +25,31 @@ namespace constants{
   const double r2 = 0.12524850894632;  // joint 2-3-4, turns per motor turn
   const double r3 = 15.9206349206349;  // joint 1 motor turns per joint turn
   const double r4 = 7.98412698412698;  // joint 2-3-4, motor turns per joint turn
-  const double m2j [16] = {            // Motor to joint position conversion matrix
-       r1, 0.0, 0.0, 0.0,
-      -r1,  r2, 0.0, 0.0,
-      0.0, -r2,  r2, 0.0,
-      0.0, 0.0, 0.0,  r2
-  };
-  const double j2m [16] = {            // Joint to motor position conversion matrix
-       r3, 0.0, 0.0, 0.0,
-       r4,  r4, 0.0, 0.0,
-       r4,  r4,  r4, 0.0,
-      0.0, 0.0, 0.0,  r4
-  };
+const double m2j[16] =              // Motor to joint position conversion matrix
+{
+  r1, 0.0, 0.0, 0.0,
+  -r1, 0.0,  r2, 0.0,
+  0.0, r2,  -r2, 0.0,
+  0.0, 0.0, 0.0,  r2
+};
+const double j2m [16] =              // Joint to motor position conversion matrix
+{
+  r3, 0.0, 0.0, 0.0,
+  r4,  r4,  r4, 0.0,
+  r4,  r4, 0.0, 0.0,
+  0.0, 0.0, 0.0,  r4
+};
 
   const double t_max = 0.184;          // N-m - max @ 100% duty for RE 40
   const double v_for_t_max = 10.0;     // D/A output volts - 10 volts = max torque
   const double v_lim = 2160;           // motor speed limit, 2160 degrees per second
   const double p_err_lim = 360;        // position err limited to 1 motor revolution
-
+  
+  const double L0=0.27;
+  const double L3=0.50;
+  const double L4=0.48;
+  const double L5=0.05;
+  const double rad_per_count=1.25663706e-3;
   const HBD board = 0;
 }
 #endif
