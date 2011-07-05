@@ -51,5 +51,6 @@ const double j2m [16] =              // Joint to motor position conversion matri
   const double L5=0.05;
   const double rad_per_count=1.25663706e-3;
   const HBD board = 0;
+  const double pi=3.14159265358979;
 }
 #endif

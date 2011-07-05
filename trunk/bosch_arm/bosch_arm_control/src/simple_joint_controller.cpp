@@ -18,7 +18,10 @@ using namespace std;
   void SimpleJointController::singlePtCmdCallBack(const bosch_arm_control::PointCmd& msg)
   {
     for (int i=0;i<4;i++)
+    {
       qd[i]=msg.coordinates[i];
+      vd[i]=msg.velocity[i];
+    }
   }
 
 
@@ -26,26 +29,34 @@ using namespace std;
   {
     rob=ptr;
     diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ("/diagnostics",100);
-    sigle_point_cmd_sub = n.subscribe("/cartesian_point_cmd",3, &SimpleJointController::singlePtCmdCallBack, this);
+    sigle_point_cmd_sub = n.subscribe("/joint_point_cmd",3, &SimpleJointController::singlePtCmdCallBack, this);
     joint_state_pub =  n.advertise<bosch_arm_control::ArmState> ("/joint_states",100);
+    js.position.resize(4);
+    js.velocity.resize(4);
+    js.effort.resize(4);
+    Kp[0]=20;
+    Kp[1]=20;
+    Kp[2]=5;
+    Kp[3]=10;
+    for(int i=0;i<4;i++)
+    {
+      Kv[i]=0.1;
+      Kp[i]*=1;
+    }
   }
   void SimpleJointController::start()
   {
     rob->initialize();
     rob->motor2JointPosition(rob->q,q);
-    Kp[0]=20;
-    Kp[1]=20;
-    Kp[2]=5;
-    Kp[3]=10;
+    
     for (int i=0;i<4;i++)
     {
-      //Kp[i]=10;
-      Kv[i]= 0.1;
       v[i]=0;
       dq[i]=0;     
       f[i]=0;
       ql[i]=q[i];
       qd[i]=q[i];
+      vd[i]=v[i];
     }
   }
 
@@ -65,7 +76,7 @@ using namespace std;
 
       dq[i]=qd[i]-q[i];
       v[i]= (q[i]-ql[i]) /rob->dt;
-      f[i]=Kp[i]*dq[i]-Kv[i]*v[i];
+      f[i]=Kp[i]*dq[i]-Kv[i]*(v[i]-vd[i]);
     }
 
     //compute the torque at motor space
@@ -129,10 +140,17 @@ using namespace std;
     diag.header.stamp.sec=ts.tv_sec;
     diag.header.stamp.nsec=ts.tv_nsec;
     diagnostic_pub.publish(diag);
-    vector<double> cur_pos_act(q,q+4);
+    //vector<double> cur_pos_act(q,q+4);
     js.header.stamp.sec=ts.tv_sec;
     js.header.stamp.nsec=ts.tv_nsec;
-    js.position=cur_pos_act;
+    //js.position=cur_pos_act;
+    
+    for(int i=0;i<4;i++)
+    {
+      js.position[i]=q[i];
+      js.velocity[i]=v[i];
+      js.effort[i]=f[i];
+    }
     joint_state_pub.publish(js);
   }
   void SimpleJointController::stop()
