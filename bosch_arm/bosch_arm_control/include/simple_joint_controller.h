@@ -26,6 +26,7 @@ public:
   double Kv[4];
   double qd[4];
   double v[4];
+  double vd[4];
   double f[4];
   timespec ts;
 

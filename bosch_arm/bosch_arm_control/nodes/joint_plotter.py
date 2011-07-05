@@ -414,7 +414,7 @@ if __name__=="__main__":
     cq_scale= 100
     vq_scale= 100
     tq_scale= 100
-    eq_scale= 100
+    eq_scale= 5000
     x_scale = 100
     cx_scale= 100
     vx_scale= 100
