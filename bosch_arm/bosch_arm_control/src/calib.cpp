@@ -12,7 +12,7 @@ ros::Publisher joint_cmd_pub;
 bosch_arm_control::PointCmd cmd;
 bosch_arm_control::ArmState js;
 
-double rate=500;
+double rate=360;
 ros::Rate* loop_rate;
 
 void jointStateCallBack(const bosch_arm_control::ArmState& msg)
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
   double rel[]={0,0,0,constants::pi};
   double torque[4];
   //move_joints_relative(rel,60, torque);
-  double v[]={0,0,0,constants::pi/180};
+  double v[]={0,0,0,constants::pi/30};
   joint_linear_motion(v,0.2);
 
 

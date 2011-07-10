@@ -122,7 +122,7 @@ static double Kp2 = 0.013;
 static double Kv2 = 0.0001; //0.0000091;
 static double Kp3 = 0.013;
 static double Kv3 = 0.0001; //0.0000091;
-static double Kp4 = 0.013; //0.036;
+static double Kp4 = 0.0; //0.036;
 static double Kv4 = 0.0001; //0.000011;
 
 static bool joint_space = true;
