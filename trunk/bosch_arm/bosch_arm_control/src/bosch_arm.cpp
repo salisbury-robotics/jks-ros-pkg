@@ -30,12 +30,48 @@ void BoschArm::initialize()
   home_offsets[1]=read_encoder(1) *rad_per_count;
   home_offsets[2]=read_encoder(3) *rad_per_count;
   home_offsets[3]=read_encoder(2) *rad_per_count;
+  //using a IIR filter: [b3,a3]=butter(4,0.05)
+  //it caused some non-vanishing noise. it cuts off too much frequency.
+//   filter_order=4;
+//   double tmp_a[]={ 1.0000,   -3.5897,    4.8513,   -2.9241,    0.6630};
+//   double tmp_b[]={  0.0312e-3,    0.1250e-3,    0.1874e-3,    0.1250e-3,    0.0312e-3};
+  //using a IIR filter: [b3,a3]=butter(4,0.2)
+  //this one generates buzzing
+//   filter_order=4;
+//   double tmp_b[]={ 0.0048,    0.0193,    0.0289,    0.0193,    0.0048};
+//   double tmp_a[]={ 1.0000,   -2.3695,    2.3140,   -1.0547,    0.1874};
+  //using a IIR filter: [b3,a3]=butter(2,0.2)
+  //this one generates buzzing
+//   filter_order=2;
+//   double tmp_b[]={ 0.0675,    0.1349,    0.0675};
+//   double tmp_a[]={ 1.0000,   -1.1430,    0.4128};
+ // using a IIR filter: [b3,a3]=butter(2,0.05)
+  filter_order=2;
+  double tmp_b[]={ 0.0055,    0.0111,    0.0055};
+  double tmp_a[]={ 1.0000,   -1.7786,    0.8008};
+//   filter_order=1;
+//   double tmp_b[]={ 0.5,    0.5};
+//   double tmp_a[]={ 1.0000,   0.0000};
+  a=new double[filter_order+1];
+  b=new double[filter_order+1];
+  for(int i=0;i<filter_order+1;i++)
+  {
+    a[i]=tmp_a[i];
+    b[i]=tmp_b[i];
+  }
   for (int i=0;i<4;i++)
   {
     q[i]=0;
     ql[i]=0;
     v[i]=0;
     t_lims[i]=0.4*constants::t_max;
+    x_his[i]=new double[filter_order];
+    y_his[i]=new double[filter_order];
+    for(int j=0;j<filter_order;j++)
+    {
+      x_his[i][j]=0;
+      y_his[i][j]=0;
+    }
   }
   double vlim=constants::v_lim;
   v_lims[0]=vlim;
@@ -172,6 +208,15 @@ void BoschArm::enforce_safety()
 //       truncate(torque[i],torque[i]/ratio);
 //     }
 }
+
+/*
+b2=fir1(4,0.4)
+
+b2 =
+
+    0.0101    0.2203    0.5391    0.2203    0.0101
+*/
+
 void BoschArm::update()
 {
   time_now2=S626_CounterReadLatch(constants::board0,constants::cntr_chan);
@@ -181,11 +226,35 @@ void BoschArm::update()
   q[3] = read_encoder(2) *rad_per_count - home_offsets[3];
   dt=convertToWallTime(time_now2,time_last2);
   time_last2=time_now2;
+  
+  double tmp[4];
+  
+  
+  //calculate raw v;
   for (int i=0;i<4;i++)
   {
     v[i]= (q[i]-ql[i]) /dt;
     ql[i]=q[i];
   }
+  
+  //filter v;
+  for(int i=0;i<4;i++)
+  {
+    tmp[i]=b[0]*v[i];
+    for(int j=0;j<filter_order;j++)
+      tmp[i]+=b[j+1]*x_his[i][j];
+    for(int j=0;j<filter_order;j++)
+      tmp[i]-=a[j+1]*y_his[i][j];
+    for(int j=filter_order;j>0;j--)
+      x_his[i][j]=x_his[i][j-1];
+    x_his[i][0]=v[i];
+    for(int j=filter_order;j>0;j--)
+      y_his[i][j]=y_his[i][j-1];
+    y_his[i][0]=tmp[i];
+    //q[i]=tmp[i];
+    v[i]=y_his[i][0];    
+  }
+  
   enforce_safety();
   write_torque(0,torque[0]);
   write_torque(1,torque[1]);

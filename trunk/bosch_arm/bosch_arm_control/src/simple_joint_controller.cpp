@@ -38,11 +38,15 @@ using namespace std;
     Kp[1]=20;
     Kp[2]=5;
     Kp[3]=10;
-    for(int i=0;i<4;i++)
-    {
-      Kv[i]=0.1;
-      Kp[i]*=1;
-    }
+    Kv[0]=0.1;
+    Kv[1]=0.1;
+    Kv[2]=0.1;
+    Kv[3]=0.1;
+//     for(int i=0;i<4;i++)
+//     {
+//       //Kv[i]=Kp[i]/100;
+//       Kp[i]*=2;
+//     }
   }
   void SimpleJointController::start()
   {
@@ -70,12 +74,13 @@ using namespace std;
     for (int i=0;i<4;i++)
       ql[i]=q[i];
     rob->motor2JointPosition(rob->q,q);
+    rob->motor2JointPosition(rob->v,v);
     //PD control in cartesian space
     for (int i=0;i<4;i++)
     {
 
       dq[i]=qd[i]-q[i];
-      v[i]= (q[i]-ql[i]) /rob->dt;
+      //v[i]= (q[i]-ql[i]) /rob->dt;
       f[i]=Kp[i]*dq[i]-Kv[i]*(v[i]-vd[i]);
     }
 

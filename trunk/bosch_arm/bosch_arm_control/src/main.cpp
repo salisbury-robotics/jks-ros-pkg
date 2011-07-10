@@ -14,7 +14,7 @@ static int quit = 0;
 pthread_t servo;
 BoschArm *rob_ptr;
 SimpleJointController *ctr_ptr;
-
+//SimpleCartesianController *ctr_ptr;
 int kbhit(void)
 {
   struct termios oldt, newt;

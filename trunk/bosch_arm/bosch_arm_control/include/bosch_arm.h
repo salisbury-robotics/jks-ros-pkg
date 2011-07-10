@@ -9,6 +9,11 @@ class BoschArm
 private:
   double home_offsets[4];
   double ql[4];
+  int filter_order;
+  double* a;
+  double* b;
+  double* x_his[4];
+  double* y_his[4];
   uint16_t time_now;
   uint16_t time_last; //for wait
   uint16_t time_now2;
