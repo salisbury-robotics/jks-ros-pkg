@@ -1,0 +1,14 @@
+data=load(fname,'\t');
+ftq4=fft(data(900:end,17));
+ftq4(102:end-100)=0;
+data2=ifft(ftq4);
+refq=data(901:10:end,5);
+reft=data2(1:10:end);
+a=ceil(refq(1)/0.01)*0.01;
+b=floor(refq(end)/0.01)*0.01;
+x=a:0.01:b;
+y=interp1(refq,reft,x);
+fid=fopen(fout,'w');
+fprintf(fid,'%f,%f,%f\n',[a,0.01,b]);
+fprintf(fid,'%f\n',y');
+fclose(fid);
