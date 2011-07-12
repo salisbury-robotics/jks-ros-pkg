@@ -50,6 +50,7 @@ public:
   //get the hardware time
   uint16_t getTime();
   void motor2JointPosition(const double* motors, double* joints);
+  void motor2JointVelocity(const double* motors, double* joints);
   void joint2TipPosition(const double* joints, double* tip);
   void getJacobianJoint2Tip(const double* joints, double* jacobian);
   //a helper function

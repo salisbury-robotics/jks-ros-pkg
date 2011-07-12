@@ -707,7 +707,7 @@ if __name__=="__main__":
 
     listen()
 
-    plot.setAxisScale(QwtPlot.yLeft, -150, 150)
+    plot.setAxisScale(QwtPlot.yLeft, -320, 320)
     plot.start()
 
     window.connect(ui.start_pause, SIGNAL("released()"), toggleplot)
