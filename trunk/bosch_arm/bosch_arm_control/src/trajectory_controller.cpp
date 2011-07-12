@@ -60,12 +60,6 @@ void TrajectoryController::start2()
   state=CALIBRATION;
   //state=SERVO;
   vector<double> rel(4,0);
-  //from -3.14 to 3.14
-  //friction[3]=new double[629];
-  //count[3]=new int[629];
-  //memset(friction,sizeof(friction),0);
-  //memset(count,sizeof(count),0);
-  
   
   rel[0]=0-q[0];
   rel[1]=0-q[1];
@@ -79,29 +73,11 @@ void TrajectoryController::start2()
   rel[2]=0;
   rel[3]=5.0;
   t=floor(abs(rel[3])/M_PI*20*1000);
-  forward_act=new MoveRelAction(rel,t);  
-  forward_act->calibration=true;
-  forward_act->name=string("forward");
-  forward_act->f[3]=new double[629];
-  forward_act->count[3]=new double[629];
-  for(int i=0;i<629;i++)
-  {
-    forward_act->f[3][i]=0;
-    forward_act->count[3][i]=0;
-  }
+  forward_act=new MoveRelAction(rel,this,t,true,"forward"); 
   act_que.push_back(forward_act);  
   
   rel[3]=-5.0;
-  backward_act=new MoveRelAction(rel,t);  
-  backward_act->calibration=true;
-  backward_act->name=string("backward");
-  backward_act->f[3]=new double[629];
-  backward_act->count[3]=new double[629];
-  for(int i=0;i<629;i++)
-  {
-    backward_act->f[3][i]=0;
-    backward_act->count[3][i]=0;
-  }
+  backward_act=new MoveRelAction(rel,this,t,true,"backward");  
   act_que.push_back(backward_act);  
   
   
@@ -141,17 +117,8 @@ void TrajectoryController::start()
   rel[2]=0;
   rel[3]=4.7;
   t=floor(abs(rel[3])/M_PI*20*1000);
-  forward_act=new MoveRelAction(rel,t);  
-  forward_act->calibration=true;
-  forward_act->name=string("forward");
-  forward_act->f[3]=new double[629];
-  forward_act->count[3]=new double[629];
-  for(int i=0;i<629;i++)
-  {
-    forward_act->f[3][i]=0;
-    forward_act->count[3][i]=0;
-  }
-  act_que.push_back(forward_act);  
+  grav_act[3]=new MoveRelAction(rel,this,t,true,"grav3");
+  act_que.push_back(grav_act[3]);  
   
   rel[0]=-M_PI/2;
   rel[1]=0;
@@ -165,25 +132,18 @@ void TrajectoryController::start()
   rel[2]=0;
   rel[3]=4.7;
   t=floor(abs(rel[3])/M_PI*20*1000);
-  horiz_act=new MoveRelAction(rel,t);  
-  horiz_act->calibration=true;
-  horiz_act->name=string("horiz");
-  horiz_act->f[3]=new double[629];
-  horiz_act->count[3]=new double[629];
-  for(int i=0;i<629;i++)
-  {
-    horiz_act->f[3][i]=0;
-    horiz_act->count[3][i]=0;
-  }
-  act_que.push_back(horiz_act);  
+  fric_act[3]=new MoveRelAction(rel,this,t,true,"fric3");  
+  act_que.push_back(fric_act[3]);  
+  
   
   
   rel[0]=M_PI/2;
-  rel[1]=0-q[1];
+  rel[1]=0;
   rel[2]=M_PI/2;
   rel[3]=-4.7-q[3];
   t=8000;
   act_que.push_back(new MoveRelAction(rel,t));
+  
   
   
   cur_act=act_que.front();
@@ -209,23 +169,7 @@ void TrajectoryController::update()
     //update desired position
     if (cur_act->finished)
     {
-      if(cur_act->calibration)
-      {
-        for(int i=0;i<629;i++)
-        {
-          if(cur_act->count[3][i]==0)
-            continue;
-          cur_act->f[3][i]=cur_act->f[3][i]/cur_act->count[3][i];
-        }
-        ofstream out;
-        string name=cur_act->name;
-        name.append(".txt");
-        out.open(name.c_str());
-        for(int i=0;i<629;i++)
-          out<<cur_act->f[3][i]<<endl;
-        out.close();
-      }
-      else      
+      if(!cur_act->calibration)
         delete cur_act;
       
       if (act_que.size()==0)
@@ -247,12 +191,7 @@ void TrajectoryController::update()
     }
     //update torque command
     PDControl();
-    if(cur_act->calibration)
-    {
-      int theta=round(q[3]/0.01)+314;
-      cur_act->count[3][theta]++;
-      cur_act->f[3][theta]+=f[3];
-    }
+    
     logging();
   }
   else if (state==SERVO)
@@ -272,7 +211,7 @@ void TrajectoryController::gravity_compensation()
     f[i]=Kp[i]*dq[i]-Kv[i]*(v[i]-vd[i]);
   }
   int theta=round(q[3]/0.01)+314;
-  f[3]=forward_act->f[3][theta]-horiz_act->f[3][theta];
+  f[3]=grav_act[3]->f[3][theta]-fric_act[3]->f[3][theta];
  
   for (int i=0;i<4;i++)
   {
