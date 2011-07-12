@@ -99,6 +99,17 @@ void BoschArm::motor2JointPosition(const double* motors, double* joints)
     joints[i]=0;
     for (int j=0;j<4;j++)
       joints[i]+=m2j[4*i+j]*motors[j];
+    joints[i]+=constants::q_off[i];
+  }
+}
+
+void BoschArm::motor2JointVelocity(const double* motors, double* joints)
+{
+  for (int i=0;i<4;i++)
+  {
+    joints[i]=0;
+    for (int j=0;j<4;j++)
+      joints[i]+=m2j[4*i+j]*motors[j];
   }
 }
 

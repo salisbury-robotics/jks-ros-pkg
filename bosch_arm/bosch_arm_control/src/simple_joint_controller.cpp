@@ -74,7 +74,7 @@ using namespace std;
     for (int i=0;i<4;i++)
       ql[i]=q[i];
     rob->motor2JointPosition(rob->q,q);
-    rob->motor2JointPosition(rob->v,v);
+    rob->motor2JointVelocity(rob->v,v);
     //PD control in cartesian space
     for (int i=0;i<4;i++)
     {

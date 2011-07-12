@@ -22,9 +22,9 @@
   <depend package="realtime_tools"/>
   <depend package="diagnostic_msgs"/>
   <depend package="diagnostic_updater"/>
-  <depend package="trajectory_msgs"/>
-  <depend package="ethercat_hardware"/-->
   
+  <depend package="ethercat_hardware"/-->
+  <depend package="trajectory_msgs"/>
   <depend package="bma180"/>
   <depend package="rosbag"/>
 </package>

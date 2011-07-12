@@ -52,5 +52,7 @@ const double j2m [16] =              // Joint to motor position conversion matri
   const double rad_per_count=1.25663706e-3;
   const HBD board = 0;
   const double pi=3.14159265358979;
+  //the offset from the zero position in forward kinematics to the fixer.
+  const double q_off[4]={-1.6116201155912731, 0.064300169225135484, -1.000068247300421, -2.3054768156211152};
 }
 #endif

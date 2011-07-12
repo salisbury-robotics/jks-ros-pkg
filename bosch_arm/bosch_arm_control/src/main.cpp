@@ -7,14 +7,16 @@
 #include "bosch_arm.h"
 #include "simple_cartesian_controller.h"
 #include "simple_joint_controller.h"
+#include "trajectory_controller.h"
 using namespace std;
 pthread_mutex_t g_mutex;
 pthread_cond_t  g_cond;
 static int quit = 0;
 pthread_t servo;
 BoschArm *rob_ptr;
-SimpleJointController *ctr_ptr;
+TrajectoryController *ctr_ptr;
 //SimpleCartesianController *ctr_ptr;
+//SimpleJointController *ctr_ptr;
 int kbhit(void)
 {
   struct termios oldt, newt;
@@ -71,7 +73,8 @@ int main(int argc, char** argv)
   //ros::NodeHandle n;
   rob_ptr=new BoschArm();
   //ctr_ptr=new SimpleCartesianController(rob_ptr);
-  ctr_ptr=new SimpleJointController(rob_ptr);
+  //ctr_ptr=new SimpleJointController(rob_ptr);
+  ctr_ptr=new TrajectoryController(rob_ptr);
   //diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ( "/diagnostics",100 );
   //ros::Subscriber sigle_point_cmd_sub = n.subscribe ( "/single_point_cmd",3, &SimplePDController::singlePtCmdCallBack,ctr_ptr );
   int result;
