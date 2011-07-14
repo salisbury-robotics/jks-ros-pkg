@@ -1,1 +1,4 @@
 RESOLVE: SOURCE=/home/qiaozhao/bosch_arm/bosch_arm_control/src BUILD=/home/qiaozhao/bosch_arm/bosch_arm_control
+/opt/ros/diamondback/stacks/geometry/kdl/include
+/home/qiaozhao/bosch_arm/bosch_arm_control/msg_gen/cpp/include
+/opt/ros/diamondback/stacks/ros_comm/clients/cpp/roscpp/include

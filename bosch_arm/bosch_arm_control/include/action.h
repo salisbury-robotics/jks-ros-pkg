@@ -4,23 +4,16 @@
 #include <string>
 #include <fstream>
 #include <vector>
-class MoveRelAction;
+class MoveAction;
 #include "trajectory_controller.h"
 #include <bosch_arm_control/PointCmd.h>
 using namespace std;
 
-
-
-class MoveRelAction
+class MoveAction
 {
-  
 public:
   bool finished;
   bool calibration;
-  bosch_arm_control::PointCmd cmd;
-  double init_cmd_pos[4];
-  double rel[4];
-  double acc[4];
   double* f[4];
   double* count[4];
   int t_acc;
@@ -30,11 +23,42 @@ public:
   int t;
   std::string name;
   TrajectoryController *ctr;
-  MoveRelAction(std::vector<double> relpos,int t);
+  bosch_arm_control::PointCmd cmd;
+  
+ virtual void initialize()=0;
+ virtual void update()=0;
+  
+};
+
+class MoveRelAction: public MoveAction
+{
+  
+public:
+
+  double init_cmd_pos[4];
+  double rel[4];
+  double acc[4];
+  MoveRelAction(std::vector<double> relpos,TrajectoryController* ptr,int t);
   MoveRelAction(std::vector<double> relpos,TrajectoryController* ptr,int t,bool calib,const char* str);
   
-  void initialize(const double *pos);
+  void initialize();
   void update();
+};
+
+class MoveAbsAction: public MoveAction
+{
+  
+public:
+
+  double init_cmd_pos[4];
+  double des[4];
+  double acc[4];
+  MoveAbsAction(std::vector<double> relpos,TrajectoryController* ptr,int t);
+  MoveAbsAction(std::vector<double> relpos,TrajectoryController* ptr,bool calib,const char* str);
+  MoveAbsAction(const char* str){name.assign(str);}
+  void initialize();
+  void update();
+  void loadTrace();
 };
 
 #endif

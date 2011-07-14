@@ -103,6 +103,8 @@ void BoschArm::motor2JointPosition(const double* motors, double* joints)
   }
 }
 
+
+
 void BoschArm::motor2JointVelocity(const double* motors, double* joints)
 {
   for (int i=0;i<4;i++)

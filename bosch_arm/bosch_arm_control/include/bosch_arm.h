@@ -4,6 +4,7 @@
 #ifndef BOSCH_ARM_H
 #define BOSCH_ARM_H
 #include <stdint.h> //for unit16_t
+
 class BoschArm
 {
 private:
@@ -22,14 +23,15 @@ private:
   //double r2;  // joint 2-3-4, turns per motor turn
   //double r3;  // joint 1 motor turns per joint turn
   //double r4;  // joint 2-3-4, motor turns per joint turn  
-  double L0; //height of joint 1
-  double L3; //length of link 3
-  double L4; //length of link 4 in x direction
-  double L5; //length of link 4 in y direction
+  
   double rad_per_count; //rads per encoder count  
   void safe_exit(const char* msg);
   void enforce_safety();
 public:
+  double L0; //height of joint 1
+  double L3; //length of link 3
+  double L4; //length of link 4 in x direction
+  double L5; //length of link 4 in y direction
   double q[4];//actuator position
   double v[4];//actuator speed
   double torque[4];//actuator torque
