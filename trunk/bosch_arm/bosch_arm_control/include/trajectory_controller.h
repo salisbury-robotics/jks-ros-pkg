@@ -10,7 +10,8 @@
 class TrajectoryController;
 #include "action.h"
 
-
+#include <kdl/frames.hpp>
+using namespace KDL;
 
 class TrajectoryController
 {
@@ -28,16 +29,29 @@ private:
   ros::Subscriber sigle_point_cmd_sub;
   bosch_arm_control::Diagnostic diag;
   bosch_arm_control::ArmState js;
-  std::deque<MoveRelAction*> act_que;
-  MoveRelAction* cur_act;
-  MoveRelAction* grav_act[4];
-  MoveRelAction* fric_act[4];
-  MoveRelAction* forward_act;
-  MoveRelAction* backward_act;
-  MoveRelAction* horiz_act;
+  std::deque<MoveAction*> act_que;
+  MoveAction* cur_act;
+  MoveAction* grav_act[4];
+  MoveAction* fric_act[4];
+  MoveAction* forward_act;
+  MoveAction* backward_act;
+  MoveAction* horiz_act;
+  MoveAction* cali1_act;
+  MoveAction* cali2_act;
+  MoveAction* cali3_act;
+  double joint_limit_low[4];
+  double joint_limit_high[4];
   void singlePtCmdCallBack(const bosch_arm_control::PointCmd& msg);
   //int cycle_count;
 public:
+  //0 base frame, 1-4 joint fram, 5 tip frame
+  Frame frm_home[6];
+  //frm_cur[0] the tf from base to world. g is in world frame
+  Frame frm_cur[6];
+  Frame frm0[6];//the transform from i to world
+  Frame frmn[5];//the transform from frame 5 to i
+  Vector jacobian[4];
+  Vector gc[4];//the gravity compensation vector.
   double q[4];
   double Kp[4];
   double Kv[4];
@@ -47,17 +61,21 @@ public:
   double vd[4];
   double f[4];
   timespec ts;
-  enum {CALIBRATION, SERVO};
+  enum {CALIBRATION, SERVO,LOADTRACE};
   int state;
   TrajectoryController(BoschArm *ptr);
+  void updateKinematics();
   void start();
   void start2();
   void update();
   void PDControl();
   void floating();
   void gravity_compensation();
+  void calcGravityCompensation();
   void logging();  
   void stop();
+  void genCalibTraj1();
+  void genCalibTraj2();
   
 };
 #endif

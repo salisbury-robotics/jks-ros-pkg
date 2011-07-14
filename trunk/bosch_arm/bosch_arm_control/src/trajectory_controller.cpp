@@ -41,7 +41,7 @@ TrajectoryController::TrajectoryController(BoschArm *ptr)
   Kv[2]=0.1;
   Kv[3]=0.1;
 }
-void TrajectoryController::start2()
+void TrajectoryController::start()
 {
   rob->initialize();
   rob->motor2JointPosition(rob->q,q);
@@ -85,7 +85,7 @@ void TrajectoryController::start2()
   cur_act->initialize(qd);
   act_que.pop_front();;
 }
-void TrajectoryController::start()
+void TrajectoryController::start2()
 {
   rob->initialize();
   rob->motor2JointPosition(rob->q,q);
@@ -197,8 +197,8 @@ void TrajectoryController::update()
   else if (state==SERVO)
   {
     //PDControl();
-    //floating();
-    gravity_compensation();
+    floating();
+    //gravity_compensation();
     logging();
   }
 }
