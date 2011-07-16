@@ -7,7 +7,7 @@
 #include "bosch_arm.h"
 #include "simple_cartesian_controller.h"
 #include "simple_joint_controller.h"
-#include "trajectory_controller.h"
+#include "trajectory_controller3.h"
 using namespace std;
 pthread_mutex_t g_mutex;
 pthread_cond_t  g_cond;

@@ -28,6 +28,7 @@
   <depend package="bma180"/>
   <depend package="rosbag"/>
   <depend package="kdl"/>
+  <depend package="eigen"/>
 </package>
 
 
