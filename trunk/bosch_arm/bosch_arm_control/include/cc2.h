@@ -25,19 +25,30 @@ namespace constants{
   const double r2 = 0.12524850894632;  // joint 2-3-4, turns per motor turn
   const double r3 = 15.9206349206349;  // joint 1 motor turns per joint turn
   const double r4 = 7.98412698412698;  // joint 2-3-4, motor turns per joint turn
+// const double m2j[16] =              // Motor to joint position conversion matrix
+// {
+//   r1, 0.0, 0.0, 0.0,
+//   -r1, 0.0,  r2, 0.0,
+//   0.0, r2,  -r2, 0.0,
+//   0.0, 0.0, 0.0,  r2
+// };
+
+const double c24=0.15;
+
 const double m2j[16] =              // Motor to joint position conversion matrix
 {
   r1, 0.0, 0.0, 0.0,
   -r1, 0.0,  r2, 0.0,
   0.0, r2,  -r2, 0.0,
-  0.0, 0.0, 0.0,  r2
+  -c24*r1, 0.0, c24*r2,  r2
 };
+
 const double j2m [16] =              // Joint to motor position conversion matrix
 {
-  r3, 0.0, 0.0, 0.0,
-  r4,  r4,  r4, 0.0,
-  r4,  r4, 0.0, 0.0,
-  0.0, 0.0, 0.0,  r4
+  1/r1, 0.0, 0.0, 0.0,
+  1/r2,  1/r2,  1/r2, 0.0,
+  1/r2,  1/r2, 0.0, 0.0,
+  0.0, -c24/r2, 0.0,  1/r2
 };
 
   const double t_max = 0.184;          // N-m - max @ 100% duty for RE 40
@@ -53,6 +64,16 @@ const double j2m [16] =              // Joint to motor position conversion matri
   const HBD board = 0;
   const double pi=3.14159265358979;
   //the offset from the zero position in forward kinematics to the fixer.
-  const double q_off[4]={-1.6116201155912731, 0.064300169225135484, -1.000068247300421, -2.3054768156211152};
+  const double q_off[4]={-1.611620+0.130237, 0.0643001+0.0602076, -1.0000682+0.0171557, -2.3054768+0.0103879};
+  //const double q_off[4]={-1.611620, 0.0643001, -1.0000682, -2.3054768};
+//   const double gravc[8]={-0.0375042,0.0186818,
+// -0.0305367,-0.620683,
+// -0.0792363,-0.00757456,
+// 0.161804,0.0102816,
+// };
+  const double gravc[8]={0.0334182,-0.0027833,
+-0.0817209,-0.58573,
+-0.0818006,-0.0037055,
+0.19276,0.0044142};
 }
 #endif
