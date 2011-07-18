@@ -91,6 +91,7 @@ int main(int argc, char** argv)
   char c = 0;
   result = pthread_create(&servo, &attributes, servo_loop2, NULL);
   if (result == 0) cout << "Servo thread started." << endl;
+  
   while (1)
   {
     pthread_cond_wait(&g_cond, &g_mutex);
@@ -104,6 +105,40 @@ int main(int argc, char** argv)
     }
     //printf("%d+++\n",rob_ptr->getTime());
     if (c == 'q' || c=='Q') break;
+    switch(c)
+    {
+      case 'a':
+      {
+        ctr_ptr->Kp[3]+=0.01;
+        cout<<"Kp[3]:"<<ctr_ptr->Kp[3]<<endl;
+        break;
+      }
+      case 's':
+      {
+        ctr_ptr->Kp[3]-=0.01;
+        cout<<"Kp[3]:"<<ctr_ptr->Kp[3]<<endl;
+        break;
+      }
+      case 'g':
+      {
+        ctr_ptr->ctr_mode=2;
+        cout<<"Gravity compensation mode"<<endl;
+        break;
+      }
+      case 'p':
+      {
+        ctr_ptr->ctr_mode=1;
+        cout<<"PD control with gravity compensation"<<endl;
+        break;
+      }
+      case 'n':
+      {
+        ctr_ptr->ctr_mode=3;
+        cout<<"relax"<<endl;
+        break;
+      }
+    }
+    c=0;
   }
   //pthread_join ( servo, NULL );
   rob_ptr->close();

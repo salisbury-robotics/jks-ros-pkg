@@ -64,7 +64,9 @@ public:
   double f[4];
   timespec ts;
   enum {CALIBRATION, SERVO,LOADTRACE};
+  enum {PDCONTROL, PDWITHGC, GRAVITY, NOCONTROL};
   int state;
+  int ctr_mode;
   TrajectoryController(BoschArm *ptr);
   void updateKinematics();
   void start();
