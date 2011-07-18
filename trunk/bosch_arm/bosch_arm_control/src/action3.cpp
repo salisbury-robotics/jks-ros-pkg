@@ -1,6 +1,6 @@
 #include "action3.h"
 #include <kdl/frames.hpp>
-
+#include "cc2.h"
 using namespace KDL;
 using namespace std;
 
@@ -45,27 +45,27 @@ void MoveAbsAction::initialize()
     cmd.velocity[i]=0;
     cmd.acceleration[i]=0;
   }
-  if(t_end<0)
+  if (t_end<0)
   {
-  double relabs=0;
-  int imax;
-  for (int i=0;i<4;i++)
-    if (fabs(rel[i])>relabs)
-    {
-      relabs=fabs(rel[i]);
-      imax=i;
-    }
-  t_end=floor(relabs/M_PI*20*1000);
-  if (calib!=NULL)
-    t_end*=2;
+    double relabs=0;
+    int imax;
+    for (int i=0;i<4;i++)
+      if (fabs(rel[i])>relabs)
+      {
+        relabs=fabs(rel[i]);
+        imax=i;
+      }
+    t_end=floor(relabs/M_PI*20*constants::cycle_hz);
+    if (calib!=NULL)
+      t_end*=2;
   }
-  if (t_end<200)
+  if (t_end<2*constants::cycle_hz/10)
   {
     cout<<"duration less than 200!\n"<<endl;
-    t_end=200;
+    t_end=2*constants::cycle_hz/10;
   }
-  t_dec=t_end-10;
-  t_acc=100;
+  t_dec=t_end-constants::cycle_hz/100;
+  t_acc=constants::cycle_hz/10;
   t_lin=t_dec-t_acc;
   for (int i=0;i<4;i++)
   {
@@ -85,7 +85,7 @@ void MoveAbsAction::update()
   if (t>t_end)
   {
     finished=true;
-    if(calib!=NULL)
+    if (calib!=NULL)
       calib->finish();
     return;
   }
@@ -161,7 +161,7 @@ void Calibration::initialize(TrajectoryController* cptr,MoveAbsAction* mptr)
   b=new double[len_b];
   count=new int[len_b];
   cout<<"initialing"<<endl;
-  for(int i=0;i<len_b;i++)
+  for (int i=0;i<len_b;i++)
   {
     b[i]=0;
     count[i]=0;
@@ -196,24 +196,24 @@ void Calibration::initialize(TrajectoryController* cptr,MoveAbsAction* mptr)
     //A[0-2]=R02*(g*Z1),A[3-5]=R03*(g*Z1), A[6-8]=R04*(g*Z1)
     //second
     //A[0-2]=0,...
-    for(int i=0;i<4;i++)
+    for (int i=0;i<4;i++)
     {
       Zi=frm0[i+1].M.UnitZ();
       int n_eq=j*4+i;
-      for(int k=0;k<i;k++)
+      for (int k=0;k<i;k++)
       {
-        for(int c=0;c<2;c++)
+        for (int c=0;c<2;c++)
           A[k*2+c][n_eq]=0;
       }
-      for(int k=i;k<4;k++)
+      for (int k=i;k<4;k++)
       {
         Rotation R0k=frm0[k+1].M.Inverse();
         Vector tmp=R0k*(g*Zi);
-        for(int c=0;c<2;c++)
+        for (int c=0;c<2;c++)
           A[k*2+c][n_eq]=tmp[c];
       }
     }
-    
+
   }
 
 }
@@ -256,7 +256,7 @@ void Calibration::loadTrace()
 //     }
 //     myfile.close();
 //   }
-// 
+//
 //   else cout << "Unable to open file";
 
 }
@@ -264,7 +264,7 @@ void Calibration::loadTrace()
 void Calibration::update()
 {
   int bin=q2bin(ctr->q);
-  for(int i=0;i<4;i++)
+  for (int i=0;i<4;i++)
   {
     count[bin*4+i]++;
     b[bin*4+i]+=ctr->f[i];
@@ -297,5 +297,5 @@ void Calibration::finish()
   }
   out.close();
   //calculate M (A'A)^-1 (A'b)
-  
+
 }
