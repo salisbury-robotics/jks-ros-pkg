@@ -11,8 +11,7 @@ private:
   double home_offsets[4];
   double ql[4];
   int filter_order;
-  double* a;
-  double* b;
+  
   double* x_his[4];
   double* y_his[4];
   uint16_t time_now;
@@ -28,10 +27,16 @@ private:
   void safe_exit(const char* msg);
   void enforce_safety();
 public:
+  int t;
+  bool debug_filter;
+  
+  double* a;
+  double* b;
   double L0; //height of joint 1
   double L3; //length of link 3
   double L4; //length of link 4 in x direction
   double L5; //length of link 4 in y direction
+  double lambda;
   double q[4];//actuator position
   double v[4];//actuator speed
   double torque[4];//actuator torque

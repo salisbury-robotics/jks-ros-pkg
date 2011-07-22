@@ -39,16 +39,16 @@ TrajectoryController::TrajectoryController(BoschArm *ptr)
   js.position.resize(4);
   js.velocity.resize(4);
   js.effort.resize(4);
-  Kp[0]=20;
-  Kp[1]=20;
-  Kp[2]=5;
-  Kp[3]=10;
+  Kp[0]=10;
+  Kp[1]=10;
+  Kp[2]=20;
+  Kp[3]=23;
 //    for(int i=0;i<4;i++)
 //      Kp[i]=Kp[i]*0.02;
-  Kv[0]=0.2;
-  Kv[1]=0.1;
-  Kv[2]=0.05;
-  Kv[3]=0.1;
+  Kv[0]=0.20;
+  Kv[1]=0.20;
+  Kv[2]=0.24;
+  Kv[3]=0.26;
 //   for(int i=0;i<4;i++)
 //     Kv[i]=0;
   joint_limit_low[0]=-1.7;
@@ -60,14 +60,31 @@ TrajectoryController::TrajectoryController(BoschArm *ptr)
   joint_limit_low[3]=-2.3;
   joint_limit_high[3]=2.4;
   
+  tmax[0]=constants::t_max/constants::r1;
+  tmax[1]=constants::t_max/constants::r2;
+  tmax[2]=constants::t_max/constants::r2;
+  tmax[3]=constants::t_max/constants::r2;
+  
+  vtime[0]=3000;
+  vtime[1]=1500;
+  vtime[2]=1500;
+  vtime[3]=1500;
+  
+  vstep[0]=0.0001;
+  vstep[1]=0.0002;
+  vstep[2]=0.001;
+  vstep[3]=0.001;
+  
+  dovstep=false;
+  tvstep=0;
 }
 
 //calculate the frames given the joint values.
 void TrajectoryController::updateKinematics()
 {
-  frm_cur[0]=frm_home[0]; 
+  frm_cur[0]=frm_home[0];
   frm0[0]=frm_home[0];
-  for(int i=1;i<=4;i++)
+  for (int i=1;i<=4;i++)
   {
     frm_cur[i].p=frm_home[i].p;
     frm_cur[i].M=frm_home[i].M*Rotation::RotZ(q[i-1]);
@@ -77,9 +94,9 @@ void TrajectoryController::updateKinematics()
   frm0[5]=frm0[4]*frm_cur[5];
   frmn[4]=frm_cur[5];
   Vector z(0,0,1);
-  
+
   //jacobian[3](joint 4) = z4*p54
-  for(int i=3;i>=0;i--)
+  for (int i=3;i>=0;i--)
   {
     frmn[i]=frm_cur[i+1]*frmn[i+1];
     jacobian[i]=z*frmn[i+1].p;
@@ -102,7 +119,7 @@ void TrajectoryController::start()
   frm_home[4].M=r;
   frm_home[4].p=Vector(-rob->L5,0,rob->L3);
   frm_home[5].p=Vector(rob->L4,0,0);
-  
+
   rob->motor2JointPosition(rob->q,q);
 
   for (int i=0;i<4;i++)
@@ -114,20 +131,23 @@ void TrajectoryController::start()
     qd[i]=q[i];
     vd[i]=v[i];
   }
+  for (int i=0;i<4;i++)
+    gc[i]=Vector(constants::gravc[i*2],constants::gravc[i*2+1],0);
   //state=CALIBRATION;
-  state=LOADTRACE;
+  //state=LOADTRACE;
+  state=SERVO;
   ctr_mode=GRAVITY;
-  if(state==CALIBRATION)
+  //ctr_mode=PDWITHGC;
+  if (state==CALIBRATION)
   {
-    genCalibTraj2();  
+    genCalibTraj2();
     cur_act=act_que.front();
     cur_act->initialize();
     act_que.pop_front();
   }
-  else if(state==LOADTRACE)
+  else if (state==LOADTRACE)
   {
-    for(int i=0;i<4;i++)
-      gc[i]=Vector(constants::gravc[i*2],constants::gravc[i*2+1],0);
+
     vector<double> des(4,0);
 //     for(int i=0;i<4;i++)
 //       des[i]=q[i];
@@ -139,16 +159,16 @@ void TrajectoryController::start()
     cur_act=act_que.front();
     cur_act->initialize();
     act_que.pop_front();
-    
+
     //state=SERVO;
-    
+
   }
 }
 
 void TrajectoryController::genCalibTraj2()
 {
   vector<double> des(4,0);
-//  int t=8000;  
+//  int t=8000;
   //move the the zero position.
   act_que.push_back(new MoveAbsAction(des,this));
   des[0]=-1.5;
@@ -172,64 +192,85 @@ void TrajectoryController::genCalibTraj2()
   calib2=new Calibration("calib2");
   cali2_act->calib=calib2;
   act_que.push_back(cali2_act);
-  
+
 }
 
 
 void TrajectoryController::calcGravityCompensation()
 {
-  for(int j=0;j<calib1->len_b;j++)
-    if(calib1->count[j]>0&&calib2->count[j]>0)
-      {
-        calib1->b[j]-=calib2->b[j];
-        calib1->count[j]=1;
-      }
-    
-  for(int i=0;i<8;i++)
-  {
-    for(int j=0;j<calib1->len_b;j++)
+  for (int j=0;j<calib1->len_b;j++)
+    if (calib1->count[j]>0&&calib2->count[j]>0)
     {
-      if(calib1->count[j]>0)
+      calib1->b[j]-=calib2->b[j];
+      calib1->count[j]=1;
+    }
+
+  for (int i=0;i<8;i++)
+  {
+    for (int j=0;j<calib1->len_b;j++)
+    {
+      if (calib1->count[j]>0)
       {
         calib1->A[i][j]-=calib2->A[i][j];
       }
     }
   }
-  
+
   Eigen::MatrixXf AA(8,8);
-  for(int i=0;i<8;i++)
+  for (int i=0;i<8;i++)
   {
-    for(int j=0;j<8;j++)
+    for (int j=0;j<8;j++)
     {
       double s=0;
-      for(int k=0;k<calib1->len_b;k++)
-        if(calib1->count[k]>0)
+      for (int k=0;k<calib1->len_b;k++)
+        if (calib1->count[k]>0)
           s+=calib1->A[i][k]*calib1->A[j][k];
       AA(i,j)=s/calib1->len_b;
     }
   }
   //cout<<AA;
   Eigen::VectorXf Ab(8);
-  for(int i=0;i<8;i++)
+  for (int i=0;i<8;i++)
   {
     double s=0;
-    for(int j=0;j<calib1->len_b;j++)
-      if(calib1->count[j]>0)
+    for (int j=0;j<calib1->len_b;j++)
+      if (calib1->count[j]>0)
         s+=calib1->A[i][j]*calib1->b[j];
     Ab(i)=-s/calib1->len_b;
   }
   Eigen::MatrixXf M=AA.inverse()*Ab;
   //cout<<M<<endl;
-  for(int i=0;i<4;i++)
+  for (int i=0;i<4;i++)
   {
     gc[i]=Vector(M(i*2,0),M(i*2+1,0),0);
   }
-  for(int i=0;i<4;i++)
+  for (int i=0;i<4;i++)
   {
-    for(int j=0;j<3;j++)
+    for (int j=0;j<3;j++)
       cout<<gc[i][j]<<',';
     cout<<endl;
   }
+}
+
+
+// void TrajectoryController::vstep(int joint, double step)
+// {
+//   vector<double> des(4,0);
+//   for (int i=0;i<4;i++)
+//     des[i]=qd[i];
+//   des[joint]+=step;
+//   cur_act=new MoveAbsAction(des,this);
+//   cur_act->initialize();
+// 
+// }
+
+void TrajectoryController::step(int joint, double step)
+{
+  
+  for (int i=0;i<4;i++)
+    qd[i]=q[i];
+  qd[joint]+=step;
+
 }
 
 void TrajectoryController::update()
@@ -247,9 +288,9 @@ void TrajectoryController::update()
     //update desired position
     if (cur_act->finished)
     {
-       if(cur_act->calib==NULL)
-         delete cur_act;
-      
+      if (cur_act->calib==NULL)
+        delete cur_act;
+
       if (act_que.size()==0)
       {
         calcGravityCompensation();
@@ -270,28 +311,28 @@ void TrajectoryController::update()
     }
     //update torque command
     PDControl();
-    
+
     logging();
   }
   else if (state==LOADTRACE)
   {
     if (cur_act->finished)
     {
-       if(cur_act->calib==NULL)
-         delete cur_act;
-      
+      if (cur_act->calib==NULL)
+        delete cur_act;
+
       if (act_que.size()==0)
       {
         //calcGravityCompensation();
         state=SERVO;
         return;
       }
-   
+
       cur_act=act_que.front();
       //cout<<cur_act->rel[3]<<endl;
       cur_act->initialize();
       act_que.pop_front();
-      
+
     }
     cur_act->update();
     for (int i=0;i<4;i++)
@@ -307,16 +348,66 @@ void TrajectoryController::update()
   }
   else if (state==SERVO)
   {
-    //PDControl();
-    if(ctr_mode==PDWITHGC)
-      PDWithGC();
-    else if(ctr_mode==PDCONTROL)
-      PDControl();
-    else if(ctr_mode==GRAVITY)
-      gravity_compensation();
-    else if(ctr_mode==NOCONTROL)
+    if (cur_act!=NULL)
     {
-      for(int i=0;i<4;i++)
+      if (cur_act->finished)
+      {
+        if (cur_act->calib==NULL)
+        {
+          delete cur_act;
+          cur_act=NULL;
+        }
+
+//         if (act_que.size()!=0)
+//         {
+//           cur_act=act_que.front();
+//           cur_act->initialize();
+//           act_que.pop_front();
+//         }
+
+      }
+      else
+      {
+        cur_act->update();
+        for (int i=0;i<4;i++)
+        {
+          qd[i]=cur_act->cmd.coordinates[i];
+          vd[i]=cur_act->cmd.velocity[i];
+
+        }
+      }
+    }
+    if(dovstep)
+    {
+      if(tvstep==2*vtime[jid])
+        tvstep=0;
+      if(tvstep<vtime[jid]/2)
+      {
+        qd[jid]+=vstep[jid];
+        vd[jid]=vstep[jid];
+      }
+      else if(tvstep<vtime[jid]/2+vtime[jid])
+      { 
+        qd[jid]-=vstep[jid];
+        vd[jid]=-vstep[jid];
+      }
+      else
+      {
+        qd[jid]+=vstep[jid];
+        vd[jid]=vstep[jid];
+      }
+      tvstep++;
+    }
+    //PDControl();
+    if (ctr_mode==PDWITHGC)
+      PDWithGC();
+    else if (ctr_mode==PDCONTROL)
+      PDControl();
+    else if (ctr_mode==GRAVITY)
+      gravity_compensation();
+    else if (ctr_mode==NOCONTROL)
+    {
+      for (int i=0;i<4;i++)
         rob->torque[i]=0;
     }
     //floating();
@@ -332,18 +423,18 @@ void TrajectoryController::gravity_compensation()
   //T=sum(gcj) dot (g*Zi
   Vector g(0,0,-1);
   //double tq[4];
-  for(int i=0;i<4;i++)
+  for (int i=0;i<4;i++)
   {
     Vector Zi=frm0[i+1].M.UnitZ();
     f[i]=0;
-    for(int j=i;j<4;j++)
+    for (int j=i;j<4;j++)
     {
       Rotation R0j=frm0[j+1].M.Inverse();
       Vector tmp=R0j*(g*Zi);
       f[i]-=dot(gc[j],tmp);
     }
   }
-  
+
   for (int i=0;i<4;i++)
   {
     torque[i]=0;
@@ -357,7 +448,7 @@ void TrajectoryController::gravity_compensation()
   for (int i=0;i<4;i++)
     rob->torque[i]=torque[i];
   //logging();
-  
+
 }
 
 void TrajectoryController::PDWithGC()
@@ -369,14 +460,14 @@ void TrajectoryController::PDWithGC()
     dq[i]=qd[i]-q[i];
     f[i]=Kp[i]*dq[i]-Kv[i]*(v[i]-vd[i]);
   }
-  
+
   //T=sum(gcj) dot (g*Zi
   Vector g(0,0,-1);
   //double tq[4];
-  for(int i=0;i<4;i++)
+  for (int i=0;i<4;i++)
   {
     Vector Zi=frm0[i+1].M.UnitZ();
-    for(int j=i;j<4;j++)
+    for (int j=i;j<4;j++)
     {
       Rotation R0j=frm0[j+1].M.Inverse();
       Vector tmp=R0j*(g*Zi);
