@@ -46,9 +46,14 @@ void BoschArm::initialize()
 //   double tmp_b[]={ 0.0675,    0.1349,    0.0675};
 //   double tmp_a[]={ 1.0000,   -1.1430,    0.4128};
  // using a IIR filter: [b3,a3]=butter(2,0.05)
-  filter_order=2;
-  double tmp_b[]={ 0.0055,    0.0111,    0.0055};
-  double tmp_a[]={ 1.0000,   -1.7786,    0.8008};
+//   filter_order=2;
+//   double tmp_b[]={ 0.0055,    0.0111,    0.0055};
+//   double tmp_a[]={ 1.0000,   -1.7786,    0.8008};
+  
+  filter_order=1;
+  //double lambda=;
+  double tmp_b[]={ 1.0,0};
+  double tmp_a[]={ 1.0,0};
 //   filter_order=1;
 //   double tmp_b[]={ 0.5,    0.5};
 //   double tmp_a[]={ 1.0000,   0.0000};
@@ -79,6 +84,8 @@ void BoschArm::initialize()
   v_lims[2]=2*vlim;
   v_lims[3]=2*vlim;
   zero_torques();
+  t=0;
+  debug_filter=false;
 }
 
 double BoschArm::convertToWallTime(uint16_t now,uint16_t last)
@@ -244,12 +251,24 @@ void BoschArm::update()
   
   
   //calculate raw v;
+  
   for (int i=0;i<4;i++)
   {
     v[i]= (q[i]-ql[i]) /dt;
     ql[i]=q[i];
   }
   
+//   if(debug_filter)
+//   {
+//   t++;
+//   //test filter
+//   for(int i=0;i<4;i++){
+//   if(t<10000)
+//     v[i]=1;
+//   else
+//     v[i]=0;
+//   }
+//   }
   //filter v;
   for(int i=0;i<4;i++)
   {

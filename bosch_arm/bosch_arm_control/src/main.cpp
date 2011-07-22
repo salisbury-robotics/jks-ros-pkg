@@ -5,16 +5,18 @@
 #include <iostream>
 #include "ros/ros.h"
 #include "bosch_arm.h"
-#include "simple_cartesian_controller.h"
-#include "simple_joint_controller.h"
-#include "trajectory_controller3.h"
+//#include "simple_cartesian_controller.h"
+//#include "simple_joint_controller.h"
+//#include "trajectory_controller3.h"
+#include "cartesian_controller2.h"
 using namespace std;
 pthread_mutex_t g_mutex;
 pthread_cond_t  g_cond;
 static int quit = 0;
 pthread_t servo;
 BoschArm *rob_ptr;
-TrajectoryController *ctr_ptr;
+//TrajectoryController *ctr_ptr;
+CartesianController *ctr_ptr;
 //SimpleCartesianController *ctr_ptr;
 //SimpleJointController *ctr_ptr;
 int kbhit(void)
@@ -74,7 +76,8 @@ int main(int argc, char** argv)
   rob_ptr=new BoschArm();
   //ctr_ptr=new SimpleCartesianController(rob_ptr);
   //ctr_ptr=new SimpleJointController(rob_ptr);
-  ctr_ptr=new TrajectoryController(rob_ptr);
+  //ctr_ptr=new TrajectoryController(rob_ptr);
+  ctr_ptr=new CartesianController(rob_ptr);
   //diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ( "/diagnostics",100 );
   //ros::Subscriber sigle_point_cmd_sub = n.subscribe ( "/single_point_cmd",3, &SimplePDController::singlePtCmdCallBack,ctr_ptr );
   int result;
@@ -91,6 +94,7 @@ int main(int argc, char** argv)
   char c = 0;
   result = pthread_create(&servo, &attributes, servo_loop2, NULL);
   if (result == 0) cout << "Servo thread started." << endl;
+  
   
   while (1)
   {
@@ -128,6 +132,12 @@ int main(int argc, char** argv)
       case 'p':
       {
         ctr_ptr->ctr_mode=1;
+        for(int i=0;i<3;i++)
+        {
+          ctr_ptr->xd[i]=ctr_ptr->x[i];
+          ctr_ptr->v[i]=0;
+          ctr_ptr->vd[i]=0;
+        }
         cout<<"PD control with gravity compensation"<<endl;
         break;
       }
@@ -135,6 +145,18 @@ int main(int argc, char** argv)
       {
         ctr_ptr->ctr_mode=3;
         cout<<"relax"<<endl;
+        break;
+      }
+      case 'b':
+      {
+        ctr_ptr->start_semi=true;
+        cout<<"start semi-auto calibration"<<endl;
+        break;
+      }
+      case 'e':
+      {
+        ctr_ptr->end_semi=true;
+        cout<<"end semi-auto calibration"<<endl;
         break;
       }
     }
