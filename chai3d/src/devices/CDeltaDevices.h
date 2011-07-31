@@ -15,7 +15,7 @@
     \author    <http://www.chai3d.org>
     \author    Francois Conti
     \author    Force Dimension - www.forcedimension.com
-    \version   2.1.0 $Rev: 322 $
+    \version   2.2.0 $Rev: 598 $
 */
 //===========================================================================
 
@@ -38,7 +38,7 @@
 */
 //===========================================================================
 
-#if defined(_WIN32)
+#if defined(_WIN32) | defined (_WIN64)
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

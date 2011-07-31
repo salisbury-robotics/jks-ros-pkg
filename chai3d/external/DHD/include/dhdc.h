@@ -1,7 +1,7 @@
 /****************************************************************************
  *
- *  DHD - Haptic API ver 3.2
- *  Copyright (C) 2001-2010
+ *  DHD - Haptic SDK ver 3.3.1
+ *  Copyright (C) 2001-2011
  *  Force Dimension, Switzerland
  *  All Rights Reserved.
  *
@@ -15,19 +15,20 @@
 #ifndef __DHDC_H__
 #define __DHDC_H__
 
+#include <cstddef>
 
 /****************************************************************************
  *  OS DEPENDENCIES
  ****************************************************************************/
 
 #if defined(WIN32) || defined(WIN64)
-#ifndef __API
-#define __API __stdcall
+#ifndef __SDK
+#define __SDK __stdcall
 #endif
 #endif
 
-#ifndef __API
-#define __API
+#ifndef __SDK
+#define __SDK
 #endif
 
 #ifdef __cplusplus
@@ -66,21 +67,14 @@ typedef unsigned long  ulong;
     DHD_ERROR_DEVICE_NOT_READY,
     DHD_ERROR_FILE_NOT_FOUND,
     DHD_ERROR_CONFIGURATION,
-    DHD_ERROR_INVALID_INDEX
+    DHD_ERROR_INVALID_INDEX,
+    DHD_ERROR_DEPRECATED
   };
 
-  /* types */
-  typedef int        *dhdErrorVal;
-  typedef const char *dhdErrorStr;
-
-  /* dhd_errno thread-safe global */
-  dhdErrorVal __API dhdErrnoLocation ();
-
-#define dhdErrno (*dhdErrnoLocation())
-
-  /* error processing */
-  dhdErrorStr __API dhdErrorGetLastStr ();
-  dhdErrorStr __API dhdErrorGetStr     (int error);
+  /* error reporting */
+  int         __SDK dhdErrorGetLast    ();
+  const char* __SDK dhdErrorGetLastStr ();
+  const char* __SDK dhdErrorGetStr     (int error);
 
 
 /****************************************************************************
@@ -104,6 +98,8 @@ typedef unsigned long  ulong;
 #define DHD_DEVICE_CONTROLLER     81
 #define DHD_DEVICE_CONTROLLER_HR  82
 #define DHD_DEVICE_CUSTOM         91
+#define DHD_DEVICE_SIGMA331      102
+#define DHD_DEVICE_SIGMA331_LEFT 103
 
 /* status */
 #define DHD_ON                     1
@@ -113,10 +109,7 @@ typedef unsigned long  ulong;
 #define DHD_MAX_DEVICE             4
 
 /* encoder count */
-#define DHD_MAX_ENC                8
-
-/* motor count */
-#define DHD_MAX_MOTOR              6
+#define DHD_MAX_DOF                8
 
 /* delta motor index */
 #define DHD_DELTA_MOTOR_0          0
@@ -142,8 +135,9 @@ typedef unsigned long  ulong;
 #define DHD_GRIP_ENC               6
 #define DHD_GRIP_MOT               3
 
-/* TimeGuard return value */
+/* useful non-error, positive return values */
 #define DHD_TIMEGUARD              1
+#define DHD_MOTOR_SATURATED        2
 
 /* status count */
 #define DHD_MAX_STATUS            13
@@ -161,7 +155,7 @@ typedef unsigned long  ulong;
 #define DHD_STATUS_ERROR           9
 #define DHD_STATUS_GRAVITY        10
 #define DHD_STATUS_TIMEGUARD      11
-#define DHD_STATUS_ROTATOR_RESET  12
+#define DHD_STATUS_WRIST_RESET    12
 
 /* buttons count */
 #define DHD_MAX_BUTTONS            8
@@ -173,130 +167,142 @@ typedef unsigned long  ulong;
 
 
 /****************************************************************************
- *  standard API
+ *  standard SDK
  ****************************************************************************/
 
-  int    __API dhdGetDeviceCount                 ();
-  int    __API dhdSetDevice                      (char ID = -1);
-  int    __API dhdGetDeviceID                    ();
-  int    __API dhdGetSerialNumber                (ushort *sn, char ID = -1);
-  int    __API dhdOpen                           ();
-  int    __API dhdOpenID                         (char ID);
-  int    __API dhdClose                          (char ID = -1);
-  int    __API dhdStop                           (char ID = -1);
-  int    __API dhdGetSystemType                  (char ID = -1);
-  int    __API dhdGetVersion                     (double *ver, char ID = -1);
-  void   __API dhdGetAPIVersion                  (int *major, int *minor, int *release, int *revision);
-  int    __API dhdGetStatus                      (int status[DHD_MAX_STATUS], char ID = -1);
-  int    __API dhdGetDeviceAngleRad              (double *angle, char ID = -1);
-  int    __API dhdGetDeviceAngleDeg              (double *angle, char ID = -1);
-  int    __API dhdGetEffectorMass                (double *mass, char ID = -1);
-  ulong  __API dhdGetSystemCounter               ();
-  int    __API dhdGetButton                      (int index, char ID = -1);
-  bool   __API dhdIsLeftHanded                   (char ID = -1);
-  int    __API dhdReset                          (char ID = -1);
-  int    __API dhdResetWrist                     (char ID = -1);
-  int    __API dhdWaitForReset                   (int timeout = 0, char ID = -1);
-  int    __API dhdSetStandardGravity             (double g, char ID = -1);
-  int    __API dhdSetGravityCompensation         (int val = DHD_ON, char ID = -1);
-  int    __API dhdSetBrakes                      (int val = DHD_ON, char ID = -1);
-  int    __API dhdSetDeviceAngleRad              (double angle, char ID = -1);
-  int    __API dhdSetDeviceAngleDeg              (double angle, char ID = -1);
-  int    __API dhdSetEffectorMass                (double mass,  char ID = -1);
-  int    __API dhdGetPosition                    (double *px, double *py, double *pz, char ID = -1);
-  int    __API dhdGetForce                       (double *fx, double *fy, double *fz, char ID = -1);
-  int    __API dhdSetForce                       (double  fx, double  fy, double  fz, char ID = -1);
-  int    __API dhdGetOrientationRad              (double *oa, double *ob, double *og, char ID = -1);
-  int    __API dhdGetOrientationDeg              (double *oa, double *ob, double *og, char ID = -1);
-  int    __API dhdGetTorque                      (double *ta, double *tb, double *tg, char ID = -1);
-  int    __API dhdSetTorque                      (double  ta, double  tb, double  tg, char ID = -1);
-  int    __API dhdGetPositionAndOrientationRad   (double *px, double *py, double *pz, double *oa, double *ob, double *og, char ID = -1);
-  int    __API dhdGetPositionAndOrientationDeg   (double *px, double *py, double *pz, double *oa, double *ob, double *og, char ID = -1);
-  int    __API dhdGetPositionAndOrientationFrame (double *px, double *py, double *pz, double matrix[3][3], char ID = -1);
-  int    __API dhdGetForceAndTorque              (double *fx, double *fy, double *fz, double *ta, double *tb, double *tg, char ID = -1);
-  int    __API dhdSetForceAndTorque              (double  fx, double  fy, double  fz, double  ta, double  tb, double  tg, char ID = -1);
-  int    __API dhdGetOrientationFrame            (double matrix[3][3], char ID = -1);
-  int    __API dhdGetGripperAngleDeg             (double *a, char ID = -1);
-  int    __API dhdGetGripperAngleRad             (double *a, char ID = -1);
-  int    __API dhdGetGripperThumbPos             (double *px, double *py, double *pz,  char ID = -1);
-  int    __API dhdGetGripperFingerPos            (double *px, double *py, double *pz,  char ID = -1);
-  int    __API dhdSetGripperTorque               (double t, char ID = -1);
-  int    __API dhdSetGripperForce                (double f, char ID = -1);
-  double __API dhdGetComFreq                     (char ID = -1);
-  int    __API dhdSetForceAndGripperForce        (double fx, double fy, double fz, double f, char ID = -1);
-  int    __API dhdSetForceAndGripperTorque       (double fx, double fy, double fz, double t, char ID = -1);
-  int    __API dhdConfigLinearVelocity           (int ms = DHD_VELOCITY_WINDOW, int mode = DHD_VELOCITY_WINDOWING, char ID = -1);
-  int    __API dhdGetLinearVelocity              (double *vx, double *vy, double *vz, char ID = -1);
-  int    __API dhdEmulateButton                  (uchar val, char ID = -1);
+  int         __SDK dhdGetDeviceCount                    ();
+  int         __SDK dhdSetDevice                         (char ID);
+  int         __SDK dhdGetDeviceID                       ();
+  int         __SDK dhdGetSerialNumber                   (ushort *sn, char ID = -1);
+  int         __SDK dhdOpen                              ();
+  int         __SDK dhdOpenID                            (char ID);
+  int         __SDK dhdClose                             (char ID = -1);
+  int         __SDK dhdStop                              (char ID = -1);
+  int         __SDK dhdGetSystemType                     (char ID = -1);
+  const char* __SDK dhdGetSystemName                     (char ID = -1);                                                                                           /* added in 3.2 release */
+  int         __SDK dhdGetVersion                        (double *ver, char ID = -1);
+  void        __SDK dhdGetSDKVersion                     (int *major, int *minor, int *release, int *revision);
+  int         __SDK dhdGetStatus                         (int status[DHD_MAX_STATUS], char ID = -1);
+  int         __SDK dhdGetDeviceAngleRad                 (double *angle, char ID = -1);
+  int         __SDK dhdGetDeviceAngleDeg                 (double *angle, char ID = -1);
+  int         __SDK dhdGetEffectorMass                   (double *mass, char ID = -1);
+  ulong       __SDK dhdGetSystemCounter                  ();
+  int         __SDK dhdGetButton                         (int index, char ID = -1);
+  bool        __SDK dhdIsLeftHanded                      (char ID = -1);
+  int         __SDK dhdReset                             (char ID = -1);
+  int         __SDK dhdResetWrist                        (char ID = -1);
+  int         __SDK dhdWaitForReset                      (int timeout = 0, char ID = -1);
+  int         __SDK dhdSetStandardGravity                (double g, char ID = -1);
+  int         __SDK dhdSetGravityCompensation            (int val = DHD_ON, char ID = -1);
+  int         __SDK dhdSetBrakes                         (int val = DHD_ON, char ID = -1);
+  int         __SDK dhdSetDeviceAngleRad                 (double angle, char ID = -1);
+  int         __SDK dhdSetDeviceAngleDeg                 (double angle, char ID = -1);
+  int         __SDK dhdSetEffectorMass                   (double mass,  char ID = -1);
+  int         __SDK dhdGetPosition                       (double *px, double *py, double *pz, char ID = -1);
+  int         __SDK dhdGetForce                          (double *fx, double *fy, double *fz, char ID = -1);
+  int         __SDK dhdSetForce                          (double  fx, double  fy, double  fz, char ID = -1);
+  int         __SDK dhdGetOrientationRad                 (double *oa, double *ob, double *og, char ID = -1);
+  int         __SDK dhdGetOrientationDeg                 (double *oa, double *ob, double *og, char ID = -1);
+  int         __SDK dhdGetTorque                         (double *ta, double *tb, double *tg, char ID = -1);
+  int         __SDK dhdSetTorque                         (double  ta, double  tb, double  tg, char ID = -1);
+  int         __SDK dhdGetPositionAndOrientationRad      (double *px, double *py, double *pz, double *oa, double *ob, double *og, char ID = -1);
+  int         __SDK dhdGetPositionAndOrientationDeg      (double *px, double *py, double *pz, double *oa, double *ob, double *og, char ID = -1);
+  int         __SDK dhdGetPositionAndOrientationFrame    (double *px, double *py, double *pz, double matrix[3][3], char ID = -1);
+  int         __SDK dhdGetForceAndTorque                 (double *fx, double *fy, double *fz, double *ta, double *tb, double *tg, char ID = -1);
+  int         __SDK dhdSetForceAndTorque                 (double  fx, double  fy, double  fz, double  ta, double  tb, double  tg, char ID = -1);
+  int         __SDK dhdGetOrientationFrame               (double matrix[3][3], char ID = -1);
+  int         __SDK dhdGetGripperAngleDeg                (double *a, char ID = -1);
+  int         __SDK dhdGetGripperAngleRad                (double *a, char ID = -1);
+  int         __SDK dhdGetGripperThumbPos                (double *px, double *py, double *pz,  char ID = -1);
+  int         __SDK dhdGetGripperFingerPos               (double *px, double *py, double *pz,  char ID = -1);
+  int         __SDK dhdSetGripperTorque                  (double t, char ID = -1);
+  int         __SDK dhdSetGripperForce                   (double f, char ID = -1);
+  double      __SDK dhdGetComFreq                        (char ID = -1);
+  int         __SDK dhdSetForceAndGripperForce           (double fx, double fy, double fz, double f, char ID = -1);
+  int         __SDK dhdSetForceAndGripperTorque          (double fx, double fy, double fz, double t, char ID = -1);
+  int         __SDK dhdSetForceAndTorqueAndGripperForce  (double fx, double fy, double fz, double ta, double tb, double tg, double f, char ID = -1);               /* added in 3.3 release */
+  int         __SDK dhdSetForceAndTorqueAndGripperTorque (double fx, double fy, double fz, double ta, double tb, double tg, double t, char ID = -1);               /* added in 3.3 release */
+  int         __SDK dhdGetForceAndTorqueAndGripperForce  (double *fx, double *fy, double *fz, double *ta, double *tb, double *tg, double *f, char ID = -1);        /* added in 3.3 release */
+  int         __SDK dhdGetForceAndTorqueAndGripperTorque (double *fx, double *fy, double *fz, double *ta, double *tb, double *tg, double *t, char ID = -1);        /* added in 3.3 release */
+  int         __SDK dhdConfigLinearVelocity              (int ms = DHD_VELOCITY_WINDOW, int mode = DHD_VELOCITY_WINDOWING, char ID = -1);
+  int         __SDK dhdGetLinearVelocity                 (double *vx, double *vy, double *vz, char ID = -1);
+  int         __SDK dhdEmulateButton                     (uchar val, char ID = -1);
+  int         __SDK dhdGetBaseAngleXRad                  (double *angle, char ID = -1);                                                                            /* added in 3.3 release */
+  int         __SDK dhdGetBaseAngleXDeg                  (double *angle, char ID = -1);                                                                            /* added in 3.3 release */
+  int         __SDK dhdSetBaseAngleXRad                  (double angle, char ID = -1);                                                                             /* added in 3.3.1 release */
+  int         __SDK dhdSetBaseAngleXDeg                  (double angle, char ID = -1);                                                                             /* added in 3.3.1 release */
+  int         __SDK dhdGetBaseAngleZRad                  (double *angle, char ID = -1);                                                                            /* added in 3.3 release */
+  int         __SDK dhdGetBaseAngleZDeg                  (double *angle, char ID = -1);                                                                            /* added in 3.3 release */
+  int         __SDK dhdSetBaseAngleZRad                  (double angle, char ID = -1);                                                                             /* added in 3.3 release */
+  int         __SDK dhdSetBaseAngleZDeg                  (double angle, char ID = -1);                                                                             /* added in 3.3 release */
 
 
 /****************************************************************************
- *  expert API
+ *  expert SDK
  ****************************************************************************/
 
-  int    __API dhdEnableExpertMode            ();
-  int    __API dhdDisableExpertMode           ();
-  int    __API dhdPreset                      (int val[DHD_MAX_ENC], uchar mask, char ID = -1);
-  int    __API dhdEnableForce                 (uchar val, char ID = -1);
-  int    __API dhdCalibrateWrist              (char ID = -1);
-  int    __API dhdSetTimeGuard                (int us,  char ID = -1);
-  int    __API dhdSetVelocityThreshold        (uchar val, char ID = -1);
-  int    __API dhdGetVelocityThreshold        (uchar *val, char ID = -1);
-  int    __API dhdUpdateEncoders              (char ID = -1);
-  int    __API dhdGetDeltaEncoders            (int *enc0, int *enc1, int *enc2, char ID = -1);
-  int    __API dhdGetWristEncoders            (int *enc0, int *enc1, int *enc2, char ID = -1);
-  int    __API dhdGetGripperEncoder           (int *enc, char ID = -1);
-  int    __API dhdGetEncoder                  (int index, char ID = -1);
-  int    __API dhdSetMotor                    (int index, short val, char ID = -1);
-  int    __API dhdSetDeltaMotor               (short mot0, short mot1, short mot2, char ID = -1);
-  int    __API dhdSetWristMotor               (short mot0, short mot1, short mot2, char ID = -1);
-  int    __API dhdSetGripperMotor             (short mot, char ID = -1);
-  int    __API dhdDeltaEncoderToPosition      (int  enc0, int  enc1, int  enc2, double *px, double *py, double *pz, char ID = -1);
-  int    __API dhdDeltaPositionToEncoder      (double px, double py, double pz, int  *enc0, int  *enc1, int  *enc2, char ID = -1);
-  int    __API dhdDeltaMotorToForce           (short mot0, short mot1, short mot2, int enc0, int enc1, int enc2, double  *fx, double  *fy, double  *fz, char ID = -1);
-  int    __API dhdDeltaForceToMotor           (double  fx, double  fy, double  fz, int enc0, int enc1, int enc2, short *mot0, short *mot1, short *mot2, char ID = -1);
-  int    __API dhdWristEncoderToOrientation   (int  enc0, int  enc1, int  enc2, double *oa, double *ob, double *og, char ID = -1);
-  int    __API dhdWristOrientationToEncoder   (double oa, double ob, double og, int  *enc0, int  *enc1, int  *enc2, char ID = -1);
-  int    __API dhdWristMotorToTorque          (short mot0, short mot1, short mot2, int enc0, int enc1, int enc2, double  *ta, double  *tb, double  *tg, char ID = -1);
-  int    __API dhdWristTorqueToMotor          (double  ta, double  tb, double  tg, int enc0, int enc1, int enc2, short *mot0, short *mot1, short *mot2, char ID = -1);
-  int    __API dhdGripperEncoderToOrientation (int enc, double *a, char ID = -1);
-  int    __API dhdGripperEncoderToPosition    (int enc, double *p, char ID = -1);
-  int    __API dhdGripperOrientationToEncoder (double a, int *enc, char ID = -1);
-  int    __API dhdGripperPositionToEncoder    (double p, int *enc, char ID = -1);
-  int    __API dhdGripperMotorToTorque        (short mot, double *t, char ID = -1);
-  int    __API dhdGripperMotorToForce         (short mot, double *f, char ID = -1);
-  int    __API dhdGripperTorqueToMotor        (double t, short *mot, char ID = -1);
-  int    __API dhdGripperForceToMotor         (double f, short *mot, char ID = -1);
-  int    __API dhdSetOperatingMode            (unsigned char  mode, char ID = -1);
-  int    __API dhdGetOperatingMode            (unsigned char *mode, char ID = -1);
+  int         __SDK dhdEnableExpertMode                  ();
+  int         __SDK dhdDisableExpertMode                 ();
+  int         __SDK dhdPreset                            (int val[DHD_MAX_DOF], uchar mask, char ID = -1);
+  int         __SDK dhdEnableForce                       (uchar val, char ID = -1);
+  int         __SDK dhdCalibrateWrist                    (char ID = -1);
+  int         __SDK dhdSetTimeGuard                      (int us,  char ID = -1);
+  int         __SDK dhdSetVelocityThreshold              (uchar val, char ID = -1);
+  int         __SDK dhdGetVelocityThreshold              (uchar *val, char ID = -1);
+  int         __SDK dhdUpdateEncoders                    (char ID = -1);
+  int         __SDK dhdGetDeltaEncoders                  (int *enc0, int *enc1, int *enc2, char ID = -1);
+  int         __SDK dhdGetWristEncoders                  (int *enc0, int *enc1, int *enc2, char ID = -1);
+  int         __SDK dhdGetGripperEncoder                 (int *enc, char ID = -1);
+  int         __SDK dhdGetEncoder                        (int index, char ID = -1);
+  int         __SDK dhdSetMotor                          (int index, short val, char ID = -1);
+  int         __SDK dhdSetDeltaMotor                     (short mot0, short mot1, short mot2, char ID = -1);
+  int         __SDK dhdSetWristMotor                     (short mot0, short mot1, short mot2, char ID = -1);
+  int         __SDK dhdSetGripperMotor                   (short mot, char ID = -1);
+  int         __SDK dhdDeltaEncoderToPosition            (int  enc0, int  enc1, int  enc2, double *px, double *py, double *pz, char ID = -1);
+  int         __SDK dhdDeltaPositionToEncoder            (double px, double py, double pz, int  *enc0, int  *enc1, int  *enc2, char ID = -1);
+  int         __SDK dhdDeltaMotorToForce                 (short mot0, short mot1, short mot2, int enc0, int enc1, int enc2, double  *fx, double  *fy, double  *fz, char ID = -1);
+  int         __SDK dhdDeltaForceToMotor                 (double  fx, double  fy, double  fz, int enc0, int enc1, int enc2, short *mot0, short *mot1, short *mot2, char ID = -1);
+  int         __SDK dhdWristEncoderToOrientation         (int  enc0, int  enc1, int  enc2, double *oa, double *ob, double *og, char ID = -1);
+  int         __SDK dhdWristOrientationToEncoder         (double oa, double ob, double og, int  *enc0, int  *enc1, int  *enc2, char ID = -1);
+  int         __SDK dhdWristMotorToTorque                (short mot0, short mot1, short mot2, int enc0, int enc1, int enc2, double  *ta, double  *tb, double  *tg, char ID = -1);
+  int         __SDK dhdWristTorqueToMotor                (double  ta, double  tb, double  tg, int enc0, int enc1, int enc2, short *mot0, short *mot1, short *mot2, char ID = -1);
+  int         __SDK dhdGripperEncoderToOrientation       (int enc, double *a, char ID = -1);
+  int         __SDK dhdGripperEncoderToPosition          (int enc, double *p, char ID = -1);
+  int         __SDK dhdGripperOrientationToEncoder       (double a, int *enc, char ID = -1);
+  int         __SDK dhdGripperPositionToEncoder          (double p, int *enc, char ID = -1);
+  int         __SDK dhdGripperMotorToTorque              (short mot, double *t, int e = 0, double rWo[3][3] = NULL, char ID = -1);
+  int         __SDK dhdGripperMotorToForce               (short mot, double *f, int e = 0, double rWo[3][3] = NULL, char ID = -1);
+  int         __SDK dhdGripperTorqueToMotor              (double t, short *mot, int e = 0, double rWo[3][3] = NULL, char ID = -1);
+  int         __SDK dhdGripperForceToMotor               (double f, short *mot, int e = 0, double rWo[3][3] = NULL, char ID = -1);
+  int         __SDK dhdSetMot                            (short mot[DHD_MAX_DOF], uchar mask = 0xff, char ID = -1);
+  int         __SDK dhdGetEnc                            (int   enc[DHD_MAX_DOF], uchar mask = 0xff, char ID = -1);
+  int         __SDK dhdSetBrk                            (uchar mask = 0xff, char ID = -1);
+  int         __SDK dhdGetDeltaJointAngles               (double *j0, double *j1, double *j2, char ID = -1);                                                       /* added in 3.3 release */
+  int         __SDK dhdGetDeltaJacobian                  (double jcb[3][3], char ID = -1);                                                                         /* added in 3.3 release */
+  int         __SDK dhdDeltaJointAnglesToJacobian        (double j0, double j1, double j2, double jcb[3][3], char ID = -1);                                        /* added in 3.3 release */
+  int         __SDK dhdDeltaJointTorquesExtrema          (double j0, double j1, double j2, double minq[3], double maxq[3], char ID = -1);                          /* added in 3.3 release */
+  int         __SDK dhdDeltaGravityJointTorques          (double j0, double j1, double j2, double *q0, double *q1, double *q2, char ID = -1);                      /* added in 3.3 release */
+  int         __SDK dhdSetDeltaJointTorques              (double t0, double t1, double t2, char ID = -1);                                                          /* added in 3.3 release */
+  int         __SDK dhdSetAsyncMode                      (bool async, char ID = -1);                                                                               /* added in 3.3 release */
+  bool        __SDK dhdGetAsyncMode                      (char ID = -1);                                                                                           /* added in 3.3 release */
 
 
 /****************************************************************************
- *  controller API
+ *  controller SDK
  ****************************************************************************/
 
-  int    __API dhdControllerSetDevice   (int device, char ID = -1);
-  int    __API dhdReadConfigFromFile    (char *filename, char ID = -1);
-  int    __API dhdSetMot                (short mot[DHD_MAX_ENC], uchar mask = 0xff, char ID = -1);
-  int    __API dhdGetEnc                (int   enc[DHD_MAX_ENC], uchar mask = 0xff, char ID = -1);
-  int    __API dhdSetBrk                (uchar mask = 0xff, char ID = -1);
+  int         __SDK dhdControllerSetDevice               (int device, char ID = -1);
+  int         __SDK dhdReadConfigFromFile                (char *filename, char ID = -1);
 
 
 /****************************************************************************
  *  OS independent utilities
  ****************************************************************************/
 
-  bool   __API dhdKbHit   ();
-  char   __API dhdKbGet   ();
-  double __API dhdGetTime ();
-  void   __API dhdSleep   (double sec);
-
-
-/****************************************************************************
- *  added in 3.2.x SDK
- ****************************************************************************/
-
-  const char* __API dhdGetSystemName (char ID = -1);
+  bool        __SDK dhdKbHit                             ();
+  char        __SDK dhdKbGet                             ();
+  double      __SDK dhdGetTime                           ();
+  void        __SDK dhdSleep                             (double sec);
 
 
 #ifdef __cplusplus

@@ -15,7 +15,7 @@
     \author    <http://www.chai3d.org>
     \author    Francois Conti
     \author    Force Dimension - www.forcedimension.com
-    \version   2.1.0 $Rev: 322 $
+    \version   2.2.0 $Rev: 603 $
 */
 //===========================================================================
 
@@ -50,7 +50,7 @@ bool cDeltaDevice::sdhdDisableExpertMode           = true;
 bool cDeltaDevice::sdhdEnableForce                 = true;
 bool cDeltaDevice::sdhdIsLeftHanded                = true;
 
-#if defined(_WIN32)
+#if defined(_WIN32) | defined(_WIN64)
 HINSTANCE dhdDLL = NULL;
 
 int (__stdcall *dhdGetDeviceCount)             (void);
@@ -107,11 +107,16 @@ cDeltaDevice::cDeltaDevice(unsigned int a_deviceNumber)
     m_deviceType = -1;
     m_activeDeltaDevices++;
 
-#if defined(_WIN32)
+#if defined(_WIN32) | defined (_WIN64)
     // load dhd.dll library
     if (dhdDLL==NULL)
     {
+#if defined (_WIN32)
         dhdDLL = LoadLibrary("dhd.dll");
+#endif
+#if defined (_WIN64)
+        dhdDLL = LoadLibrary("dhd64.dll");
+#endif
     }
 
     // check if DLL loaded correctly
@@ -264,7 +269,7 @@ cDeltaDevice::~cDeltaDevice()
 
     m_activeDeltaDevices--;
 
-#if defined(_WIN32)
+#if defined(_WIN32) | defined (_WIN64)
     if (m_activeDeltaDevices == 0 && dhdDLL)
     {
       FreeLibrary(dhdDLL);
@@ -664,7 +669,9 @@ int cDeltaDevice::getRotation(cMatrix3d& a_rotation)
         case (DHD_DEVICE_OMEGA):
         case (DHD_DEVICE_OMEGA3):
         case (DHD_DEVICE_OMEGA33):
+        case (DHD_DEVICE_OMEGA33_LEFT):
         case (DHD_DEVICE_OMEGA331):
+        case (DHD_DEVICE_OMEGA331_LEFT):
         {
             // read rotation matrix
             double rot[3][3];
