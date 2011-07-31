@@ -4,7 +4,7 @@
 # Created by Sonny Chan
 #	March 2009, Stanford University
 #-----------------------------------------------------------------------------
-SET(CMAKE_BUILD_TYPE Debug CACHE STRING
+SET(CMAKE_BUILD_TYPE Release;Debug CACHE STRING
       "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
       FORCE)
 
