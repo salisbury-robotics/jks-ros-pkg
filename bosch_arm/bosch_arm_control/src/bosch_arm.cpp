@@ -19,6 +19,8 @@ void BoschArm::initialize()
   L5=constants::L5;
   for (int i=0;i<16;i++)
     m2j[i] =constants::m2j[i];
+  for (int i=0;i<16;i++)
+    j2m[i] =constants::j2m[i];
   rad_per_count=constants::rad_per_count;
 
   setup626();
@@ -51,14 +53,14 @@ void BoschArm::initialize()
 //   double tmp_a[]={ 1.0000,   -1.7786,    0.8008};
   
   filter_order=1;
-  //double lambda=;
-  double tmp_b[]={ 1.0,0};
-  double tmp_a[]={ 1.0,0};
-//   filter_order=1;
-//   double tmp_b[]={ 0.5,    0.5};
-//   double tmp_a[]={ 1.0000,   0.0000};
-  a=new double[filter_order+1];
-  b=new double[filter_order+1];
+  double lambda=0.0;
+  double tmp_b[]={ 1.0-lambda,0};
+  double tmp_a[]={ 1.0,-lambda};
+//    filter_order=10;
+//    double tmp_b[]={ 0.0144,    0.0304,    0.0724,    0.1245,    0.1668,    0.1830,    0.1668,  0.1245,    0.0724,    0.0304,    0.0144};
+//    double tmp_a[]={ 1.0000,   0.0000,   0.0000,   0.0000,   0.0000,   0.0000,   0.0000,   0.0000,   0.0000,   0.0000,   0.0000,};
+   a=new double[filter_order+1];
+   b=new double[filter_order+1];
   for(int i=0;i<filter_order+1;i++)
   {
     a[i]=tmp_a[i];
@@ -249,6 +251,28 @@ void BoschArm::update()
   
   double tmp[4];
   
+//   for(int i=0;i<4;i++)
+//     qraw[i]=q[i];
+  
+//   for(int i=0;i<4;i++)
+//   {
+//     tmp[i]=b[0]*q[i];
+//     for(int j=0;j<filter_order;j++)
+//       tmp[i]+=b[j+1]*x_his[i][j];
+//     for(int j=0;j<filter_order;j++)
+//       tmp[i]-=a[j+1]*y_his[i][j];
+//     for(int j=filter_order;j>0;j--)
+//       x_his[i][j]=x_his[i][j-1];
+//     x_his[i][0]=q[i];
+//     for(int j=filter_order;j>0;j--)
+//       y_his[i][j]=y_his[i][j-1];
+//     y_his[i][0]=tmp[i];
+//     //q[i]=tmp[i];
+//     q[i]=y_his[i][0];    
+//   }  
+//   
+//   for(int i=0;i<4;i++)
+//     v[i]=(y_his[i][0]-y_his[i][1])/dt;
   
   //calculate raw v;
   
@@ -270,6 +294,8 @@ void BoschArm::update()
 //   }
 //   }
   //filter v;
+  
+  
   for(int i=0;i<4;i++)
   {
     tmp[i]=b[0]*v[i];
