@@ -37,6 +37,7 @@ public:
   double L4; //length of link 4 in x direction
   double L5; //length of link 4 in y direction
   double lambda;
+  double qraw[4];
   double q[4];//actuator position
   double v[4];//actuator speed
   double torque[4];//actuator torque
@@ -44,6 +45,7 @@ public:
   double t_lims[4];//torque limit
   double dt;
   double m2j[16];//transmission matrix
+  double j2m[16];//transmission matrix
   //setup the board and initialize the states.
   void initialize();
   //update q,v and enforce torque.

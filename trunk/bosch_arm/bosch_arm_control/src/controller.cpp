@@ -22,7 +22,7 @@ using namespace std;
 #include <string>
 #include <sstream>
 
-#include "cc.h"
+#include "cc2.h"
 //#include "control.h"
 #include "daq.h"
 
@@ -122,7 +122,7 @@ static double Kp2 = 0.013;
 static double Kv2 = 0.0001; //0.0000091;
 static double Kp3 = 0.013;
 static double Kv3 = 0.0001; //0.0000091;
-static double Kp4 = 0.0; //0.036;
+static double Kp4 = 0.013; //0.036;
 static double Kv4 = 0.0001; //0.000011;
 
 static bool joint_space = true;
@@ -534,11 +534,11 @@ void * servo_loop(void *ptr){
 	q3d-=vstep1/2;
       }
     }
-    if(t_wave2 && ts.tv_sec%8 >= 4){
+    if(t_wave2 && ts.tv_sec%4 >= 2){
       q3d+=vstep2;
       if(joint_space)q2d+=vstep2;
     }
-    if(t_wave2 && ts.tv_sec%8 < 4){
+    if(t_wave2 && ts.tv_sec%4 < 2){
       q3d-=vstep2;
       if(joint_space)q2d-=vstep2;
     }
