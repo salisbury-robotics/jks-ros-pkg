@@ -408,12 +408,12 @@ if __name__=="__main__":
     m_scale = 50
     cm_scale= 50
     vm_scale= 5
-    tm_scale= 5000
+    tm_scale= 500
     em_scale= 100
-    q_scale = 500
-    cq_scale= 1000
+    q_scale = 100
+    cq_scale= 100
     vq_scale= 100
-    tq_scale= 500
+    tq_scale= 100
     eq_scale= 5000
     x_scale = 100
     cx_scale= 100

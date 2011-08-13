@@ -137,6 +137,7 @@ void TrajectoryController::start()
   //state=LOADTRACE;
   state=SERVO;
   ctr_mode=GRAVITY;
+  //ctr_mode=PDCONTROL;
   //ctr_mode=PDWITHGC;
   if (state==CALIBRATION)
   {
@@ -342,8 +343,8 @@ void TrajectoryController::update()
 
     }
     //update torque command
-    PDWithGC();
-    //PDControl();
+    //PDWithGC();
+    PDControl();
     logging();
   }
   else if (state==SERVO)

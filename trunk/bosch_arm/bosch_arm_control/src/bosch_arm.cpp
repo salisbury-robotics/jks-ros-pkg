@@ -210,9 +210,9 @@ void BoschArm::enforce_safety()
   {
     if (fabs(v[i]) >v_lims[i])
       safe_exit("overspeed");
-    if (fabs(torque[i]) >5*constants::t_max)
-      safe_exit("torque command over 5 times max achievable");
-    truncate(torque[i],t_lims[i]);
+    if (fabs(torque[i]) >constants::t_max)
+      safe_exit("torque command over max achievable");
+    //truncate(torque[i],t_lims[i]);
   }
 //     double max[4];
 //     int id=0;
@@ -296,22 +296,22 @@ void BoschArm::update()
   //filter v;
   
   
-  for(int i=0;i<4;i++)
-  {
-    tmp[i]=b[0]*v[i];
-    for(int j=0;j<filter_order;j++)
-      tmp[i]+=b[j+1]*x_his[i][j];
-    for(int j=0;j<filter_order;j++)
-      tmp[i]-=a[j+1]*y_his[i][j];
-    for(int j=filter_order;j>0;j--)
-      x_his[i][j]=x_his[i][j-1];
-    x_his[i][0]=v[i];
-    for(int j=filter_order;j>0;j--)
-      y_his[i][j]=y_his[i][j-1];
-    y_his[i][0]=tmp[i];
-    //q[i]=tmp[i];
-    v[i]=y_his[i][0];    
-  }
+//   for(int i=0;i<4;i++)
+//   {
+//     tmp[i]=b[0]*v[i];
+//     for(int j=0;j<filter_order;j++)
+//       tmp[i]+=b[j+1]*x_his[i][j];
+//     for(int j=0;j<filter_order;j++)
+//       tmp[i]-=a[j+1]*y_his[i][j];
+//     for(int j=filter_order;j>0;j--)
+//       x_his[i][j]=x_his[i][j-1];
+//     x_his[i][0]=v[i];
+//     for(int j=filter_order;j>0;j--)
+//       y_his[i][j]=y_his[i][j-1];
+//     y_his[i][0]=tmp[i];
+//     //q[i]=tmp[i];
+//     v[i]=y_his[i][0];    
+//   }
   
   enforce_safety();
   write_torque(0,torque[0]);

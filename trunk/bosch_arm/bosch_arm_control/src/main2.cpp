@@ -308,7 +308,7 @@ int main(int argc, char** argv)
     }
     case 'l':
     {
-      ctr_ptr->ctr_mode=1;
+      ctr_ptr->ctr_mode=0;
       for (int i=0;i<4;i++)
       {
         ctr_ptr->qd[i]=ctr_ptr->q[i];
