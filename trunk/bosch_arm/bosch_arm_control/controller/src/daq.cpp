@@ -38,7 +38,7 @@ DWORD IntCounts[16] = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };	// Interrupt count
 
 int setup626(void){
   S626_OpenBoard(board, 0, InterruptAppISR, 1);
-  S626_InterruptEnable(board, FALSE);
+  S626_InterruptEnable(board, TRUE);
   S626_SetErrCallback(board, ErrorFunction1);
   errFlags = S626_GetErrors (board);
   printf("Board(%i) -  ErrFlags = 0x%lu \n", board, errFlags);
@@ -57,10 +57,45 @@ void InterruptAppISR(DWORD board){
   S626_InterruptStatus (board, intStatus);		// Fetch IRQ status for all sources.
   if (intStatus[3]&0xfc00) {  // interrupts from all Counter's overflow
     cnt1++;
+    //printf("%d",intStatus[3]&0xfc00);
     cout << S626_CounterReadLatch(constants::board0, constants::cntr_chan) << endl;
     S626_CounterCapFlagsReset(constants::board0, constants::cntr_chan);	//reset counter interrupts
     bRE = TRUE;
   }
+
+  if(intStatus[3]&16){ //M1
+    S626_CounterCapFlagsReset(constants::board0, CNTR_0A);
+    S626_CounterIntSourceSet (constants::board0, CNTR_0A, INTSRC_NONE);
+    S626_CounterEnableSet(constants::board0, CNTR_0A, CLKENAB_ALWAYS);
+    S626_CounterModeSet(constants::board0, CNTR_0A, (INDXSRC_SOFT << BF_INDXSRC));
+  }
+  if(intStatus[3]&64){ //M2
+    S626_CounterCapFlagsReset(constants::board0, CNTR_1A);
+    S626_CounterIntSourceSet (constants::board0, CNTR_1A, INTSRC_NONE);
+    S626_CounterEnableSet(constants::board0, CNTR_1A, CLKENAB_ALWAYS);
+    S626_CounterModeSet(constants::board0, CNTR_1A, (INDXSRC_SOFT << BF_INDXSRC));
+  }
+  if(intStatus[3]&256){ //M3
+    S626_CounterCapFlagsReset(constants::board0, CNTR_2A);
+    S626_CounterIntSourceSet (constants::board0, CNTR_2A, INTSRC_NONE);
+    S626_CounterEnableSet(constants::board0, CNTR_2A, CLKENAB_ALWAYS);
+    S626_CounterModeSet(constants::board0, CNTR_2A, (INDXSRC_SOFT << BF_INDXSRC));
+  }
+  if(intStatus[3]&32){ //M4
+    S626_CounterCapFlagsReset(constants::board0, CNTR_0B);
+    S626_CounterIntSourceSet (constants::board0, CNTR_0B, INTSRC_NONE);
+    S626_CounterEnableSet(constants::board0, CNTR_0B, CLKENAB_ALWAYS);
+    S626_CounterModeSet(constants::board0, CNTR_0B, (INDXSRC_SOFT << BF_INDXSRC));
+  }
+
+  /*if(intStatus[3]){
+    S626_CounterCapFlagsReset(constants::board0, CNTR_0A);
+    S626_CounterCapFlagsReset(constants::board0, CNTR_0B);
+    S626_CounterCapFlagsReset(constants::board0, CNTR_1A);
+    S626_CounterCapFlagsReset(constants::board0, CNTR_2A);
+    }*/
+
+printf("Status: %d, %d, %d, %d\r\n",intStatus[0],intStatus[1],intStatus[2],intStatus[3]);
 
   if(intStatus[0])		// interrupts from DIO channel 0-15
     {
@@ -112,7 +147,7 @@ void CreateEncoderCounters(void){
    
    S626_CounterModeSet(constants::board0, CNTR_0A,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
-			(INDXSRC_SOFT << BF_INDXSRC)|    // Disable hardware index.
+			(INDXSRC_HARD << BF_INDXSRC)|    // Disable hardware index.
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS  << BF_CLKPOL)|      // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
@@ -121,7 +156,7 @@ void CreateEncoderCounters(void){
 
   S626_CounterModeSet(constants::board0, CNTR_1A,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
-			(INDXSRC_SOFT << BF_INDXSRC)|    // Disable hardware index.
+			(INDXSRC_HARD << BF_INDXSRC)|    // Disable hardware index.
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS << BF_CLKPOL)|       // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
@@ -130,7 +165,7 @@ void CreateEncoderCounters(void){
 
   S626_CounterModeSet(constants::board0, CNTR_2A,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
-			(INDXSRC_SOFT << BF_INDXSRC)|    // Disable hardware index.
+			(INDXSRC_HARD << BF_INDXSRC)|    // Disable hardware index.
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS << BF_CLKPOL)|       // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
@@ -139,7 +174,7 @@ void CreateEncoderCounters(void){
 
   S626_CounterModeSet(constants::board0, CNTR_0B,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
-			(INDXSRC_SOFT << BF_INDXSRC)|    // Disable hardware index.
+			(INDXSRC_HARD << BF_INDXSRC)|    // Disable hardware index.
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS << BF_CLKPOL)|       // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
@@ -152,10 +187,10 @@ void CreateEncoderCounters(void){
    S626_CounterPreload(constants::board0, CNTR_2A, 8388608);	// 0x800000 = 2^24/2 = 8388608
    S626_CounterPreload(constants::board0, CNTR_0B, 8388608);	// 0x800000 = 2^24/2 = 8388608
 
-   S626_CounterSoftIndex(constants::board0, CNTR_0A);		// Generate a index signal by software,
-   S626_CounterSoftIndex(constants::board0, CNTR_1A);		// Generate a index signal by software,
-   S626_CounterSoftIndex(constants::board0, CNTR_2A);		// Generate a index signal by software,
-   S626_CounterSoftIndex(constants::board0, CNTR_0B);		// Generate a index signal by software,
+   //S626_CounterSoftIndex(constants::board0, CNTR_0A);		// Generate a index signal by software,
+   //S626_CounterSoftIndex(constants::board0, CNTR_1A);		// Generate a index signal by software,
+   //S626_CounterSoftIndex(constants::board0, CNTR_2A);		// Generate a index signal by software,
+   //S626_CounterSoftIndex(constants::board0, CNTR_0B);		// Generate a index signal by software,
 
    // Enable latching of accumulated counts on demand.
    S626_CounterLatchSourceSet(constants::board0, CNTR_0A, LATCHSRC_AB_READ);
@@ -163,11 +198,16 @@ void CreateEncoderCounters(void){
    S626_CounterLatchSourceSet(constants::board0, CNTR_2A, LATCHSRC_AB_READ);
    S626_CounterLatchSourceSet(constants::board0, CNTR_0B, LATCHSRC_AB_READ);
 
+   S626_CounterIntSourceSet (constants::board0, CNTR_0A, INTSRC_INDX);
+   S626_CounterIntSourceSet (constants::board0, CNTR_1A, INTSRC_INDX);
+   S626_CounterIntSourceSet (constants::board0, CNTR_2A, INTSRC_INDX);
+   S626_CounterIntSourceSet (constants::board0, CNTR_0B, INTSRC_INDX);
+
    // Enable the counter.
-   S626_CounterEnableSet(constants::board0, CNTR_0A, CLKENAB_ALWAYS);
+   /*S626_CounterEnableSet(constants::board0, CNTR_0A, CLKENAB_ALWAYS);
    S626_CounterEnableSet(constants::board0, CNTR_1A, CLKENAB_ALWAYS);
    S626_CounterEnableSet(constants::board0, CNTR_2A, CLKENAB_ALWAYS);
-   S626_CounterEnableSet(constants::board0, CNTR_0B, CLKENAB_ALWAYS);
+   S626_CounterEnableSet(constants::board0, CNTR_0B, CLKENAB_ALWAYS);*/
  }
 
 
