@@ -21,6 +21,7 @@ using namespace std;
 #include <string>
 #include <sstream>
 
+static int home_flags[] = {0,0,0,0};
 
 #define BOARD 0
 const unsigned int board = 0;
@@ -64,24 +65,28 @@ void InterruptAppISR(DWORD board){
   }
 
   if(intStatus[3]&16){ //M1
+    home_flags[0] = 1;
     S626_CounterCapFlagsReset(constants::board0, CNTR_0A);
     S626_CounterIntSourceSet (constants::board0, CNTR_0A, INTSRC_NONE);
     S626_CounterEnableSet(constants::board0, CNTR_0A, CLKENAB_ALWAYS);
     S626_CounterModeSet(constants::board0, CNTR_0A, (INDXSRC_SOFT << BF_INDXSRC));
   }
   if(intStatus[3]&64){ //M2
+    home_flags[1] = 1;
     S626_CounterCapFlagsReset(constants::board0, CNTR_1A);
     S626_CounterIntSourceSet (constants::board0, CNTR_1A, INTSRC_NONE);
     S626_CounterEnableSet(constants::board0, CNTR_1A, CLKENAB_ALWAYS);
     S626_CounterModeSet(constants::board0, CNTR_1A, (INDXSRC_SOFT << BF_INDXSRC));
   }
   if(intStatus[3]&256){ //M3
+    home_flags[2] = 1;
     S626_CounterCapFlagsReset(constants::board0, CNTR_2A);
     S626_CounterIntSourceSet (constants::board0, CNTR_2A, INTSRC_NONE);
     S626_CounterEnableSet(constants::board0, CNTR_2A, CLKENAB_ALWAYS);
     S626_CounterModeSet(constants::board0, CNTR_2A, (INDXSRC_SOFT << BF_INDXSRC));
   }
   if(intStatus[3]&32){ //M4
+    home_flags[3] = 1;
     S626_CounterCapFlagsReset(constants::board0, CNTR_0B);
     S626_CounterIntSourceSet (constants::board0, CNTR_0B, INTSRC_NONE);
     S626_CounterEnableSet(constants::board0, CNTR_0B, CLKENAB_ALWAYS);
@@ -243,3 +248,9 @@ void zero_torques(void){
   write_torque(2, 0);
   write_torque(3, 0);
 }
+
+bool homed(int motor){
+  return home_flags[motor];
+}
+
+

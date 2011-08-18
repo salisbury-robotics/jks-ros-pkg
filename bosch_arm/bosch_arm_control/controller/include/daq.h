@@ -7,5 +7,6 @@ int setup626(void);
 void write_torque(int channel ,float torque);
 void zero_torques(void);
 int read_encoder(int i);
+int homed(int motor);
 
 #endif // DAQ_H
