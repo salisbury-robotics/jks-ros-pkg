@@ -30,7 +30,7 @@ Q_OBJECT
 
     // keep an instance of our own private test volume data for test-rendering
     VolumeData             *m_data;
-    VolumeSampler          *m_sampler;
+    Sampler          *m_sampler;
 
     // for visual rendering of the test volume
     ProxyGeometry          *m_proxy;

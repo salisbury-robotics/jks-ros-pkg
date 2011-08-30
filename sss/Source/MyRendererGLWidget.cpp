@@ -105,6 +105,9 @@ void MyRendererGLWidget::setPrimaryVolume(int index)
         m_renderer->setVolume(volume, VolumeRenderer::vrPrimary);
         m_renderer->setVolume(mask, VolumeRenderer::vrMask);
 
+        // TODO MEMORY LEAK!!!!
+        Sampler *sampler = new VolumeSampler(volume, mask);
+
         // create a haptic isosurface and add it to our haptic scene
         bool active = m_hapticsThread->pause();
         m_hapticScene->clearNodes();
@@ -115,7 +118,7 @@ void MyRendererGLWidget::setPrimaryVolume(int index)
 //                    new ModifiedMorrisSurface(volume, mask, m_renderer->isosurfaceValue());
 //            if (m_hapticDisplay) surface->setToolRadius(m_hapticDisplay->toolRadius());
             PointShellIsosurface *surface =
-                    new PointShellIsosurface(volume, mask, m_renderer->isosurfaceValue());
+                    new PointShellIsosurface(sampler, m_renderer->isosurfaceValue());
             m_hapticSurface = surface;
             if (m_hapticDisplay) updateInstrumentPointShell(m_hapticDisplay->toolRadius());
             m_hapticSurface->setGradientDelta(1.0 / k_deltaOptions[m_deltaIndex]);
@@ -788,12 +791,12 @@ void MyRendererGLWidget::positionHapticDisplay()
 
 void MyRendererGLWidget::checkForMaskUpdate()
 {
-    if (m_hapticSurface && m_hapticSurface->maskAltered())
-    {
-        vector3i lower, upper;
-        m_hapticSurface->maskFetchAndResetRegion(lower, upper);
-        m_renderer->updateMask(lower[2], upper[2]);
-    }
+//    if (m_hapticSurface && m_hapticSurface->maskAltered())
+//    {
+//        vector3i lower, upper;
+//        m_hapticSurface->maskFetchAndResetRegion(lower, upper);
+//        m_renderer->updateMask(lower[2], upper[2]);
+//    }
 }
 
 // --------------------------------------------------------------------------

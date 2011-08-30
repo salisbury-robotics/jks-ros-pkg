@@ -8,6 +8,8 @@
 #include <chai3d.h>
 #include <cml/cml.h>
 
+#include <haptic_display_tools/Common/PointSampler.h>
+
 using namespace std;
 using namespace cml;
 
@@ -24,6 +26,7 @@ MyHapticsGLWidget::MyHapticsGLWidget(const QGLFormat &format, QWidget *parent,
 
     m_proxy = new ProxyGeometry();
     m_renderer = new VolumeRenderer();
+    m_renderer->setRayStep(0.02f);
     m_distanceFBO = 0;
 
     // initialize list of available surgical instruments
@@ -103,7 +106,9 @@ void MyHapticsGLWidget::initializeGL()
     // initialize the scene with our own private test volume instance
     Volume *volume = m_data->getVolume();
     Volume *mask = m_data->getMask();
-    m_sampler = new VolumeSampler(volume, mask);
+   // m_sampler = new VolumeSampler(volume, mask);
+
+  m_sampler = new PointSampler();
 
     // create a distance shader for starting/terminating rays
     m_distanceShader = new QGLShaderProgram(this);
@@ -160,7 +165,7 @@ void MyHapticsGLWidget::initializeGL()
 
     // add a haptic isosurface to the scene
 //    m_isosurface = new HapticIsosurface(volume, mask, 0.5);
-    m_isosurface = new PointShellIsosurface(volume, mask, 0.5);
+    m_isosurface = new PointShellIsosurface(m_sampler, 0.5);
     loadPointShell(location);
     m_scene->addNode(m_isosurface);
 
@@ -255,13 +260,14 @@ void MyHapticsGLWidget::resizeGL(int width, int height)
 
 void MyHapticsGLWidget::checkForMaskUpdate()
 {    
-    ModifiedMorrisSurface *surface = dynamic_cast<ModifiedMorrisSurface *>(m_isosurface);
-    if (surface && surface->maskAltered())
-    {
-        vector3i lower, upper;
-        surface->maskFetchAndResetRegion(lower, upper);
-        m_renderer->updateMask(lower[2], upper[2]);
-    }
+  // TODO
+//    ModifiedMorrisSurface *surface = dynamic_cast<ModifiedMorrisSurface *>(m_isosurface);
+//    if (surface && surface->maskAltered())
+//    {
+//        vector3i lower, upper;
+//        surface->maskFetchAndResetRegion(lower, upper);
+//        m_renderer->updateMask(lower[2], upper[2]);
+//    }
 }
 
 // --------------------------------------------------------------------------
