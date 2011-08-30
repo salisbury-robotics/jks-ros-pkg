@@ -12,11 +12,11 @@ protected:
     static const double k_stepNormal;
     static const int    k_maxStates = 4;
 
-    VolumeSampler  *m_sampler;
+    Sampler         *m_sampler;
     double          m_isoValue;
 
     // volume cutter instance to handle removing material
-    VolumeCutter   *m_maskCutter;
+    //VolumeCutter   *m_maskCutter;
     double          m_toolRadius;
 
     // a structure to track the state of a proxy for a given haptic device
@@ -44,11 +44,12 @@ protected:
                               const cml::vector3d &direction);
 
 public:
-    HapticIsosurface(Volume *volume, Volume *mask = 0, double isoValue = 0.5f);
+    HapticIsosurface(Sampler *sampler, double isoValue = 0.5f);
     virtual ~HapticIsosurface();
 
     virtual void setGradientDelta(double delta)
-        { m_sampler->setGradientDelta(delta); }
+        { if( VolumeSampler *v = dynamic_cast<VolumeSampler*>(m_sampler))
+            v->setGradientDelta(delta); }
 
     // warning: best to pause the haptic servo when changing this
     virtual void setIsosurfaceValue(double value);
@@ -64,9 +65,9 @@ public:
     virtual void reset();
 
     // use these methods to query for changes to a region of the mask
-    virtual bool maskAltered()          { return m_maskCutter->regionAltered(); }
-    virtual void maskFetchAndResetRegion(cml::vector3i &lower, cml::vector3i &upper)
-        { m_maskCutter->regionFetchAndReset(lower, upper); }
+//    virtual bool maskAltered()          { return m_maskCutter->regionAltered(); }
+//    virtual void maskFetchAndResetRegion(cml::vector3i &lower, cml::vector3i &upper)
+//        { m_maskCutter->regionFetchAndReset(lower, upper); }
 };
 
 #endif // HAPTICISOSURFACE_H

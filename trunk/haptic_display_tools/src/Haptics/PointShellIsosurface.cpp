@@ -40,12 +40,15 @@ public:
 
 // --------------------------------------------------------------------------
 
-PointShellIsosurface::PointShellIsosurface(Volume *volume, Volume *mask, double isoValue)
-    : HapticIsosurface(volume, mask, isoValue)
+PointShellIsosurface::PointShellIsosurface(Sampler * sampler, double isoValue)
+    : HapticIsosurface(sampler, isoValue)
 {
-    vector3i d = volume->dimensions;
-    int hi = std::max(d[0], std::max(d[1], d[2]));
-    m_featureSize = 1.0 / double(hi);
+//    vector3i d = volume->dimensions;
+//    int hi = std::max(d[0], std::max(d[1], d[2]));
+//    m_featureSize = 1.0 / double(hi);
+
+    // TODO
+    m_featureSize = 1/128.;
 }
 
 // --------------------------------------------------------------------------
@@ -94,7 +97,7 @@ void PointShellIsosurface::processCut(HapticDisplay *display, const vector3d &p,
     double k = std::min(dp / display->physicalToWorldScale(), 0.2);
 
     // TODO: this is just a hack for a test
-    m_maskCutter->cutFilteredSphere(p + k*d, (0.95 + k) * m_toolRadius);
+    //m_maskCutter->cutFilteredSphere(p + k*d, (0.95 + k) * m_toolRadius);
 }
 
 // --------------------------------------------------------------------------

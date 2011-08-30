@@ -1,0 +1,19 @@
+Strategy:
+
+Fix stuff
+
+
+
+HapticIsoSurface takes Volume and Mask, but should just take Sampler.
+
+
+Create HapticIsoSurface
+void MyHapticsGLWidget::initializeGL()
+
+
+Node is a haptic object
+
+Sonny in Calgary: 1-403-460-0077
+
+
+

@@ -66,7 +66,10 @@ src/Graphics/VolumeRenderer.cpp
 
 src/Common/Parameters.cpp
 src/Common/VolumeCutter.cpp
+src/Common/Sampler.cpp
 src/Common/VolumeSampler.cpp
+src/Common/PointSampler.cpp
+
 manifest.xml
 )
 

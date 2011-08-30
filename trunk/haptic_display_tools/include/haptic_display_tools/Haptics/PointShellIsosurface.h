@@ -44,7 +44,7 @@ protected:
     void processCut(HapticDisplay *display, const cml::vector3d &p, const cml::vector3d &q);
 
 public:
-    PointShellIsosurface(Volume *volume, Volume *mask = 0, double isoValue = 0.5f);
+    PointShellIsosurface(Sampler *sampler, double isoValue = 0.5f);
 
     template <class T>
     void setPointShell(const T *points, int n, double scale = 1.0, bool clear = true)
