@@ -12,19 +12,15 @@ const double HapticIsosurface::k_stepNormal = 0.005;
 
 // --------------------------------------------------------------------------
 
-HapticIsosurface::HapticIsosurface(Volume *volume, Volume *mask, double isoValue)
-    : m_sampler(0), m_isoValue(isoValue)
+HapticIsosurface::HapticIsosurface(Sampler *sampler, double isoValue)
+    : m_sampler(sampler), m_isoValue(isoValue)
 {
-    if (volume) m_sampler = new VolumeSampler(volume, mask);
 
-    // create a volume cutter on the mask to remove material
-    if (mask)   m_maskCutter = new VolumeCutter(mask);
 }
 
 HapticIsosurface::~HapticIsosurface()
 {
-    if (m_sampler) delete m_sampler;
-    if (m_maskCutter) delete m_maskCutter;
+
 }
 
 

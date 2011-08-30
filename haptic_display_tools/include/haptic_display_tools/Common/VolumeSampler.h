@@ -1,6 +1,7 @@
-#ifndef VOLUMESAMPLER_H
-#define VOLUMESAMPLER_H
+#ifndef _VOLUMESAMPLER_H_
+#define _VOLUMESAMPLER_H_
 
+#include "Sampler.h"
 #include "Volume.h"
 #include <limits>
 
@@ -11,7 +12,7 @@
 // single-precision floats.  Templatization for other variations may be
 // developed later if needed.
 
-class VolumeSampler
+class VolumeSampler : public Sampler
 {
     Volume         *m_volume;
     Volume         *m_mask;

@@ -25,7 +25,7 @@ protected:
     double pointForceMagnitude(HapticDisplay *display);
 
 public:
-    ModifiedMorrisSurface(Volume *volume, Volume *mask = 0,
+    ModifiedMorrisSurface(Sampler *sampler,
                           double isoValue = 0.5f, double radius = 0.02);
 
     // add a label volume for additional force feedback

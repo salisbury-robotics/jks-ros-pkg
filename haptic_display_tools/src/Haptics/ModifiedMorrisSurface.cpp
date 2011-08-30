@@ -5,9 +5,9 @@ using namespace cml;
 
 // --------------------------------------------------------------------------
 
-ModifiedMorrisSurface::ModifiedMorrisSurface(Volume *volume, Volume *mask,
+ModifiedMorrisSurface::ModifiedMorrisSurface(Sampler *sampler,
                                              double isoValue, double radius)
-    : HapticIsosurface(volume, mask, isoValue)
+    : HapticIsosurface(sampler, isoValue)
 {
     // create a new sampler for the labels
     m_labelSampler = new VolumeSampler();
@@ -81,10 +81,11 @@ void ModifiedMorrisSurface::update(HapticDisplay *display)
         display->setDirectForce(f);
 
         // mill away the mask if the first button on the device is down
-        if (display->buttonState(0))
-        {
-            m_maskCutter->cutFilteredSphere(p, 0.8 * m_toolRadius);
-        }
+        // TODO
+//        if (display->buttonState(0))
+//        {
+//            m_maskCutter->cutFilteredSphere(p, 0.8 * m_toolRadius);
+//        }
     }
 }
 
