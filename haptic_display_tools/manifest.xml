@@ -10,9 +10,12 @@
   <url> </url>
 
   <depend package="chai3d" />
+  <depend package="roscpp" />
   <depend package="cml" />
   <depend package="eigen" />
   <depend package="glm" />
+  <depend package="pcl"/>
+
   <export>
     <cpp cflags="-I${prefix}/include -I${prefix}/include/haptic_display_tools" lflags="-L${prefix}/lib -lhaptic_display_tools -lQtCore -lQtGui -lQtOpenGL"/>
   </export>
