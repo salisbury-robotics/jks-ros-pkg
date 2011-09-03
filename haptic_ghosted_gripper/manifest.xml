@@ -1,0 +1,22 @@
+<package>
+  <description brief="haptic_ghosted_gripper">
+
+     haptic_ghosted_gripper
+
+  </description>
+  <author>Adam Leeper</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/haptic_ghosted_gripper</url>
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
+  <depend package="pcl"/>
+  <depend package="tf"/>
+  <depend package="pcl_ros"/>
+  <depend package="interactive_markers"/>
+  <depend package="actionlib"/>
+  <depend package="pr2_marker_control"/>
+
+</package>
+
+
