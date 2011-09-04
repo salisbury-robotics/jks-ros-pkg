@@ -18,7 +18,7 @@
   <review status="3rdparty doc reviewed" notes="ticket:2879"/>
   <url>www.chai3d.org</url>
   <export>
-    <cpp cflags="-I${prefix}/src -D_LINUX" lflags="-L${prefix}/lib -lchai3d -L${prefix}/external/DHD/lib/lin-x86_64 -ldhd -lHD -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut
+    <cpp cflags="-I${prefix}/src -I${prefix}/modules/GEL -D_LINUX" lflags="-L${prefix}/lib -lchai3d -L${prefix}/external/DHD/lib/lin-x86_64 -ldhd -lHD -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut
 " />
     <doxymaker external=""/>
   </export>
