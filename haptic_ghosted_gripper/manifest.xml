@@ -15,7 +15,9 @@
   <depend package="pcl_ros"/>
   <depend package="interactive_markers"/>
   <depend package="actionlib"/>
-  <depend package="pr2_marker_control"/>
+  <depend package="pr2_im_msgs"/>
+  <depend package="point_cloud_server"/>
+  <depend package="haptic_display_tools"/>
 
 </package>
 

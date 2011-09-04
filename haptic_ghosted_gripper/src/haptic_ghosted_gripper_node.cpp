@@ -16,9 +16,9 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/server/simple_action_server.h>
-#include <pr2_marker_control/TestGripperPoseAction.h>
-#include <pr2_marker_control/GetGripperPoseAction.h>
 #include <point_cloud_server/StoreCloudAction.h>
+#include <pr2_im_msgs/TestGripperPoseAction.h>
+#include <pr2_im_msgs/GetGripperPoseAction.h>
 
 #include <household_objects_database_msgs/GetModelDescription.h>
 #include <household_objects_database_msgs/GetModelMesh.h>
@@ -58,11 +58,11 @@ protected:
 
   object_manipulator::MechanismInterface mechanism_;
 
-  actionlib::SimpleActionClient<pr2_marker_control::TestGripperPoseAction> test_pose_client_;
+  actionlib::SimpleActionClient<pr2_im_msgs::TestGripperPoseAction> test_pose_client_;
   actionlib::SimpleActionClient<point_cloud_server::StoreCloudAction> cloud_server_client_;
 
   std::string get_pose_name_;
-  actionlib::SimpleActionServer<pr2_marker_control::GetGripperPoseAction> get_pose_server_;
+  actionlib::SimpleActionServer<pr2_im_msgs::GetGripperPoseAction> get_pose_server_;
 
 public:
 
