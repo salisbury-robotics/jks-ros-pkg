@@ -1,0 +1,15 @@
+<package>
+  <description brief="chai_examples">
+
+     chai_examples
+
+  </description>
+  <author>aleeper</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/chai_examples</url>
+  <depend package="chai3d"/>
+
+</package>
+
+
