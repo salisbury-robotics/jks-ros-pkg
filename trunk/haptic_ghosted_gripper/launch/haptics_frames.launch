@@ -1,0 +1,12 @@
+<launch>
+  
+  <node pkg="tf" type="static_transform_publisher" name="world_to_bunny_frame" 
+    args="0 0 0 1.57 0 1.57 /tool_frame /bunny 60" />
+
+  <node pkg="tf" type="static_transform_publisher" name="world_to_tool_frame" 
+   args="0 0 0 0.0 0.0 0.0  /world /tool_frame 60" />
+<!--   args="0.7 0.0 0.3 3.1415 0.0 0.0  /world /tool_frame 60" />-->
+
+  <node pkg="tf" type="static_transform_publisher" name="base_link_to_world" 
+   args="0 0 0 0 0 0  /base_link /world 60" />
+</launch>
