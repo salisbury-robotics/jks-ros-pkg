@@ -121,7 +121,7 @@ VolumePointData::VolumePointData(int size)
                     }
 
                     //float h = 1.f - max( max( fabsf(x), fabsf(y) ), fabsf(z) ) / r;
-                    *p++ = static_cast<PixelType>( h * numeric_limits<PixelType>::max() );
+                    *p++ = static_cast<PixelType>( h * numeric_limits<PixelType>::max() / 2 );
                 }
 
     // populate the volume "header" object

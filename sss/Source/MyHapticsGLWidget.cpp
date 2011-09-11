@@ -22,7 +22,7 @@ MyHapticsGLWidget::MyHapticsGLWidget(const QGLFormat &format, QWidget *parent,
     m_devicesModel = 0;
     m_scene = 0;
     m_isosurface = 0;
-    m_data = new VolumeTestData();
+    m_data = new VolumePointData();
 
     m_proxy = new ProxyGeometry();
     m_renderer = new VolumeRenderer();
@@ -106,9 +106,15 @@ void MyHapticsGLWidget::initializeGL()
     // initialize the scene with our own private test volume instance
     Volume *volume = m_data->getVolume();
     Volume *mask = m_data->getMask();
-   // m_sampler = new VolumeSampler(volume, mask);
+    //  m_sampler = new VolumeSampler(volume, mask);
 
   m_sampler = new PointSampler();
+  PointSampler *ps = dynamic_cast<PointSampler*>(m_sampler);
+  //ps->createSphericalShell(0.5, 0.05, -1, 1, -M_PI, M_PI, 0.0);
+  ps->createPlane();
+  ps->applyLastCloud();
+
+  //volume = m_sampler->getVolume();
 
     // create a distance shader for starting/terminating rays
     m_distanceShader = new QGLShaderProgram(this);
