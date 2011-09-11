@@ -5,8 +5,19 @@
 #include "MyMainWindow.h"
 #include "MyHapticsThread.h"
 
+#define USE_ROS
+
+#ifdef USE_ROS
+  #include <ros/ros.h>
+#endif
+
 int main(int argc, char *argv[])
 { 
+  #ifdef USE_ROS
+    ros::init(argc, argv, "sss");
+    ros::start();
+  #endif
+
     QApplication application(argc, argv);
     Q_INIT_RESOURCE(Simulation);
 
