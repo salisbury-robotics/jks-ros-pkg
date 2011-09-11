@@ -1,6 +1,7 @@
 #include "PointSampler.h"
 #include <algorithm>
 #include <ros/ros.h>
+#include <limits>
 
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
@@ -139,6 +140,7 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
 
           // TODO:  The whole library should be overhauled to follow the "gradient points out"
           //        convention of implicit functions.
+          //intensity = static_cast<unsigned short>( f_val * std::numeric_limits<unsigned short>::max() / 2 );
           intensity = f_val;
           gradient = f_grad;
         }
@@ -174,6 +176,7 @@ float PointSampler::intensityAt(const cml::vector3d &p)
   float intensity;
   vectorT gradient;
   sampleCloud(p, intensity, gradient);
+  //ROS_INFO("returning with intensity % 6.2f", intensity);
   return intensity;
 
 //  float radius = 1.0;
@@ -185,6 +188,8 @@ vector3f PointSampler::gradientAt(const cml::vector3d &p)
   float intensity;
   vectorT gradient;
   sampleCloud(p, intensity, gradient);
+//  ROS_INFO("returning with gradient % .2f % .2f % .2f, magnitude %.2f",
+//           gradient[0], gradient[1], gradient[2], gradient.length());
   return gradient;
 
 //  return -2*p;
@@ -209,13 +214,13 @@ void PointSampler::applyLastCloud()
 {
   boost::recursive_mutex::scoped_lock lock(mutex_);
 
-  ROS_DEBUG_NAMED("haptics", "Before push Num stored clouds: %zd %zd %zd",
+  ROS_INFO_NAMED("haptics", "Before push Num stored clouds: %zd %zd %zd",
                     trees.size(), m_cloud_points.size(), m_cloud_normals.size() );
   trees.push_front(last_tree);
   m_cloud_points.push_front(last_points);
   m_cloud_normals.push_front(last_normals);
 
-  ROS_DEBUG_NAMED("haptics", "After push stored clouds: %zd %zd %zd",
+  ROS_INFO_NAMED("haptics", "After push stored clouds: %zd %zd %zd",
                     trees.size(), m_cloud_points.size(), m_cloud_normals.size() );
 
   while( trees.size() > m_cloud_list_size )
@@ -223,7 +228,7 @@ void PointSampler::applyLastCloud()
     trees.pop_back();
     m_cloud_points.pop_back();
     m_cloud_normals.pop_back();
-    ROS_DEBUG_NAMED("haptics", "After pop stored clouds: %zd %zd %zd",
+    ROS_INFO_NAMED("haptics", "After pop stored clouds: %zd %zd %zd",
                       trees.size(), m_cloud_points.size(), m_cloud_normals.size() );
   }
 }
@@ -237,7 +242,7 @@ bool PointSampler::createFromCloud(const pcl::PointCloud<PointT> &cloud)
 //     return false;
 
   boost::recursive_mutex::scoped_lock lock(mutex_);
-  ROS_DEBUG_NAMED("haptics", "Loading cloud with %zd points!", cloud.size());
+  ROS_INFO_NAMED("haptics", "Loading cloud with %zd points!", cloud.size());
 
   ros::WallTime begin = ros::WallTime::now();
 
@@ -245,19 +250,19 @@ bool PointSampler::createFromCloud(const pcl::PointCloud<PointT> &cloud)
   last_points.reset( new pcl::PointCloud<PointT> ());
   *last_points = cloud;
 
-  ROS_DEBUG_NAMED("haptics", "Building kdtree...");
+  ROS_INFO_NAMED("haptics", "Building kdtree...");
   last_tree.reset(new pcl::KdTreeFLANN<PointT> ());
   last_tree->setInputCloud (last_points);
   //tree->addPointsFromInputCloud();
 
-  ROS_DEBUG_NAMED("time", "Initializing kdtree took %.3lf ms",
+  ROS_INFO_NAMED("time", "Initializing kdtree took %.3lf ms",
                   (ros::WallTime::now() - begin).toSec()*1000.0);
 
   last_normals.reset(new pcl::PointCloud<pcl::Normal> ());
   if( true )
   {
     begin = ros::WallTime::now();
-    ROS_DEBUG_NAMED("haptics", "Estimating normals...");
+    ROS_INFO_NAMED("haptics", "Estimating normals...");
     pcl::NormalEstimationOMP<PointT, pcl::Normal> ne_omp;
 
     // Set parameters
@@ -265,10 +270,10 @@ bool PointSampler::createFromCloud(const pcl::PointCloud<PointT> &cloud)
     ne_omp.setSearchMethod (last_tree);
     ne_omp.setKSearch(9);
     // Reconstruct
-    ROS_DEBUG_NAMED("haptics", "computing...");
+    ROS_INFO_NAMED("haptics", "computing...");
     ne_omp.compute(*last_normals);
-    ROS_DEBUG_NAMED("haptics", "...done!");
-    ROS_DEBUG_NAMED("time", "OMP Normal estimation took %.3lf ms",
+    ROS_INFO_NAMED("haptics", "...done!");
+    ROS_INFO_NAMED("time", "OMP Normal estimation took %.3lf ms",
                     (ros::WallTime::now() - begin).toSec()*1000.0);
   }
 
@@ -292,7 +297,7 @@ void PointSampler::computeCloudSpecs()
   boost::recursive_mutex::scoped_lock lock(mutex_);
 
   ros::Time begin = ros::Time::now();
-  ROS_DEBUG_NAMED("haptics", "Computing cloud specs ... %f", begin.toSec());
+  ROS_INFO_NAMED("haptics", "Computing cloud specs ... %f", begin.toSec());
   double average_distance = 0;
   int NN = 3;
   if(last_points->size() != 0){
@@ -319,7 +324,7 @@ void PointSampler::computeCloudSpecs()
   }
 
   //m_active_radius = m_radius_multiple*average_distance;
-  ROS_DEBUG_NAMED("info",
+  ROS_INFO_NAMED("info",
                   "Average spacing is %f , multiplier is %.1f, setting to % 5.3f.",
       average_distance, m_radius_multiple, m_active_radius);
 
@@ -339,7 +344,7 @@ void PointSampler::computeCloudSpecs()
   ros::Time end = ros::Time::now();
   ros::Duration elapsed = end-begin;
   //ROS_INFO("Begin: %f, end: %f, elapsed: %f", begin.toSec(), end.toSec(), elapsed.toSec());
-  ROS_DEBUG_NAMED("time", "Computing cloud specs took %.3lf ms", elapsed.toSec()*1000.0);
+  ROS_INFO_NAMED("time", "Computing cloud specs took %.3lf ms", elapsed.toSec()*1000.0);
 }
 
 
