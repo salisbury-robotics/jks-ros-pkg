@@ -1,0 +1,8 @@
+<launch>
+  
+  <include file="$(find haptic_ghosted_gripper)/launch/haptics_frames.launch" />
+
+  <node pkg="haptic_ghosted_gripper" type="haptic_ghosted_gripper_node" name="haptics_node" output="screen">
+  </node>
+
+</launch>

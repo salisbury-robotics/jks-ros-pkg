@@ -27,13 +27,13 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 rosbuild_add_executable(haptic_ghosted_gripper_node
-
-                        src/haptic_ghosted_gripper_node.cpp
+                        src/main.cpp
+                        #src/haptic_ghosted_gripper_node.cpp
                         manifest.xml
                         )
 
-rosbuild_add_executable(test_haptic_ghosted_gripper
-                        src/test_haptic_ghosted_gripper.cpp
-                        )
+#rosbuild_add_executable(test_haptic_ghosted_gripper
+#                        src/test_haptic_ghosted_gripper.cpp
+#                        )
 
 #target_link_libraries(example ${PROJECT_NAME})
