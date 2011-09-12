@@ -1,8 +1,13 @@
 <launch>
-  
+ 
+  <arg name="debug" default="false" />
+
+  <arg if="$(arg debug)"      name="prefix" value="xterm -e gdb -ex run --args" />
+  <arg unless="$(arg debug)"  name="prefix" value="" />
+ 
   <include file="$(find haptic_ghosted_gripper)/launch/haptics_frames.launch" />
 
-  <node pkg="haptic_ghosted_gripper" type="haptic_ghosted_gripper_node" name="haptics_node" output="screen">
+  <node pkg="haptic_ghosted_gripper" type="haptic_ghosted_gripper_node" name="haptics_node" launch-prefix="$(arg prefix)" output="screen">
   </node>
 
 </launch>
