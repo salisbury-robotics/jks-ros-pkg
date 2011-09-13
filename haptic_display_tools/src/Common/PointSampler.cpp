@@ -12,7 +12,7 @@ typedef cml::vector3d vectorT;
 
 PointSampler::PointSampler() :
     m_active_radius(1.4),
-    m_radius_multiple(1.4),
+    m_radius_multiple(2.5),
     m_basis_type(PointSampler::WYVILL),
     m_cloud_type(PointSampler::METABALLS),
     m_cloud_list_size(1)
@@ -59,8 +59,10 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
 
   if(NN == 0)
   {
+    //ROS_INFO("Found no neighbors in %d clouds within distance %.3f m", trees.size(), m_active_radius);
     return false;
   }
+  //ROS_INFO("Found %d neighbors in %zd clouds within distance %.3f m", NN, trees.size(), m_active_radius);
 
   // variables for Wyvill
   double a=0, b=0, c=0, R=0, R2=0, R4=0, R6=0, a1=0, b1=0, c1=0, a2=0, b2=0, c2=0;
@@ -90,6 +92,8 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
         vectorT v(pt.x, pt.y, pt.z);
         vectorT n(nv.normal[0], nv.normal[1], nv.normal[2]);
 
+         //ROS_INFO("point (%.3f %.3f, %.3f)", v[0], v[1], v[2]);
+
 //        if(m_configPtr->auto_threshold)
 //          R = pt.data[3];
 //        else
@@ -104,6 +108,10 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
           a1 = a/R6; b1 = b/R4; c1 = c/R2;
           a2 = 6*a1; b2 = 4*b1; c2 = 2*c1;
         }
+        else
+        {
+          ROS_ERROR("This should not be called!");
+        }
 
         double f_val = 0;
         vectorT f_grad(0,0,0);
@@ -112,7 +120,10 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
         //pos.z *= scaleZ;
         double r = pos.length();
         if(r > R)  // must skip points outside valid bounds.
+        {
+          //ROS_WARN("Skipping a point (%.3f %.3f, %.3f)", v[0], v[1], v[2]);
           continue;
+        }
         double r2 = r*r;
         double r3 = r*r2;
         double r4 = r2*r2;
@@ -127,6 +138,7 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
         }
         else if(m_basis_type == PointSampler::WENDLAND)
         {
+          ROS_ERROR("This should not be called!");
           double r_scaled = r/R;
           // TODO still need to address the scaling...
           f_val = pow((1-r_scaled),4)*(4*r_scaled + 1);
@@ -140,13 +152,13 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
 
           // TODO:  The whole library should be overhauled to follow the "gradient points out"
           //        convention of implicit functions.
-          //intensity = static_cast<unsigned short>( f_val * std::numeric_limits<unsigned short>::max() / 2 );
-          intensity = f_val;
-          gradient = f_grad;
+          intensity += f_val;
+          gradient += f_grad;
         }
         else if(   m_cloud_type == PointSampler::CLOSED_SURFELS
                 || m_cloud_type == PointSampler::OPEN_SURFELS )
         {
+          ROS_ERROR("This should not be called!");
           a_x += f_val * v;
           n_x += f_val * n;
           denom += f_val;
@@ -161,6 +173,7 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
   if(   m_cloud_type == PointSampler::CLOSED_SURFELS
         || m_cloud_type == PointSampler::OPEN_SURFELS )
   {
+    ROS_ERROR("This should not be called!");
     a_x /= denom;
     n_x /= denom;
 
@@ -179,8 +192,8 @@ float PointSampler::intensityAt(const cml::vector3d &p)
   //ROS_INFO("returning with intensity % 6.2f", intensity);
   return intensity;
 
-//  float radius = 1.0;
-//  return radius - p.length();
+//  float radius = 0.2;
+//  return std::max<float>(5*(radius - p.length()), 0);
 }
 
 vector3f PointSampler::gradientAt(const cml::vector3d &p)
@@ -232,6 +245,14 @@ void PointSampler::applyLastCloud()
                       trees.size(), m_cloud_points.size(), m_cloud_normals.size() );
   }
 }
+
+
+// This could be useful at some point.
+//bool PointSampler::loadPCD(const std::string file)
+//{
+//
+//
+//}
 
 //! Queues up a cloud to apply to the internal cloud list.
 bool PointSampler::createFromCloud(const pcl::PointCloud<PointT> &cloud)
@@ -323,7 +344,7 @@ void PointSampler::computeCloudSpecs()
     average_distance /= last_points->size();
   }
 
-  //m_active_radius = m_radius_multiple*average_distance;
+  m_active_radius = m_radius_multiple*average_distance;
   ROS_INFO_NAMED("info",
                   "Average spacing is %f , multiplier is %.1f, setting to % 5.3f.",
       average_distance, m_radius_multiple, m_active_radius);
@@ -429,13 +450,13 @@ void PointSampler::createPlane()
     cloud.header.stamp = ros::Time::now();
     cloud.header.frame_id = "/tool_frame";
 
-    for(int i = -4; i <= 4; i++)
+    for(int i = 1; i <= 3; i++)
     {
       for(int j = -4; j <= 4; j++)
       {
         PointT point;
-        point.x = i;
-        point.y = j;
+        point.x = i*0.02;
+        point.y = j*0.02;
         point.z = 0;
         cloud.push_back(point);
       }
@@ -455,5 +476,20 @@ void PointSampler::deleteAllClouds()
   trees.clear();
   m_cloud_points.clear();
   m_cloud_normals.clear();
+}
 
+//! Returns a point cloud from the internal list.
+void PointSampler::getPointCloud(const int &index, pcl::PointCloud<PointT>::Ptr &cloud)
+{
+  boost::recursive_mutex::scoped_lock lock(mutex_);
+
+  *cloud = *m_cloud_points.front();
+}
+
+//! Returns a normal cloud from the internal list.
+void PointSampler::getNormalCloud(const int &index, pcl::PointCloud<pcl::Normal>::Ptr &cloud)
+{
+  boost::recursive_mutex::scoped_lock lock(mutex_);
+
+  *cloud = *m_cloud_normals.front();
 }

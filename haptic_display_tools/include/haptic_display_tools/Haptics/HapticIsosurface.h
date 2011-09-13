@@ -27,14 +27,6 @@ protected:
         State() : inside(false), ready(false), proxy(0.0, 0.0, 0.0) { }
     } m_states[k_maxStates];
 
-    // uses the isovalue to 0-center the field, values < 0 are inside object
-    double surface(const cml::vector3d &p)
-        { return m_isoValue - m_sampler->intensityAt(p); }
-
-    // the field gradient is the negative of the volume gradient
-    cml::vector3d gradient(const cml::vector3d &p)
-        { return -m_sampler->gradientAt(p); }
-
     // finds the surface within the field (Salisbury & Tarr 1998)
     cml::vector3d findSurface(const cml::vector3d &seed);
 
@@ -63,6 +55,14 @@ public:
 
     // resets the proxy tracking to an uninitialized state
     virtual void reset();
+
+    // uses the isovalue to 0-center the field, values < 0 are inside object
+    double surface(const cml::vector3d &p)
+        { return m_isoValue - m_sampler->intensityAt(p); }
+
+    // the field gradient is the negative of the volume gradient
+    cml::vector3d gradient(const cml::vector3d &p)
+        { return -m_sampler->gradientAt(p); }
 
     // use these methods to query for changes to a region of the mask
 //    virtual bool maskAltered()          { return m_maskCutter->regionAltered(); }

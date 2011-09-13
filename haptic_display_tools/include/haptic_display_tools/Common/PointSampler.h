@@ -109,6 +109,24 @@ public:
   //! Clears all cloud data stored in this sampler.
   void deleteAllClouds();
 
+  //! Gets a cloud by index... (does this work?)
+  void getPointCloud(const int &index, pcl::PointCloud<PointT>::Ptr &cloud);
+
+  //! Gets a normal cloud by index... (does this work?)
+  void getNormalCloud(const int &index, pcl::PointCloud<pcl::Normal>::Ptr &cloud);
+
+  //! Get the metaball radius
+  float getActiveRadius() {return m_active_radius; }
+
+  //! Get the metaball radius
+  void setActiveRadius(float r) { m_active_radius = r; }
+
+  //! Get the metaball radius
+  float getRadiusMultiplier() {return m_radius_multiple; }
+
+  //! Get the metaball radius
+  void setRadiusMultiplier(float m) { m_radius_multiple = m; }
+
   //! Returns the function value (intensity) at position p
   virtual float           intensityAt(const cml::vector3d &p);
 
