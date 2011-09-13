@@ -33,5 +33,13 @@ btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
 
 } // namespace cml_tools
 
+void setBTMatrixColumns(btMatrix3x3 &mat, const tf::Vector3 &X, const tf::Vector3 &Y, const tf::Vector3 &Z )
+{
+  mat.setValue(X.x(), Y.x(), Z.x(),
+               X.y(), Y.y(), Z.y(),
+               X.z(), Y.z(), Z.z());
+
+}
+
 
 #endif

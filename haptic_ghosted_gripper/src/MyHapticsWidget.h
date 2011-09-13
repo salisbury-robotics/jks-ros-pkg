@@ -12,6 +12,7 @@
 #include <std_msgs/String.h>
 
 #include <boost/bind.hpp>
+#include <boost/thread/recursive_mutex.hpp>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
@@ -34,6 +35,9 @@
 
 #include <Common/Sampler.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <haptic_ghosted_gripper/HapticsConfig.h>
+
 
 //#define PROF_ENABLED
 //#include <profiling/profiling.h>
@@ -50,8 +54,19 @@ class HapticGhostedGripper{
   ros::Publisher pub_marker_, pub_marker_array_;
   ros::Publisher pub_status_;
 
+  //! mutex for point cloud publishing
+  boost::mutex mutex_;
+
   // A timer callback
   ros::Timer update_timer_;
+
+  // ***** Dynamic reconfigure stuff *****
+  typedef haptic_ghosted_gripper::HapticsConfig Config;
+  Config config_;
+  dynamic_reconfigure::Server<Config>                dyn_srv;
+  dynamic_reconfigure::Server<Config>::CallbackType  dyn_cb;
+
+
 
   //! Stuff for tf
   tf::TransformListener tfl_;
@@ -82,7 +97,9 @@ public:
   void initializeHaptics();
   void displayCallback();
   void printDeviceSpecs(const cHapticDeviceInfo &info);
-  void loadPointShell(const std::string &location);
+  void loadPointShell(const std::string &location, float scale);
+  void publishPointCloud();
+  void dynamicCallback(Config &new_config, uint32_t id);
 
 
 

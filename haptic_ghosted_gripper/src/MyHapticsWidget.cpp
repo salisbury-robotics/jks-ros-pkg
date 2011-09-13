@@ -8,7 +8,12 @@
 #include <Haptics/PointShellIsosurface.h>
 #include <Common/PointSampler.h>
 
+const float proxy_mesh_scale = 1.0;
 
+const std::string mesh_stl = "course_gripper.stl";
+const std::string mesh_obj = "course_gripper.obj";
+const std::string path = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/";
+const std::string package = "package://haptic_ghosted_gripper/meshes/";
 
   //! The constructor
 HapticGhostedGripper::HapticGhostedGripper():
@@ -27,6 +32,10 @@ HapticGhostedGripper::HapticGhostedGripper():
 
   // Create timer callback for auto-running of algorithm
   update_timer_ = nh_.createTimer(ros::Duration(0.03333), boost::bind(&HapticGhostedGripper::displayCallback, this));
+
+  // This server is for the user to adjust the algorithm weights
+  dyn_cb = boost::bind( &HapticGhostedGripper::dynamicCallback, this, _1, _2 );
+  dyn_srv.setCallback(dyn_cb);
 
   // Set up the chai world and device
   initializeHaptics();
@@ -52,17 +61,20 @@ void HapticGhostedGripper::printDeviceSpecs(const cHapticDeviceInfo &info)
   ROS_INFO("Workspace: %.3f m", info.m_workspaceRadius);
 }
 
-void HapticGhostedGripper::loadPointShell(const std::string &location)
+void HapticGhostedGripper::loadPointShell(const std::string &location, float scale)
 {
     PointShellIsosurface *surface = dynamic_cast<PointShellIsosurface *>(m_isosurface);
     if (surface == 0) return;
 
+    ROS_INFO("Loading pointshell from: %s", location.c_str());
 //    string directory = location.toStdString();
-    MeshGLM mesh("pointshell", "/opt/ros/electric/stacks/pr2_common/pr2_description/meshes/gripper_v0/gripper_palm.dae");
-
+    MeshGLM mesh("pointshell");
+    if(!mesh.loadFromFile(location))
+      ROS_ERROR("Failed to load object file from location: %s!", location.c_str());
 
     // use the mesh vertices as a point shell on the haptic isosurface
-    surface->setPointShell(mesh.vertexPointer(), mesh.numVertices());
+    surface->setPointShell(mesh.vertexPointer(), mesh.numVertices(), scale);
+    ROS_INFO("Succeeded oading pointshell!");
 }
 
 
@@ -114,13 +126,18 @@ void HapticGhostedGripper::initializeHaptics()
 
 //        // center the device at (.5, .5, .5) where the volume will be
         cml::matrix44f_c center, orient = cml::identity_4x4();
-        cml::matrix_translation(center, 0.f, -.5f, 0.f);
+        cml::matrix_translation(center, 0.f, 0.f, 0.f);
         cml::matrix_set_basis_vectors(orient, cml::z_axis_3D(), cml::x_axis_3D(), cml::y_axis_3D());
         display->setTransform(orient * center);
+
+        display->setToolRadius(config_.tool_radius);
+        m_display->setWorkspaceRadius(display->deviceWorkspace());
 
         // TODO: increase stiffness when speed problem is solved
         double k = display->stiffness();
         display->setStiffness(0.5 * k);
+        k = display->torsionalStiffness();
+        display->setTorsionalStiffness(0.1*k);
     }
 
 
@@ -135,17 +152,22 @@ void HapticGhostedGripper::initializeHaptics()
 
     m_sampler = new PointSampler();
     PointSampler *ps = dynamic_cast<PointSampler*>(m_sampler);
-    ps->createSphericalShell(0.5, 0.05, -1, 1, -M_PI, M_PI, 0.0);
+    ps->setRadiusMultiplier(3.0);
+    ps->createSphericalShell(0.1, 0.1, -M_PI/2.5, M_PI/3, -M_PI, M_PI, config_.synthetic_noise);
+    //ps->createPlane();
+//    ps->createSphericalShell(0.5, 0.05, -1, 1, -M_PI, M_PI, 0.0);
     //ps->createPlane();
     ps->applyLastCloud();
 
-    m_mesh = new MeshGLM("drill", "/opt/ros/electric/stacks/pr2_common/pr2_description/meshes/gripper_v0/gripper_palm.dae", MeshGLM::k_useTexture | MeshGLM::k_useMaterial);
+    //std::string location = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/pointshell.obj";
+    std::string location = path + mesh_obj;
+    //m_mesh = new MeshGLM("drill", location, MeshGLM::k_useTexture | MeshGLM::k_useMaterial);
 
 
     // add a haptic isosurface to the scene
     //m_isosurface = new HapticIsosurface(m_sampler, 0.5);
     m_isosurface = new PointShellIsosurface(m_sampler, 0.5);
-    loadPointShell("");
+    loadPointShell(location, proxy_mesh_scale);
     m_scene->addNode(m_isosurface);
 
     // clean up the temporary model files from the disk
@@ -204,22 +226,67 @@ void HapticGhostedGripper::displayCallback()
   cml::vector3d HIP_pos = m_display->toolPosition();
   cml::matrix33d HIP_rot = m_display->toolOrientation();
 
+  float intensity = m_sampler->intensityAt(HIP_pos);
+//  cml::vector3f gradient = m_sampler->gradientAt(HIP_pos);
+  //float intensity = m_isosurface->surface(HIP_pos);
+  cml::vector3f gradient = m_isosurface->gradient(HIP_pos);
+
+  //ROS_INFO("intensity at (%.2f, %.2f, %.2f): %.2f", HIP_pos[0], HIP_pos[1], HIP_pos[2], intensity);
+
   if(m_device_info.m_sensedRotation)
   {
     object_manipulator::shapes::Arrow arrow;
-    arrow.dims = tf::Vector3(2*proxy_radius, proxy_radius/2, proxy_radius/2);
-    arrow.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(proxy_rot));
-    arrow.frame.setOrigin(cml_tools::cmlVectorToTF(proxy_pos));
-    arrow.header.stamp = time_now;
-    arrow.header.frame_id = m_display_frame.c_str();
-    object_manipulator::drawArrow(pub_marker_, arrow, "proxy", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.3, 0.7, 1.0));
+//    arrow.dims = 10*tf::Vector3(2*proxy_radius, proxy_radius, proxy_radius);
+//    arrow.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(proxy_rot));
+//    arrow.frame.setOrigin(cml_tools::cmlVectorToTF(proxy_pos));
+//    arrow.header.stamp = time_now;
+//    arrow.header.frame_id = m_display_frame.c_str();
+//    object_manipulator::drawArrow(pub_marker_, arrow, "proxy", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.2, 1.0, 0.7, 1.0));
 
-    arrow.dims = tf::Vector3(2*proxy_radius, proxy_radius/2, proxy_radius/2);
-    arrow.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(HIP_rot));
-    arrow.frame.setOrigin(cml_tools::cmlVectorToTF(HIP_pos));
-    arrow.header.stamp = time_now;
-    arrow.header.frame_id = m_display_frame.c_str();
-    object_manipulator::drawArrow(pub_marker_, arrow, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.4, 0.2, 0.6));
+    object_manipulator::shapes::Mesh mesh;
+    mesh.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(proxy_rot));
+    mesh.frame.setOrigin(cml_tools::cmlVectorToTF(proxy_pos));
+    mesh.header.stamp = time_now;
+    mesh.header.frame_id = m_display_frame.c_str();
+    mesh.dims = tf::Vector3(proxy_mesh_scale, proxy_mesh_scale, proxy_mesh_scale);
+    //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/drill.dae";
+    //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/whole_gripper.stl";
+    mesh.mesh_resource = package + mesh_stl;
+    mesh.use_embedded_materials = false;
+    object_manipulator::drawMesh(pub_marker_, mesh, "proxy", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.1, 1.0, 0.4, 0.9));
+
+    object_manipulator::shapes::Sphere sphere;
+    sphere.dims = tf::Vector3(2*proxy_radius, 2*proxy_radius, 2*proxy_radius);
+    sphere.frame = tf::Transform(tf::Quaternion(0,0,0,1), cml_tools::cmlVectorToTF(proxy_pos));
+    sphere.header.frame_id = m_display_frame.c_str();
+    sphere.header.stamp = time_now;
+    object_manipulator::drawSphere(pub_marker_, sphere, "proxy_point", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.2, 1.0, 0.2, 1.0));
+
+//    arrow.dims = 10*tf::Vector3(2*proxy_radius, proxy_radius, proxy_radius);
+//    arrow.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(HIP_rot));
+//    arrow.frame.setOrigin(cml_tools::cmlVectorToTF(HIP_pos));
+//    arrow.header.stamp = time_now;
+//    arrow.header.frame_id = m_display_frame.c_str();
+//    object_manipulator::drawArrow(pub_marker_, arrow, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.4, 0.2, 0.6));
+
+    mesh.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(HIP_rot));
+    mesh.frame.setOrigin(cml_tools::cmlVectorToTF(HIP_pos));
+    mesh.header.stamp = time_now;
+    mesh.header.frame_id = m_display_frame.c_str();
+    float device_scale = 0.98*proxy_mesh_scale;
+    mesh.dims = tf::Vector3(device_scale, device_scale, device_scale);
+    //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/drill.dae";
+    //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/whole_gripper.stl";
+    mesh.mesh_resource = package + mesh_stl;
+    mesh.use_embedded_materials = false;
+    object_manipulator::drawMesh(pub_marker_, mesh, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5));
+
+
+    sphere.dims = tf::Vector3(2*proxy_radius, 2*proxy_radius, 2*proxy_radius);
+    sphere.frame = tf::Transform(tf::Quaternion(0,0,0,1), cml_tools::cmlVectorToTF(HIP_pos));
+    sphere.header.frame_id = m_display_frame.c_str();
+    sphere.header.stamp = time_now;
+    object_manipulator::drawSphere(pub_marker_, sphere, "HIP_point", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5));
   }
   else
   {
@@ -238,10 +305,171 @@ void HapticGhostedGripper::displayCallback()
 //      object_manipulator::drawSphere(pub_marker_, sphere, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.4, 0.2, 0.6));
   }
 
+//  // ----------------------------------
+//  // Update tangent plane visualization
+//  object_manipulator::shapes::Cylinder box;
+//  tf::Vector3 normal = cml_tools::cmlVectorToTF(gradient).normalized();
+//  tf::Vector3 rotX = normal.cross(tf::Vector3(0,0,1)).normalized();
+//  tf::Vector3 rotY = normal.cross(rotX).normalized();
+//  tf::Quaternion quat;
+//  btMatrix3x3 mat;
+//  setBTMatrixColumns(mat, rotX, rotY, normal);
+//  mat.getRotation(quat);
+//  box.frame.setRotation(quat);
+//  box.frame.setOrigin( cml_tools::cmlVectorToTF(proxy_pos)); // 0.5*proxy_radius*box.frame.getBasis().getColumn(2));
+//  box.dims = tf::Vector3(5*proxy_radius, 5*proxy_radius, 0.0015);
+//  box.header.frame_id = "/tool_frame";
+//  box.header.stamp = time_now;
+//  if(m_display->lastForce().length() > 0.01){
+//    object_manipulator::drawCylinder(pub_marker_, box, "tPlane", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.2, 0.6, 1.0, 0.8), false);
+//  }
+//  else
+//    object_manipulator::drawCylinder(pub_marker_, box, "tPlane", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.2, 0.6, 1.0, 0.8), true);
+//
+//  object_manipulator::shapes::Arrow arrow;
+//  arrow.dims = tf::Vector3(0.03, 0.03, sqrt(gradient.length())/100.f);
+//  setBTMatrixColumns(mat, normal, rotX, rotY);
+//  mat.getRotation(quat);
+//  arrow.frame.setRotation(quat);
+//  arrow.frame.setOrigin(cml_tools::cmlVectorToTF(HIP_pos));
+//  arrow.header.stamp = time_now;
+//  arrow.header.frame_id = m_display_frame.c_str();
+//  object_manipulator::drawArrow(pub_marker_, arrow, "gradient", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 1.0, 1.0, 1.0));
+
+  static int count = 0;
+  count++;
+  if(count > 6){
+    count = 0;
+    publishPointCloud();
+  }
+
+
   if(!ros::ok())
   {
    MyHapticsThread *hthread = MyHapticsThread::instance();
    hthread->quit();
   }
+}
 
+
+void HapticGhostedGripper::publishPointCloud()
+{
+  ros::Time now = ros::Time::now();
+
+  boost::mutex::scoped_lock lock(mutex_);
+  //if(config_.publish_cloud)
+  {
+
+    PointSampler *sampler = dynamic_cast<PointSampler*>(m_sampler);
+    if(!sampler) return;
+
+
+    pcl::PointCloud<PointT>::Ptr last_points(new pcl::PointCloud<PointT>());
+    pcl::PointCloud<pcl::Normal>::Ptr last_normals(new pcl::PointCloud<pcl::Normal>());
+    sampler->getPointCloud(0, last_points);
+    sampler->getNormalCloud(0, last_normals);
+
+    if(last_normals->points.size() == last_points->points.size())
+    {
+      visualization_msgs::Marker marker;
+      marker.header = last_points->header;
+      marker.ns = "cloud";
+      marker.id = 0;
+      marker.type = visualization_msgs::Marker::SPHERE_LIST; // CUBE, SPHERE, ARROW, CYLINDER
+      marker.action = false?((int32_t)visualization_msgs::Marker::DELETE):((int32_t)visualization_msgs::Marker::ADD);
+      marker.lifetime = ros::Duration();
+      float scale = sampler->getActiveRadius()/2.0f;
+      //ROS_INFO("Active radius is %.3f m ", sampler->getActiveRadius() );
+      marker.scale = object_manipulator::msg::createVector3Msg(scale, scale, scale);
+      marker.color = object_manipulator::msg::createColorMsg(0.5, 0.5, 0.5,1.0);
+
+      float angle = now.toSec(); //time_now.toSec();
+      //angle = M_PI/180.0 * 45.0; //config_.light_angle;
+      tf::Vector3 light_source = tf::Vector3(0.5*cos(angle), 0.5*sin(angle), 0.3);
+      object_manipulator::shapes::Sphere sphere;
+      sphere.dims = tf::Vector3(0.02, 0.02, 0.02);
+      sphere.frame = tf::Transform(tf::Quaternion(0,0,0,1), light_source);
+      sphere.header.frame_id = m_display_frame;
+      sphere.header.stamp = marker.header.stamp;
+      object_manipulator::drawSphere(pub_marker_, sphere, "light", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 1.0, 1.0, 0.5));
+
+
+
+      for(int i = 0; i < last_points->points.size(); i++)
+      {
+        const PointT &pt = last_points->points[i];
+        const pcl::Normal &nl = last_normals->points[i];
+        tf::Vector3 point = tf::Vector3(pt.x, pt.y, pt.z);
+        tf::Vector3 N_vec = tf::Vector3(nl.normal[0], nl.normal[1], nl.normal[2]).normalized();
+        tf::Vector3 L_vec = (light_source - point).normalized();
+        tf::Vector3 color = fabs(L_vec.dot(N_vec))*tf::Vector3(1.0, 1.0, 1.0) + tf::Vector3(0.2, 0.2, 0.2);
+        //tf::Vector3 color = tf::Vector3(pt.x*pt.x, pt.y*pt.y, 1.0);
+        marker.colors.push_back(object_manipulator::msg::createColorMsg(color.x(), color.y(), color.z(), 1.0));;
+        marker.points.push_back(object_manipulator::msg::createPointMsg(pt.x, pt.y, pt.z));
+      }
+      ROS_INFO("Publishing marker cloud with %d points!", marker.points.size());
+      pub_marker_.publish(marker);
+    }
+//    sensor_msgs::PointCloud2 msg;
+//    pcl::toROSMsg(*(last_points), msg);
+//    msg.header.frame_id = "/base_link";
+//    msg.header.stamp = now;
+//    pub_cloud_.publish(msg);
+  }
+
+}
+
+//! The dynamic reconfigure callback for setting algorithm params, etc.
+void HapticGhostedGripper::dynamicCallback(Config &new_config, uint32_t id)
+{
+  // This info will get printed back to reconfigure gui
+  char status[256] = "\0";
+
+  switch(id){
+  case(-1): // Init
+    // If you are tempted to put anything here, it should probably go in the constructor
+    break;
+
+  case(0): // Connect
+    printf("Reconfigure GUI connected to me!\n");
+    new_config = config_;
+    break;
+
+  case(1):  // Object select
+    //printf("Reconfigure GUI connected to me!\n");
+//    config_.auto_threshold = new_config.auto_threshold;
+//    object->updateShape(new_config.object_select);
+    //new_object->updateShape(new_config.object_select);
+    break;
+
+  case(10): // auto-threshold
+//    config_.auto_threshold = new_config.auto_threshold;
+//    object->updateShape(new_config.object_select);
+
+
+  default:  // Error condition
+    break;
+//    ROS_INFO("Dynamic reconfigure did something, variable %d.", id);
+
+  }
+
+  config_ = new_config;
+  PointSampler* sampler = dynamic_cast<PointSampler*>(m_sampler);
+  if(!sampler) return;
+
+  ROS_INFO("Dynamic reconfigure is setting parameters (incoming changed param has id %d).", id);
+  sampler->setRadiusMultiplier(config_.radius_multiple);
+  //sampler->setActiveRadius(config_.basis_radius);
+  m_isosurface->setIsosurfaceValue(config_.meta_thresh);
+
+
+//  if(new_config.auto_threshold)
+//  {
+////      new_config.meta_thresh = config_.meta_thresh;
+//    new_config.basis_radius = config_.basis_radius;
+//  }
+//  config_ = new_config;
+//  if(tool) tool->setRadius(config_.tool_radius);
+//
+//  new_config.status = status;
 }
