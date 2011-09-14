@@ -59,11 +59,14 @@
 #include "pcl/io/pcd_io.h"
 #include "pcl/point_types.h"
 #include "pcl_ros/transforms.h"
+#include <pcl/filters/voxel_grid.h>
 
 #include <household_objects_database_msgs/GetModelDescription.h>
 #include <household_objects_database_msgs/GetModelMesh.h>
 
 //#include "marker_helpers.h"
+
+#include "cml_conversions.h"
 
 #include "ghosted_gripper_action_server.h"
 
@@ -105,6 +108,11 @@ GhostedGripperActionServer::GhostedGripperActionServer() :
   spin_timer_ =  nh_.createTimer(ros::Duration(0.05), boost::bind( &GhostedGripperActionServer::spinOnce, this ) );
 
   sub_seed_ = nh_.subscribe<geometry_msgs::PoseStamped>("cloud_click_point", 1, boost::bind(&GhostedGripperActionServer::setSeed, this, _1));
+  sub_selected_pose_ = pnh_.subscribe<geometry_msgs::PoseStamped>("selected_pose", 1, boost::bind(&GhostedGripperActionServer::setSelectedPose, this, _1));
+
+  pnh_.param<double>("voxel_size", voxel_size_, 0.002);
+
+//  haptic_interface_.initializeHaptics();
 
   //register the goal and feeback callbacks
   get_pose_server_.registerGoalCallback(    boost::bind(&GhostedGripperActionServer::goalCB, this));
@@ -130,7 +138,7 @@ void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPt
   //tf::quaternionTFToMsg(q, ps.pose.orientation);
   pose.setRotation(q);
 
-  if(object_model_) pose = pose*tf::Transform(tf::Quaternion(tf::Vector3(0,1,0), M_PI/2.0), tf::Vector3(0,0,0)).inverse();
+  //if(object_model_) pose = pose*tf::Transform(tf::Quaternion(tf::Vector3(0,1,0), M_PI/2.0), tf::Vector3(0,0,0)).inverse();
 
   tf::poseTFToMsg(pose, ps.pose);
   //ps.header = seed->header;
@@ -143,7 +151,37 @@ void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPt
   initMarkers();
   testing_current_grasp_ = true;
   testPose(gripper_pose_, gripper_opening_);
+}
 
+void GhostedGripperActionServer::setSelectedPose(const geometry_msgs::PoseStampedConstPtr &seed)
+{
+  if(!active_) return;
+  ROS_DEBUG("Setting pose.");
+  geometry_msgs::PoseStamped ps = *seed;
+  ROS_DEBUG_STREAM("Input seed was \n" << ps);
+  tf::Pose pose;
+  tf::poseMsgToTF(ps.pose, pose);
+  tf::Quaternion q = pose.getRotation();
+  btMatrix3x3 rot(q);
+  btMatrix3x3 perm( -1, 0, 0,
+                     0,-1, 0,
+                     0, 0, 1);
+  (rot*perm).getRotation(q);
+  //tf::quaternionTFToMsg(q, ps.pose.orientation);
+  pose.setRotation(q);
+
+  //if(object_model_) pose = pose*tf::Transform(tf::Quaternion(tf::Vector3(0,1,0), M_PI/2.0), tf::Vector3(0,0,0)).inverse();
+
+  tf::poseTFToMsg(pose, ps.pose);
+  //ps.header = seed->header;
+  //ROS_INFO_STREAM("Processed seed before wrist offset was \n" << ps);
+
+  gripper_pose_ = toWrist(ps);
+
+  pose_state_ = UNTESTED;
+  initMarkers();
+  testing_current_grasp_ = true;
+  testPose(gripper_pose_, gripper_opening_);
 }
 
 geometry_msgs::PoseStamped GhostedGripperActionServer::getDefaultPose()
@@ -176,7 +214,7 @@ void GhostedGripperActionServer::goalCB()
   pr2_im_msgs::GetGripperPoseGoal goal = *get_pose_server_.acceptNewGoal();
   object_cloud_.reset( new pcl::PointCloud<PointT>());
   pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
-  control_offset_.pose = object_manipulator::msg::createPoseMsg(tf::Pose(tf::Quaternion::getIdentity(), tf::Vector3(0.15,0,0)));
+  control_offset_.pose = object_manipulator::msg::createPoseMsg(tf::Pose(tf::Quaternion::getIdentity(), tf::Vector3(0.10,0,0)));
 
   if( !goal.object.cluster.points.empty() ||
       !goal.object.potential_models.empty() )
@@ -296,12 +334,75 @@ void GhostedGripperActionServer::goalCB()
     return;
   }
 
+  // TODO: Need to set haptic device offset (clutch) to the seed pose.
+
+  setHapticDeviceTransform(fromWrist(gripper_pose_));
+
   pose_state_ = UNTESTED;
-  initMarkers();
-  pr2_im_msgs::TestGripperPoseGoal test_goal;
-  test_goal.gripper_poses.push_back(gripper_pose_);
-  test_goal.gripper_openings.push_back(gripper_opening_);
-  test_pose_client_.sendGoal( test_goal, boost::bind(&GhostedGripperActionServer::testGripperResultCallback, this, _1, _2));
+
+  if (!getAndLoadCloudSnapshot()) return;
+}
+
+
+bool GhostedGripperActionServer::getAndLoadCloudSnapshot()
+{
+
+  point_cloud_server::StoreCloudGoal cloud_goal;
+  cloud_goal.action = cloud_goal.GET;
+  cloud_goal.topic = "";
+  cloud_goal.result_frame_id =    "/torso_lift_link";
+  cloud_goal.name = "interactive_manipulation_snapshot";
+  ROS_INFO("Sending request for cloud named [%s]", cloud_goal.name.c_str());
+  cloud_server_client_.sendGoalAndWait(cloud_goal, ros::Duration(15.0), ros::Duration(5.0));
+
+  if(cloud_server_client_.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+  {
+    ROS_INFO("Got response from server!");
+    ROS_INFO("Downsampling cloud...");
+    ros::WallTime begin = ros::WallTime::now();
+    // Create the filtering object
+    sensor_msgs::PointCloud2::Ptr ptr (new sensor_msgs::PointCloud2 (cloud_server_client_.getResult()->cloud ));
+    sensor_msgs::PointCloud2 filtered_cloud;
+
+    //sensor_msgs::PointCloud2 temp =  cloud_server_client_.getResult()->cloud;
+    //sensor_msgs::PointCloud2::Ptr ptr(&temp);
+    pcl::VoxelGrid<sensor_msgs::PointCloud2> sor;
+    sor.setInputCloud (ptr);
+    sor.setLeafSize (voxel_size_, voxel_size_, voxel_size_);
+    sor.filter (filtered_cloud);
+    ROS_DEBUG_NAMED("cloud_handler", "Downsampling took %.3lf ms", (ros::WallTime::now() - begin).toSec()*1000.0);
+    //msg_cloud_ = cloud_server_client_.getResult()->cloud;
+
+
+    pcl::PointCloud<PointT>::Ptr snapshot_cloud(new pcl::PointCloud<PointT>());
+    pcl::fromROSMsg(filtered_cloud, *snapshot_cloud);
+
+    // TODO: get snapshot from server
+    haptic_interface_.loadPointCloud(snapshot_cloud);
+  }
+  else
+  {
+    ROS_ERROR("Server did not succeed, status %s", cloud_server_client_.getState().toString().c_str());
+    cancelCB();
+    return false;
+  }
+  return true;
+}
+
+void GhostedGripperActionServer::setHapticDeviceTransform(const geometry_msgs::PoseStamped &ps)
+{
+  ROS_INFO_STREAM("Setting initial haptic device pose to:" << ps);
+//  // TODO: We should convert these poses to the common frame
+//  cml::matrix44f_c center, orient = cml::identity_4x4();
+//  cml::matrix_translation(center, (float)ps.pose.position.x, (float)ps.pose.position.y, (float)ps.pose.position.z );
+//  //cml::matrix_set_basis_vectors(orient, cml::z_axis_3D(), cml::x_axis_3D(), cml::y_axis_3D());
+//  haptic_interface_.m_display->setTransform(orient * center);
+  cml::vector3d t;
+  t.set(ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+  cml::matrix33d r;
+  r.identity();
+
+  haptic_interface_.m_display->setClutchOffsets(t, r);
 }
 
 
@@ -309,6 +410,7 @@ void GhostedGripperActionServer::goalCB()
 void GhostedGripperActionServer::preemptCB()
 {
   ROS_INFO("%s: Preempted", get_pose_name_.c_str());
+  haptic_interface_.stopHaptics();
   test_pose_client_.cancelAllGoals();
   get_pose_server_.setPreempted();
   setIdle();
@@ -438,6 +540,7 @@ void GhostedGripperActionServer::acceptCB()
     {
       test_pose_client_.cancelGoal();
     }
+    haptic_interface_.stopHaptics();
     setIdle();
     pr2_im_msgs::GetGripperPoseResult result;
     result.gripper_pose = gripper_pose_;
@@ -449,7 +552,9 @@ void GhostedGripperActionServer::acceptCB()
 //! Gets rid of tested gripper pose
 void GhostedGripperActionServer::clearTestedPose()
 {
-  ROS_ERROR("This doesn't do anything yet");
+  server_.erase("ghosted_gripper");
+  server_.erase("object_cloud");
+//  ROS_ERROR("This doesn't do anything yet");
 }
 
 //! Cancel this action call
@@ -460,6 +565,7 @@ void GhostedGripperActionServer::cancelCB()
   {
     test_pose_client_.cancelGoal();
   }
+  haptic_interface_.stopHaptics();
   get_pose_server_.setAborted();
   setIdle();
 }

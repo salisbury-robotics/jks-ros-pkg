@@ -10,38 +10,39 @@
 
 const float proxy_mesh_scale = 1.0;
 
-const std::string mesh_stl = "course_gripper.stl";
-const std::string mesh_obj = "course_gripper.obj";
+const std::string mesh_stl = "coarse_gripper_10cm.stl";
+const std::string mesh_obj = "coarse_gripper_10cm.obj";
 const std::string path = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/";
 const std::string package = "package://haptic_ghosted_gripper/meshes/";
 
   //! The constructor
 HapticGhostedGripper::HapticGhostedGripper():
     nh_("/"), pnh_("~"),
-    m_display_frame("/base_link")
+    active_(false),
+    m_display_frame("/torso_lift_link"),
+    m_clicking(false),
+    m_clickExternal(false)
 {
-  printf("Why isn't this constructing?\n");
-
   ROS_INFO("Constructing HapticGhostedGripper!");
   // Marker topics
   pub_marker_ = pnh_.advertise<visualization_msgs::Marker>("/markers", 100);
   pub_marker_array_ = pnh_.advertise<visualization_msgs::MarkerArray>("/markers_array", 1);
 
   // String status topic
-  pub_status_ = pnh_.advertise<std_msgs::String>("status", 10);
+  pub_status_ = pnh_.advertise<std_msgs::String>("servo_status", 10);
+
+  // Topic for most recently selected device pose
+  pub_pose_ = pnh_.advertise<geometry_msgs::PoseStamped>("selected_pose", 1, true);
 
   // Create timer callback for auto-running of algorithm
   update_timer_ = nh_.createTimer(ros::Duration(0.03333), boost::bind(&HapticGhostedGripper::displayCallback, this));
 
-  // This server is for the user to adjust the algorithm weights
-  dyn_cb = boost::bind( &HapticGhostedGripper::dynamicCallback, this, _1, _2 );
-  dyn_srv.setCallback(dyn_cb);
-
   // Set up the chai world and device
   initializeHaptics();
 
-//    m_sceneIndex = hthread->addScene(m_scene);
-//    hthread->selectScene(m_sceneIndex);
+  // This server is for the user to adjust the algorithm weights
+  dyn_cb = boost::bind( &HapticGhostedGripper::dynamicCallback, this, _1, _2 );
+  dyn_srv.setCallback(dyn_cb);
 
   ROS_INFO("Finished constructor!");
 }
@@ -74,7 +75,7 @@ void HapticGhostedGripper::loadPointShell(const std::string &location, float sca
 
     // use the mesh vertices as a point shell on the haptic isosurface
     surface->setPointShell(mesh.vertexPointer(), mesh.numVertices(), scale);
-    ROS_INFO("Succeeded oading pointshell!");
+    ROS_INFO("Succeeded loading pointshell!");
 }
 
 
@@ -82,21 +83,9 @@ void HapticGhostedGripper::initializeHaptics()
 {
     ROS_INFO("Creating connection to device...");
 
-    // create a haptic device handler that tells us what devices are connected
-    // to the host computer
+    // create a haptic device handler and initialize
     m_handler = new cHapticDeviceHandler();
-
-    // initialize all available haptic devices here
     ROS_INFO("Found %d attached devices!", m_handler->getNumDevices());
-//    for (int i = 0; i < m_handler->getNumDevices(); ++i) {
-//        cGenericHapticDevice *device;
-//        if (m_handler->getDevice(device, i) == 0) {
-//            device->open();
-////            device->initialize(true);
-//        }
-//    }
-
-    // get access to the first available haptic device
     cGenericHapticDevice* hapticDevice;
     m_handler->getDevice(hapticDevice, 0);
 
@@ -106,15 +95,6 @@ void HapticGhostedGripper::initializeHaptics()
         m_device_info = hapticDevice->getSpecifications();
         printDeviceSpecs(m_device_info);
     }
-
-//    m_display = new HapticDisplay(hapticDevice, 0);
-//    m_display->setToolRadius(0.08);
-//    m_display->setWorkspaceRadius(m_display->deviceWorkspace());
-//    m_display->setStiffness(m_device_info.m_maxForceStiffness * 0.5);
-
-//    cml::matrix33d permutation;
-//    permutation.identity();
-//    m_display->setPermutation(permutation);
 
     // create a haptics scene with all the haptic displays in it
     m_scene = new HapticScene();
@@ -127,7 +107,7 @@ void HapticGhostedGripper::initializeHaptics()
 //        // center the device at (.5, .5, .5) where the volume will be
         cml::matrix44f_c center, orient = cml::identity_4x4();
         cml::matrix_translation(center, 0.f, 0.f, 0.f);
-        cml::matrix_set_basis_vectors(orient, cml::z_axis_3D(), cml::x_axis_3D(), cml::y_axis_3D());
+        //cml::matrix_set_basis_vectors(orient, -cml::x_axis_3D(), -cml::y_axis_3D(), cml::z_axis_3D());
         display->setTransform(orient * center);
 
         display->setToolRadius(config_.tool_radius);
@@ -139,6 +119,11 @@ void HapticGhostedGripper::initializeHaptics()
         k = display->torsionalStiffness();
         display->setTorsionalStiffness(0.1*k);
     }
+    cml::matrix33d perm;
+    perm.set(-1.0,  0.0, 0.0,
+              0.0, -1.0, 0.0,
+              0.0,  0.0, 1.0);
+    m_display->setPermutation(perm);
 
 
 //    // save obj models to disk so we can load them back
@@ -152,12 +137,9 @@ void HapticGhostedGripper::initializeHaptics()
 
     m_sampler = new PointSampler();
     PointSampler *ps = dynamic_cast<PointSampler*>(m_sampler);
-    ps->setRadiusMultiplier(3.0);
-    ps->createSphericalShell(0.1, 0.1, -M_PI/2.5, M_PI/3, -M_PI, M_PI, config_.synthetic_noise);
-    //ps->createPlane();
-//    ps->createSphericalShell(0.5, 0.05, -1, 1, -M_PI, M_PI, 0.0);
-    //ps->createPlane();
-    ps->applyLastCloud();
+    ps->setRadiusMultiplier(2.5);
+//    ps->createSphericalShell(0.1, 0.1, -M_PI/2.5, M_PI/3, -M_PI, M_PI, config_.synthetic_noise);
+//    ps->applyLastCloud();
 
     //std::string location = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/pointshell.obj";
     std::string location = path + mesh_obj;
@@ -167,6 +149,7 @@ void HapticGhostedGripper::initializeHaptics()
     // add a haptic isosurface to the scene
     //m_isosurface = new HapticIsosurface(m_sampler, 0.5);
     m_isosurface = new PointShellIsosurface(m_sampler, 0.5);
+    ROS_INFO("Loading gripper model for haptic computations.");
     loadPointShell(location, proxy_mesh_scale);
     m_scene->addNode(m_isosurface);
 
@@ -177,13 +160,58 @@ void HapticGhostedGripper::initializeHaptics()
     MyHapticsThread *hthread = MyHapticsThread::instance();
     m_sceneIndex = hthread->addScene(m_scene);
     hthread->selectScene(m_sceneIndex);
-    if(!hthread->resume())
-    {
-      ROS_ERROR("Failed to resume haptics thread...something is very wrong!");
-    }
-
+//    if(!hthread->resume())
+//    {
+//      ROS_ERROR("Failed to resume haptics thread...something is very wrong!");
+//    }
 }
 
+void HapticGhostedGripper::startHaptics()
+{
+  MyHapticsThread *hthread = MyHapticsThread::instance();
+  if(!hthread->resume())
+  {
+    ROS_ERROR("Failed to resume haptics thread...something is very wrong!");
+    return;
+  }
+  active_ = true;
+}
+
+void HapticGhostedGripper::stopHaptics()
+{
+  MyHapticsThread *hthread = MyHapticsThread::instance();
+  if(!hthread->pause())
+  {
+    ROS_WARN("Haptics thread already paused... are we doing something wrong? :)");
+  }
+  active_ = false;
+}
+
+
+void HapticGhostedGripper::loadPointCloud(pcl::PointCloud<PointT>::Ptr &cloud)
+{
+  PointSampler *ps = dynamic_cast<PointSampler*>(m_sampler);
+  stopHaptics();
+  ps->createFromCloud(*cloud);
+  ps->applyLastCloud();
+  startHaptics();
+}
+
+bool HapticGhostedGripper::checkForButtonClick()
+{
+  // detect a rising edge on the click button
+  if (!m_clicking && (m_display->buttonState(k_clickButton) || m_clickExternal))
+  {
+      m_clicking = true;
+      return true;
+  }
+  // detect a falling edge on the click button
+  else if (m_clicking && !(m_display->buttonState(k_clickButton) || m_clickExternal))
+  {
+      m_clicking = false;
+  }
+  return false;
+}
 
 //! The display callback sends graphical output to rviz.
 void HapticGhostedGripper::displayCallback()
@@ -226,10 +254,22 @@ void HapticGhostedGripper::displayCallback()
   cml::vector3d HIP_pos = m_display->toolPosition();
   cml::matrix33d HIP_rot = m_display->toolOrientation();
 
-  float intensity = m_sampler->intensityAt(HIP_pos);
+  if(checkForButtonClick())
+  {
+    geometry_msgs::PoseStamped ps;
+    tf::Pose tf_pose;
+    tf_pose.setRotation(cml_tools::cmlMatrixToTFQuaternion(proxy_rot));
+    tf_pose.setOrigin(cml_tools::cmlVectorToTF(proxy_pos));
+    ps.pose = object_manipulator::msg::createPoseMsg(tf_pose);
+    ps.header.frame_id = m_display_frame;
+    ps.header.stamp = ros::Time::now();
+    pub_pose_.publish(ps);
+  }
+
+  //float intensity = m_sampler->intensityAt(HIP_pos);
 //  cml::vector3f gradient = m_sampler->gradientAt(HIP_pos);
   //float intensity = m_isosurface->surface(HIP_pos);
-  cml::vector3f gradient = m_isosurface->gradient(HIP_pos);
+  //cml::vector3f gradient = m_isosurface->gradient(HIP_pos);
 
   //ROS_INFO("intensity at (%.2f, %.2f, %.2f): %.2f", HIP_pos[0], HIP_pos[1], HIP_pos[2], intensity);
 
@@ -253,14 +293,14 @@ void HapticGhostedGripper::displayCallback()
     //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/whole_gripper.stl";
     mesh.mesh_resource = package + mesh_stl;
     mesh.use_embedded_materials = false;
-    object_manipulator::drawMesh(pub_marker_, mesh, "proxy", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.1, 1.0, 0.4, 0.9));
+    object_manipulator::drawMesh(pub_marker_, mesh, "proxy", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.1, 1.0, 0.4, 0.9), !active_);
 
     object_manipulator::shapes::Sphere sphere;
     sphere.dims = tf::Vector3(2*proxy_radius, 2*proxy_radius, 2*proxy_radius);
     sphere.frame = tf::Transform(tf::Quaternion(0,0,0,1), cml_tools::cmlVectorToTF(proxy_pos));
     sphere.header.frame_id = m_display_frame.c_str();
     sphere.header.stamp = time_now;
-    object_manipulator::drawSphere(pub_marker_, sphere, "proxy_point", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.2, 1.0, 0.2, 1.0));
+    object_manipulator::drawSphere(pub_marker_, sphere, "proxy_point", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.2, 1.0, 0.2, 1.0), !active_);
 
 //    arrow.dims = 10*tf::Vector3(2*proxy_radius, proxy_radius, proxy_radius);
 //    arrow.frame.setRotation(cml_tools::cmlMatrixToTFQuaternion(HIP_rot));
@@ -279,14 +319,14 @@ void HapticGhostedGripper::displayCallback()
     //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/whole_gripper.stl";
     mesh.mesh_resource = package + mesh_stl;
     mesh.use_embedded_materials = false;
-    object_manipulator::drawMesh(pub_marker_, mesh, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5));
+    object_manipulator::drawMesh(pub_marker_, mesh, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5), !active_);
 
 
     sphere.dims = tf::Vector3(2*proxy_radius, 2*proxy_radius, 2*proxy_radius);
     sphere.frame = tf::Transform(tf::Quaternion(0,0,0,1), cml_tools::cmlVectorToTF(HIP_pos));
     sphere.header.frame_id = m_display_frame.c_str();
     sphere.header.stamp = time_now;
-    object_manipulator::drawSphere(pub_marker_, sphere, "HIP_point", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5));
+    object_manipulator::drawSphere(pub_marker_, sphere, "HIP_point", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5), !active_);
   }
   else
   {
@@ -357,12 +397,10 @@ void HapticGhostedGripper::publishPointCloud()
   ros::Time now = ros::Time::now();
 
   boost::mutex::scoped_lock lock(mutex_);
-  //if(config_.publish_cloud)
+  if(config_.publish_cloud)
   {
-
     PointSampler *sampler = dynamic_cast<PointSampler*>(m_sampler);
     if(!sampler) return;
-
 
     pcl::PointCloud<PointT>::Ptr last_points(new pcl::PointCloud<PointT>());
     pcl::PointCloud<pcl::Normal>::Ptr last_normals(new pcl::PointCloud<pcl::Normal>());
@@ -393,9 +431,7 @@ void HapticGhostedGripper::publishPointCloud()
       sphere.header.stamp = marker.header.stamp;
       object_manipulator::drawSphere(pub_marker_, sphere, "light", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 1.0, 1.0, 0.5));
 
-
-
-      for(int i = 0; i < last_points->points.size(); i++)
+      for(size_t i = 0; i < last_points->points.size(); i++)
       {
         const PointT &pt = last_points->points[i];
         const pcl::Normal &nl = last_normals->points[i];
@@ -407,7 +443,7 @@ void HapticGhostedGripper::publishPointCloud()
         marker.colors.push_back(object_manipulator::msg::createColorMsg(color.x(), color.y(), color.z(), 1.0));;
         marker.points.push_back(object_manipulator::msg::createPointMsg(pt.x, pt.y, pt.z));
       }
-      ROS_INFO("Publishing marker cloud with %d points!", marker.points.size());
+      ROS_DEBUG("Publishing marker cloud with %zd points!", marker.points.size());
       pub_marker_.publish(marker);
     }
 //    sensor_msgs::PointCloud2 msg;
@@ -416,7 +452,6 @@ void HapticGhostedGripper::publishPointCloud()
 //    msg.header.stamp = now;
 //    pub_cloud_.publish(msg);
   }
-
 }
 
 //! The dynamic reconfigure callback for setting algorithm params, etc.
@@ -454,6 +489,7 @@ void HapticGhostedGripper::dynamicCallback(Config &new_config, uint32_t id)
   }
 
   config_ = new_config;
+  if(!m_sampler) return;
   PointSampler* sampler = dynamic_cast<PointSampler*>(m_sampler);
   if(!sampler) return;
 

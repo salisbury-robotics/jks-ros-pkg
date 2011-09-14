@@ -67,12 +67,14 @@
 
 #include "marker_helpers.h"
 
+#include "MyHapticsWidget.h"
+
 using namespace object_manipulator;
 using namespace visualization_msgs;
 using namespace interactive_markers;
 using namespace pr2_im_msgs;
 
-typedef pcl::PointXYZ PointT;
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -98,10 +100,11 @@ protected:
   PoseState pose_state_;
 
   ros::NodeHandle nh_, pnh_;
-  ros::Subscriber sub_seed_;
+  ros::Subscriber sub_seed_, sub_selected_pose_;
   ros::ServiceClient get_model_mesh_client_;
   ros::Timer spin_timer_;
   InteractiveMarkerServer server_;
+  double voxel_size_;
 
   ros::Publisher pub_cloud_;
 
@@ -119,6 +122,8 @@ protected:
   std::string get_pose_name_;
   actionlib::SimpleActionServer<pr2_im_msgs::GetGripperPoseAction> get_pose_server_;
 
+  HapticGhostedGripper haptic_interface_;
+
 public:
 
   GhostedGripperActionServer();
@@ -129,6 +134,8 @@ public:
   void updateGripperAngle()   {  gripper_angle_ = gripper_opening_ * 5.834;   }
 
   void setSeed(const geometry_msgs::PoseStampedConstPtr &seed);
+
+  void setSelectedPose(const geometry_msgs::PoseStampedConstPtr &seed);
 
   //! Remove the markers.
   void setIdle();
@@ -146,7 +153,13 @@ public:
   //! Translate to the control pose.
   geometry_msgs::PoseStamped fromWrist(const geometry_msgs::PoseStamped &ps);
 
-  // Transmit gripper poses
+  //! set the transform pose for the haptic tool
+  void setHapticDeviceTransform(const geometry_msgs::PoseStamped &ps);
+
+  //! Retrieves cloud snapshot from server and loads into haptic scene.
+  bool getAndLoadCloudSnapshot();
+
+  //! Transmit gripper poses
   void updatePoses();
 
   //geometry_msgs::PoseStamped getDefaultPose(std::string arm_name)

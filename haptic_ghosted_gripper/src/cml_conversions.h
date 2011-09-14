@@ -8,7 +8,7 @@
 namespace cml_tools
 {
 
-  tf::Vector3 cmlVectorToTF(const cml::vector3d &v)
+inline tf::Vector3 cmlVectorToTF(const cml::vector3d &v)
 {
   tf::Vector3 vtf;
   vtf.setX(v[0]);
@@ -17,14 +17,14 @@ namespace cml_tools
   return vtf;
 }
 
-btMatrix3x3 cmlMatrixToTF(const cml::matrix33d &rot)
+inline btMatrix3x3 cmlMatrixToTF(const cml::matrix33d &rot)
 {
   return btMatrix3x3( rot.data()[0], rot.data()[1], rot.data()[2],
                       rot.data()[3], rot.data()[4], rot.data()[5],
                       rot.data()[6], rot.data()[7], rot.data()[8] );
 }
 
-btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
+inline btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
 {
   tf::Quaternion q;
   cmlMatrixToTF(m).getRotation(q);
@@ -33,7 +33,7 @@ btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
 
 } // namespace cml_tools
 
-void setBTMatrixColumns(btMatrix3x3 &mat, const tf::Vector3 &X, const tf::Vector3 &Y, const tf::Vector3 &Z )
+inline void setBTMatrixColumns(btMatrix3x3 &mat, const tf::Vector3 &X, const tf::Vector3 &Y, const tf::Vector3 &Z )
 {
   mat.setValue(X.x(), Y.x(), Z.x(),
                X.y(), Y.y(), Z.y(),

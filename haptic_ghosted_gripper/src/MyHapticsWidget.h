@@ -34,9 +34,12 @@
 #include <queue>
 
 #include <Common/Sampler.h>
+#include <Common/PointSampler.h>
 
 #include <dynamic_reconfigure/server.h>
 #include <haptic_ghosted_gripper/HapticsConfig.h>
+
+//typedef pcl::PointXYZRGB PointT;
 
 
 //#define PROF_ENABLED
@@ -53,6 +56,7 @@ class HapticGhostedGripper{
   //! Publishers
   ros::Publisher pub_marker_, pub_marker_array_;
   ros::Publisher pub_status_;
+  ros::Publisher pub_pose_;
 
   //! mutex for point cloud publishing
   boost::mutex mutex_;
@@ -66,7 +70,8 @@ class HapticGhostedGripper{
   dynamic_reconfigure::Server<Config>                dyn_srv;
   dynamic_reconfigure::Server<Config>::CallbackType  dyn_cb;
 
-
+  //! Tells if haptic stuff is in use.
+  bool active_;
 
   //! Stuff for tf
   tf::TransformListener tfl_;
@@ -77,21 +82,39 @@ class HapticGhostedGripper{
   double fps_estimate;
   double hps_estimate;
 
+  //! A haptic scene containing the isosurface object and a display.
   HapticScene            *m_scene;
-  HapticIsosurface       *m_isosurface;
+
+  //! An index for the haptic scene to use... we only use one...
   int                     m_sceneIndex;
-  HapticDisplay          *m_display;
+
+  //! The sampler for the object to render.
   Sampler                *m_sampler;
+
+  //! The mesh for the proxy (only for graphical rendering... probably not needed.
   MeshGLM                *m_mesh;
 
-
-
+  //! Direct hardware handler for the haptic device
   cHapticDeviceHandler   *m_handler;
+
+  //! Info for the haptic device
   cHapticDeviceInfo       m_device_info;
+
+  static const int k_clickButton = 0;
+  bool m_clicking;
+  bool m_clickExternal;
 
 public:
   HapticGhostedGripper();
   ~HapticGhostedGripper();
+
+
+  // TODO These are public because it is easier to directly access them...
+  //! The haptic display (device) interface class
+  HapticDisplay          *m_display;
+
+  //! The isosurface class
+  HapticIsosurface       *m_isosurface;
 
 
   void initializeHaptics();
@@ -100,6 +123,12 @@ public:
   void loadPointShell(const std::string &location, float scale);
   void publishPointCloud();
   void dynamicCallback(Config &new_config, uint32_t id);
+
+  void startHaptics();
+  void stopHaptics();
+  void loadPointCloud( pcl::PointCloud<PointT>::Ptr &cloud );
+  bool checkForButtonClick();
+
 
 
 
