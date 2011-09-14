@@ -483,7 +483,8 @@ void PointSampler::getPointCloud(const int &index, pcl::PointCloud<PointT>::Ptr 
 {
   boost::recursive_mutex::scoped_lock lock(mutex_);
 
-  *cloud = *m_cloud_points.front();
+  if(m_cloud_points.size())
+    *cloud = *m_cloud_points.front();
 }
 
 //! Returns a normal cloud from the internal list.
@@ -491,5 +492,6 @@ void PointSampler::getNormalCloud(const int &index, pcl::PointCloud<pcl::Normal>
 {
   boost::recursive_mutex::scoped_lock lock(mutex_);
 
-  *cloud = *m_cloud_normals.front();
+  if(m_cloud_normals.size())
+    *cloud = *m_cloud_normals.front();
 }

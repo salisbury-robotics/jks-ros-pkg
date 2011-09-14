@@ -77,6 +77,12 @@ public:
     void setClutch(bool b)                              { m_clutchExternal = b; }
     void setPermutation(const cml::matrix33d &m)        { m_permutation = m; }
 
+    void setClutchOffsets(const cml::vector3d &t, const cml::matrix33d &r)
+    {
+      m_clutchTranslation = t;
+      m_clutchRotation = r;
+    }
+
     virtual void update();
     virtual void applyForces();
     virtual void clearForces();
