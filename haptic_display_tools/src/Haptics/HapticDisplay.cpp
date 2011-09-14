@@ -12,9 +12,10 @@ HapticDisplay::HapticDisplay(cGenericHapticDevice *device, int ID)
     m_chai3dDevice = device;
     cHapticDeviceInfo specs = device->getSpecifications();
 
-    m_permutation.set(0.0, 1.0, 0.0,
-                      0.0, 0.0, 1.0,
-                      1.0, 0.0, 0.0);
+//    m_permutation.set(0.0, 1.0, 0.0,
+//                      0.0, 0.0, 1.0,
+//                      1.0, 0.0, 0.0);
+    m_permutation.identity();
 
     // set up workspace radii and transform
     m_toWorld           = identity_4x4();

@@ -47,7 +47,7 @@ class IntervalCollisionDetector
 
         PointInterval(int i = 0)
             : index(i), t1(0.0), t2(0.0), tStep(1.0), tLimit(1.0),
-            contact(false), marked(-1) {}
+             marked(-1), contact(false) {}
     };
 
     // comparator to order point intervals by time
