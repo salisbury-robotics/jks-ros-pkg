@@ -56,7 +56,7 @@ class HapticGhostedGripper{
   //! Publishers
   ros::Publisher pub_marker_, pub_marker_array_;
   ros::Publisher pub_status_;
-  ros::Publisher pub_pose_;
+  ros::Publisher pub_selected_pose_, pub_proxy_pose_, pub_device_pose_;
 
   //! mutex for point cloud publishing
   boost::mutex mutex_;
@@ -72,6 +72,9 @@ class HapticGhostedGripper{
 
   //! Tells if haptic stuff is in use.
   bool active_;
+
+  //! A workspace scale factor...
+  double workspace_scale_;
 
   //! Stuff for tf
   tf::TransformListener tfl_;
@@ -128,6 +131,7 @@ public:
   void stopHaptics();
   void loadPointCloud( pcl::PointCloud<PointT>::Ptr &cloud );
   bool checkForButtonClick();
+  bool isReady() { return m_isosurface->isReady( m_display->identifier());   }
 
 
 

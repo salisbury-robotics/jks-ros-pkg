@@ -3,6 +3,7 @@
 
 #include <cml/cml.h>
 #include <tf/tf.h>
+#include <object_manipulator/tools/msg_helpers.h>
 
 
 namespace cml_tools
@@ -29,6 +30,18 @@ inline btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
   tf::Quaternion q;
   cmlMatrixToTF(m).getRotation(q);
   return q;
+}
+
+inline geometry_msgs::PoseStamped getPoseStamped(const cml::vector3d &pos, const cml::matrix33d &rot, const std::string &frame_id)
+{
+  geometry_msgs::PoseStamped ps;
+  tf::Pose tf_pose;
+  tf_pose.setRotation(cml_tools::cmlMatrixToTFQuaternion(rot));
+  tf_pose.setOrigin(cml_tools::cmlVectorToTF(pos));
+  ps.pose = object_manipulator::msg::createPoseMsg(tf_pose);
+  ps.header.frame_id = frame_id;
+  ps.header.stamp = ros::Time(0);
+  return ps;
 }
 
 } // namespace cml_tools

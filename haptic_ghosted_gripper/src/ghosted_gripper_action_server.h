@@ -87,7 +87,7 @@ protected:
 
   // ****************** class members *********************
 
-  geometry_msgs::PoseStamped gripper_pose_;
+  geometry_msgs::PoseStamped selected_pose_, proxy_pose_;
   geometry_msgs::PoseStamped control_offset_;
   float gripper_opening_;
   float gripper_angle_;
@@ -100,15 +100,17 @@ protected:
   PoseState pose_state_;
 
   ros::NodeHandle nh_, pnh_;
-  ros::Subscriber sub_seed_, sub_selected_pose_;
+  ros::Subscriber sub_seed_, sub_selected_pose_, sub_proxy_pose_;
   ros::ServiceClient get_model_mesh_client_;
   ros::Timer spin_timer_;
   InteractiveMarkerServer server_;
   double voxel_size_;
+  std::string haptic_frame_id_;
 
   ros::Publisher pub_cloud_;
 
-  MenuHandler menu_gripper_;
+  MenuHandler menu_selected_marker_;
+  MenuHandler menu_proxy_marker_;
   MenuHandler::EntryHandle accept_handle_;
   MenuHandler::EntryHandle cancel_handle_;
 
@@ -136,6 +138,8 @@ public:
   void setSeed(const geometry_msgs::PoseStampedConstPtr &seed);
 
   void setSelectedPose(const geometry_msgs::PoseStampedConstPtr &seed);
+
+  void setProxyPose(const geometry_msgs::PoseStampedConstPtr &seed);
 
   //! Remove the markers.
   void setIdle();
@@ -171,17 +175,13 @@ public:
     */
   void initMarkers()
   {
-    initGhostedGripper();
+    initSelectedMarker();
     initObjectMarker();
   }
 
-  void initGraspMarkers();
-
-  void eraseAllGraspMarkers();
-
   void initObjectMarker();
-
-  void initGhostedGripper();
+  void initSelectedMarker();
+  void initProxyMarker();
 
   geometry_msgs::PoseStamped getDefaultPose();
 
@@ -208,11 +208,13 @@ protected:
   void cancelCB();
 
   //! Clears the tested pose
-  void clearTestedPose();
+  void clearAllMarkers();
 
 
 //  //! Called when the gripper is clicked; each call cycles through gripper opening values.
 //  void gripperClickCB( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
+
+  void proxyClickCB( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback );
 
   void testPose(geometry_msgs::PoseStamped pose, float opening);
 
