@@ -69,7 +69,11 @@ void HapticDisplay::update()
     // read the device position
     cVector3d dp;
     m_chai3dDevice->getPosition(dp);
-    m_devicePosition = m_permutation * vector3d(dp.x, dp.y, dp.z);
+
+    // compute a scale factor to transform device positions to desired radius
+    double scale = m_workspaceRadius / m_deviceRadius;
+
+    m_devicePosition = scale * m_permutation * vector3d(dp.x, dp.y, dp.z);
 
     // read the device orientation
     cMatrix3d dr;
@@ -119,7 +123,7 @@ void HapticDisplay::applyForces()
 {
     // then add a spring force from the proxy maintained within this class
     vector3d p = transform_point(m_toDevice, m_proxyPosition);
-    p *= m_deviceRadius / m_workspaceRadius;    // convert to physical coords
+    //p *= m_deviceRadius / m_workspaceRadius;    // convert to physical coords
 
     vector3d f = (p - m_clutchedDevicePosition) * m_linearStiffness;
 
@@ -170,11 +174,11 @@ void HapticDisplay::clearForces()
 
 vector3d HapticDisplay::toolPosition()
 {
-    // compute a scale factor to transform device positions to desired radius
-    double scale = m_workspaceRadius / m_deviceRadius;
 
-    // return the device position transformed into the world workspace
-    return transform_point(m_toWorld, scale * m_clutchedDevicePosition);
+  // We used to apply the scale here. Badness ensued.
+
+  // return the device position transformed into the world workspace
+  return transform_point(m_toWorld, m_clutchedDevicePosition);
 }
 
 matrix33d HapticDisplay::toolOrientation()
