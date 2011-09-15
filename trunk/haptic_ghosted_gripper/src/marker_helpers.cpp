@@ -503,7 +503,7 @@ visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const
   visualization_msgs::InteractiveMarker int_marker;
   int_marker.header =  stamped.header;
   int_marker.name = name;
-  int_marker.scale = scale;
+  int_marker.scale = 1.0; //scale;
   int_marker.pose = stamped.pose;
 
 //  add6DofControl(int_marker, false);
@@ -513,9 +513,9 @@ visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const
   visualization_msgs::Marker mesh;
   mesh.mesh_use_embedded_materials = !use_color;
   mesh.type = visualization_msgs::Marker::MESH_RESOURCE;
-  mesh.scale.x = 1.0;
-  mesh.scale.y = 1.0;
-  mesh.scale.z = 1.0;
+  mesh.scale.x = scale;
+  mesh.scale.y = scale;
+  mesh.scale.z = scale;
   mesh.color = color;
 
   tf::Transform T1, T2;
