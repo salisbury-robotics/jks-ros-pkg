@@ -32,10 +32,15 @@ HapticGhostedGripper::HapticGhostedGripper():
   pub_status_ = pnh_.advertise<std_msgs::String>("servo_status", 10);
 
   // Topic for most recently selected device pose
-  pub_pose_ = pnh_.advertise<geometry_msgs::PoseStamped>("selected_pose", 1, true);
+  pub_selected_pose_ = pnh_.advertise<geometry_msgs::PoseStamped>("selected_pose", 1);
+
+  // Topic for the proxy pose
+  pub_proxy_pose_ = pnh_.advertise<geometry_msgs::PoseStamped>("proxy_pose", 1);
 
   // Create timer callback for auto-running of algorithm
   update_timer_ = nh_.createTimer(ros::Duration(0.03333), boost::bind(&HapticGhostedGripper::displayCallback, this));
+
+  pnh_.param<double>("workspace_scale", workspace_scale_, 2.25);
 
   // Set up the chai world and device
   initializeHaptics();
@@ -111,11 +116,11 @@ void HapticGhostedGripper::initializeHaptics()
         display->setTransform(orient * center);
 
         display->setToolRadius(config_.tool_radius);
-        m_display->setWorkspaceRadius(display->deviceWorkspace());
+        m_display->setWorkspaceRadius(workspace_scale_*display->deviceWorkspace());
 
         // TODO: increase stiffness when speed problem is solved
         double k = display->stiffness();
-        display->setStiffness(0.5 * k);
+        display->setStiffness(0.2 * k / workspace_scale_);
         k = display->torsionalStiffness();
         display->setTorsionalStiffness(0.1*k);
     }
@@ -256,15 +261,9 @@ void HapticGhostedGripper::displayCallback()
 
   if(checkForButtonClick())
   {
-    geometry_msgs::PoseStamped ps;
-    tf::Pose tf_pose;
-    tf_pose.setRotation(cml_tools::cmlMatrixToTFQuaternion(proxy_rot));
-    tf_pose.setOrigin(cml_tools::cmlVectorToTF(proxy_pos));
-    ps.pose = object_manipulator::msg::createPoseMsg(tf_pose);
-    ps.header.frame_id = m_display_frame;
-    ps.header.stamp = ros::Time::now();
-    pub_pose_.publish(ps);
+    pub_selected_pose_.publish(cml_tools::getPoseStamped(proxy_pos, proxy_rot, m_display_frame));
   }
+  pub_proxy_pose_.publish(cml_tools::getPoseStamped(proxy_pos, proxy_rot, m_display_frame));
 
   //float intensity = m_sampler->intensityAt(HIP_pos);
 //  cml::vector3f gradient = m_sampler->gradientAt(HIP_pos);

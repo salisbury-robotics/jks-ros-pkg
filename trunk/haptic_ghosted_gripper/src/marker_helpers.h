@@ -98,7 +98,13 @@ visualization_msgs::InteractiveMarker makeBaseMarker( const char *name, const ge
                                                       float scale, bool fixed);
 
 visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const geometry_msgs::PoseStamped &stamped,
-                                                         float scale, std_msgs::ColorRGBA color, float angle, bool view_facing );
+                                                         float scale, float angle, bool view_facing );
+
+visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                         float scale, float angle, bool view_facing, std_msgs::ColorRGBA color );
+
+visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                         float scale, float angle, bool view_facing, std_msgs::ColorRGBA color, bool use_color );
 
 visualization_msgs::InteractiveMarker makeGraspMarker( const char * name, const geometry_msgs::PoseStamped &stamped, float scale, PoseState pose_state);
 

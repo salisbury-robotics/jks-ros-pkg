@@ -483,9 +483,22 @@ visualization_msgs::InteractiveMarker makeBaseMarker( const char *name, const ge
   return int_marker;
 }
 
+visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                         float scale, float angle, bool view_facing)
+{
+  std_msgs::ColorRGBA color;
+  return makeGripperMarker( name, stamped, scale, angle, view_facing, color, false);
+}
 
 visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const geometry_msgs::PoseStamped &stamped,
-                                                         float scale, std_msgs::ColorRGBA color, float angle, bool view_facing )
+                                                         float scale, float angle, bool view_facing, std_msgs::ColorRGBA color )
+{
+  return makeGripperMarker( name, stamped, scale, angle, view_facing, color, true);
+}
+
+
+visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                         float scale, float angle, bool view_facing, std_msgs::ColorRGBA color, bool use_color )
 {
   visualization_msgs::InteractiveMarker int_marker;
   int_marker.header =  stamped.header;
@@ -498,15 +511,12 @@ visualization_msgs::InteractiveMarker makeGripperMarker( const char *name, const
   visualization_msgs::InteractiveMarkerControl control;
 
   visualization_msgs::Marker mesh;
-  mesh.mesh_use_embedded_materials = false;
+  mesh.mesh_use_embedded_materials = !use_color;
   mesh.type = visualization_msgs::Marker::MESH_RESOURCE;
   mesh.scale.x = 1.0;
   mesh.scale.y = 1.0;
   mesh.scale.z = 1.0;
-  mesh.color.r = color.r;
-  mesh.color.g = color.g;
-  mesh.color.b = color.b;
-  mesh.color.a = color.a;
+  mesh.color = color;
 
   tf::Transform T1, T2;
   tf::Transform T_proximal, T_distal;
