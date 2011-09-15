@@ -83,6 +83,12 @@ public:
       m_clutchRotation = r;
     }
 
+    void setClutchedPose(const cml::vector3d &t, const cml::matrix33d &r)
+    {
+      m_clutchedDevicePosition = t;
+      m_clutchedDeviceOrientation = r;
+    }
+
     virtual void update();
     virtual void applyForces();
     virtual void clearForces();
