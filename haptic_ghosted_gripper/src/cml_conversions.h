@@ -25,6 +25,19 @@ inline btMatrix3x3 cmlMatrixToTF(const cml::matrix33d &rot)
                       rot.data()[6], rot.data()[7], rot.data()[8] );
 }
 
+inline cml::matrix33d quaternionMsgToCML(const geometry_msgs::Quaternion &msg)
+{
+  cml::matrix33d m;
+  cml::quaterniond q(msg.w, msg.x, msg.y, msg.z);
+  cml::matrix_rotation_quaternion(m, q);
+  return m;
+}
+
+inline cml::vector3d vectorMsgToCML(const geometry_msgs::Point &p)
+{
+  return cml::vector3d(p.x, p.y, p.z);
+}
+
 inline btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
 {
   tf::Quaternion q;

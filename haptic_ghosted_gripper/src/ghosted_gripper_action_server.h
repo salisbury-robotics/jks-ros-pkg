@@ -94,6 +94,7 @@ protected:
   pcl::PointCloud<PointT>::Ptr object_cloud_;
   bool active_;
   bool object_model_;
+  bool use_haptics_;
 
   bool testing_current_grasp_;
 
@@ -137,6 +138,9 @@ public:
 
   void setSeed(const geometry_msgs::PoseStampedConstPtr &seed);
 
+  bool transformPoseToCommonFrame(const geometry_msgs::PoseStamped &ps,
+                                                              geometry_msgs::PoseStamped &result);
+
   void setSelectedPose(const geometry_msgs::PoseStampedConstPtr &seed);
 
   void setProxyPose(const geometry_msgs::PoseStampedConstPtr &seed);
@@ -175,10 +179,15 @@ public:
     */
   void initMarkers()
   {
+    if(!use_haptics_)
+    {
+      initGripperControl();
+    }
     initSelectedMarker();
     initObjectMarker();
   }
 
+  void initGripperControl();
   void initObjectMarker();
   void initSelectedMarker();
   void initProxyMarker();
@@ -215,6 +224,8 @@ protected:
 //  void gripperClickCB( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
 
   void proxyClickCB( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback );
+
+  void updateGripper( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback );
 
   void testPose(geometry_msgs::PoseStamped pose, float opening);
 

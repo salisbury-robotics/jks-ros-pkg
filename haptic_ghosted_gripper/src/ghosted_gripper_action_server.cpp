@@ -114,6 +114,7 @@ GhostedGripperActionServer::GhostedGripperActionServer() :
   sub_proxy_pose_ = pnh_.subscribe<geometry_msgs::PoseStamped>("proxy_pose", 1, boost::bind(&GhostedGripperActionServer::setProxyPose, this, _1));
 
   pnh_.param<double>("voxel_size", voxel_size_, 0.002);
+  pnh_.param<bool>("use_haptics", use_haptics_, false);
   pnh_.param<std::string>("haptic_frame_id", haptic_frame_id_, "/torso_lift_link");
 
 //  haptic_interface_.initializeHaptics();
@@ -125,20 +126,65 @@ GhostedGripperActionServer::GhostedGripperActionServer() :
   get_pose_server_.start();
 }
 
+bool GhostedGripperActionServer::transformPoseToCommonFrame(const geometry_msgs::PoseStamped &ps,
+                                                            geometry_msgs::PoseStamped &result)
+{
+  try
+  {
+    tfl_.waitForTransform(haptic_frame_id_, ps.header.frame_id, ps.header.stamp, ros::Duration(2.0));
+    tfl_.transformPose(haptic_frame_id_, ps, result );
+  }
+  catch(...)
+  {
+    ROS_ERROR("TF could not transform from [%s] to [%s].", haptic_frame_id_.c_str(), ps.header.frame_id.c_str());
+    return false;
+  }
+  return true;
+}
+
 void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPtr &seed)
 {
   if(!active_) return;
+  geometry_msgs::PoseStamped ps;
+  haptic_interface_.m_isosurface->reset();
+  transformPoseToCommonFrame(*seed, ps);
   ROS_DEBUG("Setting seed.");
+  if(!use_haptics_)
+  {
+    ROS_DEBUG_STREAM("Input seed was \n" << ps);
+    tf::Pose pose;
+    tf::poseMsgToTF(ps.pose, pose);
+    tf::Quaternion q = pose.getRotation();
+    btMatrix3x3 rot(q);
+    btMatrix3x3 perm(  0, 0, 1,
+                       0, 1, 0,
+                      -1, 0, 0);
+    (rot*perm).getRotation(q);
+    //tf::quaternionTFToMsg(q, ps.pose.orientation);
+    pose.setRotation(q);
 
+    if(object_model_) pose = pose*tf::Transform(tf::Quaternion(tf::Vector3(0,1,0), M_PI/2.0), tf::Vector3(0,0,0)).inverse();
 
-  // heh ... // This is sort of a hack to take advantage of offset translation along gripper-X
-  setHapticDeviceTransform(*seed);
+    tf::poseTFToMsg(pose, ps.pose);
+
+    selected_pose_ = toWrist(ps);
+
+    pose_state_ = UNTESTED;
+    initMarkers();
+    testing_current_grasp_ = true;
+    testPose(selected_pose_, gripper_opening_);
+  }
+  else
+  {
+    setHapticDeviceTransform(ps);
+  }
 }
 
 void GhostedGripperActionServer::setSelectedPose(const geometry_msgs::PoseStampedConstPtr &seed)
 {
   if(!active_) return;
   if(!haptic_interface_.isReady()) return;
+  if(!use_haptics_) return;
 
   ROS_DEBUG("Setting pose.");
   geometry_msgs::PoseStamped ps = *seed;
@@ -174,18 +220,21 @@ void GhostedGripperActionServer::setProxyPose(const geometry_msgs::PoseStampedCo
   ROS_DEBUG("Setting pose.");
   geometry_msgs::PoseStamped ps = *seed;
   ROS_DEBUG_STREAM("Input seed was \n" << ps);
-  tf::Pose pose;
-  tf::poseMsgToTF(ps.pose, pose);
-  tf::Quaternion q = pose.getRotation();
-  btMatrix3x3 rot(q);
-  btMatrix3x3 perm( -1, 0, 0,
-                     0,-1, 0,
-                     0, 0, 1);
-  (rot*perm).getRotation(q);
-  //tf::quaternionTFToMsg(q, ps.pose.orientation);
-  pose.setRotation(q);
+  if(use_haptics_)
+  {
+    tf::Pose pose;
+    tf::poseMsgToTF(ps.pose, pose);
+    tf::Quaternion q = pose.getRotation();
+    btMatrix3x3 rot(q);
+    btMatrix3x3 perm( -1, 0, 0,
+                       0,-1, 0,
+                       0, 0, 1);
+    (rot*perm).getRotation(q);
+    //tf::quaternionTFToMsg(q, ps.pose.orientation);
+    pose.setRotation(q);
 
-  tf::poseTFToMsg(pose, ps.pose);
+    tf::poseTFToMsg(pose, ps.pose);
+  }
 
   proxy_pose_ = toWrist(ps);
   initProxyMarker();
@@ -220,7 +269,10 @@ void GhostedGripperActionServer::goalCB()
   pr2_im_msgs::GetGripperPoseGoal goal = *get_pose_server_.acceptNewGoal();
   object_cloud_.reset( new pcl::PointCloud<PointT>());
   pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
-  control_offset_.pose = object_manipulator::msg::createPoseMsg(tf::Pose(tf::Quaternion::getIdentity(), tf::Vector3(0.10,0,0)));
+  if(use_haptics_)
+    control_offset_.pose = object_manipulator::msg::createPoseMsg(tf::Pose(tf::Quaternion::getIdentity(), tf::Vector3(0.10,0,0)));
+  else
+    control_offset_.pose = object_manipulator::msg::createPoseMsg(tf::Pose(tf::Quaternion::getIdentity(), tf::Vector3(0.15,0,0)));
 
   if( !goal.object.cluster.points.empty() ||
       !goal.object.potential_models.empty() )
@@ -340,9 +392,22 @@ void GhostedGripperActionServer::goalCB()
     return;
   }
 
-  setHapticDeviceTransform(fromWrist(selected_pose_));
-
+  if(use_haptics_)
+  {
+    setHapticDeviceTransform(fromWrist(selected_pose_));
+  }
+  else
+  {
+    // Run isosurface algorithm, which sets a new proxy pose.
+    haptic_interface_.m_isosurface->reset();
+    geometry_msgs::PoseStamped ps = fromWrist(selected_pose_);
+    haptic_interface_.m_display->setClutchedPose(cml_tools::vectorMsgToCML(ps.pose.position),
+                                                 cml_tools::quaternionMsgToCML(ps.pose.orientation));
+    haptic_interface_.m_isosurface->update(haptic_interface_.m_display);
+  }
   pose_state_ = UNTESTED;
+
+  if(!use_haptics_) initMarkers();
 
   if (!getAndLoadCloudSnapshot()) return;
 }
@@ -393,20 +458,9 @@ bool GhostedGripperActionServer::getAndLoadCloudSnapshot()
   return true;
 }
 
-void GhostedGripperActionServer::setHapticDeviceTransform(const geometry_msgs::PoseStamped &seed)
+void GhostedGripperActionServer::setHapticDeviceTransform(const geometry_msgs::PoseStamped &ps)
 {
   haptic_interface_.m_isosurface->reset();
-  geometry_msgs::PoseStamped ps;
-  try
-  {
-    tfl_.waitForTransform(haptic_frame_id_, seed.header.frame_id, seed.header.stamp, ros::Duration(2.0));
-    tfl_.transformPose(haptic_frame_id_, seed, ps );
-  }
-  catch(...)
-  {
-    ROS_ERROR("TF could not transform from [%s] to [%s].", haptic_frame_id_.c_str(), seed.header.frame_id.c_str());
-    return;
-  }
 
   ROS_DEBUG_STREAM("Setting initial haptic device pose to:\n" << ps);
   cml::vector3d t;
@@ -478,6 +532,15 @@ void GhostedGripperActionServer::initObjectMarker()
   }
 }
 
+void GhostedGripperActionServer::initGripperControl()
+{
+  geometry_msgs::PoseStamped ps = fromWrist(selected_pose_);
+  ps.header.stamp = ros::Time(0);
+  server_.insert(make6DofMarker( "gripper_controls", ps, 0.2, false, false),
+                 boost::bind( &GhostedGripperActionServer::updateGripper, this, _1));
+  //menu_gripper_.apply(server_, "gripper_controls");
+}
+
 void GhostedGripperActionServer::initSelectedMarker()
 {
   float r,g,b;
@@ -494,7 +557,7 @@ void GhostedGripperActionServer::initSelectedMarker()
   }
   std_msgs::ColorRGBA color = object_manipulator::msg::createColorMsg(r,g,b,1.0);
 
-  server_.insert(makeGripperMarker( "selected_marker", selected_pose_, 0.18, gripper_angle_, false, color));
+  server_.insert(makeGripperMarker( "selected_marker", selected_pose_, 1.0, gripper_angle_, false, color));
                  // boost::bind( &GhostedGripperActionServer::gripperClickCB, this, _1));
   menu_selected_marker_.apply(server_, "selected_marker");
 }
@@ -502,9 +565,54 @@ void GhostedGripperActionServer::initSelectedMarker()
 void GhostedGripperActionServer::initProxyMarker()
 {
   std_msgs::ColorRGBA color = object_manipulator::msg::createColorMsg(1.0, 0.6, 0.25, 1.0);
-  server_.insert(makeGripperMarker( "proxy_marker", proxy_pose_, 0.18, gripper_angle_, false, color, !haptic_interface_.isReady()),
+  server_.insert(makeGripperMarker( "proxy_marker", proxy_pose_, 0.98, gripper_angle_, false, color, !haptic_interface_.isReady()),
                   boost::bind( &GhostedGripperActionServer::proxyClickCB, this, _1));
   menu_proxy_marker_.apply(server_, "proxy_marker");
+}
+
+
+//! Callback for pose updates from the controls.
+void GhostedGripperActionServer::updateGripper( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
+{
+  ros::Time now = ros::Time(0);
+
+  switch ( feedback->event_type )
+  {
+  case visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN:
+      ROS_DEBUG_STREAM( "Marker is being moved, stored pose is invalidated." );
+      test_pose_client_.cancelAllGoals();
+      //dragging_ = true;
+      pose_state_ = UNTESTED;
+      initSelectedMarker();
+      break;
+  case visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP:
+      ROS_DEBUG_STREAM( "Marker was released, storing pose and checking." );
+      //dragging_ = false;
+      selected_pose_ = proxy_pose_;
+      initMarkers();
+      testing_current_grasp_ = true;
+      testPose(selected_pose_, gripper_opening_);
+      break;
+  case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE:
+      ROS_DEBUG_STREAM("POSE_UPDATE in frame " << feedback->header.frame_id << std::endl << feedback->pose);
+      //if(selected_pose_.header.frame_id.compare(feedback->header.frame_id))  fix = true;
+
+      selected_pose_.pose = feedback->pose;
+      selected_pose_.header = feedback->header;
+      selected_pose_ = toWrist(selected_pose_);
+
+      // Run isosurface algorithm, which sets a new proxy pose.
+      geometry_msgs::PoseStamped ps = fromWrist(selected_pose_);
+
+      haptic_interface_.m_display->setClutchedPose(cml_tools::vectorMsgToCML(ps.pose.position),
+                                                   cml_tools::quaternionMsgToCML(ps.pose.orientation));
+      haptic_interface_.m_isosurface->update(haptic_interface_.m_display);
+      // Subscriber automatically gets the proxy pose.
+
+
+      updatePoses();
+      break;
+  }
 }
 
 
@@ -556,6 +664,7 @@ void GhostedGripperActionServer::clearAllMarkers()
 {
   server_.erase("selected_marker");
   server_.erase("proxy_marker");
+  server_.erase("gripper_controls");
   server_.erase("object_cloud");
 }
 

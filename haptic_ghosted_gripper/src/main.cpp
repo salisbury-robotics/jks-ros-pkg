@@ -43,12 +43,17 @@ int main (int argc, char* argv[])
   printf("Starting...\n");
   ros::init(argc, argv, "haptics_ghosted_gripper_node");
 
+  ros::NodeHandle pnh("~");
+  bool use_haptics = false;
+  pnh.param<bool>("use_haptics", use_haptics, false);
   // create and start a thread for haptics
   ROS_INFO("Creating haptics thread...");
   MyHapticsThread *hthread = MyHapticsThread::instance();
   hthread->setHapticRate(2000);
-  hthread->start(QThread::TimeCriticalPriority);
-
+  if(use_haptics)
+  {
+    hthread->start(QThread::TimeCriticalPriority);
+  }
 //  // run the application
 //  MyMainWindow *window = MyMainWindow::instance();
 //  window->show();
