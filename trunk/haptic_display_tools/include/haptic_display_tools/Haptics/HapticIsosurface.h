@@ -56,6 +56,9 @@ public:
     // resets the proxy tracking to an uninitialized state
     virtual void reset();
 
+    // resets the proxy tracking to an uninitialized state
+    virtual bool isReady(int state_index = 0) { return m_states[state_index].ready; }
+
     // uses the isovalue to 0-center the field, values < 0 are inside object
     double surface(const cml::vector3d &p)
         { return m_isoValue - m_sampler->intensityAt(p); }
