@@ -77,7 +77,7 @@ using namespace pr2_im_msgs;
 
 
 
-GhostedGripperActionServer::GhostedGripperActionServer() :
+GhostedGripperActionServer::GhostedGripperActionServer(bool use_haptics) :
     object_cloud_(new pcl::PointCloud<PointT>()),
     active_(false),
     object_model_(false),
@@ -88,7 +88,9 @@ GhostedGripperActionServer::GhostedGripperActionServer() :
     test_pose_client_("test_gripper_pose", true),
     cloud_server_client_("point_cloud_server_action", true),
     get_pose_name_(ros::this_node::getName()),
-    get_pose_server_(nh_, get_pose_name_, false)
+    get_pose_server_(nh_, get_pose_name_, false),
+    haptic_interface_(use_haptics),
+    use_haptics_(use_haptics)
 {
   ROS_INFO( "pr2_ghosted_gripper IM server is running." );
 
@@ -112,9 +114,9 @@ GhostedGripperActionServer::GhostedGripperActionServer() :
   sub_seed_ = nh_.subscribe<geometry_msgs::PoseStamped>("cloud_click_point", 1, boost::bind(&GhostedGripperActionServer::setSeed, this, _1));
   sub_selected_pose_ = pnh_.subscribe<geometry_msgs::PoseStamped>("selected_pose", 1, boost::bind(&GhostedGripperActionServer::setSelectedPose, this, _1));
   sub_proxy_pose_ = pnh_.subscribe<geometry_msgs::PoseStamped>("proxy_pose", 1, boost::bind(&GhostedGripperActionServer::setProxyPose, this, _1));
-
+  sub_refresh_flag_ = nh_.subscribe<std_msgs::String>("refresh_flag", 1, boost::bind(&GhostedGripperActionServer::getAndLoadCloudSnapshot, this, _1));
   pnh_.param<double>("voxel_size", voxel_size_, 0.002);
-  pnh_.param<bool>("use_haptics", use_haptics_, false);
+//  pnh_.param<bool>("use_haptics", use_haptics_, false);
   pnh_.param<std::string>("haptic_frame_id", haptic_frame_id_, "/torso_lift_link");
 
 //  haptic_interface_.initializeHaptics();
@@ -169,10 +171,20 @@ void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPt
 
     selected_pose_ = toWrist(ps);
 
-    pose_state_ = UNTESTED;
+    // Have to update the device pose
+    geometry_msgs::PoseStamped ps = fromWrist(selected_pose_);
+    haptic_interface_.m_display->setClutchedPose(cml_tools::vectorMsgToCML(ps.pose.position),
+                                                 cml_tools::quaternionMsgToCML(ps.pose.orientation));
+    haptic_interface_.m_isosurface->update(haptic_interface_.m_display);
+
     initMarkers();
-    testing_current_grasp_ = true;
-    testPose(selected_pose_, gripper_opening_);
+
+    pose_state_ = UNTESTED;
+    if(haptic_interface_.isReady())
+    {
+      testing_current_grasp_ = true;
+      testPose(selected_pose_, gripper_opening_);
+    }
   }
   else
   {
@@ -245,10 +257,18 @@ geometry_msgs::PoseStamped GhostedGripperActionServer::getDefaultPose()
   geometry_msgs::PoseStamped ps;
   ps.header.frame_id = haptic_frame_id_;
   ps.header.stamp = ros::Time::now();
-  ps.pose.position.x = 0.7;
-  ps.pose.position.z = -0.25;
-  ps.pose.orientation.y = -0.707;
-  ps.pose.orientation.w =  0.707;
+  if(use_haptics_) {
+    ps.pose.position.x = 0.7;
+    ps.pose.position.z = -0.25;
+    ps.pose.orientation.y = -0.707;
+    ps.pose.orientation.w =  0.707;
+  }
+  else
+  {
+    ps.pose.position.x = 0.5;
+    ps.pose.position.z = -0.25;
+    ps.pose.orientation.w =  1;
+  }
   return ps;
 }
 
@@ -412,8 +432,16 @@ void GhostedGripperActionServer::goalCB()
   if (!getAndLoadCloudSnapshot()) return;
 }
 
+void GhostedGripperActionServer::getAndLoadCloudSnapshot( const std_msgs::StringConstPtr &cloud_name )
+{
+  if(cloud_name->data == "interactive_manipulation_snapshot")
+  {
+    getAndLoadCloudSnapshot();
+  }
+}
 
-bool GhostedGripperActionServer::getAndLoadCloudSnapshot()
+
+bool GhostedGripperActionServer::getAndLoadCloudSnapshot( )
 {
 
   point_cloud_server::StoreCloudGoal cloud_goal;
@@ -478,7 +506,7 @@ void GhostedGripperActionServer::setHapticDeviceTransform(const geometry_msgs::P
 void GhostedGripperActionServer::preemptCB()
 {
   ROS_INFO("%s: Preempted", get_pose_name_.c_str());
-  haptic_interface_.stopHaptics();
+  haptic_interface_.pauseHaptics();
   test_pose_client_.cancelAllGoals();
   get_pose_server_.setPreempted();
   setIdle();
@@ -557,6 +585,9 @@ void GhostedGripperActionServer::initSelectedMarker()
   }
   std_msgs::ColorRGBA color = object_manipulator::msg::createColorMsg(r,g,b,1.0);
 
+  if(!haptic_interface_.isReady())
+    color = object_manipulator::msg::createColorMsg(1.0, 0.6, 0.25, 1.0);
+
   server_.insert(makeGripperMarker( "selected_marker", selected_pose_, 1.0, gripper_angle_, false, color));
                  // boost::bind( &GhostedGripperActionServer::gripperClickCB, this, _1));
   menu_selected_marker_.apply(server_, "selected_marker");
@@ -576,6 +607,8 @@ void GhostedGripperActionServer::updateGripper( const visualization_msgs::Intera
 {
   ros::Time now = ros::Time(0);
 
+  static bool last_ready_state = false;
+
   switch ( feedback->event_type )
   {
   case visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN:
@@ -590,8 +623,11 @@ void GhostedGripperActionServer::updateGripper( const visualization_msgs::Intera
       //dragging_ = false;
       selected_pose_ = proxy_pose_;
       initMarkers();
-      testing_current_grasp_ = true;
-      testPose(selected_pose_, gripper_opening_);
+      if(haptic_interface_.isReady())
+      {
+        testing_current_grasp_ = true;
+        testPose(selected_pose_, gripper_opening_);
+      }
       break;
   case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE:
       ROS_DEBUG_STREAM("POSE_UPDATE in frame " << feedback->header.frame_id << std::endl << feedback->pose);
@@ -609,7 +645,8 @@ void GhostedGripperActionServer::updateGripper( const visualization_msgs::Intera
       haptic_interface_.m_isosurface->update(haptic_interface_.m_display);
       // Subscriber automatically gets the proxy pose.
 
-
+      if(haptic_interface_.isReady() && !last_ready_state)  initSelectedMarker();
+      last_ready_state = haptic_interface_.isReady();
       updatePoses();
       break;
   }
@@ -650,7 +687,7 @@ void GhostedGripperActionServer::acceptCB()
     {
       test_pose_client_.cancelGoal();
     }
-    haptic_interface_.stopHaptics();
+    haptic_interface_.pauseHaptics();
     setIdle();
     pr2_im_msgs::GetGripperPoseResult result;
     result.gripper_pose = selected_pose_;
@@ -676,7 +713,7 @@ void GhostedGripperActionServer::cancelCB()
   {
     test_pose_client_.cancelGoal();
   }
-  haptic_interface_.stopHaptics();
+  haptic_interface_.pauseHaptics();
   get_pose_server_.setAborted();
   setIdle();
 }
@@ -740,7 +777,7 @@ void GhostedGripperActionServer::initMenus()
 
   accept_handle_ = menu_selected_marker_.insert("Accept", boost::bind( &GhostedGripperActionServer::acceptCB, this ) );
   menu_selected_marker_.insert("- - - - - -", boost::bind( &GhostedGripperActionServer::acceptCB, this ) );
-  menu_selected_marker_.insert("Clear", boost::bind( &GhostedGripperActionServer::clearAllMarkers, this ) );
+  if(use_haptics_) menu_selected_marker_.insert("Clear", boost::bind( &GhostedGripperActionServer::clearAllMarkers, this ) );
   cancel_handle_ = menu_selected_marker_.insert("Cancel", boost::bind( &GhostedGripperActionServer::cancelCB, this ) );
 }
 
