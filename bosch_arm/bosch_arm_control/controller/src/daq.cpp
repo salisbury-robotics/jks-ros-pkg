@@ -156,8 +156,8 @@ void CreateEncoderCounters(void){
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS  << BF_CLKPOL)|      // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
-			(CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 1x.
-			(CLKENAB_INDEX << BF_CLKENAB));  // Counting is initially disabled.
+                        (CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 4x.
+                        (CLKENAB_ALWAYS << BF_CLKENAB)); // Counting always enabled.
 
   S626_CounterModeSet(constants::board0, CNTR_1A,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
@@ -165,8 +165,8 @@ void CreateEncoderCounters(void){
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS << BF_CLKPOL)|       // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
-			(CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 1x.
-			(CLKENAB_INDEX << BF_CLKENAB));  // Counting is initially disabled.
+                        (CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 4x.
+                        (CLKENAB_ALWAYS << BF_CLKENAB)); // Counting always enabled
 
   S626_CounterModeSet(constants::board0, CNTR_2A,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
@@ -174,8 +174,8 @@ void CreateEncoderCounters(void){
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS << BF_CLKPOL)|       // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
-			(CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 1x.
-			(CLKENAB_INDEX << BF_CLKENAB));  // Counting is initially disabled.
+                        (CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 4x.
+                        (CLKENAB_ALWAYS << BF_CLKENAB)); // Counting always enabled
 
   S626_CounterModeSet(constants::board0, CNTR_0B,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
@@ -183,8 +183,8 @@ void CreateEncoderCounters(void){
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS << BF_CLKPOL)|       // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.
-			(CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 1x.
-			(CLKENAB_INDEX << BF_CLKENAB));  // Counting is initially disabled.
+                        (CLKMULT_4X << BF_CLKMULT)|      // Clock multiplier is 4x.
+                        (CLKENAB_ALWAYS << BF_CLKENAB)); // Counting always enabled
 	
    // Set counter core and preload value to be mid of 2^24 (since all counters are 24-bit), so as to make test easy.
    S626_CounterPreload(constants::board0, CNTR_0A, 8388608);	// 0x800000 = 2^24/2 = 8388608
@@ -249,7 +249,7 @@ void zero_torques(void){
   write_torque(3, 0);
 }
 
-bool homed(int motor){
+int homed(int motor){
   return home_flags[motor];
 }
 

@@ -78,10 +78,10 @@ static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
 static void jog(void);
 
-static double t_lim1 = 0.4*constants::t_max;
-static double t_lim2 = 0.4*constants::t_max;
-static double t_lim3 = 0.4*constants::t_max;
-static double t_lim4 = 0.4*constants::t_max;
+static double t_lim1 = 0.1*constants::t_max;
+static double t_lim2 = 0.1*constants::t_max;
+static double t_lim3 = 0.1*constants::t_max;
+static double t_lim4 = 0.1*constants::t_max;
 
 static bool t_wave1 = false;
 static bool t_wave2 = false;
@@ -557,8 +557,8 @@ void * servo_loop(void *ptr){
     // read in positions, in motor degrees
     q1 = -read_encoder(0)*constants::cnt2mdeg + home_offsets[0];
     q2 = -read_encoder(1)*constants::cnt2mdeg + home_offsets[1];
-    q3 = read_encoder(3)*constants::cnt2mdeg - home_offsets[3]; // <-- notice, out of order, need to fix wiring at some point
-    q4 = read_encoder(2)*constants::cnt2mdeg - home_offsets[2];
+    q3 = -read_encoder(2)*constants::cnt2mdeg + home_offsets[2];
+    q4 = read_encoder(3)*constants::cnt2mdeg - home_offsets[3];
 
     // bail if something is too wrong
     bool bail = false;
