@@ -101,7 +101,7 @@ protected:
   PoseState pose_state_;
 
   ros::NodeHandle nh_, pnh_;
-  ros::Subscriber sub_seed_, sub_selected_pose_, sub_proxy_pose_;
+  ros::Subscriber sub_seed_, sub_selected_pose_, sub_proxy_pose_, sub_refresh_flag_;
   ros::ServiceClient get_model_mesh_client_;
   ros::Timer spin_timer_;
   InteractiveMarkerServer server_;
@@ -129,7 +129,7 @@ protected:
 
 public:
 
-  GhostedGripperActionServer();
+  GhostedGripperActionServer(bool use_haptics);
   ~GhostedGripperActionServer() {};
 
   void updateGripperOpening() {  gripper_opening_ = gripper_angle_ * 0.1714;  }
@@ -166,6 +166,7 @@ public:
 
   //! Retrieves cloud snapshot from server and loads into haptic scene.
   bool getAndLoadCloudSnapshot();
+  void getAndLoadCloudSnapshot( const std_msgs::StringConstPtr &cloud_name );
 
   //! Transmit gripper poses
   void updatePoses();
@@ -182,6 +183,7 @@ public:
     if(!use_haptics_)
     {
       initGripperControl();
+      //initProxyMarker();
     }
     initSelectedMarker();
     initObjectMarker();

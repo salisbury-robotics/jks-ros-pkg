@@ -10,13 +10,14 @@
 
 const float proxy_mesh_scale = 1.0;
 
-const std::string mesh_stl = "coarse_gripper_10cm.stl";
-const std::string mesh_obj = "coarse_gripper_10cm.obj";
-const std::string path = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/";
-const std::string package = "package://haptic_ghosted_gripper/meshes/";
+std::string mesh_basename = "coarse_gripper_10cm";
+std::string mesh_stl = mesh_basename + ".stl";
+std::string mesh_obj = mesh_basename + ".obj";
+std::string absolute_path = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/";
+std::string package_path = "package://haptic_ghosted_gripper/meshes/";
 
   //! The constructor
-HapticGhostedGripper::HapticGhostedGripper():
+HapticGhostedGripper::HapticGhostedGripper(bool use_haptics):
     nh_("/"), pnh_("~"),
     active_(false),
     m_display_frame("/torso_lift_link"),
@@ -41,6 +42,11 @@ HapticGhostedGripper::HapticGhostedGripper():
   update_timer_ = nh_.createTimer(ros::Duration(0.03333), boost::bind(&HapticGhostedGripper::displayCallback, this));
 
   pnh_.param<double>("workspace_scale", workspace_scale_, 2.25);
+  pnh_.param<std::string>("mesh_basename", mesh_basename, "coarse_gripper_10cm");
+  mesh_stl = mesh_basename + ".stl";
+  mesh_obj = mesh_basename + ".obj";
+  pnh_.param<std::string>("absolute_path", absolute_path, "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/");
+  pnh_.param<std::string>("package_path", package_path, "package://haptic_ghosted_gripper/meshes/");
 
   // Set up the chai world and device
   initializeHaptics();
@@ -120,7 +126,7 @@ void HapticGhostedGripper::initializeHaptics()
 
         // TODO: increase stiffness when speed problem is solved
         double k = display->stiffness();
-        display->setStiffness(0.2 * k / workspace_scale_);
+        display->setStiffness(0.3 * k / workspace_scale_);
         k = display->torsionalStiffness();
         display->setTorsionalStiffness(0.1*k);
     }
@@ -147,7 +153,7 @@ void HapticGhostedGripper::initializeHaptics()
 //    ps->applyLastCloud();
 
     //std::string location = "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/pointshell.obj";
-    std::string location = path + mesh_obj;
+    std::string location = absolute_path + mesh_obj;
     //m_mesh = new MeshGLM("drill", location, MeshGLM::k_useTexture | MeshGLM::k_useMaterial);
 
 
@@ -171,7 +177,7 @@ void HapticGhostedGripper::initializeHaptics()
 //    }
 }
 
-void HapticGhostedGripper::startHaptics()
+void HapticGhostedGripper::resumeHaptics()
 {
   MyHapticsThread *hthread = MyHapticsThread::instance();
   if(!hthread->resume())
@@ -182,7 +188,7 @@ void HapticGhostedGripper::startHaptics()
   active_ = true;
 }
 
-void HapticGhostedGripper::stopHaptics()
+void HapticGhostedGripper::pauseHaptics()
 {
   MyHapticsThread *hthread = MyHapticsThread::instance();
   if(!hthread->pause())
@@ -196,10 +202,11 @@ void HapticGhostedGripper::stopHaptics()
 void HapticGhostedGripper::loadPointCloud(pcl::PointCloud<PointT>::Ptr &cloud)
 {
   PointSampler *ps = dynamic_cast<PointSampler*>(m_sampler);
-  stopHaptics();
+  pauseHaptics();
+  m_isosurface->reset();
   ps->createFromCloud(*cloud);
   ps->applyLastCloud();
-  startHaptics();
+  resumeHaptics();
 }
 
 bool HapticGhostedGripper::checkForButtonClick()
@@ -288,9 +295,7 @@ void HapticGhostedGripper::displayCallback()
     mesh.header.stamp = time_now;
     mesh.header.frame_id = m_display_frame.c_str();
     mesh.dims = tf::Vector3(proxy_mesh_scale, proxy_mesh_scale, proxy_mesh_scale);
-    //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/drill.dae";
-    //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/whole_gripper.stl";
-    mesh.mesh_resource = package + mesh_stl;
+    mesh.mesh_resource = package_path + mesh_stl;
     mesh.use_embedded_materials = false;
     object_manipulator::drawMesh(pub_marker_, mesh, "proxy", 0, ros::Duration(), object_manipulator::msg::createColorMsg(0.1, 1.0, 0.4, 0.9), !active_);
 
@@ -316,7 +321,7 @@ void HapticGhostedGripper::displayCallback()
     mesh.dims = tf::Vector3(device_scale, device_scale, device_scale);
     //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/drill.dae";
     //mesh.mesh_resource = "package://haptic_ghosted_gripper/meshes/whole_gripper.stl";
-    mesh.mesh_resource = package + mesh_stl;
+    mesh.mesh_resource = package_path + mesh_stl;
     mesh.use_embedded_materials = false;
     object_manipulator::drawMesh(pub_marker_, mesh, "HIP", 0, ros::Duration(), object_manipulator::msg::createColorMsg(1.0, 0.2, 0.2, 0.5), !active_);
 

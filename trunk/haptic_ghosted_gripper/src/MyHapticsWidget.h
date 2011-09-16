@@ -108,7 +108,7 @@ class HapticGhostedGripper{
   bool m_clickExternal;
 
 public:
-  HapticGhostedGripper();
+  HapticGhostedGripper(bool use_haptics);
   ~HapticGhostedGripper();
 
 
@@ -127,8 +127,8 @@ public:
   void publishPointCloud();
   void dynamicCallback(Config &new_config, uint32_t id);
 
-  void startHaptics();
-  void stopHaptics();
+  void resumeHaptics();
+  void pauseHaptics();
   void loadPointCloud( pcl::PointCloud<PointT>::Ptr &cloud );
   bool checkForButtonClick();
   bool isReady() { return m_isosurface->isReady( m_display->identifier());   }

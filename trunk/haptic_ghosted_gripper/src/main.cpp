@@ -66,7 +66,7 @@ int main (int argc, char* argv[])
 //  ros::spin();
 
   ROS_INFO("Creating GhostedGripperActionServer...");
-  GhostedGripperActionServer ggas;
+  GhostedGripperActionServer ggas(use_haptics);
   ROS_INFO("...spinning!");
   ros::spin();
 
