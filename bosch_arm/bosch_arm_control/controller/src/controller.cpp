@@ -178,6 +178,11 @@ int main(int argc, char** argv){
         home_offsets[3] = read_encoder(3)*constants::cnt2mdeg;
         cin.clear();
 
+        //home_offsets[0] = 0;
+        //home_offsets[1] = 0;
+        //home_offsets[2] = 0;
+        //home_offsets[3] = 0;
+
         int result;
 
         // start servo thread
@@ -504,6 +509,10 @@ void * servo_loop(void *ptr){
   clock_gettime(CLOCK_REALTIME, &tl); 
  
   while(1){
+
+      if(i%1000==0)printf("%d,%d,%d,%d\r\f",read_encoder(0),read_encoder(1),read_encoder(2),read_encoder(3));
+
+
     uint16_t time;
     uint16_t t;
 
