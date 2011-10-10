@@ -173,6 +173,7 @@ void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPt
 
     // Have to update the device pose
     geometry_msgs::PoseStamped ps = fromWrist(selected_pose_);
+    //ps.pose.position.x += 0.06;
     haptic_interface_.m_display->setClutchedPose(cml_tools::vectorMsgToCML(ps.pose.position),
                                                  cml_tools::quaternionMsgToCML(ps.pose.orientation));
     haptic_interface_.m_isosurface->update(haptic_interface_.m_display);
@@ -642,9 +643,24 @@ void GhostedGripperActionServer::updateGripper( const visualization_msgs::Intera
 
       haptic_interface_.m_display->setClutchedPose(cml_tools::vectorMsgToCML(ps.pose.position),
                                                    cml_tools::quaternionMsgToCML(ps.pose.orientation));
+      ros::Time begin = ros::Time::now();
       haptic_interface_.m_isosurface->update(haptic_interface_.m_display);
-      // Subscriber automatically gets the proxy pose.
-
+      static int cycle_count = 0;
+      static ros::Duration elapsed;
+      
+      ros::Time end = ros::Time::now();
+      
+      if(cycle_count > 30)
+      {
+        
+        ROS_DEBUG_NAMED("time", "Running haptic update at an average rate of %.3lf Hz", 1/(elapsed.toSec()/30.0*1000.0));
+        cycle_count = 0;
+        elapsed = ros::Duration();
+      }
+      elapsed += end-begin;
+      cycle_count++;
+      
+      
       if(haptic_interface_.isReady() && !last_ready_state)  initSelectedMarker();
       last_ready_state = haptic_interface_.isReady();
       updatePoses();
