@@ -405,10 +405,10 @@ if __name__=="__main__":
     reduction=10
     lock = threading.Lock()
     
-    m_scale = 50
+    m_scale = 10
     cm_scale= 50
     vm_scale= 5
-    tm_scale= 500
+    tm_scale= 5000
     em_scale= 100
     q_scale = 100
     cq_scale= 100
@@ -707,7 +707,7 @@ if __name__=="__main__":
 
     listen()
 
-    plot.setAxisScale(QwtPlot.yLeft, -150, 150)
+    plot.setAxisScale(QwtPlot.yLeft, -300, 300)
     plot.start()
 
     window.connect(ui.start_pause, SIGNAL("released()"), toggleplot)

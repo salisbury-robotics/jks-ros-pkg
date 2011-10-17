@@ -22,6 +22,13 @@
 #include <Eigen/LU>
 #include <Eigen/QR>
 
+/** This controller mainly focus on tuning motor 4 for high stiffness and damping.
+  * It contains the LTISys tool, interface for filter tuning, motor sine signal generation,
+  * position and torque reference management, switching between open loop and closed loop,
+  * variant stiffness control.
+  * related files: motor_controller.cpp,motor_controller.h,main_motor.cpp
+ */
+
 using namespace std;
 void TrajectoryController::singlePtCmdCallBack(const bosch_arm_control::PointCmd& msg)
 {

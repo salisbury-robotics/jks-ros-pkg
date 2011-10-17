@@ -7,6 +7,10 @@
 #include <bosch_arm_control/ArmState.h>
 #include <bosch_arm_control/PointCmd.h>
 #include <bosch_arm_control/Diagnostic.h>
+#include <GMS120/GMS120_measurement.h>
+#include <sensor_msgs/PointCloud.h>
+#include <tf/transform_broadcaster.h>
+
 class CartesianController;
 #include "action_cart.h"
 
@@ -33,9 +37,14 @@ private:
 
   BoschArm* rob;
   ros::NodeHandle n;
+  sensor_msgs::PointCloud pc;
+  tf::TransformBroadcaster br;
+
   ros::Publisher diagnostic_pub;
   ros::Publisher joint_state_pub;
+  ros::Publisher point_pub;
   ros::Subscriber sigle_point_cmd_sub;
+  ros::Subscriber GMS_sub;
   bosch_arm_control::Diagnostic diag;
   bosch_arm_control::ArmState js;
   std::deque<MoveAbsAction*> act_que;
@@ -50,23 +59,40 @@ private:
   double joint_limit_low[4];
   double joint_limit_high[4];
   void singlePtCmdCallBack(const bosch_arm_control::PointCmd& msg);
+  void GMSCallBack(const GMS120::GMS120_measurement& msg);
   //int cycle_count;
 public:
-  //0 base frame, 1-4 joint fram, 5 tip frame
+  double tzero[4];
+  double xzero[3];
+  double qzero[4];
+  double mzero[4];
+  void set_position_ref();
+  void set_gc();
+  void clear_ref();
+  //a frame is a point that has position and orientation.
+  //frame index convention for frm_home, frm0, frm_cur: -1 world, 0 base, 1-4 R-joints, 5 tip, 6 scanner.  
+  //The home tf from frame i to frame i-1
   Frame frm_home[6];
-  //frm_cur[0] the tf from base to world. g is in world frame
+  Vector scanner_p;
+  //The current tf from frame i to frame i-1
   Frame frm_cur[6];
-  Frame frm0[6];//the transform from i to world
+  //The current tf from frame i to frame world
+  Frame frm0[7];
+  //The current tf from frame tip to frame i
   Frame frmn[5];//the transform from frame 5 to i
   Vector jacobian[4];
   Vector gc[4];//the gravity compensation vector.
-  Vector link[4];
+
+  //Vector link[7];
+  double mu;
   Eigen::Matrix4f nullspace;
   double Kc[4];
   double x[3];
   double q[4];
+  double s[3];
   double Kp[3];
   double Kv[3];
+  double Ks[3];
   double xd[3];
   //double qd_cali[4];
   double v[3];

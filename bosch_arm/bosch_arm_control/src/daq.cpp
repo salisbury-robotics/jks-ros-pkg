@@ -21,11 +21,11 @@ using namespace std;
 #include <string>
 #include <sstream>
 
-
+ 
 #define BOARD 0
 const unsigned int board = 0;
 const int v_factor_626 = 819;  //Multiply volts times this number to actually get that voltage on the card.
-
+ 
 void InterruptAppISR(DWORD board);
 void ErrorFunction1(DWORD ErrFlags);
 
@@ -46,7 +46,7 @@ int setup626(void){
   counter_setup();
   return errFlags;
 }
-
+ 
 void InterruptAppISR(DWORD board){
   WORD intStatus[4];
   register WORD status;
@@ -60,7 +60,7 @@ void InterruptAppISR(DWORD board){
     cout << S626_CounterReadLatch(constants::board0, constants::cntr_chan) << endl;
     S626_CounterCapFlagsReset(constants::board0, constants::cntr_chan);	//reset counter interrupts
     bRE = TRUE;
-  }
+  } 
 
   if(intStatus[0])		// interrupts from DIO channel 0-15
     {

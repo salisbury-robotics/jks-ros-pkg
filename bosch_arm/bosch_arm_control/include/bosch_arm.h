@@ -29,7 +29,7 @@ private:
 public:
   int t;
   bool debug_filter;
-  
+  double qoff[4];
   double* a;
   double* b;
   double L0; //height of joint 1

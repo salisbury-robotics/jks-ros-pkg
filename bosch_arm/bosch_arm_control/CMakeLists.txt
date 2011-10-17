@@ -22,29 +22,44 @@ rosbuild_genmsg()
 #rosbuild_gensrv()
 #rosbuild_add_executable(src/bosch_arm_teleop bosch_arm_teleop.cpp)
 rosbuild_add_library(${PROJECT_NAME} src/daq.cpp)
-#rosbuild_add_library(${PROJECT_NAME} src/robot.cpp)
 rosbuild_add_library(${PROJECT_NAME} src/s626mod.c)
 rosbuild_add_library(${PROJECT_NAME} src/s626core.c)
 rosbuild_add_library(${PROJECT_NAME} src/bosch_arm.cpp)
 #rosbuild_add_library(${PROJECT_NAME} src/simple_cartesian_controller.cpp)
 #rosbuild_add_library(${PROJECT_NAME} src/simple_joint_controller.cpp)
 #rosbuild_add_library(${PROJECT_NAME} src/trajectory_controller3.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/motor_controller.cpp)
-#rosbuild_add_library(${PROJECT_NAME} src/action3.cpp)
+rosbuild_add_executable(old_node src/controller.cpp)
+target_link_libraries(old_node ${PROJECT_NAME})
+
+# #tuning the motors
+# rosbuild_add_library(${PROJECT_NAME} src/lti.cpp)
+# rosbuild_add_library(${PROJECT_NAME} src/motor_controller2.cpp)
+# rosbuild_add_executable(bosch_arm_node src/main_motor2.cpp)
+
+#############################################################
+#track the surface with basket
 #rosbuild_add_library(${PROJECT_NAME} src/cartesian_controller2.cpp)
 #rosbuild_add_library(${PROJECT_NAME} src/action_cart.cpp)
+#rosbuild_add_executable(bosch_arm_node src/main_cart.cpp)
+#target_link_libraries(bosch_arm_node ${PROJECT_NAME})
+##############################################################
 
-rosbuild_add_executable(old_node src/controller.cpp)
+#############################################################
+#track the surface with long tip
+rosbuild_add_library(${PROJECT_NAME} src/cartesian_controller_longtip.cpp)
+rosbuild_add_library(${PROJECT_NAME} src/action_cart.cpp)
+rosbuild_add_executable(bosch_arm_node src/main_cart.cpp)
+target_link_libraries(bosch_arm_node ${PROJECT_NAME})
+##############################################################
+
+
+#rosbuild_add_library(${PROJECT_NAME} src/action3.cpp)
 #rosbuild_add_executable(traj_controller src/traj_controller.cpp)
 #rosbuild_add_executable(cartesian src/cartesian_controller.cpp)
-rosbuild_add_executable(bosch_arm_node src/main_motor.cpp)
-#rosbuild_add_executable(bosch_arm_node src/main2.cpp)
-#rosbuild_add_executable(testsin src/testsin.cpp)
-#rosbuild_add_executable(maptest src/maptest.cpp)
 #rosbuild_add_executable(touch src/touch4.cpp)
 #rosbuild_add_executable(calib src/calib.cpp)
-target_link_libraries(old_node ${PROJECT_NAME})
-target_link_libraries(bosch_arm_node ${PROJECT_NAME})
+
+#target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 #target_link_libraries(gcdemo ${PROJECT_NAME})
 #common commands for building c++ executables and libraries
 
