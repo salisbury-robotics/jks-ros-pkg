@@ -401,7 +401,7 @@ def toggleplot():
         ui.start_pause.setText("Pause")
 
 if __name__=="__main__":    
-    length = 100
+    length = 200
     #plotlen=2000
     reduction=10
     lock = threading.Lock()
@@ -409,7 +409,7 @@ if __name__=="__main__":
     m_scale = 5000
     cm_scale= 5000
     vm_scale= 50
-    tm_scale= 5000
+    tm_scale= 2000
     em_scale= 5000
     q_scale = 200
     cq_scale= 5000

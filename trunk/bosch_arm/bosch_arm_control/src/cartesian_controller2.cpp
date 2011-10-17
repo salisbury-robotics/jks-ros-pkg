@@ -16,6 +16,8 @@
 #include <bosch_arm_control/ArmState.h>
 #include <bosch_arm_control/PointCmd.h>
 #include <bosch_arm_control/Diagnostic.h>
+#include <sensor_msgs/PointCloud.h>
+#include<geometry_msgs/Point32.h>
 #include "cc2.h"
 #include <Eigen/Core>
 #include<Eigen/Array>
@@ -30,19 +32,47 @@ void CartesianController::singlePtCmdCallBack(const bosch_arm_control::PointCmd&
   act_que.push_back(a);
 }
 
+void CartesianController::GMSCallBack(const GMS120::GMS120_measurement& msg)
+{
 
+  
+  tf::StampedTransform transform;
+  transform.setOrigin( tf::Vector3(0.0, 0.0, 0.0) );
+  transform.setRotation( tf::Quaternion(0, 0, 0) );
+  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "odom", "world"));
+     
+  pc.header.stamp = ros::Time::now();
+  geometry_msgs::Point32 point;
+  point.x=x[0];
+  point.y=x[1];
+  point.z=x[2];
+  pc.points.push_back(point);
+  pc.channels[0].values.push_back(msg.inductance);
+  point_pub.publish(pc);
+  //cout<<msg.inductance<<endl;
+}
 CartesianController::CartesianController(BoschArm *ptr)
 {
   rob=ptr;
   diagnostic_pub =  n.advertise<bosch_arm_control::Diagnostic> ("/diagnostics",100);
+  point_pub=n.advertise<sensor_msgs::PointCloud>("/gmsdata",100);
   sigle_point_cmd_sub = n.subscribe("/joint_point_cmd",3, &CartesianController::singlePtCmdCallBack, this);
+  GMS_sub = n.subscribe("/GMS120_measurements",3,&CartesianController::GMSCallBack,this);
   joint_state_pub =  n.advertise<bosch_arm_control::ArmState> ("/joint_states",100);
   js.position.resize(3);
   js.velocity.resize(3);
   js.effort.resize(3);
-  Kp[0]=10;
-  Kp[1]=10;
-  Kp[2]=10;
+  
+  pc.header.frame_id = "/world";
+  pc.points.resize(0);
+  pc.channels.resize(1);
+  pc.channels[0].values.resize(0);
+  pc.channels[0].name = "intensity";
+
+
+  Kp[0]=20;
+  Kp[1]=20;
+  Kp[2]=20;
   
   Kc[0]=0.3;
   Kc[1]=0.3;
@@ -53,16 +83,21 @@ CartesianController::CartesianController(BoschArm *ptr)
   Kv[0]=0.1;
   Kv[1]=0.1;
   Kv[2]=0.1;
+  
+  Ks[0]=0.0;
+  Ks[1]=0.0;
+  Ks[2]=0.0;
+  mu=0.0;
 //   for(int i=0;i<4;i++)
 //     Kv[i]=0;
-  joint_limit_low[0]=-1.7;
-  joint_limit_high[0]=2.1;
-  joint_limit_low[1]=-0.6;
-  joint_limit_high[1]=0.55;
-  joint_limit_low[2]=-2.5;
-  joint_limit_high[2]=2.3;
-  joint_limit_low[3]=-2.3;
-  joint_limit_high[3]=2.4;
+//   joint_limit_low[0]=-1.7;
+//   joint_limit_high[0]=2.1;
+//   joint_limit_low[1]=-0.6;
+//   joint_limit_high[1]=0.55;
+//   joint_limit_low[2]=-2.5;
+//   joint_limit_high[2]=2.3;
+//   joint_limit_low[3]=-2.3;
+//   joint_limit_high[3]=2.4;
   cur_act=NULL;
   start_semi=false;
   end_semi=false;
@@ -82,9 +117,28 @@ void CartesianController::updateKinematics()
   }
   frm_cur[5]=frm_home[5];
   frm0[5]=frm0[4]*frm_cur[5];
-  frmn[4]=frm_cur[5];
+  
   Vector z(0,0,1);
+  Vector mx=frm0[5].M.UnitZ()*z;
+  double norm=dot(mx,mx);
+  if(norm<1e-4)
+  {
+    mx=z*frm0[5].M.UnitX();
+    double n2=dot(mx,mx);
+    mx=mx/sqrt(n2);
+  }
+  else
+    mx=mx/sqrt(norm);
+  Vector my=z*mx;
 
+  frm0[6].M=Rotation(mx,my,z);
+
+  frm0[6].p=frm0[6].M*scanner_p+frm0[5].p;
+  
+  
+  frmn[4]=frm_cur[5];
+  
+  
   //jacobian[3](joint 4) = z4*p54
   for (int i=3;i>=0;i--)
   {
@@ -118,20 +172,29 @@ void CartesianController::updateKinematics()
 void CartesianController::start()
 {
   rob->initialize();
-  //L0,L3 are not available until rob is initialized.
-  for(int i=0;i<4;i++)
-    link[i]=Vector(constants::link[i*2],constants::link[i*2+1],0);
-  frm_home[0]=Frame::Identity();
-  Rotation r(0,-1,0,
-             0,0,-1,
-             1,0,0);
-  frm_home[1].M=r;
-  frm_home[1].p=Vector(0,0,rob->L0);
-  frm_home[2].M=r;
-  frm_home[3].M=r;
-  frm_home[4].M=r;
-  frm_home[4].p=Vector(-rob->L5,0,rob->L3);
-  frm_home[5].p=Vector(rob->L4,0,0);
+  
+  for(int i=0;i<6;i++)
+  {
+    frm_home[i].p=Vector(constants::home_frame_p[i*3],
+                         constants::home_frame_p[i*3+1],
+                         constants::home_frame_p[i*3+2]);
+                         
+    frm_home[i].M=Rotation(constants::home_frame_M[i*9],
+                         constants::home_frame_M[i*9+1],
+                         constants::home_frame_M[i*9+2],
+                         constants::home_frame_M[i*9+3],
+                         constants::home_frame_M[i*9+4],
+                         constants::home_frame_M[i*9+5],
+                         constants::home_frame_M[i*9+6],
+                         constants::home_frame_M[i*9+7],
+                         constants::home_frame_M[i*9+8]);
+  }
+  scanner_p=Vector(constants::scan_p[0],
+                   constants::scan_p[1],
+                   constants::scan_p[2]);
+
+  for (int i=0;i<4;i++)
+      gc[i]=Vector(constants::gravc[i*2],constants::gravc[i*2+1],0);
 
   rob->motor2JointPosition(rob->q,q);
   updateKinematics();
@@ -139,6 +202,7 @@ void CartesianController::start()
   {
     x[i]=frm0[5].p[i];
     v[i]=0;
+    s[i]=0;
     dx[i]=0;
     f[i]=0;
     xl[i]=x[i];
@@ -146,15 +210,9 @@ void CartesianController::start()
     vd[i]=v[i];
   }
   //state=CALIBRATION;
-  state=SEMIAUTO;
-  //state=LOADTRACE;
-  ctr_mode=GRAVITY;
-  
-  
-  
-  
-  for (int i=0;i<4;i++)
-      gc[i]=Vector(constants::gravc[i*2],constants::gravc[i*2+1],0);
+  //state=SEMIAUTO;
+  state=SERVO;
+  ctr_mode=NOCONTROL;
   
   if (state==CALIBRATION)
   {
@@ -237,32 +295,100 @@ void CartesianController::genCalibTraj2()
   vector<double> des(3,0);
 //  int t=8000;
   //move the the zero position.
+//   des[0]=0.35;
+//   des[1]=0;
+//   des[2]=0;
+//   act_que.push_back(new MoveAbsAction(des,this));
+//   act_que.back()->t_end=2000;
+  
+  //double zz=0.03
+  
   des[0]=0.55;
-  des[1]=-0.55;
-  des[2]=-0.05;
-  act_que.push_back(new MoveAbsAction(des,this));
-  des[0]=0.55;
-  des[1]=-0.22;
+  des[1]=0;
   des[2]=0;
   cali1_act=new MoveAbsAction(des,this);
-  calib1=new Calibration("calib1");
-  cali1_act->calib=calib1;
+  cali1_act->t_end=2000;
   act_que.push_back(cali1_act);
-  des[0]=0.14;
-  des[1]=-0.20;
-  des[2]=-0.05;
-  cali2_act=new MoveAbsAction(des,this);
-  calib2=new Calibration("calib2");
-  cali2_act->calib=calib2;
-  act_que.push_back(cali2_act);
+  
+  des[0]=0.35;
+  des[1]=-0.05;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
   des[0]=0.55;
-  des[1]=-0.55;
-  des[2]=-0.08;
-  cali3_act=new MoveAbsAction(des,this);
-  calib3=new Calibration("calib3");
-  cali3_act->calib=calib3;
-  act_que.push_back(cali3_act);
+  des[1]=-0.1;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.35;
+  des[1]=-0.15;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.55;
+  des[1]=-0.2;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.35;
+  des[1]=-0.2;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.55;
+  des[1]=-0.15;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.35;
+  des[1]=-0.1;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.55;
+  des[1]=-0.05;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  des[0]=0.35;
+  des[1]=-0.0;
+  des[2]=0;
+  cali1_act=new MoveAbsAction(des,this);
+  cali1_act->t_end=8000;
+  act_que.push_back(cali1_act);
+  
+  
+  des[0]=0.55;
+  des[1]=-0.0;
+  des[2]=0;
+  cali2_act=new MoveAbsAction(des,this);
+  cali2_act->t_end=8000;
+  act_que.push_back(cali2_act);
+  
 
+  
+  
+  cur_act=act_que.front();
+      cur_act->initialize();
+      act_que.pop_front();
+      cout<<"start trajectory"<<endl;
+  state=LOADTRACE;
 }
 
 
@@ -309,16 +435,16 @@ void CartesianController::calcLinkLength()
   cout<<AV<<endl;
   Eigen::MatrixXf M=AV*Ab;
   //cout<<M<<endl;
-  for(int i=0;i<4;i++)
-  {
-    link[i]=Vector(M(i*2,0),M(i*2+1,0),0);
-  }
-  for(int i=0;i<4;i++)
-  {
-    for(int j=0;j<3;j++)
-      cout<<link[i][j]<<',';
-    cout<<endl;
-  }
+//   for(int i=0;i<4;i++)
+//   {
+//     link[i]=Vector(M(i*2,0),M(i*2+1,0),0);
+//   }
+//   for(int i=0;i<4;i++)
+//   {
+//     for(int j=0;j<3;j++)
+//       cout<<link[i][j]<<',';
+//     cout<<endl;
+//   }
 }
 
 void CartesianController::update()
@@ -431,7 +557,7 @@ void CartesianController::update()
     else if (ctr_mode==NOCONTROL)
     {
       for (int i=0;i<4;i++)
-        rob->torque[i]=0;
+        rob->torque[i]=tzero[i];
     }
     //floating();
     //gravity_compensation();
@@ -480,9 +606,13 @@ void CartesianController::PDWithGC()
   for (int i=0;i<3;i++)
   {
 
-    dx[i]=xd[i]-x[i];
+    dx[i]=xd[i]-x[i];    
     f[i]=Kp[i]*dx[i]-Kv[i]*(v[i]-vd[i]);
+    s[i]=s[i]+dx[i];
+    f[i]+=Ks[i]*s[i];
   }
+  double eh=sqrt(dx[0]*dx[0]+dx[1]*dx[1]);
+  f[2]-=Kp[2]*eh*mu;
   for (int i=0;i<4;i++)
   {
     tq[i]=0;
@@ -538,6 +668,8 @@ void CartesianController::PDControl()
 
     dx[i]=xd[i]-x[i];
     f[i]=Kp[i]*dx[i]-Kv[i]*(v[i]-vd[i]);
+    s[i]=s[i]+dx[i];
+    f[i]+=Ks[i]*s[i];
   }
   for (int i=0;i<4;i++)
   {
@@ -562,6 +694,35 @@ void CartesianController::PDControl()
   for (int i=0;i<4;i++)
     rob->torque[i]=tm[i];
   //logging();
+}
+
+void CartesianController::set_position_ref()
+{
+  for (int i=0;i<4;i++)
+  {
+    mzero[i]=rob->q[i];
+    qzero[i]=q[i];
+  }
+  for(int i=0;i<3;i++)
+    xzero[i]=x[i];
+}
+void CartesianController::set_gc()
+{
+  for (int i=0;i<4;i++)
+  {
+    tzero[3]=tm[i];
+  }
+}
+void CartesianController::clear_ref()
+{
+  for (int i=0;i<4;i++)
+  {
+    mzero[i]=0;
+    qzero[i]=0;
+    tzero[i]=0;
+  }
+  for(int i=0;i<3;i++)
+    xzero[i]=0;
 }
 
 

@@ -14,7 +14,7 @@
   <!--depend package="pr2_controller_manager"/>
   <depend package="gazebo" />
   <depend package="std_msgs" />
-  <depend package="sensor_msgs" />
+  
   <depend package="bosch_arm_srvs" />
   <depend package="pr2_mechanism_model" />
   <depend package="pr2_hardware_interface"/>
@@ -24,11 +24,15 @@
   <depend package="diagnostic_updater"/>
   
   <depend package="ethercat_hardware"/-->
+  <depend package="tf" />
+  <depend package="sensor_msgs" />
+  <depend package="geometry_msgs" />
   <depend package="trajectory_msgs"/>
   <depend package="bma180"/>
   <depend package="rosbag"/>
   <depend package="kdl"/>
   <depend package="eigen"/>
+  <depend package="GMS120"/>
 </package>
 
 

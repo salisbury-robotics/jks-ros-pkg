@@ -78,10 +78,10 @@ static int kbhit(void);
 static int printu(char * hostname, int port, char * data);
 static void jog(void);
 
-static double t_lim1 = 0.1*constants::t_max;
-static double t_lim2 = 0.1*constants::t_max;
-static double t_lim3 = 0.1*constants::t_max;
-static double t_lim4 = 0.1*constants::t_max;
+static double t_lim1 = 0.4*constants::t_max;
+static double t_lim2 = 0.4*constants::t_max;
+static double t_lim3 = 0.4*constants::t_max;
+static double t_lim4 = 0.4*constants::t_max;
 
 static bool t_wave1 = false;
 static bool t_wave2 = false;

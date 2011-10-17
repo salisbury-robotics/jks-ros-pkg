@@ -152,7 +152,7 @@ void CreateEncoderCounters(void){
    
    S626_CounterModeSet(constants::board0, CNTR_0A,
 			(LOADSRC_INDX << BF_LOADSRC)|    // Preload upon index.
-			(INDXSRC_HARD << BF_INDXSRC)|    // Disable hardware index.
+			(INDXSRC_HARD << BF_INDXSRC)|    // Enable hardware index.
 			(CLKSRC_COUNTER << BF_CLKSRC)|   // Operating mode is Counter.
 			(CLKPOL_POS  << BF_CLKPOL)|      // Active high clock.
 			//(CNTDIR_UP << BF_CLKPOL)|      // Count direction is Down.

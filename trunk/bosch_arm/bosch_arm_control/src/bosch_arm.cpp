@@ -22,16 +22,50 @@ void BoschArm::initialize()
   for (int i=0;i<16;i++)
     j2m[i] =constants::j2m[i];
   rad_per_count=constants::rad_per_count;
-
+  
+  for(int i=0;i<4;i++)
+    qoff[i]=constants::q_off[i];
   setup626();
+//   bool ishomed=false;
+//   bool sawIndex[4];
+//   for(int i=0;i<4;i++)
+//     sawIndex[i]=false;
+//   cout<<"Homing...."<<endl;
+//   while(!ishomed)
+//   {
+//     bool flag=true;
+//     for(int i=0;i<4;i++)
+//       if(!sawIndex[i])
+//       {
+//         if(homed(i))
+//         {
+//           sawIndex[i]=true;
+// //           home_offsets[i]=read_encoder(i) *rad_per_count;
+// //           cout<<"motor "<<i<<" home offset:"<<home_offsets[i]<<endl;
+//         }else
+//           flag=false;
+//       }
+//       
+//     ishomed=flag;
+//     usleep(1000);
+//   }
+//   cout<<"Ready!"<<endl;
+//   for(int i=0;i<4;i++)
+//     home_offsets[i]=0;
+//   q[0] = -1*(read_encoder(0) *rad_per_count - home_offsets[0]);
+//   q[1] = -1*(read_encoder(1) *rad_per_count - home_offsets[1]);
+//   q[2] = -1*(read_encoder(2) *rad_per_count - home_offsets[2]);
+//   q[3] = read_encoder(3) *rad_per_count - home_offsets[3];
+  
   time_now=S626_CounterReadLatch(constants::board0,constants::cntr_chan);
   time_last = time_now;
   time_now2= time_now;
   time_last2= time_now;
+  
   home_offsets[0]=read_encoder(0) *rad_per_count;
   home_offsets[1]=read_encoder(1) *rad_per_count;
-  home_offsets[2]=read_encoder(3) *rad_per_count;
-  home_offsets[3]=read_encoder(2) *rad_per_count;
+  home_offsets[2]=read_encoder(2) *rad_per_count;
+  home_offsets[3]=read_encoder(3) *rad_per_count;
   //using a IIR filter: [b3,a3]=butter(4,0.05)
   //it caused some non-vanishing noise. it cuts off too much frequency.
 //   filter_order=4;
@@ -69,9 +103,9 @@ void BoschArm::initialize()
   for (int i=0;i<4;i++)
   {
     q[i]=0;
-    ql[i]=0;
+    ql[i]=q[i];
     v[i]=0;
-    t_lims[i]=0.4*constants::t_max;
+    t_lims[i]=1.0*constants::t_max;
     x_his[i]=new double[filter_order];
     y_his[i]=new double[filter_order];
     for(int j=0;j<filter_order;j++)
@@ -108,7 +142,7 @@ void BoschArm::motor2JointPosition(const double* motors, double* joints)
     joints[i]=0;
     for (int j=0;j<4;j++)
       joints[i]+=m2j[4*i+j]*motors[j];
-    joints[i]+=constants::q_off[i];
+    joints[i]+=qoff[i];
   }
 }
 
@@ -242,10 +276,10 @@ b2 =
 void BoschArm::update()
 {
   time_now2=S626_CounterReadLatch(constants::board0,constants::cntr_chan);
-  q[0] = -read_encoder(0) *rad_per_count + home_offsets[0];
-  q[1] = -read_encoder(1) *rad_per_count + home_offsets[1];
-  q[2] = read_encoder(3) *rad_per_count - home_offsets[2];
-  q[3] = read_encoder(2) *rad_per_count - home_offsets[3];
+  q[0] = -1*(read_encoder(0) *rad_per_count - home_offsets[0]);
+  q[1] = -1*(read_encoder(1) *rad_per_count - home_offsets[1]);
+  q[2] = -1*(read_encoder(2) *rad_per_count - home_offsets[2]);
+  q[3] = read_encoder(3) *rad_per_count - home_offsets[3];
   dt=convertToWallTime(time_now2,time_last2);
   time_last2=time_now2;
   
