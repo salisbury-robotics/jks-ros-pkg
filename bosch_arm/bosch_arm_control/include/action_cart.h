@@ -7,7 +7,7 @@
 class MoveAction;
 class MoveAbsAction;
 class Calibration;
-#include "cartesian_controller_longtip.h"
+#include "cartesian_controller2.h"
 #include <bosch_arm_control/PointCmd.h>
 using namespace std;
 
