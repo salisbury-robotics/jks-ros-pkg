@@ -110,16 +110,20 @@ namespace constants{
 
 //const double q_off[4]={2.15108,-0.290944,-2.60937,3.10153};
 
-//     const double gravc[8]={0.00,0.00,
-//        -0.0,-1.07,
-//        -0.13,0.00,
-//        0.40,0.01};
-const double q_off[4]={1.57079633,0,0,1.57079633};
-
     const double gravc[8]={0.00,0.00,
        -0.0,-1.07,
        -0.13,0.00,
        0.40,0.02};
+const double q_off[4]={1.580,0.011,-0.066,2.802};
+//1.58039,0.00954793,-0.0601874,2.80308
+//1.58,0.0126102,-0.0664862,2.80182
+//1.57992,0.0116651,-0.0679862,2.8018
+
+//     const double gravc[8]={0.00,0.00,
+//        -0.0,-0.3,
+//        -0.06,0.00,
+//        0.15,0.00};
+
 
     //Z0 is up, X0 is forward, Y0 is to the left. O0 is at the bottom of the base.   
     //For i=1,2,3,4   
@@ -134,12 +138,12 @@ const double q_off[4]={1.57079633,0,0,1.57079633};
     
     const double home_frame_p[]=
     {
-     0,     0,    0, 
-     0,     0,    0.27,
-     0,     0,    0,
-     -0.02, -0.50,0,   
-     -0.045,0,    0,
-     0.185, 0.01, 0     
+     0,     0,    0, //choose world frame as identical as base frame
+     0,     0,    0.27,//O1 is at the center of link 1
+     0,     0,    0,//O2 has the same location as O1
+     -0.02, -0.50,0,//O3 is a virtual point that joint 4 rotates about   
+     -0.045,0,    0,//O4 is on the axis of joint 4
+     0.185, 0.01, 0//O5 is the tip     
     };
     
     //the scanner position relative to the tip when the arm is in zero position.

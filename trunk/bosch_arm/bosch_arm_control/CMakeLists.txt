@@ -38,17 +38,17 @@ target_link_libraries(old_node ${PROJECT_NAME})
 
 #############################################################
 #track the surface with basket
-#rosbuild_add_library(${PROJECT_NAME} src/cartesian_controller2.cpp)
-#rosbuild_add_library(${PROJECT_NAME} src/action_cart.cpp)
-#rosbuild_add_executable(bosch_arm_node src/main_cart.cpp)
-#target_link_libraries(bosch_arm_node ${PROJECT_NAME})
+rosbuild_add_library(${PROJECT_NAME} src/cartesian_controller2.cpp)
+rosbuild_add_library(${PROJECT_NAME} src/action_cart.cpp)
+rosbuild_add_executable(bosch_arm_node src/main_cart.cpp)
+target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 ##############################################################
 
 #############################################################
 #track the surface with long tip
-rosbuild_add_library(${PROJECT_NAME} src/cartesian_controller_longtip.cpp)
-rosbuild_add_library(${PROJECT_NAME} src/action_cart.cpp)
-rosbuild_add_executable(bosch_arm_node src/main_cart.cpp)
+#rosbuild_add_library(${PROJECT_NAME} src/cartesian_controller_longtip.cpp)
+#rosbuild_add_library(${PROJECT_NAME} src/action_cart.cpp)
+#rosbuild_add_executable(bosch_arm_node src/main_cart.cpp)
 target_link_libraries(bosch_arm_node ${PROJECT_NAME})
 ##############################################################
 
