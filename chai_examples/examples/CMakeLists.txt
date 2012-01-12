@@ -7,7 +7,8 @@
 
 # Recurse into the directory for each example
 ADD_SUBDIRECTORY(01-devices)
-#ADD_SUBDIRECTORY(02-boards)
+ADD_SUBDIRECTORY(02-force_wall)
+ADD_SUBDIRECTORY(05-potential_shapes)
 ADD_SUBDIRECTORY(10-oring)
 ADD_SUBDIRECTORY(11-effects)
 ADD_SUBDIRECTORY(12-polygons)
