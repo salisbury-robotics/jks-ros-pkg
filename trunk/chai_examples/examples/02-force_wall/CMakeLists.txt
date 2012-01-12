@@ -1,10 +1,10 @@
 
-ADD_EXECUTABLE(01-devices
-    src/01-devices.cpp
+ADD_EXECUTABLE(02-force_wall
+    02-force_wall.cpp
 )
 
 
-TARGET_LINK_LIBRARIES(01-devices
+TARGET_LINK_LIBRARIES(02-force_wall
   chai3d dhd
   pthread rt usb-1.0
   GL GLU glut
