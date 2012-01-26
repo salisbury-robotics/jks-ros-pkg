@@ -48,8 +48,8 @@
 #include <actionlib/server/simple_action_server.h>
 #include <point_cloud_server/StoreCloudAction.h>
 
-#include <pr2_im_msgs/TestGripperPoseAction.h>
-#include <pr2_im_msgs/GetGripperPoseAction.h>
+#include <pr2_object_manipulation_msgs/TestGripperPoseAction.h>
+#include <pr2_object_manipulation_msgs/GetGripperPoseAction.h>
 
 #include <sensor_msgs/point_cloud_conversion.h>
 
@@ -73,7 +73,7 @@
 using namespace object_manipulator;
 using namespace visualization_msgs;
 using namespace interactive_markers;
-using namespace pr2_im_msgs;
+using namespace pr2_object_manipulation_msgs;
 
 
 
@@ -287,7 +287,7 @@ void GhostedGripperActionServer::goalCB()
   active_ = true;
   object_model_ = false;
   ROS_INFO("Ghosted gripper called");
-  pr2_im_msgs::GetGripperPoseGoal goal = *get_pose_server_.acceptNewGoal();
+  pr2_object_manipulation_msgs::GetGripperPoseGoal goal = *get_pose_server_.acceptNewGoal();
   object_cloud_.reset( new pcl::PointCloud<PointT>());
   pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
   if(use_haptics_)
@@ -671,7 +671,7 @@ void GhostedGripperActionServer::updateGripper( const visualization_msgs::Intera
 
 //! Callback that receives the result of a TestGripperPose action.
 void GhostedGripperActionServer::testGripperResultCallback(const actionlib::SimpleClientGoalState& state,
-                               const pr2_im_msgs::TestGripperPoseResultConstPtr &result)
+                               const pr2_object_manipulation_msgs::TestGripperPoseResultConstPtr &result)
 {
   if (result->valid.empty())
   {
@@ -705,7 +705,7 @@ void GhostedGripperActionServer::acceptCB()
     }
     haptic_interface_.pauseHaptics();
     setIdle();
-    pr2_im_msgs::GetGripperPoseResult result;
+    pr2_object_manipulation_msgs::GetGripperPoseResult result;
     result.gripper_pose = selected_pose_;
     result.gripper_opening = gripper_opening_;
     get_pose_server_.setSucceeded(result);
@@ -779,7 +779,7 @@ void GhostedGripperActionServer::cancelCB()
 
 void GhostedGripperActionServer::testPose(geometry_msgs::PoseStamped pose, float opening)
 {
-  pr2_im_msgs::TestGripperPoseGoal goal;
+  pr2_object_manipulation_msgs::TestGripperPoseGoal goal;
   goal.gripper_poses.push_back(pose);
   goal.gripper_openings.push_back(opening);
   test_pose_client_.sendGoal( goal, boost::bind(&GhostedGripperActionServer::testGripperResultCallback, this, _1, _2));
