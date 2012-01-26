@@ -1,0 +1,15 @@
+LIBRARY   hdPhantom
+EXPORTS
+   hdPhantomGetNumDevices
+   hdPhantomOpen
+   hdPhantomClose
+   hdPhantomGetPosition
+   hdPhantomGetLinearVelocity
+   hdPhantomGetRotation
+   hdPhantomGetButtons
+   hdPhantomSetForce
+   hdPhantomSetTorque
+   hdPhantomGetWorkspaceRadius
+   hdPhantomGetType
+   hdPhantomStartServo
+   hdPhantomStopServo
