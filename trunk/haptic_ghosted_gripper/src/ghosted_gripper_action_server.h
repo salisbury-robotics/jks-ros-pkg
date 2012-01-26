@@ -51,8 +51,8 @@
 #include <actionlib/server/simple_action_server.h>
 #include <point_cloud_server/StoreCloudAction.h>
 
-#include <pr2_im_msgs/TestGripperPoseAction.h>
-#include <pr2_im_msgs/GetGripperPoseAction.h>
+#include <pr2_object_manipulation_msgs/TestGripperPoseAction.h>
+#include <pr2_object_manipulation_msgs/GetGripperPoseAction.h>
 
 #include <sensor_msgs/point_cloud_conversion.h>
 
@@ -69,10 +69,10 @@
 
 #include "MyHapticsWidget.h"
 
-using namespace object_manipulator;
-using namespace visualization_msgs;
-using namespace interactive_markers;
-using namespace pr2_im_msgs;
+//using namespace object_manipulator;
+//using namespace visualization_msgs;
+//using namespace interactive_markers;
+//using namespace pr2_object_manipulation_msgs;
 
 
 
@@ -104,26 +104,26 @@ protected:
   ros::Subscriber sub_seed_, sub_selected_pose_, sub_proxy_pose_, sub_refresh_flag_;
   ros::ServiceClient get_model_mesh_client_;
   ros::Timer spin_timer_;
-  InteractiveMarkerServer server_;
+  interactive_markers::InteractiveMarkerServer server_;
   double voxel_size_;
   std::string haptic_frame_id_;
 
   ros::Publisher pub_cloud_;
 
-  MenuHandler menu_selected_marker_;
-  MenuHandler menu_proxy_marker_;
-  MenuHandler::EntryHandle accept_handle_;
-  MenuHandler::EntryHandle cancel_handle_;
+  interactive_markers::MenuHandler menu_selected_marker_;
+  interactive_markers::MenuHandler menu_proxy_marker_;
+  interactive_markers::MenuHandler::EntryHandle accept_handle_;
+  interactive_markers::MenuHandler::EntryHandle cancel_handle_;
 
   tf::TransformListener tfl_;
 
   object_manipulator::MechanismInterface mechanism_;
 
-  actionlib::SimpleActionClient<pr2_im_msgs::TestGripperPoseAction> test_pose_client_;
+  actionlib::SimpleActionClient<pr2_object_manipulation_msgs::TestGripperPoseAction> test_pose_client_;
   actionlib::SimpleActionClient<point_cloud_server::StoreCloudAction> cloud_server_client_;
 
   std::string get_pose_name_;
-  actionlib::SimpleActionServer<pr2_im_msgs::GetGripperPoseAction> get_pose_server_;
+  actionlib::SimpleActionServer<pr2_object_manipulation_msgs::GetGripperPoseAction> get_pose_server_;
 
   HapticGhostedGripper haptic_interface_;
 
@@ -208,7 +208,7 @@ protected:
 
   //! Callback that receives the result of a TestGripperPose action.
   void testGripperResultCallback(const actionlib::SimpleClientGoalState& state,
-                                 const pr2_im_msgs::TestGripperPoseResultConstPtr &result);
+                                 const pr2_object_manipulation_msgs::TestGripperPoseResultConstPtr &result);
 
 
   //! Return with the gripper pose if the pose is valid, otherwise do nothing

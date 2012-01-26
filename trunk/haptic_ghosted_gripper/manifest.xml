@@ -15,10 +15,10 @@
   <depend package="pcl_ros"/>
   <depend package="interactive_markers"/>
   <depend package="actionlib"/>
-  <depend package="pr2_im_msgs"/>
+  <depend package="pr2_object_manipulation_msgs"/>
   <depend package="point_cloud_server"/>
   <depend package="haptic_display_tools"/>
-  <depend package="profiling" />
+  <!-- <depend package="profiling" /> -->
   <depend package="dynamic_reconfigure" />
   <depend package="object_manipulator" />
   <depend package="sensor_msgs" />
