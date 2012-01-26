@@ -1,0 +1,436 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>CHAI-3D</ProjectName>
+    <ProjectGuid>{A9F01342-5463-4634-B1F9-BF98CD5591B0}</ProjectGuid>
+    <RootNamespace>CHAI3D</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../lib/$(Configuration)/$(Platform)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">obj/$(Configuration)/$(Platform)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../../lib/$(Configuration)/$(Platform)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">obj/$(Configuration)/$(Platform)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../lib/$(Configuration)/$(Platform)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">obj/$(Configuration)/$(Platform)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../../lib/$(Configuration)/$(Platform)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">obj/$(Configuration)/$(Platform)\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">chai3d</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">chai3d</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">chai3d</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">chai3d</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>../../src;../../external/ODE/include;../../external/libjpeg/include;../../external/libpng/include;../../external/giflib/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_MSVC;_LIB;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <PrecompiledHeaderOutputFile>$(IntDir)CHAI3D.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)vc90.pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4244;4800;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Lib>
+      <AdditionalOptions>/NODEFAULTLIB:libmmd.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>libjpeg.lib;libpng.lib;libgif.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)chai3d.lib</OutputFile>
+      <AdditionalLibraryDirectories>../../external/libjpeg/lib/$(Configuration)/$(Platform);../../external/libpng/lib/$(Configuration)/$(Platform);../../external/giflib/lib/$(Configuration)/$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>../../src;../../external/ODE/include;../../external/libjpeg/include;../../external/libpng/include;../../external/giflib/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN64;NDEBUG;_MSVC;_LIB;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <PrecompiledHeaderOutputFile>$(IntDir)CHAI3D.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)vc90.pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4244;4800;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Lib>
+      <AdditionalOptions>/NODEFAULTLIB:libmmd.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>libjpeg.lib;libpng.lib;libgif.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)chai3d.lib</OutputFile>
+      <AdditionalLibraryDirectories>../../external/libjpeg/lib/$(Configuration)/$(Platform);../../external/libpng/lib/$(Configuration)/$(Platform);../../external/giflib/lib/$(Configuration)/$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>../../src;../../external/ODE/include;../../external/libjpeg/include;../../external/libpng/include;../../external/giflib/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_MSVC;_LIB;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <PrecompiledHeaderOutputFile>$(IntDir)CHAI3D.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)vc90.pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4244;4800;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Lib>
+      <AdditionalDependencies>libjpeg.lib;libpng.lib;libgif.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)chai3d.lib</OutputFile>
+      <AdditionalLibraryDirectories>../../external/libjpeg/lib/$(Configuration)/$(Platform);../../external/libpng/lib/$(Configuration)/$(Platform);../../external/giflib/lib/$(Configuration)/$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>../../src;../../external/ODE/include;../../external/libjpeg/include;../../external/libpng/include;../../external/giflib/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN64;_DEBUG;_MSVC;_LIB;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <PrecompiledHeaderOutputFile>$(IntDir)CHAI3D.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>
+      </AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)vc90.pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4244;4800;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Lib>
+      <AdditionalDependencies>libjpeg.lib;libpng.lib;libgif.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)chai3d.lib</OutputFile>
+      <AdditionalLibraryDirectories>../../external/libjpeg/lib/$(Configuration)/$(Platform);../../external/libpng/lib/$(Configuration)/$(Platform);../../external/giflib/lib/$(Configuration)/$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\collisions\CCollisionAABB.cpp" />
+    <ClCompile Include="..\..\src\collisions\CCollisionAABBBox.cpp" />
+    <ClCompile Include="..\..\src\collisions\CCollisionAABBTree.cpp" />
+    <ClCompile Include="..\..\src\collisions\CCollisionBasics.cpp" />
+    <ClCompile Include="..\..\src\collisions\CCollisionBrute.cpp" />
+    <ClCompile Include="..\..\src\collisions\CGenericCollision.cpp" />
+    <ClCompile Include="..\..\src\devices\CCallback.cpp" />
+    <ClCompile Include="..\..\src\devices\CDeltaDevices.cpp" />
+    <ClCompile Include="..\..\src\devices\CFalconDevice.cpp" />
+    <ClCompile Include="..\..\src\devices\CFreedom6SDevice.cpp" />
+    <ClCompile Include="..\..\src\devices\CGenericDevice.cpp" />
+    <ClCompile Include="..\..\src\devices\CGenericHapticDevice.cpp" />
+    <ClCompile Include="..\..\src\devices\CHapticDeviceHandler.cpp" />
+    <ClCompile Include="..\..\src\devices\CMyCustomDevice.cpp" />
+    <ClCompile Include="..\..\src\devices\CPhantomDevices.cpp" />
+    <ClCompile Include="..\..\src\devices\CVirtualDevice.cpp" />
+    <ClCompile Include="..\..\src\display\CCamera.cpp" />
+    <ClCompile Include="..\..\src\display\CViewport.cpp" />
+    <ClCompile Include="..\..\src\effects\CEffectMagnet.cpp" />
+    <ClCompile Include="..\..\src\effects\CEffectStickSlip.cpp" />
+    <ClCompile Include="..\..\src\effects\CEffectSurface.cpp" />
+    <ClCompile Include="..\..\src\effects\CEffectVibration.cpp" />
+    <ClCompile Include="..\..\src\effects\CEffectViscosity.cpp" />
+    <ClCompile Include="..\..\src\effects\CGenericEffect.cpp" />
+    <ClCompile Include="..\..\src\files\CFileImageBMP.cpp" />
+    <ClCompile Include="..\..\src\files\CFileImageGIF.cpp" />
+    <ClCompile Include="..\..\src\files\CFileImageJPG.cpp" />
+    <ClCompile Include="..\..\src\files\CFileImagePNG.cpp" />
+    <ClCompile Include="..\..\src\files\CFileImagePPM.cpp" />
+    <ClCompile Include="..\..\src\files\CFileImageRAW.cpp" />
+    <ClCompile Include="..\..\src\files\CFileModel3DS.cpp" />
+    <ClCompile Include="..\..\src\files\CFileModelOBJ.cpp" />
+    <ClCompile Include="..\..\src\forces\CAlgorithmFingerProxy.cpp" />
+    <ClCompile Include="..\..\src\forces\CAlgorithmPotentialField.cpp" />
+    <ClCompile Include="..\..\src\forces\CGenericForceAlgorithm.cpp" />
+    <ClCompile Include="..\..\src\forces\CInteractionBasics.cpp" />
+    <ClCompile Include="..\..\src\graphics\CColor.cpp" />
+    <ClCompile Include="..\..\src\graphics\CDraw3D.cpp" />
+    <ClCompile Include="..\..\src\graphics\CFog.cpp" />
+    <ClCompile Include="..\..\src\graphics\CFont.cpp" />
+    <ClCompile Include="..\..\src\graphics\CImage.cpp" />
+    <ClCompile Include="..\..\src\graphics\CMacrosGL.cpp" />
+    <ClCompile Include="..\..\src\graphics\CPrimitives.cpp" />
+    <ClCompile Include="..\..\src\graphics\CTriangle.cpp" />
+    <ClCompile Include="..\..\src\graphics\CVertex.cpp" />
+    <ClCompile Include="..\..\src\graphics\GLee.cpp" />
+    <ClCompile Include="..\..\src\math\CMaths.cpp" />
+    <ClCompile Include="..\..\src\math\CMatrix3d.cpp" />
+    <ClCompile Include="..\..\src\math\CQuaternion.cpp" />
+    <ClCompile Include="..\..\src\math\CVector3d.cpp" />
+    <ClCompile Include="..\..\src\timers\CFrequencyCounter.cpp" />
+    <ClCompile Include="..\..\src\timers\CPrecisionClock.cpp" />
+    <ClCompile Include="..\..\src\timers\CThread.cpp" />
+    <ClCompile Include="..\..\src\tools\CGenericTool.cpp" />
+    <ClCompile Include="..\..\src\tools\CInteractionPoint.cpp" />
+    <ClCompile Include="..\..\src\tools\CToolCursor.cpp" />
+    <ClCompile Include="..\..\src\tools\CToolGripper.cpp" />
+    <ClCompile Include="..\..\src\widgets\CBackground.cpp" />
+    <ClCompile Include="..\..\src\widgets\CBitmap.cpp" />
+    <ClCompile Include="..\..\src\widgets\CLabel.cpp" />
+    <ClCompile Include="..\..\src\extras\CExtras.cpp" />
+    <ClCompile Include="..\..\src\extras\CString.cpp" />
+    <ClCompile Include="..\..\src\world\CGenericObject.cpp" />
+    <ClCompile Include="..\..\src\world\CMesh.cpp" />
+    <ClCompile Include="..\..\src\world\CMultiMesh.cpp" />
+    <ClCompile Include="..\..\src\world\CShapeBox.cpp" />
+    <ClCompile Include="..\..\src\world\CShapeCylinder.cpp" />
+    <ClCompile Include="..\..\src\world\CShapeLine.cpp" />
+    <ClCompile Include="..\..\src\world\CShapeSphere.cpp" />
+    <ClCompile Include="..\..\src\world\CShapeTorus.cpp" />
+    <ClCompile Include="..\..\src\world\CWorld.cpp" />
+    <ClCompile Include="..\..\src\lighting\CDirectionalLight.cpp" />
+    <ClCompile Include="..\..\src\lighting\CGenericLight.cpp" />
+    <ClCompile Include="..\..\src\lighting\CPositionalLight.cpp" />
+    <ClCompile Include="..\..\src\lighting\CShadowMap.cpp" />
+    <ClCompile Include="..\..\src\lighting\CSpotLight.cpp" />
+    <ClCompile Include="..\..\src\materials\CGenericTexture.cpp" />
+    <ClCompile Include="..\..\src\materials\CMaterial.cpp" />
+    <ClCompile Include="..\..\src\materials\CTexture1d.cpp" />
+    <ClCompile Include="..\..\src\materials\CTexture2d.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\collisions\CCollisionAABB.h" />
+    <ClInclude Include="..\..\src\collisions\CCollisionAABBBox.h" />
+    <ClInclude Include="..\..\src\collisions\CCollisionAABBTree.h" />
+    <ClInclude Include="..\..\src\collisions\CCollisionBasics.h" />
+    <ClInclude Include="..\..\src\collisions\CCollisionBrute.h" />
+    <ClInclude Include="..\..\src\collisions\CGenericCollision.h" />
+    <ClInclude Include="..\..\src\devices\CCallback.h" />
+    <ClInclude Include="..\..\src\devices\CDeltaDevices.h" />
+    <ClInclude Include="..\..\src\devices\CFalconDevice.h" />
+    <ClInclude Include="..\..\src\devices\CFreedom6SDevice.h" />
+    <ClInclude Include="..\..\src\devices\CGenericDevice.h" />
+    <ClInclude Include="..\..\src\devices\CGenericHapticDevice.h" />
+    <ClInclude Include="..\..\src\devices\CHapticDeviceHandler.h" />
+    <ClInclude Include="..\..\src\devices\CMyCustomDevice.h" />
+    <ClInclude Include="..\..\src\devices\CPhantomDevices.h" />
+    <ClInclude Include="..\..\src\devices\CVirtualDevice.h" />
+    <ClInclude Include="..\..\src\display\CCamera.h" />
+    <ClInclude Include="..\..\src\display\CViewport.h" />
+    <ClInclude Include="..\..\src\effects\CEffectMagnet.h" />
+    <ClInclude Include="..\..\src\effects\CEffectStickSlip.h" />
+    <ClInclude Include="..\..\src\effects\CEffectSurface.h" />
+    <ClInclude Include="..\..\src\effects\CEffectVibration.h" />
+    <ClInclude Include="..\..\src\effects\CEffectViscosity.h" />
+    <ClInclude Include="..\..\src\effects\CGenericEffect.h" />
+    <ClInclude Include="..\..\src\files\CFileImageBMP.h" />
+    <ClInclude Include="..\..\src\files\CFileImageGIF.h" />
+    <ClInclude Include="..\..\src\files\CFileImageJPG.h" />
+    <ClInclude Include="..\..\src\files\CFileImagePNG.h" />
+    <ClInclude Include="..\..\src\files\CFileImagePPM.h" />
+    <ClInclude Include="..\..\src\files\CFileImageRAW.h" />
+    <ClInclude Include="..\..\src\files\CFileModel3DS.h" />
+    <ClInclude Include="..\..\src\files\CFileModelOBJ.h" />
+    <ClInclude Include="..\..\src\forces\CAlgorithmFingerProxy.h" />
+    <ClInclude Include="..\..\src\forces\CAlgorithmPotentialField.h" />
+    <ClInclude Include="..\..\src\forces\CGenericForceAlgorithm.h" />
+    <ClInclude Include="..\..\src\forces\CInteractionBasics.h" />
+    <ClInclude Include="..\..\src\graphics\CColor.h" />
+    <ClInclude Include="..\..\src\graphics\CDraw3D.h" />
+    <ClInclude Include="..\..\src\graphics\CFog.h" />
+    <ClInclude Include="..\..\src\graphics\CFont.h" />
+    <ClInclude Include="..\..\src\graphics\CImage.h" />
+    <ClInclude Include="..\..\src\graphics\CMacrosGL.h" />
+    <ClInclude Include="..\..\src\graphics\CPrimitives.h" />
+    <ClInclude Include="..\..\src\graphics\CRenderOptions.h" />
+    <ClInclude Include="..\..\src\graphics\CTriangle.h" />
+    <ClInclude Include="..\..\src\graphics\CVertex.h" />
+    <ClInclude Include="..\..\src\graphics\GLee.h" />
+    <ClInclude Include="..\..\src\math\CConstants.h" />
+    <ClInclude Include="..\..\src\math\CMaths.h" />
+    <ClInclude Include="..\..\src\math\CMatrix3d.h" />
+    <ClInclude Include="..\..\src\math\CQuaternion.h" />
+    <ClInclude Include="..\..\src\math\CVector3d.h" />
+    <ClInclude Include="..\..\src\timers\CFrequencyCounter.h" />
+    <ClInclude Include="..\..\src\timers\CPrecisionClock.h" />
+    <ClInclude Include="..\..\src\timers\CThread.h" />
+    <ClInclude Include="..\..\src\tools\CGenericTool.h" />
+    <ClInclude Include="..\..\src\tools\CInteractionPoint.h" />
+    <ClInclude Include="..\..\src\tools\CToolCursor.h" />
+    <ClInclude Include="..\..\src\tools\CToolGripper.h" />
+    <ClInclude Include="..\..\src\widgets\CBackground.h" />
+    <ClInclude Include="..\..\src\widgets\CBitmap.h" />
+    <ClInclude Include="..\..\src\widgets\CLabel.h" />
+    <ClInclude Include="..\..\src\extras\CExtras.h" />
+    <ClInclude Include="..\..\src\extras\CGenericType.h" />
+    <ClInclude Include="..\..\src\extras\CGlobals.h" />
+    <ClInclude Include="..\..\src\extras\CString.h" />
+    <ClInclude Include="..\..\src\world\CGenericObject.h" />
+    <ClInclude Include="..\..\src\world\CMesh.h" />
+    <ClInclude Include="..\..\src\world\CMultiMesh.h" />
+    <ClInclude Include="..\..\src\world\CShapeBox.h" />
+    <ClInclude Include="..\..\src\world\CShapeCylinder.h" />
+    <ClInclude Include="..\..\src\world\CShapeLine.h" />
+    <ClInclude Include="..\..\src\world\CShapeSphere.h" />
+    <ClInclude Include="..\..\src\world\CShapeTorus.h" />
+    <ClInclude Include="..\..\src\world\CWorld.h" />
+    <ClInclude Include="..\..\src\lighting\CDirectionalLight.h" />
+    <ClInclude Include="..\..\src\lighting\CGenericLight.h" />
+    <ClInclude Include="..\..\src\lighting\CPositionalLight.h" />
+    <ClInclude Include="..\..\src\lighting\CShadowMap.h" />
+    <ClInclude Include="..\..\src\lighting\CSpotLight.h" />
+    <ClInclude Include="..\..\src\materials\CGenericTexture.h" />
+    <ClInclude Include="..\..\src\materials\CMaterial.h" />
+    <ClInclude Include="..\..\src\materials\CTexture1d.h" />
+    <ClInclude Include="..\..\src\materials\CTexture2d.h" />
+    <ClInclude Include="..\..\src\resources\CChai3dLogo.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri16.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri18.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri20.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri22.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri24.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri26.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri28.h" />
+    <ClInclude Include="..\..\src\resources\CFontCalibri32.h" />
+    <ClInclude Include="..\..\src\resources\CFontMetaCorr36.h" />
+    <ClInclude Include="..\..\src\chai3d.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

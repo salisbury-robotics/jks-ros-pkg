@@ -1,0 +1,583 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="collisions">
+      <UniqueIdentifier>{688ace29-adbe-4aa7-9f49-5c1cec110f29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="devices">
+      <UniqueIdentifier>{0e0ad3e0-05a9-462e-ad90-9e1ea519efbd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="display">
+      <UniqueIdentifier>{7ac9ed4d-d5e5-4500-bde4-443248d7ed1d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="effects">
+      <UniqueIdentifier>{b89fc4d3-80ef-40b9-8688-4fadd2574494}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="files">
+      <UniqueIdentifier>{d9da1149-9af3-4c4c-ae66-895f569b1fc7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="forces">
+      <UniqueIdentifier>{050c0f81-74be-4ed7-a32e-e42f9805f194}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="graphics">
+      <UniqueIdentifier>{827ed10b-139c-43c0-b3fa-1114e831d1fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="math">
+      <UniqueIdentifier>{9bcc51e7-2fb4-42fd-bd25-42472a84e982}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{b3446832-7185-44de-b46c-33cca162d405}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="timers">
+      <UniqueIdentifier>{db5c7758-0a2c-48ad-9b32-f62251e07b6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools">
+      <UniqueIdentifier>{fbf153d3-3af2-4065-a5ab-7088d1939d07}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="widgets">
+      <UniqueIdentifier>{b29976fa-234d-4ff1-8e1d-91e02b250b6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="extras">
+      <UniqueIdentifier>{74e34530-e3d9-41f9-a420-0a2cdd5c8e3d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="world">
+      <UniqueIdentifier>{03527f5e-d139-46d9-8495-5b7dd696e4fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lighting">
+      <UniqueIdentifier>{ec20519c-23ba-4b37-a5e6-ea3ff45c6f94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="materials">
+      <UniqueIdentifier>{28c8de62-fb08-4c04-bfeb-27cb79e8c5c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources">
+      <UniqueIdentifier>{3e9796b7-4aa5-4514-9a98-22dde2e42ff6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\collisions\CCollisionAABB.cpp">
+      <Filter>collisions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\collisions\CCollisionAABBBox.cpp">
+      <Filter>collisions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\collisions\CCollisionAABBTree.cpp">
+      <Filter>collisions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\collisions\CCollisionBasics.cpp">
+      <Filter>collisions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\collisions\CCollisionBrute.cpp">
+      <Filter>collisions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\collisions\CGenericCollision.cpp">
+      <Filter>collisions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CCallback.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CDeltaDevices.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CFalconDevice.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CFreedom6SDevice.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CGenericDevice.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CGenericHapticDevice.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CHapticDeviceHandler.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CMyCustomDevice.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CPhantomDevices.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\devices\CVirtualDevice.cpp">
+      <Filter>devices</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\display\CCamera.cpp">
+      <Filter>display</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\display\CViewport.cpp">
+      <Filter>display</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\effects\CEffectMagnet.cpp">
+      <Filter>effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\effects\CEffectStickSlip.cpp">
+      <Filter>effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\effects\CEffectSurface.cpp">
+      <Filter>effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\effects\CEffectVibration.cpp">
+      <Filter>effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\effects\CEffectViscosity.cpp">
+      <Filter>effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\effects\CGenericEffect.cpp">
+      <Filter>effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileImageBMP.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileImageGIF.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileImageJPG.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileImagePNG.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileImagePPM.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileImageRAW.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileModel3DS.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\files\CFileModelOBJ.cpp">
+      <Filter>files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\forces\CAlgorithmFingerProxy.cpp">
+      <Filter>forces</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\forces\CAlgorithmPotentialField.cpp">
+      <Filter>forces</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\forces\CGenericForceAlgorithm.cpp">
+      <Filter>forces</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\forces\CInteractionBasics.cpp">
+      <Filter>forces</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CColor.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CDraw3D.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CFog.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CFont.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CImage.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CMacrosGL.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CPrimitives.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CTriangle.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\CVertex.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\graphics\GLee.cpp">
+      <Filter>graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\math\CMaths.cpp">
+      <Filter>math</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\math\CMatrix3d.cpp">
+      <Filter>math</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\math\CQuaternion.cpp">
+      <Filter>math</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\math\CVector3d.cpp">
+      <Filter>math</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\timers\CFrequencyCounter.cpp">
+      <Filter>timers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\timers\CPrecisionClock.cpp">
+      <Filter>timers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\timers\CThread.cpp">
+      <Filter>timers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\tools\CGenericTool.cpp">
+      <Filter>tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\tools\CInteractionPoint.cpp">
+      <Filter>tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\tools\CToolCursor.cpp">
+      <Filter>tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\tools\CToolGripper.cpp">
+      <Filter>tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\widgets\CBackground.cpp">
+      <Filter>widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\widgets\CBitmap.cpp">
+      <Filter>widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\widgets\CLabel.cpp">
+      <Filter>widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\extras\CExtras.cpp">
+      <Filter>extras</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\extras\CString.cpp">
+      <Filter>extras</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CGenericObject.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CMesh.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CMultiMesh.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CShapeBox.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CShapeCylinder.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CShapeLine.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CShapeSphere.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CShapeTorus.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\world\CWorld.cpp">
+      <Filter>world</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lighting\CDirectionalLight.cpp">
+      <Filter>lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lighting\CGenericLight.cpp">
+      <Filter>lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lighting\CPositionalLight.cpp">
+      <Filter>lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lighting\CShadowMap.cpp">
+      <Filter>lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\lighting\CSpotLight.cpp">
+      <Filter>lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\materials\CGenericTexture.cpp">
+      <Filter>materials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\materials\CMaterial.cpp">
+      <Filter>materials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\materials\CTexture1d.cpp">
+      <Filter>materials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\materials\CTexture2d.cpp">
+      <Filter>materials</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\collisions\CCollisionAABB.h">
+      <Filter>collisions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\collisions\CCollisionAABBBox.h">
+      <Filter>collisions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\collisions\CCollisionAABBTree.h">
+      <Filter>collisions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\collisions\CCollisionBasics.h">
+      <Filter>collisions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\collisions\CCollisionBrute.h">
+      <Filter>collisions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\collisions\CGenericCollision.h">
+      <Filter>collisions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CCallback.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CDeltaDevices.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CFalconDevice.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CFreedom6SDevice.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CGenericDevice.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CGenericHapticDevice.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CHapticDeviceHandler.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CMyCustomDevice.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CPhantomDevices.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\devices\CVirtualDevice.h">
+      <Filter>devices</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\display\CCamera.h">
+      <Filter>display</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\display\CViewport.h">
+      <Filter>display</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\effects\CEffectMagnet.h">
+      <Filter>effects</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\effects\CEffectStickSlip.h">
+      <Filter>effects</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\effects\CEffectSurface.h">
+      <Filter>effects</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\effects\CEffectVibration.h">
+      <Filter>effects</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\effects\CEffectViscosity.h">
+      <Filter>effects</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\effects\CGenericEffect.h">
+      <Filter>effects</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileImageBMP.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileImageGIF.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileImageJPG.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileImagePNG.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileImagePPM.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileImageRAW.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileModel3DS.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\files\CFileModelOBJ.h">
+      <Filter>files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\forces\CAlgorithmFingerProxy.h">
+      <Filter>forces</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\forces\CAlgorithmPotentialField.h">
+      <Filter>forces</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\forces\CGenericForceAlgorithm.h">
+      <Filter>forces</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\forces\CInteractionBasics.h">
+      <Filter>forces</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CColor.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CDraw3D.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CFog.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CFont.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CImage.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CMacrosGL.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CPrimitives.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CRenderOptions.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CTriangle.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\CVertex.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\graphics\GLee.h">
+      <Filter>graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\math\CConstants.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\math\CMaths.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\math\CMatrix3d.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\math\CQuaternion.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\math\CVector3d.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\timers\CFrequencyCounter.h">
+      <Filter>timers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\timers\CPrecisionClock.h">
+      <Filter>timers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\timers\CThread.h">
+      <Filter>timers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\tools\CGenericTool.h">
+      <Filter>tools</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\tools\CInteractionPoint.h">
+      <Filter>tools</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\tools\CToolCursor.h">
+      <Filter>tools</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\tools\CToolGripper.h">
+      <Filter>tools</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\widgets\CBackground.h">
+      <Filter>widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\widgets\CBitmap.h">
+      <Filter>widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\widgets\CLabel.h">
+      <Filter>widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\extras\CExtras.h">
+      <Filter>extras</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\extras\CGenericType.h">
+      <Filter>extras</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\extras\CGlobals.h">
+      <Filter>extras</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\extras\CString.h">
+      <Filter>extras</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CGenericObject.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CMesh.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CMultiMesh.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CShapeBox.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CShapeCylinder.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CShapeLine.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CShapeSphere.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CShapeTorus.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\world\CWorld.h">
+      <Filter>world</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\lighting\CDirectionalLight.h">
+      <Filter>lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\lighting\CGenericLight.h">
+      <Filter>lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\lighting\CPositionalLight.h">
+      <Filter>lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\lighting\CShadowMap.h">
+      <Filter>lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\lighting\CSpotLight.h">
+      <Filter>lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\materials\CGenericTexture.h">
+      <Filter>materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\materials\CMaterial.h">
+      <Filter>materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\materials\CTexture1d.h">
+      <Filter>materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\materials\CTexture2d.h">
+      <Filter>materials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CChai3dLogo.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri16.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri18.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri20.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri22.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri24.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri26.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri28.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontCalibri32.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\resources\CFontMetaCorr36.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\chai3d.h" />
+  </ItemGroup>
+</Project>

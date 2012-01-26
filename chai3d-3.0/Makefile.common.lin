@@ -1,0 +1,38 @@
+#  Copyright (C) 2003-2011 by CHAI 3D.
+#  All Rights Reserved.
+#
+#  $Author: seb $
+#  $Date: 2011-12-14 02:23:08 -0800 (Wed, 14 Dec 2011) $
+#  $Rev: 667 $
+
+
+# set target architecture
+ifeq ($(ARCH), x86_64)
+CXXFLAGS += -m64
+ifneq ($(MARCH), $(ARCH))
+CXXFLAGS += -march=$(MARCH)
+endif
+endif
+ifeq ($(ARCH), i386)
+CXXFLAGS += -m32 -march=$(MARCH)
+endif
+ifeq ($(ARCH), i486)
+CXXFLAGS += -m32 -march=$(MARCH)
+endif
+ifeq ($(ARCH), i586)
+CXXFLAGS += -m32 -march=$(MARCH)
+endif
+ifeq ($(ARCH), i686)
+CXXFLAGS += -m32 -march=$(MARCH)
+endif
+
+# common compiler flags
+CXXFLAGS += -DLINUX
+
+# common linker flags
+LDLIBS   += -lpthread -lrt -lGL -lGLU -lglut
+
+# additional libraries
+ifeq ($(USE_DHD),yes)
+LDLIBS   += -lusb-1.0
+endif
