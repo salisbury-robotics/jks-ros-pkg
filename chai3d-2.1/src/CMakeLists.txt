@@ -169,7 +169,7 @@ IF(APPLE)
     TARGET_LINK_LIBRARIES(chai3d ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
 ENDIF(APPLE)
 
-TARGET_LINK_LIBRARIES(chai3d HD)
+#TARGET_LINK_LIBRARIES(chai3d HD)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC)
