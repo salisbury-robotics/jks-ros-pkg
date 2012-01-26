@@ -13,12 +13,12 @@
   <!-- <include file="$(find haptic_ghosted_gripper)/launch/haptics_frames.launch" /> -->
 
 
-  <node pkg="haptic_ghosted_gripper" type="haptic_ghosted_gripper_node" name="pr2_ghosted_gripper" launch-prefix="$(arg prefix)" output="screen">
+  <node pkg="haptic_ghosted_gripper" type="haptic_ghosted_gripper_node" name="pr2_interactive_gripper_pose_action" launch-prefix="$(arg prefix)" output="screen">
     <param name="use_haptics"   value="$(arg haptics)" />
     <param name="mesh_basename" value="$(arg mesh)" />
      
     <rosparam>
-      absolute_path:  "/u/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/"
+      absolute_path:  "/home/aleeper/ros/jks-ros-pkg/haptic_ghosted_gripper/meshes/"
       package_path:   "package://haptic_ghosted_gripper/meshes/"
       
       voxel_size: 0.002
