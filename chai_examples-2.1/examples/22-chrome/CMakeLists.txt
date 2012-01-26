@@ -1,13 +1,6 @@
-ADD_EXECUTABLE(22-chrome
+rosbuild_add_executable(22-chrome
     src/22-chrome.cpp
 )
-
-TARGET_LINK_LIBRARIES(22-chrome
-  chai3d dhd HD
-    pthread rt usb-1.0
-      GL GLU glut
-      )
-
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)
