@@ -8,7 +8,7 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/chai_examples</url>
-  <depend package="chai3d"/>
+  <depend package="chai3d-3.0"/>
 
 </package>
 
