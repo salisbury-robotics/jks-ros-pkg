@@ -67,8 +67,9 @@ void HapticDisplay::setTransform(const cml::matrix44f_c &transform)
 void HapticDisplay::update()
 {
     // read the device position
-    cVector3d dp;
+    cVector3d dp(0,0,0);
     m_chai3dDevice->getPosition(dp);
+    //dp.print();
 
     // compute a scale factor to transform device positions to desired radius
     double scale = m_workspaceRadius / m_deviceRadius;

@@ -30,6 +30,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Haptics)
 #  ENDIF()
 #  LINK_DIRECTORIES("${CHAI3D_BASE}/lib/${CHAI3D_LIBPATH}" "${CHAI3D_BASE}/external/DHD/lib/${CHAI3D_LIBPATH}")
 #ENDIF(UNIX)
+#ADD_DEFINITIONS(-fPIC)
 
 
 set(ROS_BUILD_TYPE Release)
@@ -73,6 +74,9 @@ src/Common/PointSampler.cpp
 manifest.xml
 )
 
+#IF( CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" )
+#  SET_TARGET_PROPERTIES(haptic_display_tools PROPERTIES COMPILE_FLAGS "-fPIC")
+#ENDIF( CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" )
 
 #rosbuild_add_library(graphic_display_tools
 #)

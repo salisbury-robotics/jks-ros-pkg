@@ -9,7 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url> </url>
 
-  <depend package="chai3d" />
+  <depend package="chai3d-2.1" />
   <depend package="roscpp" />
   <depend package="cml" />
   <depend package="eigen" />
