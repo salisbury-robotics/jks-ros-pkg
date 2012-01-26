@@ -38,6 +38,8 @@ public:
     explicit MyHapticsThread(QObject *parent = 0);
     virtual ~MyHapticsThread();
 
+    int m_hapticFPS;
+
 //    // returns a pointer to a widget showing the estimated update rate
 //    QWidget *hpsWidget()            { return &m_hpsLabel; }
 

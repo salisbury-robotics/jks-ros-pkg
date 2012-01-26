@@ -106,6 +106,9 @@ void HapticGhostedGripper::initializeHaptics()
         m_device_info = hapticDevice->getSpecifications();
         printDeviceSpecs(m_device_info);
     }
+    hapticDevice->open();
+    cVector3d force(0,0,0);
+    hapticDevice->setForce(force);
 
     // create a haptics scene with all the haptic displays in it
     m_scene = new HapticScene();
@@ -252,8 +255,16 @@ void HapticGhostedGripper::displayCallback()
       pclock.start(true);
       std_msgs::String msg;
       char status_string[256];
-      sprintf(status_string, "Haptic rate: %.3f Graphics Rate: %.3f",
-              hps_estimate, fps_estimate);
+      MyHapticsThread *hthread = MyHapticsThread::instance();
+      sprintf(status_string, "Haptic rate: %4d Graphics Rate: %.3f",
+              hthread->m_hapticFPS, fps_estimate);
+      //ROS_INFO_STREAM(status_string);
+      msg.data = status_string;
+      pub_status_.publish(msg);
+
+      cml::vector3d device_pos =  m_display->devicePosition();
+      sprintf(status_string, "HIP pos: % .2f % .2f % .2f",
+              device_pos[0], device_pos[1], device_pos[2]);
       //ROS_INFO_STREAM(status_string);
       msg.data = status_string;
       pub_status_.publish(msg);
@@ -265,6 +276,8 @@ void HapticGhostedGripper::displayCallback()
   cml::matrix33d proxy_rot = m_display->proxyOrientation();
   cml::vector3d HIP_pos = m_display->toolPosition();
   cml::matrix33d HIP_rot = m_display->toolOrientation();
+
+
 
   if(checkForButtonClick())
   {

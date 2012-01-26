@@ -100,6 +100,7 @@ void MyHapticsThread::run()
         ++counter;
         if (time.elapsed() >= 1000) {
             int hps = 1000 * counter / time.elapsed();
+            m_hapticFPS = hps;
 //            m_hpsLabel.setText(QString(" %1 HPS").arg(hps));
             counter = 0;
             time.start();

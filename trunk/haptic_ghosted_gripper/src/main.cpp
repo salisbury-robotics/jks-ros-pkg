@@ -41,7 +41,7 @@
 int main (int argc, char* argv[])
 {
   printf("Starting...\n");
-  ros::init(argc, argv, "haptics_ghosted_gripper_node");
+  ros::init(argc, argv, "pr2_interactive_gripper_pose_action");
 
   ros::NodeHandle pnh("~");
   bool use_haptics = false;
