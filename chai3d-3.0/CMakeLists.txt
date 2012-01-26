@@ -8,7 +8,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
 PROJECT(CHAI3D)
 
-SET(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo" 
+SET(CMAKE_CONFIGURATION_TYPES "Release;ReleaseWithDebInfo" 
     CACHE STRING "Available build configurations." FORCE)
     
 #-----------------------------------------------------------------------------
@@ -16,6 +16,7 @@ SET(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo"
 
 #TODO: Need to add these system dependencies:
 #giflib
+# How do I make it so it does NOT overwrite the default ROS Makefile?
 
 #SET(CHAI3D_LIBRARY_PATH "${CHAI3D_BINARY_DIR}/lib")
 #SET(CHAI3D_RUNTIME_PATH "${CHAI3D_BINARY_DIR}/bin")
@@ -58,7 +59,7 @@ IF(APPLE)
 ENDIF(APPLE)
 
 IF(UNIX)
-    ADD_DEFINITIONS(-DLINUX)
+    ADD_DEFINITIONS(-DLINUX -D_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
     INCLUDE_DIRECTORIES("external/DHD/include")
   IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
     SET(CHAI3D_LIBPATH "lin-x86_64")

@@ -5,7 +5,7 @@
 # Edited by Adam Leeper for Chai3d 3.0-alpha
 #	January 2012, Stanford University
 #-----------------------------------------------------------------------------
-SET(CMAKE_BUILD_TYPE Release;Debug CACHE STRING
+SET(CMAKE_BUILD_TYPE Release CACHE STRING
       "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
       FORCE)
 
@@ -163,6 +163,7 @@ SOURCE_GROUP(files      FILES ${FILES_GROUP})
 SOURCE_GROUP(forces     FILES ${FORCES_GROUP})
 SOURCE_GROUP(graphics   FILES ${GRAPHICS_GROUP})
 SOURCE_GROUP(lighting   FILES ${LIGHTING_GROUP})
+SOURCE_GROUP(materials   FILES ${MATERIALS_GROUP})
 SOURCE_GROUP(math       FILES ${MATH_GROUP})
 SOURCE_GROUP(timers     FILES ${TIMERS_GROUP})
 SOURCE_GROUP(tools      FILES ${TOOLS_GROUP})
@@ -180,6 +181,7 @@ ADD_LIBRARY(chai3d
     ${GRAPHICS_GROUP}
     ${LIGHTING_GROUP}
     ${MATH_GROUP}
+    ${MATERIALS_GROUP}
     ${TIMERS_GROUP}
     ${TOOLS_GROUP}
     ${WIDGETS_GROUP}
@@ -197,7 +199,9 @@ IF(APPLE)
     TARGET_LINK_LIBRARIES(chai3d ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
 ENDIF(APPLE)
 
-TARGET_LINK_LIBRARIES(chai3d HD)
+TARGET_LINK_LIBRARIES(chai3d 
+#  HD
+)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC)
