@@ -1,12 +1,7 @@
-ADD_EXECUTABLE(10-oring
+rosbuild_add_executable(10-oring
     src/10-oring.cpp
 )
 
-TARGET_LINK_LIBRARIES(10-oring
-  chai3d dhd HD
-  pthread rt usb-1.0
-  GL GLU glut
-)
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
 IF(MSVC OR APPLE)
