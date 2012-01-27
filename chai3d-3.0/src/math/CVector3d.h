@@ -104,7 +104,7 @@ struct cVector3d : public Vector3d
     }
 
     //! Constructor by passing three doubles to initialize vector.
-    cVector3d(const double a_x, const double a_y, const double a_z)
+    cVector3d(const double a_x, const double a_y, const double a_z) : Vector3d()
     { 
         (*this)(0) = a_x; 
         (*this)(1) = a_y; 
@@ -112,7 +112,7 @@ struct cVector3d : public Vector3d
     }
 
     //! Constructor by passing a cVector3d vector to initialize vector.
-    cVector3d (const cVector3d &other)
+    cVector3d (const cVector3d &other) : Vector3d()
     {
         (*this)(0) = other(0) ;
         (*this)(1) = other(1) ;
@@ -120,7 +120,7 @@ struct cVector3d : public Vector3d
     }
 
     //! Constructor by passing an Eigen Vector3d vector to initialize vector.
-    cVector3d (const Vector3d &other)
+    cVector3d (const Vector3d &other) : Vector3d()
     {
         (*this)(0) = other(0);
         (*this)(1) = other(1);
@@ -128,13 +128,13 @@ struct cVector3d : public Vector3d
     }
 
     //! Constructor by passing a string to initialize vector.
-    cVector3d(const char* a_initstr)
+    cVector3d(const char* a_initstr) : Vector3d()
     { 
         set(a_initstr); 
     }
 
     //! Constructor by passing a string to initialize vector.
-    cVector3d(const string& a_initstr)
+    cVector3d(const string& a_initstr) : Vector3d()
     { 
         set(a_initstr); 
     }

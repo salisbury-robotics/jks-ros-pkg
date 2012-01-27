@@ -127,7 +127,10 @@ void MyHapticsThread::run()
         // wait if pause is set
         m_mutex.lock();
         if (m_paused)
+        {
+            m_currentScene->clearForces();
             m_resume.wait(&m_mutex);
+        }
     }
 }
 
