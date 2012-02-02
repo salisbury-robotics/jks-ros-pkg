@@ -1,0 +1,17 @@
+<package>
+  <description brief="profiler">
+
+     A simple tool for defining timers and profiling code in C++;
+     Brought in from GraspIt!.
+
+  </description>
+  <author>Matei Ciocarlie</author>
+  <license>GPL</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/profiler</url>
+  <export>
+      <cpp cflags="-I${prefix}/include" lflags="-L${prefix}/lib -lprofiling"/>
+  </export>
+</package>
+
+
