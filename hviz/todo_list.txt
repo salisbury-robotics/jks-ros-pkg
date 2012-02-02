@@ -1,0 +1,22 @@
+Ideas for future work:
+
+- Use a decaying weighting for cloud frames as an interpolation method.
+  Investigate what kind of decay feels natural based on assumptions
+  about the signal content of the scene.
+
+- Investigate making stiffness a function of the probability. 
+  E.g. if the object suddenly disappears, the force should fade out
+  rather than having the constraint suddenly disappear when the 
+  probability goes under the threshold.
+
+High Priority:
+
+- cloud interpolation
+
+
+Medium Priority:
+- Why haven't you hooked up two Kinects yet!
+
+Low Priority:
+- fix evaluateCloud so it takes arguments rather than relying completely on member variables.
+- figure out why friction is still crunchy at very low amplitudes

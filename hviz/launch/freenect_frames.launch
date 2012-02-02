@@ -1,0 +1,12 @@
+<launch>
+
+  <node pkg="tf" type="static_transform_publisher" name="kinect_tilt_to_kinect" 
+    args="0 0 0 0 0 0 /kinect /kinect_tilt 50" />
+  
+  <node pkg="tf" type="static_transform_publisher" name="kinect_rgb_to_tilt" 
+    args="0 0 0 -1.57 0 -1.57 /kinect_tilt /kinect_rgb 50" />
+  
+  <node pkg="tf" type="static_transform_publisher" name="kinect_rgb_to_kinect_depth" 
+    args="-0.03 0.0 0.0 0.0 0.0 0.0 /kinect_rgb /kinect_depth 50" />
+
+</launch>

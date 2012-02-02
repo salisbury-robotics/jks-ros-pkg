@@ -1,0 +1,10 @@
+<launch>
+
+<arg name="config_file"
+         value="$(find hviz)/config/haptics.vcg"/>
+
+    <node pkg="rviz" name="rviz" type="rviz" args="-d $(arg config_file)" respawn="false" output="screen">
+
+    </node>
+
+</launch>

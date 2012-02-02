@@ -1,0 +1,29 @@
+<launch>
+  <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" />
+
+
+  <node pkg="nodelet" type="nodelet" name="kinect_depth_passthrough" args="load pcl/VoxelGrid pcl_manager" output="screen">
+    <remap from="~input"   to="/cloud_in/points2" />
+    <remap from="~output"  to="/cloud_in/voxel" />
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: -0.1
+      filter_limit_max: 2.0
+      leaf_size: 0.005
+      input_frame:  world
+      output_frame: world
+    </rosparam>
+  </node>
+  
+
+  <node pkg="nodelet" type="nodelet" name="kinect_depth_mls" args="load pcl/MovingLeastSquares pcl_manager" output="screen">
+    <remap from="~input"   to="/cloud_in/voxel" />
+    <remap from="~output"  to="/cloud_in/mls" />
+    <rosparam>
+      input_frame: world 
+      output_frame: world
+      search_radius: 0.01
+      spatial_locator: 0 
+    </rosparam>
+  </node>
+</launch>

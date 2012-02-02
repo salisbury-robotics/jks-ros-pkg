@@ -1,0 +1,38 @@
+<package>
+  <description brief="haptic_points">
+
+     Experimental work for haptic rendering of point clouds
+
+  </description>
+  <author>aleeper</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/</url>
+
+  <depend package="pr2_controller_interface"/>
+  <depend package="pr2_mechanism_model"/>
+  <depend package="pluginlib"/>
+  <depend package="eigen" />
+  <depend package="kdl" />
+  <depend package="visualization_msgs" />
+  <depend package="joy" />
+  <depend package="geometry_msgs" />
+  <depend package="stereo_msgs" />
+
+  <depend package="rospy" />
+  <depend package="roscpp" />
+  <depend package="pcl" />
+  <depend package="pcl_ros" />
+  <!-- <depend package="pcl_visualization" /> -->
+  <depend package="dynamic_reconfigure" />
+  <depend package="profiling" />
+
+  <depend package="object_manipulator" />
+  <!--
+    <depend package="rviz_interaction_tools" />
+-->
+  <depend package="chai3d" />
+  <depend package="haptic_display_tools" />
+</package>
+
+

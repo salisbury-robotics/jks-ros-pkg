@@ -1,0 +1,15 @@
+<launch>
+  
+  <include file="$(find hviz)/launch/haptics_frames.launch" />
+
+  <node pkg="hviz" type="haptics_node" name="haptics_node" launch-prefix="xterm -e gdb --args" output="screen">
+  <remap from="cloud_in" to="/bunny/voxeled" />
+  <!--<remap from="cloud_in" to="/kinect1/depth/voxel" />-->
+  <remap from="cloud_out" to="/haptics/cloud_out" />
+  <rosparam>
+    cloud_mode: 0
+    rendering_mode: 0
+  </rosparam>
+  
+  </node>
+</launch>

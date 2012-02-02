@@ -1,0 +1,25 @@
+<launch>
+
+  <node pkg="pcl_ros" type="pcd_to_pointcloud" name="bunny_publisher"
+    args="$(find hviz)/bun_zipper.pcd 0.5" respawn="false" output="screen" >
+  <remap from="/cloud_pcd" to ="/bunny/points2" />
+  <rosparam>
+    frame_id: bunny
+  </rosparam>
+
+  </node>
+  
+  <node pkg="nodelet" type="nodelet" name="pcl_manager_bunny" args="manager" output="screen" />
+
+  <node pkg="nodelet" type="nodelet" name="bunny_voxel_filter" args="load pcl/VoxelGrid pcl_manager_bunny" output="screen">
+    <remap from="~input"   to="/bunny/points2" />
+    <remap from="~output"  to="/bunny/voxeled" />
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: -1.0
+      filter_limit_max:  1.0
+      leaf_size: 0.005
+    </rosparam>
+  </node>
+</launch>
+
