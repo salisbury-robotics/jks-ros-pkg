@@ -1,0 +1,25 @@
+<launch>
+  <arg name="index" />
+
+  <node pkg="openni_camera" type="openni_node" name="openni_node$(arg index)" output="screen" >
+    <!--param name="topic" value="first" /-->
+    <!--param name="device_id" value="2@3" --> <!-- this line uses device on usb bus 2 and addres 3 -->
+    <!--param name="device_id" value="B00367707227042B"/--> <!-- this line uses device with given serial number -->
+    
+    <remap from="/camera" to="/kinect$(arg index)" />  
+    <param name="device_id" value="#$(arg index)"/> <!-- this line uses first enumerated device -->
+    <rosparam command="load" file="$(find openni_camera)/info/openni_params.yaml" />
+    <param name="rgb_frame_id" value="/kinect$(arg index)/openni_rgb_optical_frame" />
+    <param name="depth_frame_id" value="/kinect$(arg index)//openni_depth_optical_frame" />
+    <param name="depth_registration" value="true" />
+    <param name="image_mode" value="2" />
+    <param name="depth_mode" value="2" />
+    <param name="debayering" value="2" />
+    <param name="depth_time_offset" value="0" />
+    <param name="image_time_offset" value="0" />
+  </node>
+  <include file="$(find hviz)/launch/openni_frames.launch">
+    <arg name="index" value="$(arg index)" />
+  </include>
+
+</launch>

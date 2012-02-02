@@ -1,0 +1,16 @@
+<launch>
+
+  <arg name="index" default="1" />
+
+  <!--<include file="$(find haptic_points)/launch/freenect_node.launch" />--> 
+  <include file="$(find hviz)/launch/openni_node.launch">
+    <arg name="index" value="$(arg index)" />
+  </include>
+
+
+  <!-- TODO Calibrated transform is given in info/kinect_params.yaml -->
+  <node pkg="tf" type="static_transform_publisher" name="world_to_kinect$(arg index)" 
+    args="0 0 0.6 3.141592 0.436 0 /world /kinect$(arg index)/base 60" /> 
+  <!--  args="0 0.4 0.6 -0.5 0 0 /world /kinect$(arg index)/base 60" /> -->
+
+</launch>

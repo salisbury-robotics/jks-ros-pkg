@@ -1,0 +1,20 @@
+<launch>
+ 
+  <arg name="index"/>
+ 
+  <node pkg="tf" type="static_transform_publisher" name="kinect$(arg index)_openni"
+      args="0 0 0 0 0 0  /kinect$(arg index)/base /kinect$(arg index)/openni_camera 60" />  
+
+  <node pkg="tf" type="static_transform_publisher" name="kinect$(arg index)_openni_depth" 
+      args="0 -0.02 0 0 0 0  /kinect$(arg index)/openni_camera /kinect$(arg index)/openni_depth_frame 60" />  
+  
+  <node pkg="tf" type="static_transform_publisher" name="kinect$(arg index)_openni_rgb" 
+      args="0 -0.04 0 0 0 0  /kinect$(arg index)/openni_camera /kinect$(arg index)/openni_rgb_frame 60" />  
+  
+  <node pkg="tf" type="static_transform_publisher" name="kinect$(arg index)_openni_depth_optical" 
+      args="0 0 0 -1.57 0 -1.57 /kinect/$(arg index)/openni_depth_frame /kinect$(arg index)/openni_depth_optical_frame  60" />  
+  
+  <node pkg="tf" type="static_transform_publisher" name="kinect$(arg index)_openni_rgb_optical" 
+      args="0 0 0 -1.57 0 -1.57 /kinect$(arg index)/openni_rgb_frame /kinect$(arg index)/openni_rgb_optical_frame 60" />  
+
+</launch>
