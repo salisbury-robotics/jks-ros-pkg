@@ -6,6 +6,11 @@
 #-----------------------------------------------------------------------------
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
+#include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+#set(ROS_BUILD_TYPE Release)
+#rosbuild_init()
+
+
 PROJECT(CHAI3D)
 
 SET(CMAKE_CONFIGURATION_TYPES "Release;ReleaseWithDebInfo" 
@@ -60,13 +65,13 @@ ENDIF(APPLE)
 
 IF(UNIX)
     ADD_DEFINITIONS(-DLINUX -D_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
-    INCLUDE_DIRECTORIES("external/DHD/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/include")
   IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
-    SET(CHAI3D_LIBPATH "lin-x86_64")
+    SET(CHAI3D_LIBPATH "lin-x86_64/release/")
   ELSE()
-    SET(CHAI3D_LIBPATH "lin-i686")
+    SET(CHAI3D_LIBPATH "lin-i686/release/")
   ENDIF()
-  LINK_DIRECTORIES("lib/${CHAI3D_LIBPATH}" "external/DHD/lib/${CHAI3D_LIBPATH}")
+  LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib/${CHAI3D_LIBPATH}" "${CHAI3D_SOURCE_DIR}/external/DHD/lib/${CHAI3D_LIBPATH}")
 ENDIF(UNIX)
 
 #-----------------------------------------------------------------------------
@@ -76,4 +81,4 @@ INCLUDE_DIRECTORIES("src")
 
 ADD_SUBDIRECTORY(src)
 #ADD_SUBDIRECTORY(external)
-#ADD_SUBDIRECTORY(examples)
+ADD_SUBDIRECTORY(examples)
