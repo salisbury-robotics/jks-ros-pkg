@@ -73,31 +73,100 @@ const int OPTION_WINDOWDISPLAY  = 2;
 const bool USE_STEREO_DISPLAY   = false;
 
 //---------------------------------------------------------------------------
-cVector3d box_dims(1,1.5,1);
-double box_density = 1; // kg/m^3
-double box_mass = box_density*box_dims.x()*box_dims.y()*box_dims.z();
-cVector3d boxI;
-bool is_drawing = false;
-bool update_box_flag = false;
-string resourceRoot;
-bool use_simple_dynamics = true;
 
+//---------------------------------------------------------------------------
+// DECLARED MACROS
+//---------------------------------------------------------------------------
+// convert to resource path
+#define RESOURCE_PATH(p)    (char*)((resourceRoot+string(p)).c_str())
+
+//---------------------------------------------------------------------------
+// DECLARED BAD BAD BAD GLOBAL VARIABLES
+//---------------------------------------------------------------------------
+
+bool is_drawing = false;
+string resourceRoot;
+bool use_simple_dynamics = false;
 double toolRadius = 0.05; // define the radius of the tool (sphere)
 double stiffnessMax = 0.0;
 
+double viscous_damping = 0.1;
+const double MAX_DAMPING = 1.0, MIN_DAMPING = -0.5;
 
-void updateBoxProperties()
-{
-  box_mass = box_density*box_dims.x()*box_dims.y()*box_dims.z();
-  boxI = cVector3d( box_mass/12.0*(box_dims.y()*box_dims.y() + box_dims.z()*box_dims.z()) ,
-                    box_mass/12.0*(box_dims.x()*box_dims.x() + box_dims.z()*box_dims.z()) ,
-                    box_mass/12.0*(box_dims.y()*box_dims.y() + box_dims.x()*box_dims.x()));
+double gravity = 1.0;
+cVector3d gravity_accel(0, 0, -gravity);
+const double MIN_GRAVITY = 0, MAX_GRAVITY = 10;
 
-  printf("Box has mass %.2f, inertia terms %.2f, %.2f, %.2f \n", box_mass, boxI.x(), boxI.y(), boxI.z());
-//  boxI.set( box_mass/12.0*(box_dims.y()*box_dims.y() + box_dims.z()*box_dims.z()) , 0, 0,
-//             0, box_mass/12.0*(box_dims.x()*box_dims.x() + box_dims.z()*box_dims.z()) , 0,
-//             0, 0, box_mass/12.0*(box_dims.y()*box_dims.y() + box_dims.x()*box_dims.x()));
-}
+const double DENSITY_MAX = 30, DENSITY_MIN = 1; // kg/m^3
+
+
+struct RigidBody {
+  RigidBody()
+    : dims(1,1,1), density(10.0), mass(1.0), fixed(true)
+  {
+    updateProperties();
+  }
+
+  void initializeObject(bool from_scratch = true)
+  {
+    //printf("Initializing object!\n");
+    // set the position of the object at the center of the world
+    object->setPos(0.0, 0.0, 0.0);
+
+    // create object
+    object->clear();
+    cCreateBox(object, dims.x(), dims.y(), dims.z());
+    updateProperties();
+
+    // compute collision detection algorithm
+    object->createAABBCollisionDetector(1.01 * toolRadius);
+
+    if(from_scratch)
+    {
+      // create a texture
+      cTexture2d* texture = new cTexture2d();
+
+      bool error = texture->loadFromFile(RESOURCE_PATH("resources/images/test1.bmp"));
+      if(!error) printf("Failed to load texture!\n");
+
+      object->setTexture(texture);
+      object->setUseTexture(true);
+      object->setUseCulling(false);
+      object->m_material->setWhite();
+      object->m_material->setStiffness(0.5 * stiffnessMax);
+      object->m_material->setStaticFriction(0.2);
+      object->m_material->setDynamicFriction(0.1);
+      object->m_material->setTextureLevel(0.4);
+      object->m_material->setRenderTriangles(true, false);
+    }
+    update_me = false;
+  }
+
+  void updateProperties()
+  {
+
+    mass = density*dims.x()*dims.y()*dims.z();
+    I = mass/12.0*cVector3d( (dims.y()*dims.y() + dims.z()*dims.z()) ,
+                                (dims.x()*dims.x() + dims.z()*dims.z()) ,
+                                (dims.y()*dims.y() + dims.x()*dims.x()));
+
+    printf("Object has mass %.2f, inertia terms %.2f, %.2f, %.2f \n", mass, I.x(), I.y(), I.z());
+  }
+
+  cMesh *object;
+  cVector3d dims;
+  double density, mass;
+  cVector3d I;
+  bool fixed;
+
+  cVector3d velocity; // This should be taken to be in the world, expressed in world coordinates.
+  cVector3d angular_velocity; // This should be taken to be in the world, expressed in world coordinates.
+
+  bool update_me;
+};
+
+RigidBody body;
+
 
 //---------------------------------------------------------------------------
 // DECLARED VARIABLES
@@ -126,9 +195,6 @@ cGenericHapticDevice* hapticDevice;
 // a virtual tool representing the haptic device in the scene
 cToolCursor* tool;
 
-// a virtual mesh like object
-cMesh* object;
-
 // a label to display the rate [Hz] at which the simulation is running
 cLabel* labelHapticRate;
 
@@ -140,13 +206,6 @@ bool simulationFinished = false;
 
 // frequency counter to measure the simulation haptic rate
 cFrequencyCounter frequencyCounter;
-
-
-//---------------------------------------------------------------------------
-// DECLARED MACROS
-//---------------------------------------------------------------------------
-// convert to resource path
-#define RESOURCE_PATH(p)    (char*)((resourceRoot+string(p)).c_str())
 
 
 //---------------------------------------------------------------------------
@@ -194,7 +253,7 @@ int main(int argc, char* argv[])
     printf ("\n");
     printf ("-----------------------------------\n");
     printf ("CHAI3D\n");
-    printf ("Demo: 26-cubic2\n");
+    printf ("Demo: 27-projectile\n");
     printf ("Copyright 2003-2012\n");
     printf ("-----------------------------------\n");
     printf ("\n\n");
@@ -345,47 +404,14 @@ int main(int argc, char* argv[])
     //-----------------------------------------------------------------------
 
     // create a virtual mesh
-    object = new cMesh(world);
+    //object = new cMesh(world);
+    body.object = new cMesh(world);
 
     // add object to world
-    world->addChild(object);
+    world->addChild(body.object);
 
-    // set the position of the object at the center of the world
-    object->setPos(0.0, 0.0, 0.0);
-
-    // create cube
-    cCreateBox(object, box_dims.x(), box_dims.y(), box_dims.z());
-    updateBoxProperties();
-
-    // create a texture
-    cTexture2d* texture = new cTexture2d();
-       
-    bool error = texture->loadFromFile(RESOURCE_PATH("resources/images/test1.bmp"));
-   
-    object->setTexture(texture);
-    object->setUseTexture(true);
-    object->setUseCulling(false);
-
-    // set material properties to light gray
-    object->m_material->setWhite();
-
-    // compute collision detection algorithm
-    object->createAABBCollisionDetector(1.01 * toolRadius);
-
-    // define a default stiffness for the object
-    object->m_material->setStiffness(0.5 * stiffnessMax);
-
-    // define some static friction
-    object->m_material->setStaticFriction(0.2);
-
-    // define some dynamic friction
-    object->m_material->setDynamicFriction(0.1);
-
-    // define some texture rendering
-    object->m_material->setTextureLevel(0.4);
-
-    // render triangles haptcally on front side only
-    object->m_material->setRenderTriangles(true, false);
+    body.dims.set(0.2, 1.0, 1.5);
+    body.initializeObject(true);
    
 
     //-----------------------------------------------------------------------
@@ -495,24 +521,57 @@ void keySelect(unsigned char key, int x, int y)
         printf("Using real dynamics! \n");
       break;
     case('1'):
-      box_dims.x( std::max(box_dims.x() - 0.1, 0.1) );
-      printf("Box dimensions are now: %.2f %.2f, %.2f \n", box_dims.x(), box_dims.y(), box_dims.z());
-      update_box_flag = true;
+      body.dims.x( std::max(body.dims.x() - 0.1, 0.1) );
+      printf("Object dimensions are now: %.2f %.2f, %.2f \n", body.dims.x(), body.dims.y(), body.dims.z());
+      body.update_me = true;
       break;
     case('2'):
-      box_dims.x( std::min(box_dims.x() + 0.1, 1.5) );
-      printf("Box dimensions are now: %.2f %.2f, %.2f \n", box_dims.x(), box_dims.y(), box_dims.z());
-      update_box_flag = true;
+      body.dims.x( std::min(body.dims.x() + 0.1, 1.5) );
+      printf("Object dimensions are now: %.2f %.2f, %.2f \n", body.dims.x(), body.dims.y(), body.dims.z());
+      body.update_me = true;
       break;
     case('q'):
-      box_density = std::min(box_density + 0.5, 10.0);
-      printf("Box density is %.2f kg", box_density);
-      update_box_flag = true;
+      body.density = std::min(body.density + 1.0, DENSITY_MAX);
+      printf("Object density is %.2f kg\n", body.density);
+      body.updateProperties();
       break;
     case('a'):
-      box_density = std::max(box_density - 0.5, 0.5);
-      printf("Box density is %.2f kg", box_density);
-      update_box_flag = true;
+      body.density = std::max(body.density - 1.0, DENSITY_MIN);
+      printf("Object density is %.2f kg\n", body.density);
+      body.updateProperties();
+      break;
+    case('w'):
+      viscous_damping = std::min(viscous_damping + 0.1, MAX_DAMPING);
+      printf("Damping is %.2f N*s/rad\n", viscous_damping);
+      break;
+    case('s'):
+      viscous_damping = std::max(viscous_damping - 0.1, MIN_DAMPING);
+      printf("Damping is %.2f N*s/rad\n", viscous_damping);
+      break;
+    case('r'):
+    {
+      cMatrix3d mat;
+      mat.identity();
+      body.object->setRot(mat);
+      body.object->setPos(0,0,0);
+      break;
+    }
+    case('t'):
+      gravity = std::min(gravity + 1.0, MAX_GRAVITY);
+      gravity_accel.set(0,0,-gravity);
+      printf("Gravity is -%.2f m/s^2 z>\n", gravity);
+      break;
+    case('g'):
+      gravity = std::max(gravity - 1.0, MIN_GRAVITY);
+      gravity_accel.set(0,0,-gravity);
+      printf("Gravity is -%.2f m/s^2 z>\n", gravity);
+      break;
+    case('f'):
+      body.fixed ^= 1;
+      if(body.fixed)
+        printf("Body center is fixed!\n");
+      else
+        printf("Body center is free! \n");
       break;
     default:
       break;
@@ -563,7 +622,7 @@ void close(void)
 
 void updateGraphics(void)
 {
-  while(update_box_flag)
+  while(body.update_me)
   {
     cSleepMs(10);
   }
@@ -605,6 +664,7 @@ void updateHaptics(void)
     double wx = 0.0, wy = 0.0, wz = 0.0;
     double wx_dot = 0.0, wy_dot = 0.0, wz_dot = 0.0;
 
+
     // reset clock
     cPrecisionClock clock;
     clock.reset();
@@ -633,17 +693,10 @@ void updateHaptics(void)
         /////////////////////////////////////////////////////////////////////
         // NON_THREAD_SAFE SCENE UPDATES
         /////////////////////////////////////////////////////////////////////
-        if(update_box_flag && !is_drawing)
+        if(body.update_me && !is_drawing)
         {
           printf("Refreshing scene geometry...\n");
-          object->clear();
-          cCreateBox(object, box_dims.x(), box_dims.y(), box_dims.z());
-          updateBoxProperties();
-
-          // compute collision detection algorithm
-          object->createAABBCollisionDetector(1.01 * toolRadius);
-
-          update_box_flag = false;
+          body.initializeObject(true);
           printf("Done!\n");
         }
 
@@ -668,7 +721,7 @@ void updateHaptics(void)
         cVector3d toolPos = tool->getDeviceGlobalPos();
 
         // get position of object in global coordinates
-        cVector3d objectPos = object->getGlobalPos();
+        cVector3d objectPos = body.object->getGlobalPos();
 
         // compute a vector from the center of mass of the object (point of rotation) to the tool
         cVector3d v = cSub(toolPos, objectPos);
@@ -694,28 +747,17 @@ void updateHaptics(void)
 
         if(!use_simple_dynamics)
         {
-          cVector3d Tb = cMul(cTrans(object->getGlobalRot()), torque);
-          wx_dot = ((boxI.y() - boxI.z())*wy*wz + Tb.x())/boxI.x();
-          wy_dot = ((boxI.z() - boxI.x())*wx*wz + Tb.y())/boxI.y();
-          wz_dot = ((boxI.x() - boxI.y())*wy*wx + Tb.z())/boxI.z();
+          cVector3d Tb = cMul(cTrans(body.object->getGlobalRot()), torque);
+          double b = viscous_damping;
+          wx_dot = ((body.I.y() - body.I.z())*wy*wz + Tb.x() - b*wx)/body.I.x();
+          wy_dot = ((body.I.z() - body.I.x())*wx*wz + Tb.y() - b*wy)/body.I.y();
+          wz_dot = ((body.I.x() - body.I.y())*wy*wx + Tb.z() - b*wz)/body.I.z();
 
           wx += timeInterval * wx_dot;
           wy += timeInterval * wy_dot;
           wz += timeInterval * wz_dot;
 
-          angVel = cMul(object->getGlobalRot(), cVector3d(wx, wy, wz));
-
-//          // set a threshold on the rotational velocity term
-//          const double MAX_ANG_VEL = 10.0;
-//          double vel = angVel.length();
-//          if (vel > MAX_ANG_VEL)
-//          {
-//              angAcc.mul(MAX_ANG_VEL / vel);
-//          }
-//
-//          // add some damping too
-//          const double DAMPING = 0.1;
-//          angVel.mul(1.0 - DAMPING * timeInterval);
+          angVel = cMul(body.object->getGlobalRot(), cVector3d(wx, wy, wz));
 
           // if user switch is pressed, set velocity to zero
           if (tool->getUserSwitch(0) == 1)
@@ -727,14 +769,14 @@ void updateHaptics(void)
           // compute the next rotation configuration of the object
           if (angVel.length() > C_SMALL)
           {
-              object->rotate(cNormalize(angVel), timeInterval * angVel.length());
+              body.object->rotate(cNormalize(angVel), timeInterval * angVel.length());
           }
         }
 
         if(use_simple_dynamics)
         {
           // update rotational acceleration
-          const double INERTIA = 0.4;
+          const double INERTIA = 0.4*body.mass;
           angAcc = (1.0 / INERTIA) * torque;
 
           // update rotational velocity
@@ -761,10 +803,29 @@ void updateHaptics(void)
           // compute the next rotation configuration of the object
           if (angVel.length() > C_SMALL)
           {
-              object->rotate(cNormalize(angVel), timeInterval * angVel.length());
+              body.object->rotate(cNormalize(angVel), timeInterval * angVel.length());
           }
         }
 
+        // Now let's do Newton for position:
+        if(!body.fixed)
+        {
+          // get the last force applied to the cursor in global coordinates
+          // we negate the result to obtain the opposite force that is applied on the
+          // object
+          cVector3d tool_force = cNegate(tool->m_lastComputedGlobalForce);
+
+          cVector3d body_forces = tool_force + gravity_accel*body.mass;
+          body.velocity += (body_forces / body.mass) * timeInterval;
+
+          // if user switch is pressed, set velocity to zero
+          if (tool->getUserSwitch(0) == 1)
+          {
+              body.velocity.zero();
+          }
+
+          body.object->translate(body.velocity*timeInterval);
+        }
 
 
     }
