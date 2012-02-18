@@ -90,19 +90,25 @@ bool use_simple_dynamics = true;
 double toolRadius = 0.05; // define the radius of the tool (sphere)
 double stiffnessMax = 0.0;
 
+const int GRASP_BUTTON = 0;
+const int FREEZE_BUTTON = 1;
+
+
 double viscous_damping = 0.1;
 const double MAX_DAMPING = 1.0, MIN_DAMPING = -0.5;
+
+const double DENSITY_MAX = 30, DENSITY_MIN = 1; // kg/m^3
 
 double gravity = 1.0;
 cVector3d gravity_accel(0, 0, -gravity);
 const double MIN_GRAVITY = 0, MAX_GRAVITY = 10;
 
-const double DENSITY_MAX = 30, DENSITY_MIN = 1; // kg/m^3
+const double coeff_restitution = 0.5;
 
 
 struct RigidBody {
   RigidBody()
-    : dims(1,1,1), density(10.0), mass(1.0), fixed(true)
+    : dims(0.5, 0.5, 0.5), density(10.0), mass(1.0), fixed(true)
   {
     updateProperties();
   }
@@ -111,11 +117,11 @@ struct RigidBody {
   {
     //printf("Initializing object!\n");
     // set the position of the object at the center of the world
-    object->setPos(0.0, 0.0, 0.0);
+    //object->setPos(0.0, 0.0, 0.0);
 
     // create object
     object->clear();
-    cCreateSphere(object, 0.5, 6, 6);
+    cCreateSphere(object, dims.x(), 4, 4);
     updateProperties();
 
     // compute collision detection algorithm
@@ -134,8 +140,8 @@ struct RigidBody {
       object->setUseCulling(false);
       object->m_material->setWhite();
       object->m_material->setStiffness(0.5 * stiffnessMax);
-      object->m_material->setStaticFriction(0.2);
-      object->m_material->setDynamicFriction(0.1);
+      object->m_material->setStaticFriction(0.4);
+      object->m_material->setDynamicFriction(0.2);
       object->m_material->setTextureLevel(0.4);
       object->m_material->setRenderTriangles(true, false);
     }
@@ -386,6 +392,8 @@ int main(int argc, char* argv[])
     // or possibly collide against the tool. If the environment
     // is entirely static, you can set this parameter to "false"
     tool->enableDynamicObjects(true);
+
+    //tool->m_interactionPoint->m_algorithmFingerProxy->m_useForceShading = true;
 
     // read the scale factor between the physical workspace of the haptic
     // device and the virtual workspace defined for the tool
@@ -730,8 +738,6 @@ void updateHaptics(void)
         if (v.length() > 0.0)
         {
             // get the last force applied to the cursor in global coordinates
-            // we negate the result to obtain the opposite force that is applied on the
-            // object
             cVector3d toolForce = cNegate(tool->m_lastComputedGlobalForce);
 
             // compute the effective force that contributes to rotating the object.
@@ -756,7 +762,7 @@ void updateHaptics(void)
           angVel = cMul(body.object->getGlobalRot(), cVector3d(wx, wy, wz));
 
           // if user switch is pressed, set velocity to zero
-          if (tool->getUserSwitch(0) == 1)
+          if (tool->getUserSwitch(FREEZE_BUTTON) == 1)
           {
               angVel.zero();
               wx = wy = wz = 0;
@@ -791,7 +797,7 @@ void updateHaptics(void)
           angVel.mul(1.0 - DAMPING * timeInterval);
 
           // if user switch is pressed, set velocity to zero
-          if (tool->getUserSwitch(0) == 1)
+          if (tool->getUserSwitch(FREEZE_BUTTON) == 1)
           {
               angVel.zero();
           }
@@ -804,18 +810,33 @@ void updateHaptics(void)
         }
 
         // Now let's do Newton for position:
-        if(!body.fixed)
+        if(body.fixed)
         {
+          body.velocity.zero();
+        }
+        else
+        {
+          // Handle collisions
+          cVector3d p = body.object->getGlobalPos();
+          if( p.z() < -0.5) { body.velocity.z( -body.velocity.z()*coeff_restitution ); body.object->setPos(p.x(), p.y(),  -0.5); }
+          if( p.x() < -0.5) { body.velocity.x( -body.velocity.x()*coeff_restitution ); body.object->setPos( -0.5, p.y(), p.z()); }
+          if( p.x() >  0.5) { body.velocity.x( -body.velocity.x()*coeff_restitution ); body.object->setPos(  0.5, p.y(), p.z()); }
+          if( p.y() < -0.5) { body.velocity.y( -body.velocity.y()*coeff_restitution ); body.object->setPos(p.x(),  -0.5, p.z()); }
+          if( p.y() >  0.5) { body.velocity.y( -body.velocity.y()*coeff_restitution ); body.object->setPos(p.x(),   0.5, p.z()); }
+
           // get the last force applied to the cursor in global coordinates
-          // we negate the result to obtain the opposite force that is applied on the
-          // object
           cVector3d tool_force = cNegate(tool->m_lastComputedGlobalForce);
 
-          cVector3d body_forces = tool_force + gravity_accel*body.mass;
+          cVector3d grasp_force(0,0,0);
+          if(tool->getUserSwitch(GRASP_BUTTON) == 1)
+            grasp_force = 0.1*stiffnessMax*(toolPos - body.object->getGlobalPos());
+          cVector3d body_forces = tool_force + gravity_accel*body.mass + grasp_force;
+
+
           body.velocity += (body_forces / body.mass) * timeInterval;
 
           // if user switch is pressed, set velocity to zero
-          if (tool->getUserSwitch(0) == 1)
+          if (tool->getUserSwitch(FREEZE_BUTTON) == 1)
           {
               body.velocity.zero();
           }
