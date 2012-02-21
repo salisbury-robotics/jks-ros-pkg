@@ -378,6 +378,8 @@ int main(int argc, char* argv[])
     // create a 3D tool and add it to the world
     tool = new cToolCursor(world);
     world->addChild(tool);
+    //tool->rotate(cVector3d(1,0,0), -C_PI/2);
+    //tool->setPos(0, 0,-2.0);
 
     // connect the haptic device to the tool
     tool->setHapticDevice(hapticDevice);
@@ -701,7 +703,7 @@ void updateHaptics(void)
     double wx = 0.0, wy = 0.0, wz = 0.0;
     double wx_dot = 0.0, wy_dot = 0.0, wz_dot = 0.0;
 
-    double omega = 2;
+    double omega = 0;
     double x = spring_length, xd = 0;
 
     // reset clock
