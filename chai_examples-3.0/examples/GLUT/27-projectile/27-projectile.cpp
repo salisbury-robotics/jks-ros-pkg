@@ -828,8 +828,8 @@ void updateHaptics(void)
           cVector3d tool_force = cNegate(tool->m_lastComputedGlobalForce);
 
           cVector3d grasp_force(0,0,0);
-          if(tool->getUserSwitch(GRASP_BUTTON) == 1)
-            grasp_force = 0.1*stiffnessMax*(toolPos - body.object->getGlobalPos());
+//          if(tool->getUserSwitch(GRASP_BUTTON) == 1)
+//            grasp_force = 0.1*stiffnessMax*(toolPos - body.object->getGlobalPos());
           cVector3d body_forces = tool_force + gravity_accel*body.mass + grasp_force;
 
 
