@@ -5,7 +5,9 @@ add_executable(11-effects
 
 
 TARGET_LINK_LIBRARIES(11-effects
-  chai3d dhd
-  pthread rt usb-1.0
-  GL GLU glut jpeg png gif
+ ${LINK_DEPENDENCIES}
+)
+
+ADD_DEPENDENCIES(11-effects
+    chai3d
 )

@@ -5,7 +5,9 @@ add_executable(01-mydevice
 
 
 TARGET_LINK_LIBRARIES(01-mydevice
-  chai3d dhd
-  pthread rt usb-1.0
-  GL GLU glut gif jpeg png gif
+  ${LINK_DEPENDENCIES}
+)
+
+ADD_DEPENDENCIES(01-mydevice
+chai3d
 )

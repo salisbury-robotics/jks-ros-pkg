@@ -60,10 +60,20 @@ IF(MSVC)
 ENDIF(MSVC)
 
 IF(APPLE)
-    ADD_DEFINITIONS(-D_APPLE)
-ENDIF(APPLE)
-
-IF(UNIX)
+    ADD_DEFINITIONS(-DMACOSX -D_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/libpng/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/libjpeg/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/giflib/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/include")
+    LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib"
+                     "${CHAI3D_SOURCE_DIR}/external/libpng/lib/mac/Release"
+                     "${CHAI3D_SOURCE_DIR}/external/libjpeg/lib/mac/Release"
+                     "${CHAI3D_SOURCE_DIR}/external/giflib/lib/mac/Release"
+                     "${CHAI3D_SOURCE_DIR}/external/DHD/lib/mac")
+    SET(LINK_DEPENDENCIES "chai3d -ldhd -lpthread -ljpeg -lpng -lgif"
+                          "-framework OpenGL -framework GLUT"
+                          "-framework CoreFoundation -framework IOKit")
+ELSEIF(UNIX)
     ADD_DEFINITIONS(-DLINUX -D_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
     INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/include")
   IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
@@ -72,7 +82,8 @@ IF(UNIX)
     SET(CHAI3D_LIBPATH "lin-i686/release/")
   ENDIF()
   LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib/${CHAI3D_LIBPATH}" "${CHAI3D_SOURCE_DIR}/external/DHD/lib/${CHAI3D_LIBPATH}")
-ENDIF(UNIX)
+  SET(LINK_DEPENDENCIES "chai3d dhd pthread rt usb-1.0 GL GLU glut jpeg png gif")
+ENDIF(APPLE)
 
 #-----------------------------------------------------------------------------
 # Dispatch the build into the proper subdirectories.
