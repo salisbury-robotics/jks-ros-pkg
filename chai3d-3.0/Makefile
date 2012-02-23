@@ -177,17 +177,43 @@ chai3d/fast:
 .PHONY : 25-cubic/fast
 
 #=============================================================================
-# Target rules for targets named 26-cubic2
+# Target rules for targets named 26-spinning_book
 
 # Build rule for target.
-26-cubic2: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 26-cubic2
-.PHONY : 26-cubic2
+26-spinning_book: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 26-spinning_book
+.PHONY : 26-spinning_book
 
 # fast build rule for target.
-26-cubic2/fast:
-	$(MAKE) -f examples/GLUT/26-cubic2/CMakeFiles/26-cubic2.dir/build.make examples/GLUT/26-cubic2/CMakeFiles/26-cubic2.dir/build
-.PHONY : 26-cubic2/fast
+26-spinning_book/fast:
+	$(MAKE) -f examples/GLUT/26-spinning_book/CMakeFiles/26-spinning_book.dir/build.make examples/GLUT/26-spinning_book/CMakeFiles/26-spinning_book.dir/build
+.PHONY : 26-spinning_book/fast
+
+#=============================================================================
+# Target rules for targets named 27-projectile
+
+# Build rule for target.
+27-projectile: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 27-projectile
+.PHONY : 27-projectile
+
+# fast build rule for target.
+27-projectile/fast:
+	$(MAKE) -f examples/GLUT/27-projectile/CMakeFiles/27-projectile.dir/build.make examples/GLUT/27-projectile/CMakeFiles/27-projectile.dir/build
+.PHONY : 27-projectile/fast
+
+#=============================================================================
+# Target rules for targets named 28-disk
+
+# Build rule for target.
+28-disk: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 28-disk
+.PHONY : 28-disk
+
+# fast build rule for target.
+28-disk/fast:
+	$(MAKE) -f examples/GLUT/28-disk/CMakeFiles/28-disk.dir/build.make examples/GLUT/28-disk/CMakeFiles/28-disk.dir/build
+.PHONY : 28-disk/fast
 
 # Help Target
 help:
@@ -203,7 +229,9 @@ help:
 	@echo "... 11-effects"
 	@echo "... 12-polygons"
 	@echo "... 25-cubic"
-	@echo "... 26-cubic2"
+	@echo "... 26-spinning_book"
+	@echo "... 27-projectile"
+	@echo "... 28-disk"
 .PHONY : help
 
 

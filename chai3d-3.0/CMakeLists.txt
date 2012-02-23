@@ -81,8 +81,9 @@ ELSEIF(UNIX)
   ELSE()
     SET(CHAI3D_LIBPATH "lin-i686/release/")
   ENDIF()
-  LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib/${CHAI3D_LIBPATH}" "${CHAI3D_SOURCE_DIR}/external/DHD/lib/${CHAI3D_LIBPATH}")
-  SET(LINK_DEPENDENCIES "chai3d dhd pthread rt usb-1.0 GL GLU glut jpeg png gif")
+  LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib"
+                   "${CHAI3D_SOURCE_DIR}/external/DHD/lib/${CHAI3D_LIBPATH}")
+  SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -ljpeg -lpng -lgif")
 ENDIF(APPLE)
 
 #-----------------------------------------------------------------------------
