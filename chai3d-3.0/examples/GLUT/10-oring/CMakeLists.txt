@@ -5,7 +5,9 @@ add_executable(10-oring
 
 
 TARGET_LINK_LIBRARIES(10-oring
-  chai3d dhd
-  pthread rt usb-1.0
-  GL GLU glut jpeg png gif
+    ${LINK_DEPENDENCIES}
+)
+
+ADD_DEPENDENCIES(10-oring
+    chai3d
 )
