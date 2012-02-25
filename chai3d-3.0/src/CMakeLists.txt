@@ -134,6 +134,7 @@ SET(TOOLS_GROUP
     tools/CInteractionPoint.cpp
     tools/CToolCursor.cpp
     tools/CToolGripper.cpp
+    tools/CToolBody.cpp
 )
 
 SET(WIDGETS_GROUP
@@ -200,7 +201,7 @@ IF(APPLE)
 ENDIF(APPLE)
 
 TARGET_LINK_LIBRARIES(chai3d 
-#  HD
+  #${CHAI_LINK_LIBRARIES}
 )
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!
