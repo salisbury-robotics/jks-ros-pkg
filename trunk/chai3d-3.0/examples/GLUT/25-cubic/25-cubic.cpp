@@ -285,6 +285,7 @@ int main(int argc, char* argv[])
 
     // create a 3D tool and add it to the world
     tool = new cToolCursor(world);
+    //cCreateBox(tool->m_image, 0.3, 0.1, 0.1);
     world->addChild(tool);
 
     // connect the haptic device to the tool

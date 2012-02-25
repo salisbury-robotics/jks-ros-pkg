@@ -131,6 +131,7 @@
 #include "tools/CInteractionPoint.h"
 #include "tools/CToolCursor.h"
 #include "tools/CToolGripper.h"
+#include "tools/CToolBody.h"
 
 
 //---------------------------------------------------------------------------

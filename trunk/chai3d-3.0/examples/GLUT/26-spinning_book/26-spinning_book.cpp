@@ -193,7 +193,7 @@ cHapticDeviceHandler* handler;
 cGenericHapticDevice* hapticDevice;
 
 // a virtual tool representing the haptic device in the scene
-cToolCursor* tool;
+cToolBody* tool;
 
 // a label to display the rate [Hz] at which the simulation is running
 cLabel* labelHapticRate;
@@ -369,7 +369,14 @@ int main(int argc, char* argv[])
     cHapticDeviceInfo info = hapticDevice->getSpecifications();
 
     // create a 3D tool and add it to the world
-    tool = new cToolCursor(world);
+    tool = new cToolBody(world);
+    cQuaternion q;
+    cMatrix3d m;
+    q.fromAxisAngle(cVector3d(0,1,0),M_PI_2);
+    q.toRotMat(m);
+    cCreateCylinder(tool->m_image, 0.3, 0.75*toolRadius, 8, 3, true, true, cVector3d(0, 0, 0), m);
+    cCreateBox(tool->m_image, 0.4, 0.5*toolRadius, 0.5*toolRadius, cVector3d(0.25,0,0) );
+    cCreateSphere(tool->m_image, toolRadius);
     world->addChild(tool);
 
     // connect the haptic device to the tool
