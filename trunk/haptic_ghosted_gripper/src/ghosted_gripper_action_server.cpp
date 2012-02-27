@@ -168,6 +168,7 @@ void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPt
     if(object_model_) pose = pose*tf::Transform(tf::Quaternion(tf::Vector3(0,1,0), M_PI/2.0), tf::Vector3(0,0,0)).inverse();
 
     tf::poseTFToMsg(pose, ps.pose);
+    ps.pose.position.x -= 0.1;
 
     selected_pose_ = toWrist(ps);
 
@@ -251,6 +252,7 @@ void GhostedGripperActionServer::setProxyPose(const geometry_msgs::PoseStampedCo
 
   proxy_pose_ = toWrist(ps);
   initProxyMarker();
+  updatePoses();
 }
 
 geometry_msgs::PoseStamped GhostedGripperActionServer::getDefaultPose()
@@ -547,6 +549,11 @@ void GhostedGripperActionServer::updatePoses()
   server_.setPose("selected_marker", selected_pose_.pose, selected_pose_.header);
   server_.setPose("proxy_marker", proxy_pose_.pose, proxy_pose_.header);
   server_.setPose("object_cloud", selected_pose_.pose, selected_pose_.header);
+
+  pr2_object_manipulation_msgs::GetGripperPoseFeedback fb;
+  fb.gripper_pose = proxy_pose_;
+  fb.gripper_opening = gripper_opening_;
+  get_pose_server_.publishFeedback(fb);
 }
 
 
