@@ -20,6 +20,7 @@
   <export>
 	<!-- need -lHD for phantom I think -->
     <cpp cflags="-I${prefix}/src -I${prefix}/modules/GEL -D_LINUX" lflags="-L${prefix}/lib -lchai3d -L${prefix}/external/DHD/lib/lin-x86_64 -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut
+-lHD
 " />
     <doxymaker external=""/>
   </export>
