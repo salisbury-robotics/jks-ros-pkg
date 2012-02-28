@@ -82,6 +82,9 @@ visualization_msgs::InteractiveMarker makeButtonBox( const char *name, const geo
 visualization_msgs::InteractiveMarker makeButtonSphere( const char *name, const geometry_msgs::PoseStamped &stamped,
                                                      float scale, bool fixed, bool view_facing );
 
+visualization_msgs::InteractiveMarker makeButtonSphere( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                     float scale, bool fixed, bool view_facing, std_msgs::ColorRGBA color );
+
 visualization_msgs::InteractiveMarker makeListControl( const char *name, const geometry_msgs::PoseStamped &stamped, int num, int total, float scale);
 
 visualization_msgs::InteractiveMarker make6DofMarker( const char *name, const geometry_msgs::PoseStamped &stamped,

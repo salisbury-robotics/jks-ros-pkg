@@ -243,7 +243,16 @@ visualization_msgs::InteractiveMarker makeButtonBox( const char *name, const geo
   return int_marker;
 }
 
-visualization_msgs::InteractiveMarker makeButtonSphere( const char *name, const geometry_msgs::PoseStamped &stamped, float scale, bool fixed, bool view_facing )
+visualization_msgs::InteractiveMarker makeButtonSphere( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                        float scale, bool fixed, bool view_facing)
+{
+  std_msgs::ColorRGBA color;
+  return makeButtonSphere(name, stamped, scale, fixed, view_facing, color);
+}
+
+visualization_msgs::InteractiveMarker makeButtonSphere( const char *name, const geometry_msgs::PoseStamped &stamped,
+                                                        float scale, bool fixed, bool view_facing,
+                                                        std_msgs::ColorRGBA color)
 {
   visualization_msgs::InteractiveMarker int_marker;
   int_marker.header =  stamped.header;
@@ -256,6 +265,7 @@ visualization_msgs::InteractiveMarker makeButtonSphere( const char *name, const 
   //control.description = "This is the control";
   control.always_visible = false;
   control.interaction_mode = visualization_msgs::InteractiveMarkerControl::BUTTON;
+  control.markers.back().color = color;
 
   return int_marker;
 }
