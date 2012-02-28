@@ -550,10 +550,13 @@ void GhostedGripperActionServer::updatePoses()
   server_.setPose("proxy_marker", proxy_pose_.pose, proxy_pose_.header);
   server_.setPose("object_cloud", selected_pose_.pose, selected_pose_.header);
 
-  pr2_object_manipulation_msgs::GetGripperPoseFeedback fb;
-  fb.gripper_pose = proxy_pose_;
-  fb.gripper_opening = gripper_opening_;
-  get_pose_server_.publishFeedback(fb);
+  if(haptic_interface_.isReady())
+  {
+    pr2_object_manipulation_msgs::GetGripperPoseFeedback fb;
+    fb.gripper_pose = proxy_pose_;
+    fb.gripper_opening = gripper_opening_;
+    get_pose_server_.publishFeedback(fb);
+  }
 }
 
 
