@@ -1,5 +1,5 @@
-#include "world/CGenericSampledGeometry.h"
+#include "modules_6dof/CGenericSampledGeometry.h"
 
-cGenericSampledGeometry::cGenericSampledGeometry()
-{
+namespace srl {
+
 }
