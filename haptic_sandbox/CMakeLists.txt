@@ -38,3 +38,5 @@ src/ToolBody.cpp
 
 manifest.xml
 )
+
+ADD_SUBDIRECTORY(tests)
