@@ -51,7 +51,7 @@ class PointCloudObject : public cMesh
     cShapeSphere m_projectedSphere;
 
     //! The function that renders the actual point cloud.
-    void renderCloud(const int a_renderMode);
+    //void renderCloud(const int a_renderMode);
 
     // Stuff I added
     bool m_isReady;

@@ -1,4 +1,4 @@
-#include "modules_6dof/VoxelSampler.h"
+#include "haptic_sandbox/geometry/VoxelSampler.h"
 
 namespace srl {
 

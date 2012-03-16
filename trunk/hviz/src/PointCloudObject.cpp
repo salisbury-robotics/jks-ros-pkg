@@ -74,7 +74,8 @@ void PointCloudObject::render(const int a_renderMode)
     m_projectedSphere.setPos(m_interactionProjectedPoint);
     
     // get the base class to render the mesh
-    renderCloud(a_renderMode);
+    this->render(a_renderMode);
+    //renderCloud(a_renderMode);
 }
 
 bool PointCloudObject::evaluateCloud(const std::vector< std::vector<int> > &all_indices,

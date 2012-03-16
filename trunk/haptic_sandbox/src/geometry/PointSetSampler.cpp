@@ -1,4 +1,4 @@
-#include "modules_6dof/PointSetSampler.h"
+#include "haptic_sandbox/geometry/PointSetSampler.h"
 
 
 namespace srl {

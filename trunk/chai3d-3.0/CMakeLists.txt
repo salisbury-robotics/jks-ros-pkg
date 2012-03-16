@@ -74,7 +74,7 @@ IF(APPLE)
                           "-framework OpenGL -framework GLUT"
                           "-framework CoreFoundation -framework IOKit")
 ELSEIF(UNIX)
-    ADD_DEFINITIONS(-DLINUX -D_ENABLE_DELTA_DEVICE_SUPPORT -D_ENABLE_PHANTOM_DEVICE_SUPPORT -DO2)
+    ADD_DEFINITIONS(-DLINUX -fPIC -D_ENABLE_DELTA_DEVICE_SUPPORT -D_ENABLE_PHANTOM_DEVICE_SUPPORT -DO2)
     INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/include")
   IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
     SET(CHAI3D_LIBPATH "lin-x86_64/release/")

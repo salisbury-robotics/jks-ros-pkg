@@ -14,8 +14,11 @@
 //---------------------------------------------------------------------------
 //!     \defgroup   modules_6dof  6DOF_Module
 //---------------------------------------------------------------------------
-#include "modules_6dof/CGenericSampledGeometry.h"
-#include "modules_6dof/CRigidBody.h"
-#include "modules_6dof/CToolBody.h"
+#include "geometry/GenericSampler.h"
+#include "geometry/PointSetSampler.h"
+#include "geometry/VoxelSampler.h"
+#include "geometry/RigidBody.h"
+
+#include "ToolBody.h"
 
 #endif // MODULES_6DOF_H

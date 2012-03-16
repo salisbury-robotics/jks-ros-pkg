@@ -69,6 +69,9 @@ cfg/Haptics.cfg
 manifest.xml
 )
 
+# Check for SSE
+rosbuild_check_for_sse()
+
 
 #TARGET_LINK_LIBRARIES(haptics_node
   #HD chai3d dhd

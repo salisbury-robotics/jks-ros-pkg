@@ -31,8 +31,8 @@
   <!--
     <depend package="rviz_interaction_tools" />
 -->
-  <depend package="chai3d" />
-  <depend package="haptic_display_tools" />
+  <depend package="chai3d-3.0" />
+  <!--<depend package="haptic_display_tools" />-->
 </package>
 
 

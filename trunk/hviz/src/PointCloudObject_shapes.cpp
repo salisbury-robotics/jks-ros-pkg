@@ -174,7 +174,7 @@ bool PointCloudObject::createFromCloud(const pcl::PointCloud<PointT> &cloud)
 
   //m_isReady = false;
   this->clear();
-  this->invalidateDisplayList(false);
+  this->invalidateDisplayList();
 
   ROS_DEBUG_NAMED("haptics", "Loading cloud with %d points!",
            (unsigned int)cloud.size());
@@ -262,7 +262,7 @@ void PointCloudObject::applyLastCloud()
 void PointCloudObject::createGradientPlane(float width, float length, float initial_step, float growth_rate, double noise_size)
 {
     this->clear();
-    this->invalidateDisplayList(false);
+    this->invalidateDisplayList();
 
     // Seed random generator for adding noise
     // Note this noise is uniform on a unit cube... NOT spherical gaussian
@@ -302,7 +302,7 @@ void PointCloudObject::createGradientPlane(float width, float length, float init
 void PointCloudObject::createUniformPlane(int x_count, int y_count, double linear_step, double noise_size)
 {
     this->clear();
-    this->invalidateDisplayList(false);
+    this->invalidateDisplayList();
     //if(tree) delete tree;
 
     // Seed random generator for adding noise
@@ -355,7 +355,7 @@ void PointCloudObject::createUniformPlane(int x_count, int y_count, double linea
 //  // Clear the current cloud
 //  m_isReady = false;
 //  this->clear();
-//  this->invalidateDisplayList(false);
+//  this->invalidateDisplayList();
 //  if(tree) delete tree;
 //
 //  // Loop and get all the points!
@@ -404,7 +404,7 @@ void PointCloudObject::createUniformPlane(int x_count, int y_count, double linea
 void PointCloudObject::createSphericalShell(double radius, double angle_step, double min_lat, double max_lat, double min_lon, double max_lon, double noise_size)
 {
     this->clear();
-    this->invalidateDisplayList(false);
+    this->invalidateDisplayList();
     //if(tree) delete tree;
 
     // Seed random generator for adding noise
@@ -439,7 +439,7 @@ void PointCloudObject::createSphericalShell(double radius, double angle_step, do
 void PointCloudObject::createOpenTopBox(double edge_size, double linear_step, double noise_size)
 {
     this->clear();
-    this->invalidateDisplayList(false);
+    this->invalidateDisplayList();
     //if(tree) delete tree;
 
     // Seed random generator for adding noise
@@ -529,277 +529,279 @@ void PointCloudObject::updateBoundaryBox()
 }
 
 
-//===========================================================================
-/*!
-     Render the cloud itself.  This function is declared public to allow
-     sharing of data among meshes, which is not possible given most
-     implementations of 'protected'.  But it should only be accessed
-     from within render() or derived versions of render().
-
-     \fn       void PointCloudObject::renderMesh(const int a_renderMode)
-*/
-//===========================================================================
-void PointCloudObject::renderCloud(const int a_renderMode)
-{
-    //-----------------------------------------------------------------------
-    // INITIALIZATION
-    //-----------------------------------------------------------------------
-    // check if object contains any points
-    if ((m_vertices.size() == 0))
-    {
-        return;
-    }
-
-    // we are not currently creating a display list
-    bool creating_display_list = false;
-
-
-    //-----------------------------------------------------------------------
-    // DISPLAY LIST
-    //-----------------------------------------------------------------------
-    // Should we render with a display list?
-    if (m_useDisplayList)
-    {
-        // If the display list doesn't exist, create it
-        if (m_displayList == -1)
-        {
-             m_displayList = glGenLists(1);
-             if (m_displayList == -1) return;
-
-             // On some machines, GL_COMPILE_AND_EXECUTE totally blows for some reason,
-             // so even though it's more complex on the first rendering pass, we use
-             // GL_COMPILE (and _repeat_ the first rendering pass)
-             glNewList(m_displayList, GL_COMPILE);
-
-             // the list has been created
-             creating_display_list = true;
-
-             // Go ahead and render; we'll create this list now...
-             // we'll make another (recursive) call to renderMesh()
-             // at the end of this function.
-        }
-
-        // Otherwise all we have to do is call the display list
-        else
-        {
-            glCallList(m_displayList);
-
-            // All done...
-            return;
-        }
-    }
-    //-----------------------------------------------------------------------
-    // RENDERING WITH VERTEX ARRAYS OR CLASSIC OPENGL CALLS
-    //-----------------------------------------------------------------------
-
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisableClientState(GL_INDEX_ARRAY);
-    glDisableClientState(GL_EDGE_FLAG_ARRAY);
-
-    if (m_useVertexArrays)
-    {
-        glEnableClientState(GL_NORMAL_ARRAY);
-        glEnableClientState(GL_VERTEX_ARRAY);
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    // RENDER MATERIAL
-    /////////////////////////////////////////////////////////////////////////
-    if (m_useMaterialProperty)
-    {
-        m_material.render();
-    }
-
-
-    /////////////////////////////////////////////////////////////////////////
-    // RENDER VERTEX COLORS
-    /////////////////////////////////////////////////////////////////////////
-    if (m_useVertexColors)
-    {
-        // Clear the effects of material properties...
-        if (!m_useMaterialProperty)
-        {
-            float fnull[4] = {0,0,0,0};
-            glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, (const float *)&fnull);
-            glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, (const float *)&fnull);
-        }
-
-        // enable vertex colors
-        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-        glEnable(GL_COLOR_MATERIAL);
-        if (m_useVertexArrays)
-        {
-            glEnableClientState(GL_COLOR_ARRAY);
-        }
-    }
-    else
-    {
-        glDisable(GL_COLOR_MATERIAL);
-        glDisableClientState(GL_COLOR_ARRAY);
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    // FOR OBJECTS WITH NO DEFINED COLOR/MATERIAL SETTINGS
-    /////////////////////////////////////////////////////////////////////////
-    // A default color for objects that don't have vertex colors or
-    // material properties (otherwise they're invisible)...
-    if ((!m_useVertexColors) && (!m_useMaterialProperty))
-    {
-        glEnable(GL_COLOR_MATERIAL);
-        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-        glColor4f(1,1,1,1);
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    // TEXTURE
-    /////////////////////////////////////////////////////////////////////////
-    if ((m_texture != NULL) && (m_useTextureMapping))
-    {
-        glEnable(GL_TEXTURE_2D);
-        if (m_useVertexArrays)
-        {
-            glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        }
-        m_texture->render();
-    }
-
-
-    /////////////////////////////////////////////////////////////////////////
-    // RENDER TRIANGLES WITH VERTEX ARRAYS
-    /////////////////////////////////////////////////////////////////////////
-    if (m_useVertexArrays)
-    {
-        // Where does our vertex array live?
-        vector<cVertex>* vertex_vector = pVertices();
-        cVertex* vertex_array = (cVertex*) &((*vertex_vector)[0]);
-
-        // specify pointers to rendering arrays
-        glVertexPointer(3, GL_DOUBLE, sizeof(cVertex), &(vertex_array[0].m_localPos));
-        glNormalPointer(GL_DOUBLE, sizeof(cVertex), &(vertex_array[0].m_normal));
-        glColorPointer(3, GL_FLOAT, sizeof(cVertex), vertex_array[0].m_color.pColor());
-        glTexCoordPointer(2, GL_DOUBLE, sizeof(cVertex), &(vertex_array[0].m_texCoord));
-
-        // variables
-        unsigned int i;
-        unsigned int numPoints = m_vertices.size();
-
-        // begin rendering points
-        glPointSize(2.0);
-        glBegin(GL_POINTS);
-
-
-        // render all active triangles
-        for(i=0; i<numPoints; i++)
-        {
-            //bool allocated = m_triangles[i].m_allocated;
-            //if (allocated)
-            {
-                //unsigned int index0 = m_triangles[i].m_indexVertex0;
-                //unsigned int index1 = m_triangles[i].m_indexVertex1;
-                //unsigned int index2 = m_triangles[i].m_indexVertex2;
-                glArrayElement(i);
-                //glArrayElement(index1);
-                //glArrayElement(index2);
-            }
-        }
-
-        // finalize rendering list of triangles
-        glEnd();
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    // RENDER TRIANGLES USING CLASSIC OPENGL COMMANDS
-    /////////////////////////////////////////////////////////////////////////
-    else
-    {
-        printf("Error!! Should be using vertex lists!");
-
-        // variables
-        unsigned int i;
-        unsigned int numPoints = m_vertices.size();
-
-        // begin rendering triangles
-
-        glBegin(GL_POINTS);
-
-        // render all active triangles
-        if ((!m_useTextureMapping) && (!m_useVertexColors))
-        {
-            for(i=0; i<numPoints; i++)
-            {
-                glVertex3dv(&m_vertices[i].m_localPos.x);
-            }
-        }
-        else if ((!m_useTextureMapping) && (m_useVertexColors))
-        {
-            for(i=0; i<numPoints; i++)
-            {
-                glColor4fv(m_vertices[i].m_color.pColor());
-                glVertex3dv(&m_vertices[i].m_localPos.x);
-            }
-        }
-        else if ((m_useTextureMapping) && (m_useVertexColors))
-        {
-            printf("Error! Unsupported case (m_useTextureMapping) && (m_useVertexColors) in PointCloudObject::renderCloud!\n");
-            //for(i=0; i<numItems; i++)
-            //{
-            //    // get pointers to vertices
-            //    cVertex* v0 = m_triangles[i].getVertex(0);
-            //    cVertex* v1 = m_triangles[i].getVertex(1);
-            //    cVertex* v2 = m_triangles[i].getVertex(2);
-
-            //    // render vertex 0
-            //    glNormal3dv(&v0->m_normal.x);
-            //    glColor4fv(v0->m_color.pColor());
-            //    glTexCoord2dv(&v0->m_texCoord.x);
-            //    glVertex3dv(&v0->m_localPos.x);
-
-            //    // render vertex 1
-            //    glNormal3dv(&v1->m_normal.x);
-            //    glColor4fv(v1->m_color.pColor());
-            //    glTexCoord2dv(&v1->m_texCoord.x);
-            //    glVertex3dv(&v1->m_localPos.x);
-
-            //    // render vertex 2
-            //    glNormal3dv(&v2->m_normal.x);
-            //    glColor4fv(v2->m_color.pColor());
-            //    glTexCoord2dv(&v2->m_texCoord.x);
-            //    glVertex3dv(&v2->m_localPos.x);
-            //}
-        }
-
-        // finalize rendering list of triangles
-        glEnd();
-    }
-
-    //-----------------------------------------------------------------------
-    // FINALIZE
-    //-----------------------------------------------------------------------
-
-    // restore OpenGL settings to reasonable defaults
-    glDisable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_COLOR_MATERIAL);
-    glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
-    glDisable(GL_TEXTURE_2D);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    // Turn off any array variables I might have turned on...
-    glDisableClientState(GL_NORMAL_ARRAY);
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    // If we've gotten this far and we're using a display list for rendering,
-    // we must be capturing it right now...
-    if ((m_useDisplayList) && (m_displayList != -1) && (creating_display_list))
-    {
-        // finalize list
-        glEndList();
-
-        // Recursively make a call to actually render this object if
-        // we didn't use compile_and_execute
-        renderCloud(a_renderMode);
-    }
-}
+////===========================================================================
+///*!
+//     Render the cloud itself.  This function is declared public to allow
+//     sharing of data among meshes, which is not possible given most
+//     implementations of 'protected'.  But it should only be accessed
+//     from within render() or derived versions of render().
+//
+//     \fn       void PointCloudObject::renderMesh(const int a_renderMode)
+//*/
+////===========================================================================
+//void PointCloudObject::renderCloud(const int a_renderMode)
+//{
+//    //-----------------------------------------------------------------------
+//    // INITIALIZATION
+//    //-----------------------------------------------------------------------
+//    // check if object contains any points
+//    if ((this->m_vertices->size() == 0))
+//    {
+//        return;
+//    }
+//
+//    // we are not currently creating a display list
+//    bool creating_display_list = false;
+//
+//
+//    //-----------------------------------------------------------------------
+//    // DISPLAY LIST
+//    //-----------------------------------------------------------------------
+//    // Should we render with a display list?
+//    if (m_useDisplayList)
+//    {
+//        // If the display list doesn't exist, create it
+//        if (m_displayList == -1)
+//        {
+//             m_displayList = glGenLists(1);
+//             if (m_displayList == -1) return;
+//
+//             // On some machines, GL_COMPILE_AND_EXECUTE totally blows for some reason,
+//             // so even though it's more complex on the first rendering pass, we use
+//             // GL_COMPILE (and _repeat_ the first rendering pass)
+//             glNewList(m_displayList, GL_COMPILE);
+//
+//             // the list has been created
+//             creating_display_list = true;
+//
+//             // Go ahead and render; we'll create this list now...
+//             // we'll make another (recursive) call to renderMesh()
+//             // at the end of this function.
+//        }
+//
+//        // Otherwise all we have to do is call the display list
+//        else
+//        {
+//            glCallList(m_displayList);
+//
+//            // All done...
+//            return;
+//        }
+//    }
+//    //-----------------------------------------------------------------------
+//    // RENDERING WITH VERTEX ARRAYS OR CLASSIC OPENGL CALLS
+//    //-----------------------------------------------------------------------
+//
+//    glDisableClientState(GL_COLOR_ARRAY);
+//    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+//    glDisableClientState(GL_INDEX_ARRAY);
+//    glDisableClientState(GL_EDGE_FLAG_ARRAY);
+//
+//    if (m_useVertexArrays)
+//    {
+//        glEnableClientState(GL_NORMAL_ARRAY);
+//        glEnableClientState(GL_VERTEX_ARRAY);
+//    }
+//
+//    /////////////////////////////////////////////////////////////////////////
+//    // RENDER MATERIAL
+//    /////////////////////////////////////////////////////////////////////////
+//    if (m_useMaterialProperty)
+//    {
+//        m_material->render();
+//    }
+//
+//
+//    /////////////////////////////////////////////////////////////////////////
+//    // RENDER VERTEX COLORS
+//    /////////////////////////////////////////////////////////////////////////
+//    if (m_useVertexColors)
+//    {
+//        // Clear the effects of material properties...
+//        if (!m_useMaterialProperty)
+//        {
+//            float fnull[4] = {0,0,0,0};
+//            glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, (const float *)&fnull);
+//            glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, (const float *)&fnull);
+//        }
+//
+//        // enable vertex colors
+//        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+//        glEnable(GL_COLOR_MATERIAL);
+//        if (m_useVertexArrays)
+//        {
+//            glEnableClientState(GL_COLOR_ARRAY);
+//        }
+//    }
+//    else
+//    {
+//        glDisable(GL_COLOR_MATERIAL);
+//        glDisableClientState(GL_COLOR_ARRAY);
+//    }
+//
+//    /////////////////////////////////////////////////////////////////////////
+//    // FOR OBJECTS WITH NO DEFINED COLOR/MATERIAL SETTINGS
+//    /////////////////////////////////////////////////////////////////////////
+//    // A default color for objects that don't have vertex colors or
+//    // material properties (otherwise they're invisible)...
+//    if ((!m_useVertexColors) && (!m_useMaterialProperty))
+//    {
+//        glEnable(GL_COLOR_MATERIAL);
+//        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+//        glColor4f(1,1,1,1);
+//    }
+//
+//    /////////////////////////////////////////////////////////////////////////
+//    // TEXTURE
+//    /////////////////////////////////////////////////////////////////////////
+//    if ((m_texture != NULL) && (m_useTextureMapping))
+//    {
+//        glEnable(GL_TEXTURE_2D);
+//        if (m_useVertexArrays)
+//        {
+//            glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+//        }
+//        m_texture->render();
+//    }
+//
+//
+//    /////////////////////////////////////////////////////////////////////////
+//    // RENDER TRIANGLES WITH VERTEX ARRAYS
+//    /////////////////////////////////////////////////////////////////////////
+//    if (m_useVertexArrays)
+//    {
+//        // Where does our vertex array live?
+//        vector<cVertex>* vertex_vector = m_vertices;
+//        cVertex* vertex_array = (cVertex*) &((*vertex_vector)[0]);
+//
+//        // specify pointers to rendering arrays
+//        glVertexPointer(3, GL_DOUBLE, sizeof(cVertex), &(vertex_array[0].m_localPos));
+//        glNormalPointer(GL_DOUBLE, sizeof(cVertex), &(vertex_array[0].m_normal));
+//        glColorPointer(3, GL_FLOAT, sizeof(cVertex), vertex_array[0].m_color.pColor());
+//        glTexCoordPointer(2, GL_DOUBLE, sizeof(cVertex), &(vertex_array[0].m_texCoord));
+//
+//        // variables
+//        unsigned int i;
+//        unsigned int numPoints = m_vertices.size();
+//
+//        // begin rendering points
+//        glPointSize(2.0);
+//        glBegin(GL_POINTS);
+//
+//
+//        // render all active triangles
+//        for(i=0; i<numPoints; i++)
+//        {
+//            //bool allocated = m_triangles[i].m_allocated;
+//            //if (allocated)
+//            {
+//                //unsigned int index0 = m_triangles[i].m_indexVertex0;
+//                //unsigned int index1 = m_triangles[i].m_indexVertex1;
+//                //unsigned int index2 = m_triangles[i].m_indexVertex2;
+//                glArrayElement(i);
+//                //glArrayElement(index1);
+//                //glArrayElement(index2);
+//            }
+//        }
+//
+//        // finalize rendering list of triangles
+//        glEnd();
+//    }
+//
+//    /////////////////////////////////////////////////////////////////////////
+//    // RENDER TRIANGLES USING CLASSIC OPENGL COMMANDS
+//    /////////////////////////////////////////////////////////////////////////
+//    else
+//    {
+//        printf("Error!! Should be using vertex lists!");
+//
+//        // variables
+//        unsigned int i;
+//        unsigned int numPoints = m_vertices.size();
+//
+//        // begin rendering triangles
+//
+//        glBegin(GL_POINTS);
+//
+//        // render all active triangles
+//        if ((!m_useTextureMapping) && (!m_useVertexColors))
+//        {
+//            for(i=0; i<numPoints; i++)
+//            {
+//                glVertex3dv(&m_vertices[i].m_localPos.x);
+//            }
+//        }
+//        else if ((!m_useTextureMapping) && (m_useVertexColors))
+//        {
+//            for(i=0; i<numPoints; i++)
+//            {
+//                glColor4fv(m_vertices[i].m_color.pColor());
+//                cVertex v;
+//
+//                glVertex3dv(&m_vertices[i].m_localPos.x);
+//            }
+//        }
+//        else if ((m_useTextureMapping) && (m_useVertexColors))
+//        {
+//            printf("Error! Unsupported case (m_useTextureMapping) && (m_useVertexColors) in PointCloudObject::renderCloud!\n");
+//            //for(i=0; i<numItems; i++)
+//            //{
+//            //    // get pointers to vertices
+//            //    cVertex* v0 = m_triangles[i].getVertex(0);
+//            //    cVertex* v1 = m_triangles[i].getVertex(1);
+//            //    cVertex* v2 = m_triangles[i].getVertex(2);
+//
+//            //    // render vertex 0
+//            //    glNormal3dv(&v0->m_normal.x);
+//            //    glColor4fv(v0->m_color.pColor());
+//            //    glTexCoord2dv(&v0->m_texCoord.x);
+//            //    glVertex3dv(&v0->m_localPos.x);
+//
+//            //    // render vertex 1
+//            //    glNormal3dv(&v1->m_normal.x);
+//            //    glColor4fv(v1->m_color.pColor());
+//            //    glTexCoord2dv(&v1->m_texCoord.x);
+//            //    glVertex3dv(&v1->m_localPos.x);
+//
+//            //    // render vertex 2
+//            //    glNormal3dv(&v2->m_normal.x);
+//            //    glColor4fv(v2->m_color.pColor());
+//            //    glTexCoord2dv(&v2->m_texCoord.x);
+//            //    glVertex3dv(&v2->m_localPos.x);
+//            //}
+//        }
+//
+//        // finalize rendering list of triangles
+//        glEnd();
+//    }
+//
+//    //-----------------------------------------------------------------------
+//    // FINALIZE
+//    //-----------------------------------------------------------------------
+//
+//    // restore OpenGL settings to reasonable defaults
+//    glDisable(GL_BLEND);
+//    glDepthMask(GL_TRUE);
+//    glDisable(GL_COLOR_MATERIAL);
+//    glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
+//    glDisable(GL_TEXTURE_2D);
+//    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+//
+//    // Turn off any array variables I might have turned on...
+//    glDisableClientState(GL_NORMAL_ARRAY);
+//    glDisableClientState(GL_VERTEX_ARRAY);
+//    glDisableClientState(GL_COLOR_ARRAY);
+//    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+//
+//    // If we've gotten this far and we're using a display list for rendering,
+//    // we must be capturing it right now...
+//    if ((m_useDisplayList) && (m_displayList != -1) && (creating_display_list))
+//    {
+//        // finalize list
+//        glEndList();
+//
+//        // Recursively make a call to actually render this object if
+//        // we didn't use compile_and_execute
+//        renderCloud(a_renderMode);
+//    }
+//}

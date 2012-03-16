@@ -1,4 +1,4 @@
-#include "modules_6dof/CGenericSampledGeometry.h"
+#include "haptic_sandbox/geometry/GenericSampler.h"
 
 namespace srl {
 

@@ -1,4 +1,4 @@
-#include "modules_6dof/CRigidBody.h"
+#include "haptic_sandbox/geometry/RigidBody.h"
 
 namespace srl {
 

@@ -14,10 +14,10 @@ cPlane::cPlane(cWorld * a_world) :
   int vertices2 = tPlane->newVertex( groundSize,  groundSize, 0.0);
   int vertices3 = tPlane->newVertex(-groundSize,  groundSize, 0.0);
 
-  (*(tPlane->pVertices()))[0].m_color = cColorf(0.1, 0.1, 0.8);
-  (*(tPlane->pVertices()))[1].m_color = cColorf(0.1, 0.1, 0.8);
-  (*(tPlane->pVertices()))[2].m_color = cColorf(0.1, 0.1, 0.8);
-  (*(tPlane->pVertices()))[3].m_color = cColorf(0.1, 0.1, 0.8);
+  tPlane->m_vertices[0].m_color = cColorf(0.1, 0.1, 0.8);
+  tPlane->m_vertices[1].m_color = cColorf(0.1, 0.1, 0.8);
+  tPlane->m_vertices[2].m_color = cColorf(0.1, 0.1, 0.8);
+  tPlane->m_vertices[3].m_color = cColorf(0.1, 0.1, 0.8);
 
   // compose surface with 2 triangles
   tPlane->newTriangle(vertices0, vertices1, vertices2);
