@@ -1,8 +1,7 @@
 
 
 //---------------------------------------------------------------------------
-#include "modules_6dof/CToolBody.h"
-#include "graphics/CTriangle.h"
+#include "haptic_sandbox/ToolBody.h"
 //---------------------------------------------------------------------------
 
 namespace srl {

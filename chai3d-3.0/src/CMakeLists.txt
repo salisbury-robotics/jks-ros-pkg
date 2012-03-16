@@ -154,13 +154,13 @@ SET(WORLD_GROUP
     world/CWorld.cpp
 )
 
-SET(MODULES_GROUP
-    modules_6dof/CRigidBody.cpp
-    modules_6dof/CToolBody.cpp
-    modules_6dof/CGenericSampledGeometry.cpp
-    modules_6dof/VoxelSampler.cpp
-    modules_6dof/PointSetSampler.cpp
-)
+#SET(MODULES_GROUP
+#    modules_6dof/CRigidBody.cpp
+#    modules_6dof/CToolBody.cpp
+#    modules_6dof/CGenericSampledGeometry.cpp
+#    modules_6dof/VoxelSampler.cpp
+#    modules_6dof/PointSetSampler.cpp
+#)
 
 
 SOURCE_GROUP(collisions FILES ${COLLISIONS_GROUP})
@@ -178,7 +178,7 @@ SOURCE_GROUP(timers     FILES ${TIMERS_GROUP})
 SOURCE_GROUP(tools      FILES ${TOOLS_GROUP})
 SOURCE_GROUP(widgets    FILES ${WIDGETS_GROUP})
 SOURCE_GROUP(world      FILES ${WORLD_GROUP})
-SOURCE_GROUP(modules    FILES ${MODULES_GROUP})
+#SOURCE_GROUP(modules    FILES ${MODULES_GROUP})
 
 ADD_LIBRARY(chai3d
     ${COLLISIONS_GROUP}
@@ -196,7 +196,7 @@ ADD_LIBRARY(chai3d
     ${TOOLS_GROUP}
     ${WIDGETS_GROUP}
     ${WORLD_GROUP}
-    ${MODULES_GROUP}
+#    ${MODULES_GROUP}
 )
 
 SET_TARGET_PROPERTIES(chai3d PROPERTIES

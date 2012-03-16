@@ -91,6 +91,3 @@ manifest.xml
 # Check for SSE
 rosbuild_check_for_sse()
 
-#TARGET_LINK_LIBRARIES( haptic_display_tools  )
-#TARGET_LINK_LIBRARIES( graphic_display_tools  chai3d dhd HD pthread rt usb-1.0 GL GLU glut )
-#TARGET_LINK_LIBRARIES( common_display_tools   chai3d dhd HD pthread rt usb-1.0 GL GLU glut )

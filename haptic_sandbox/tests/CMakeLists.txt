@@ -1,4 +1,4 @@
 
-rosbuild_addexecutable(test1
+rosbuild_add_executable(test1
     test1.cpp
 )
