@@ -155,6 +155,13 @@ SET(WORLD_GROUP
     world/CWorld.cpp
 )
 
+SET(MODULES_GROUP
+    modules_6dof/CRigidBody.cpp
+    modules_6dof/CToolBody.cpp
+    modules_6dof/CGenericSampledGeometry.cpp
+    )
+SOURCE_GROUP(modules FILES ${MODULES_GROUP})
+
 SOURCE_GROUP(collisions FILES ${COLLISIONS_GROUP})
 SOURCE_GROUP(devices    FILES ${DEVICES_GROUP})
 SOURCE_GROUP(display    FILES ${DISPLAY_GROUP})
@@ -187,6 +194,7 @@ ADD_LIBRARY(chai3d
     ${TOOLS_GROUP}
     ${WIDGETS_GROUP}
     ${WORLD_GROUP}
+    ${MODULES_GROUP}
 )
 
 SET_TARGET_PROPERTIES(chai3d PROPERTIES
