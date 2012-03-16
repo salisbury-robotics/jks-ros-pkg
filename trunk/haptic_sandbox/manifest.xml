@@ -1,0 +1,21 @@
+<package>
+  <description brief="haptic_sandbox">
+
+     haptic_sandbox
+
+  </description>
+  <author>Adam Leeper</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/haptic_sandbox</url>
+  <depend package="chai3d-3.0"/>
+  <depend package="eigen"/>
+  <depend package="pcl"/>
+
+  <export>
+    <cpp  cflags="-I${prefix}/include -I${prefix}/include/haptic_display_tools" 
+          lflags="-L${prefix}/lib -lhaptic_sandbox "/>
+  </export>
+</package>
+
+
