@@ -134,7 +134,6 @@ SET(TOOLS_GROUP
     tools/CInteractionPoint.cpp
     tools/CToolCursor.cpp
     tools/CToolGripper.cpp
-    tools/CToolBody.cpp
 )
 
 SET(WIDGETS_GROUP
@@ -159,8 +158,10 @@ SET(MODULES_GROUP
     modules_6dof/CRigidBody.cpp
     modules_6dof/CToolBody.cpp
     modules_6dof/CGenericSampledGeometry.cpp
-    )
-SOURCE_GROUP(modules FILES ${MODULES_GROUP})
+    modules_6dof/VoxelSampler.cpp
+    modules_6dof/PointSetSampler.cpp
+)
+
 
 SOURCE_GROUP(collisions FILES ${COLLISIONS_GROUP})
 SOURCE_GROUP(devices    FILES ${DEVICES_GROUP})
@@ -171,12 +172,13 @@ SOURCE_GROUP(files      FILES ${FILES_GROUP})
 SOURCE_GROUP(forces     FILES ${FORCES_GROUP})
 SOURCE_GROUP(graphics   FILES ${GRAPHICS_GROUP})
 SOURCE_GROUP(lighting   FILES ${LIGHTING_GROUP})
-SOURCE_GROUP(materials   FILES ${MATERIALS_GROUP})
+SOURCE_GROUP(materials  FILES ${MATERIALS_GROUP})
 SOURCE_GROUP(math       FILES ${MATH_GROUP})
 SOURCE_GROUP(timers     FILES ${TIMERS_GROUP})
 SOURCE_GROUP(tools      FILES ${TOOLS_GROUP})
 SOURCE_GROUP(widgets    FILES ${WIDGETS_GROUP})
 SOURCE_GROUP(world      FILES ${WORLD_GROUP})
+SOURCE_GROUP(modules    FILES ${MODULES_GROUP})
 
 ADD_LIBRARY(chai3d
     ${COLLISIONS_GROUP}
