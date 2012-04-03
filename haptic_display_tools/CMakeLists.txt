@@ -10,10 +10,12 @@ INCLUDE( ${QT_USE_FILE} )
 
 include_directories(${QT_INCLUDES} )
 
+include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools)
 include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Common)
 include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Graphics)
 include_directories(${PROJECT_SOURCE_DIR}/include/haptic_display_tools/Haptics)
+
 
 
 #FIND_PATH(CHAI3D_BASE
@@ -46,6 +48,8 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_genmsg()
 rosbuild_gensrv()
 
+#ADD_DEFINITIONS(-DHAVE_CVX)
+
 rosbuild_add_library(haptic_display_tools 
 src/Haptics/HapticDisplay.cpp
 src/Haptics/HapticScene.cpp
@@ -70,6 +74,11 @@ src/Common/VolumeCutter.cpp
 #src/Common/Sampler.cpp
 src/Common/VolumeSampler.cpp
 src/Common/PointSampler.cpp
+
+src/cvxgen/solver.c
+src/cvxgen/matrix_support.c
+src/cvxgen/ldl.c
+src/cvxgen/util.c
 
 manifest.xml
 )
