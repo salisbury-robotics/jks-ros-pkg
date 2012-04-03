@@ -6,6 +6,8 @@
 #include <vector>
 #include <QMutex>
 
+#define HAVE_CVX
+
 class PointShellIsosurface : public HapticIsosurface
 {
     std::vector<cml::vector3d>      m_pointShell;
@@ -31,6 +33,11 @@ protected:
                                  cml::vector3d &ac, cml::vector3d &alphac);
     void constrainedAcceleration6(const cml::vector3d &a, const cml::vector3d &alpha,
                                  cml::vector3d &ac, cml::vector3d &alphac);
+#endif
+
+#ifdef HAVE_CVX
+    void constrainedAccelerationCVX(const cml::vector3d &a, const cml::vector3d &alpha,
+                                    cml::vector3d &ac, cml::vector3d &alphac);
 #endif
 
     // detects interpenetrations in the contact set and attempts to move the
@@ -75,6 +82,14 @@ public:
         m_mutex.lock();
         points = m_contactPoints;
         m_mutex.unlock();
+    }
+
+    size_t getNumContactPoints()
+    {
+        m_mutex.lock();
+        size_t size =  m_contactPoints.size();
+        m_mutex.unlock();
+        return size;
     }
 
     friend class IsosurfaceOracle;

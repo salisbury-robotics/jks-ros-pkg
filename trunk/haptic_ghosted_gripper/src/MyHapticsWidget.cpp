@@ -262,9 +262,13 @@ void HapticGhostedGripper::displayCallback()
       msg.data = status_string;
       pub_status_.publish(msg);
 
+      PointShellIsosurface* surf = dynamic_cast<PointShellIsosurface*>(m_isosurface);
+      size_t constraints = 0;
+      if(surf) constraints = surf->getNumContactPoints();
       cml::vector3d device_pos =  m_display->devicePosition();
-      sprintf(status_string, "HIP pos: % .2f % .2f % .2f",
-              device_pos[0], device_pos[1], device_pos[2]);
+      sprintf(status_string, "HIP pos: % .2f % .2f % .2f  Constraints: %d",
+              device_pos[0], device_pos[1], device_pos[2],
+              constraints);
       //ROS_INFO_STREAM(status_string);
       msg.data = status_string;
       pub_status_.publish(msg);
