@@ -301,8 +301,8 @@ void PointShellIsosurface::constrainedAcceleration(const vector3d &a, const vect
 
     // let's try out the CVXGEN implementation...
 
-    //constrainedAccelerationCVX(a, alpha, ac, alphac);
-    //return;
+    constrainedAccelerationCVX(a, alpha, ac, alphac);
+    return;
     // ***********************************************
 
     // set up typing for projection algorithm
@@ -396,30 +396,21 @@ Settings settings;
 void PointShellIsosurface::constrainedAccelerationCVX(  const vector3d &a, const vector3d &alpha,
                                                         vector3d &ac, vector3d &alphac)
 {
-  //printf("Started constrainedAccelerationCVX {\n");
-  // - - - - - - - load all problem instance data - - - - - - - //
-  // setup mass, inertia, acceleration, and angular acceleration
-
-
+  // Settings
   set_defaults();
   setup_indexing();
   settings.verbose = 0;
 
-  //printf("Setting mass, inertia, acceleration, and angular acceleration params ... \n ");
+  // - - - - - - - load all problem instance data - - - - - - - //
+  // Set mass, inertia, acceleration, and angular acceleration params
   for(int i = 0; i < 3; i++)
   {
     //printf("params index: %02d", i);
-    params.M[i] = m_mass[i];   // TODO does this need to be sqrt() ?
+    params.M[i] = m_mass[i];
     params.I[3*i+i] = m_moment[i];
     params.a_u[i] = a[i];
     params.alpha_u[i] = alpha[i];
   }
-//  pm(params.M, 3,1);
-//  pm(params.I, 3,3);
-//  pm(params.a_u, 3,1);
-//  pm(params.alpha_u, 3,1);
-//  printf("done! \n");
-  //printf("Setting up constraints: %d points and %d normals. \n", this->m_contactPoints.size(), this->m_contactNormals.size());
   // set up constraints from contact set
   for(int i = 0; i < 11; i++)
   {
@@ -429,9 +420,6 @@ void PointShellIsosurface::constrainedAccelerationCVX(  const vector3d &a, const
       //printf("has constraint\n");
       vector3d &n = m_contactNormals[i];
       vector3d rxn = cml::cross(m_contactPoints[i], n);
-      //pm(n.data(), 3,1);
-      //pm(rxn.data(), 3,1);
-      //printf("populating...\n");
       for (int j = 0; j < 3; j++) {
         params.n[i][j] = n[j];
         params.rxn[i][j] = rxn[j];
@@ -445,10 +433,8 @@ void PointShellIsosurface::constrainedAccelerationCVX(  const vector3d &a, const
       }
     }
   }
-  //printf("done!\n");
 
   // - - - - - - - Solve our problem at high speed! - - - - - - - //
-  //printf("Solving... ");
   long num_iters = solve();
   if(work.converged == 1)
   {
@@ -464,7 +450,6 @@ void PointShellIsosurface::constrainedAccelerationCVX(  const vector3d &a, const
     ac.zero();
     alphac.zero();
   }
-  //printf("Finished constrainedAccelerationCVX. \n");
 }
 
 #endif
