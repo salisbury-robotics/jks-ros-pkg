@@ -39,6 +39,7 @@ qt4_wrap_cpp(MOC_FILES
 #common commands for building c++ executables and libraries
 rosbuild_add_library(${PROJECT_NAME}
   src/assisted_teleop.cpp
+  include/assisted_teleop/assisted_teleop.h
   ${MOC_FILES}
   )
 target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
