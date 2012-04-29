@@ -78,6 +78,9 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
+  float update_period = 0.5;
+  teleop_timer_ =  nh.createTimer(ros::Duration(update_period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
+
 }
 
 void TeleopVisualization::updatePlanningScene(const planning_scene::PlanningSceneConstPtr& planning_scene) {
@@ -265,6 +268,38 @@ void TeleopVisualization::resetStartGoal(const std::string& name) {
   ROS_INFO_STREAM("Getting request to reset start and end configurations");
 
   group_visualization_map_[name]->resetStartGoal();
+}
+
+void TeleopVisualization::teleopTimerCallback() {
+
+  ROS_INFO_STREAM("Teleop timer update! Moving group...");
+
+  if(current_group_.empty()) {
+    ROS_WARN("No group is active, returning...");
+    return;
+  }
+  if(group_visualization_map_.find(current_group_) == group_visualization_map_.end()) {
+    ROS_WARN_STREAM("No group name " << current_group_);
+    return;
+  }
+
+  //group_visualization_map_[current_group_]->showAllMarkers();
+  KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
+  kg->resetStartState();
+
+  generatePlan(current_group_, false);
+
+  trajectory_execution_fn_();
+
+
+//  trajectory_msgs::JointTrajectory traj;
+//  stateToTrajectory(kg->getGoalState(), traj);
+//  execution_fn_.get()(current_group_, traj);
+}
+
+void TeleopVisualization::stateToTrajectory(const planning_models::KinematicState& state, trajectory_msgs::JointTrajectory &traj){
+  /* Not implemented */
+
 }
 
 

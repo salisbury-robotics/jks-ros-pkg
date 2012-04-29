@@ -43,9 +43,12 @@
 
 namespace moveit_visualization_ros
 {
+  //typedef boost::function<void(const std::string&, const trajectory_msgs::JointTrajectory&)> TeleopExecutionFunction;
+  typedef boost::function<void(void)> TrajectoryExecutionFunction;
 
 class TeleopVisualization
 {
+  
 public:
 
   TeleopVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
@@ -86,6 +89,16 @@ public:
 
   void setStartState(const std::string& group_name,
                      const planning_models::KinematicState& state);
+  /* ael
+  void setTeleopExecutionFunction(const TeleopExecutionFunction function)
+  {
+    teleop_execution_fn_.reset(function);
+  }*/
+
+  void setTrajectoryExecutionFunction(TrajectoryExecutionFunction function)
+  {
+    trajectory_execution_fn_ = function;
+  }
 
 protected:
 
@@ -99,6 +112,10 @@ protected:
 
   void generateRandomStartEnd(const std::string& name);
   void resetStartGoal(const std::string& name);
+
+  /** @brief Callback for commanding robot to move. */
+  void teleopTimerCallback();
+  void stateToTrajectory(const planning_models::KinematicState& state, trajectory_msgs::JointTrajectory &traj);
 
   planning_scene::PlanningSceneConstPtr planning_scene_;
   ompl_interface_ros::OMPLInterfaceROS ompl_interface_;
@@ -114,6 +131,12 @@ protected:
   trajectory_msgs::JointTrajectory last_trajectory_;
   bool last_trajectory_ok_;
 
+  /* ael */
+  ros::Timer teleop_timer_;
+  //boost::shared_ptr<TeleopExecutionFunction> teleop_executution_fn_;
+
+
+  TrajectoryExecutionFunction trajectory_execution_fn_;
 };
 
 }

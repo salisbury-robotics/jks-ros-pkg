@@ -34,6 +34,8 @@ public:
 
   void executeLastTrajectory();
 
+  void executeTeleopUpdate(const std::string& group, const trajectory_msgs::JointTrajectory& traj);
+
 protected:
 
   void updateSceneCallback();

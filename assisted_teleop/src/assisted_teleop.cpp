@@ -120,6 +120,8 @@ AssistedTeleop::AssistedTeleop() :
       /* ael */
       //tv_->addMenuEntry("Start Following",  boost::bind(&AssistedTeleop::startFollowing, this));
       //tv_->addMenuEntry("Stop Following",   boost::bind(&AssistedTeleop::stopFollowing, this));
+      //tv_.setExecutionFunction( boost::bind(&AssistedTeleop::executeTeleopUpdate, this, _1, _2) );
+      tv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
     }
   }
   tv_->hideAllGroups();
@@ -276,6 +278,21 @@ void AssistedTeleop::updateToCurrentState() {
   iov_->updateCurrentState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
   tv_->resetAllStartStates();
 }
+
+//void AssistedTeleop::executeTeleopUpdate(const std::string& group, const trajectory_msgs::JointTrajectory& traj) {
+//    trajectory_execution::TrajectoryExecutionRequest ter;
+//    ter.group_name_ = group;
+//    ter.trajectory_ = traj;
+//
+//    ROS_DEBUG_STREAM("Attempting to execute trajectory for group name " << group_name);
+//
+//    std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
+//    ter_reqs.push_back(ter);
+//
+//    trajectory_execution_monitor_->executeTrajectories(ter_reqs); //,
+//                                                       //boost::bind(&AssistedTeleop::doneWithExecution, this));
+//  }
+//}
 
 //void AssistedTeleop::startFollowing() {
   //tv_->startFollowing();
