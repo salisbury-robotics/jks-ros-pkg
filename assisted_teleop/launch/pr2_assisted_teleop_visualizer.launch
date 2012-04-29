@@ -1,6 +1,7 @@
 <launch>
-  <arg name="monitor_robot_state" default="false"/>
-  <arg name="allow_trajectory_execution" default="false"/>
+  <arg name="robot" default="false"/>
+  <arg name="monitor_robot_state" default="$(arg robot)"/>
+  <arg name="allow_trajectory_execution" default="$(arg robot)"/>
 
   <param name="robot_description" textfile="$(find planning_models)/test/urdf/robot.xml" />
   <param name="robot_description_semantic" textfile="$(find planning_models)/test/srdf/robot.xml" />

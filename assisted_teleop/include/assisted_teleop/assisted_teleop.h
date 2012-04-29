@@ -6,7 +6,8 @@
 #include <moveit_visualization_ros/interactive_object_visualization_widget.h>
 #include <moveit_visualization_ros/planning_group_selection_menu.h>
 #include <moveit_visualization_ros/planning_scene_file_menu.h>
-#include <moveit_visualization_ros/planning_visualization_qt_wrapper.h>
+//#include <moveit_visualization_ros/planning_visualization_qt_wrapper.h>
+#include <assisted_teleop/teleop_visualization_qt_wrapper.h>
 #include <moveit_visualization_ros/kinematic_state_joint_state_publisher.h>
 #include <trajectory_execution_ros/trajectory_execution_monitor_ros.h>
 
@@ -57,7 +58,7 @@ protected:
   boost::shared_ptr<interactive_markers::InteractiveMarkerServer> interactive_marker_server_;
   boost::shared_ptr<KinematicStateJointStatePublisher> joint_state_publisher_;
   boost::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> planning_scene_monitor_;
-  boost::shared_ptr<moveit_visualization_ros::PlanningVisualizationQtWrapper> pv_;
+  boost::shared_ptr<moveit_visualization_ros::TeleopVisualizationQtWrapper> tv_;
   boost::shared_ptr<moveit_visualization_ros::InteractiveObjectVisualizationQtWrapper> iov_;
   boost::shared_ptr<trajectory_execution::TrajectoryExecutionMonitor> trajectory_execution_monitor_;
   boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader> kinematics_plugin_loader_;
