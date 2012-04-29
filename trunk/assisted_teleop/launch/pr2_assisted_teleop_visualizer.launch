@@ -3,6 +3,11 @@
   <arg name="monitor_robot_state" default="$(arg robot)"/>
   <arg name="allow_trajectory_execution" default="$(arg robot)"/>
 
+    <arg name="debug" default="false"/>
+    <arg name="rviz_args" default=""/>
+    <arg if="$(arg debug)" name="rviz_prefix" value="xterm -e gdb -ex run --args"/>
+    <arg unless="$(arg debug)" name="rviz_prefix" value=""/>
+
   <param name="robot_description" textfile="$(find planning_models)/test/urdf/robot.xml" />
   <param name="robot_description_semantic" textfile="$(find planning_models)/test/srdf/robot.xml" />
 
@@ -16,7 +21,7 @@
   <node unless="$(arg monitor_robot_state)" pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
   <node unless="$(arg monitor_robot_state)" pkg="moveit_visualization_ros" name="wall_clock_server" type="fake_time.py" />
 
-  <node pkg="assisted_teleop" type="assisted_teleop_node" name="assisted_teleop_node" output="screen">
+  <node pkg="assisted_teleop" type="assisted_teleop_node" name="assisted_teleop_node" output="screen" launch-prefix="$(arg rviz_prefix)">
     <rosparam command="load" file="$(find pr2_moveit_config)/config/ompl_planning.yaml"/>
     <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
     <rosparam if="$(arg allow_trajectory_execution)" file="$(find pr2_arm_navigation)/config/pr2_execution_controllers.yaml"/>
