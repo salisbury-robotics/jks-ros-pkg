@@ -240,6 +240,7 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
 
   moveit_msgs::GetMotionPlan::Request req;
   moveit_msgs::GetMotionPlan::Response res;
+  last_robot_trajectory_ = moveit_msgs::RobotTrajectory(res.trajectory);
 
   req.motion_plan_request.group_name = group_name;
   planning_models::kinematicStateToRobotState(*start_state,req.motion_plan_request.start_state);
