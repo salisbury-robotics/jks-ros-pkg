@@ -178,7 +178,7 @@ bool TeleopVisualization::getProxyState(planning_models::KinematicState* kin_sta
 
   moveit_msgs::RobotState robot_state;
 
-  planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_,0, robot_state);
+  planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
   planning_models::robotStateToKinematicState(robot_state, *kin_state);
 
   return true;
@@ -198,11 +198,13 @@ void TeleopVisualization::generatePlan(const std::string& name, bool play) {
 
   moveit_msgs::MoveItErrorCodes error_code;
   trajectory_msgs::JointTrajectory traj;
+  moveit_msgs::RobotTrajectory robot_traj;
   if(generatePlanForScene(planning_scene_,
                   name,
                   &start_state,
                   &goal_state,
                   traj,
+                  robot_traj,
                   error_code)) {
     std_msgs::ColorRGBA col;
     col.a = .8;
@@ -221,6 +223,7 @@ void TeleopVisualization::generatePlan(const std::string& name, bool play) {
     d.trajectory.joint_trajectory = traj;
     display_traj_publisher_.publish(d);
     last_trajectory_ = traj;
+    last_robot_trajectory_ = robot_traj;
     last_group_name_ = name;
     last_trajectory_ok_ = true;
   } else {
@@ -234,13 +237,13 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
                                                  const planning_models::KinematicState* start_state,
                                                  const planning_models::KinematicState* goal_state,
                                                  trajectory_msgs::JointTrajectory& ret_traj,
+                                                 moveit_msgs::RobotTrajectory& robot_traj,
                                                  moveit_msgs::MoveItErrorCodes& error_code) const
 {
   bool print = false;
 
   moveit_msgs::GetMotionPlan::Request req;
   moveit_msgs::GetMotionPlan::Response res;
-  last_robot_trajectory_ = moveit_msgs::RobotTrajectory(res.trajectory);
 
   req.motion_plan_request.group_name = group_name;
   planning_models::kinematicStateToRobotState(*start_state,req.motion_plan_request.start_state);
@@ -255,9 +258,7 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
   ros::Time start_time = ros::Time::now();
 
   bool success = ompl_interface_.solve(scene, req, res);
-  last_robot_trajectory_ = moveit_msgs::RobotTrajectory(res.trajectory);
-  //last_robot_trajectory_.multi_dof_joint_trajectory = res.trajectory.multi_dof_joint_trajectory;
-  //last_trajectory_. = res.trajectory.joint_trajectory;
+  robot_traj = res.trajectory;
 
   if(success) {
     static ros::Duration average_duration = ros::Duration(0);

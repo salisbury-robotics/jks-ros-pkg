@@ -72,12 +72,14 @@ void TeleopVisualizationQtWrapper::generatePlanDiffSceneRequested(const std::str
                                                                     const planning_models::KinematicState* goal_state) 
 {
   trajectory_msgs::JointTrajectory traj;
+  moveit_msgs::RobotTrajectory robot_traj;
   moveit_msgs::MoveItErrorCodes error_code;
   if(generatePlanForScene(scene,
                           group,
                           &scene->getCurrentState(),
                           goal_state,
                           traj,
+                          robot_traj,
                           error_code)) {
     planGenerated(group,
                   traj);
