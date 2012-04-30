@@ -78,7 +78,7 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
-  float update_period = 0.5;
+  float update_period = 0.1;
   teleop_timer_ =  nh.createTimer(ros::Duration(update_period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
 
 }
@@ -168,11 +168,29 @@ void TeleopVisualization::selectGroup(const std::string& group) {
   group_visualization_map_[current_group_]->showAllMarkers();
 }
 
+bool TeleopVisualization::getProxyState(planning_models::KinematicState* kin_state)
+{
+
+  if(!last_trajectory_ok_) return false;
+
+  trajectory_msgs::JointTrajectory traj;
+  getLastTrajectory(current_group_, traj);
+
+  moveit_msgs::RobotState robot_state;
+
+  planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_,0, robot_state);
+  planning_models::robotStateToKinematicState(robot_state, *kin_state);
+
+  return true;
+}
+
 void TeleopVisualization::generatePlan(const std::string& name, bool play) {
 
-  ROS_INFO_STREAM("Planning for " << name);
+  bool print = false;
+
+  ROS_INFO_STREAM_COND(print, "Planning for " << name);
   if(group_visualization_map_.find(name) == group_visualization_map_.end()) {
-    ROS_INFO_STREAM("No group " << name << " so can't plan");
+    ROS_INFO_STREAM_COND(print, "No group " << name << " so can't plan");
   }
 
   const planning_models::KinematicState& start_state = group_visualization_map_[name]->getStartState();
@@ -218,6 +236,8 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
                                                  trajectory_msgs::JointTrajectory& ret_traj,
                                                  moveit_msgs::MoveItErrorCodes& error_code) const
 {
+  bool print = false;
+
   moveit_msgs::GetMotionPlan::Request req;
   moveit_msgs::GetMotionPlan::Response res;
 
@@ -228,10 +248,22 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
 
   req.motion_plan_request.num_planning_attempts = 1;
   req.motion_plan_request.allowed_planning_time = ros::Duration(3.0);
+
   
-  if(ompl_interface_.solve(scene, req, res)) {
-    ROS_INFO_STREAM("Got " << res.trajectory.joint_trajectory.points.size());
-    ROS_INFO_STREAM("Original last time " << res.trajectory.joint_trajectory.points.back().time_from_start);
+  static ros::Duration average_duration = ros::Duration(0);
+  ros::Time start_time = ros::Time::now();
+
+  bool success = ompl_interface_.solve(scene, req, res);
+  last_robot_trajectory_ = moveit_msgs::RobotTrajectory(res.trajectory);
+  //last_robot_trajectory_.multi_dof_joint_trajectory = res.trajectory.multi_dof_joint_trajectory;
+  //last_trajectory_. = res.trajectory.joint_trajectory;
+
+  if(success) {
+    static ros::Duration average_duration = ros::Duration(0);
+    ros::Time start_time = ros::Time::now();
+
+    ROS_INFO_STREAM_COND(print, "Got " << res.trajectory.joint_trajectory.points.size());
+    ROS_INFO_STREAM_COND(print, "Original last time " << res.trajectory.joint_trajectory.points.back().time_from_start);
     trajectory_msgs::JointTrajectory traj;
     moveit_msgs::MoveItErrorCodes error_code;
     moveit_msgs::Constraints emp_constraints;
@@ -248,11 +280,23 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
     trajectory_smoother_->smooth(traj,
                                  ret_traj,
                                  group_joint_limit_map_.at(group_name));
-    ROS_INFO_STREAM("Smoothed last time " << ret_traj.points.back().time_from_start);
-    return true;
-  } else {
-    return false;
-  } 
+    ROS_INFO_STREAM_COND(print, "Smoothed last time " << ret_traj.points.back().time_from_start);
+
+    ros::Duration elapsed = ros::Time::now() - start_time;
+    float lambda = 0.1;
+    average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
+    ROS_INFO("Smoothing took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+  }
+  //else {
+  //  return_val = false;
+  //}
+
+  ros::Duration elapsed = ros::Time::now() - start_time;
+  float lambda = 0.1;
+  average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
+  ROS_INFO("All planning took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+
+  return success;
 }                                         
                                          
 
@@ -272,7 +316,10 @@ void TeleopVisualization::resetStartGoal(const std::string& name) {
 
 void TeleopVisualization::teleopTimerCallback() {
 
-  ROS_INFO_STREAM("Teleop timer update! Moving group...");
+  static ros::Duration average_duration = ros::Duration(0);
+  ros::Time start_time = ros::Time::now();
+  ROS_INFO_STREAM("v v v v v v v v v v v v v v v v v v v v v v v");
+  //ROS_INFO_STREAM("Teleop timer update! Moving group...");
 
   if(current_group_.empty()) {
     ROS_WARN("No group is active, returning...");
@@ -283,23 +330,25 @@ void TeleopVisualization::teleopTimerCallback() {
     return;
   }
 
-  //group_visualization_map_[current_group_]->showAllMarkers();
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
-  kg->resetStartState();
+  kg->goalOn();
 
   generatePlan(current_group_, false);
 
+  // Send command for next posture
   trajectory_execution_fn_();
 
+  // The start state next time should be set to the last solved proxy pose.
+  planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
+  if(getProxyState(ks)) kg->setStartState( *ks );
+  delete ks;
 
-//  trajectory_msgs::JointTrajectory traj;
-//  stateToTrajectory(kg->getGoalState(), traj);
-//  execution_fn_.get()(current_group_, traj);
-}
 
-void TeleopVisualization::stateToTrajectory(const planning_models::KinematicState& state, trajectory_msgs::JointTrajectory &traj){
-  /* Not implemented */
-
+  ros::Duration elapsed = ros::Time::now() - start_time;
+  float lambda = 0.1;
+  average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
+  ROS_INFO("Teleop update took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+  ROS_INFO_STREAM("^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
 }
 
 

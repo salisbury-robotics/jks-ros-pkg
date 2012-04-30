@@ -114,7 +114,7 @@ AssistedTeleop::AssistedTeleop() :
   if(monitor_robot_state) {
     tv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
     if(allow_trajectory_execution_) {
-      tv_->setAllStartChainModes(true);
+      tv_->setAllStartChainModes(false);
       tv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
 
       /* ael */
@@ -253,7 +253,8 @@ void AssistedTeleop::updateSceneCallback() {
 }
 
 bool AssistedTeleop::doneWithExecution() {
-  ROS_INFO_STREAM("Done");
+  ROS_INFO_STREAM("Done with trajectory execution.");
+  //ROS_INFO_STREAM("^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
   return true;
 }
 void AssistedTeleop::executeLastTrajectory() {
@@ -269,8 +270,8 @@ void AssistedTeleop::executeLastTrajectory() {
     std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
     ter_reqs.push_back(ter);
 
-    trajectory_execution_monitor_->executeTrajectories(ter_reqs); //,
-                                                       //boost::bind(&AssistedTeleop::doneWithExecution, this));
+    trajectory_execution_monitor_->executeTrajectories(ter_reqs, // why does this crash if no callback is provided?
+                                                       boost::bind(&AssistedTeleop::doneWithExecution, this));
   }
 }
 

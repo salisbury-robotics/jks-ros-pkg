@@ -100,6 +100,9 @@ public:
     trajectory_execution_fn_ = function;
   }
 
+ bool getProxyState(planning_models::KinematicState* kin_state);
+
+
 protected:
 
   void generatePlan(const std::string& name, bool play=true);
@@ -115,7 +118,6 @@ protected:
 
   /** @brief Callback for commanding robot to move. */
   void teleopTimerCallback();
-  void stateToTrajectory(const planning_models::KinematicState& state, trajectory_msgs::JointTrajectory &traj);
 
   planning_scene::PlanningSceneConstPtr planning_scene_;
   ompl_interface_ros::OMPLInterfaceROS ompl_interface_;
@@ -128,6 +130,7 @@ protected:
   ros::Publisher display_traj_publisher_;
   
   std::string last_group_name_;
+  moveit_msgs::RobotTrajectory last_robot_trajectory_;
   trajectory_msgs::JointTrajectory last_trajectory_;
   bool last_trajectory_ok_;
 
