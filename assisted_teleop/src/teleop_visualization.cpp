@@ -78,7 +78,7 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
-  float update_period = 0.1;
+  float update_period = 0.66;
   teleop_timer_ =  nh.createTimer(ros::Duration(update_period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
 
 }
@@ -333,7 +333,6 @@ void TeleopVisualization::teleopTimerCallback() {
   }
 
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
-  kg->goalOn();
 
   generatePlan(current_group_, false);
 
