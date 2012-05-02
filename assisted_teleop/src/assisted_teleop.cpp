@@ -270,8 +270,8 @@ void AssistedTeleop::executeLastTrajectory() {
     std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
     ter_reqs.push_back(ter);
 
-    trajectory_execution_monitor_->executeTrajectories(ter_reqs, // why does this crash if no callback is provided?
-                                                       boost::bind(&AssistedTeleop::doneWithExecution, this));
+    trajectory_execution_monitor_->executeTrajectories(ter_reqs);
+                                                       //boost::bind(&AssistedTeleop::doneWithExecution, this));
   }
 }
 

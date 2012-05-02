@@ -334,15 +334,22 @@ void TeleopVisualization::teleopTimerCallback() {
 
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
 
+  kg->setChainStartToCurrent(true);
   generatePlan(current_group_, false);
 
+  // modify the trajectory so only the last point is sent...
+  if(last_trajectory_ok_){
+    size_t initial_points = last_trajectory_.points.size();
+    last_trajectory_.points.erase( last_trajectory_.points.begin(), last_trajectory_.points.end()- 1 );
+    ROS_INFO("Trajectory had %zd points, now only %zd.", initial_points, last_trajectory_.points.size());
+  }
   // Send command for next posture
   trajectory_execution_fn_();
 
   // The start state next time should be set to the last solved proxy pose.
-  planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
-  if(getProxyState(ks)) kg->setStartState( *ks );
-  delete ks;
+  //planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
+  //if(getProxyState(ks)) kg->setStartState( *ks );
+  //delete ks;
 
 
   ros::Duration elapsed = ros::Time::now() - start_time;
