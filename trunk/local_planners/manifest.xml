@@ -1,0 +1,23 @@
+<package>
+  <description brief="assited_teleop">
+
+     assited_teleop
+
+  </description>
+  <author>Adam Leeper</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/assited_teleop</url>
+  <depend package="roscpp"/>
+  <depend package="urdf"/>
+  <depend package="srdf"/>
+  <depend package="moveit_visualization_ros"/>
+  <depend package="planning_interface"/>
+
+  <export>
+      <cpp cflags="-I${prefix}/include `rosboost-cfg --cflags`" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lassisted_teleop"/>
+  </export>
+
+</package>
+
+
