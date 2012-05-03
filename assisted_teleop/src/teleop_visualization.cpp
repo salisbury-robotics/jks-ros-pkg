@@ -78,7 +78,7 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
-  float update_period = 0.66;
+  float update_period = 0.05;
   teleop_timer_ =  nh.createTimer(ros::Duration(update_period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
 
 }
@@ -334,23 +334,43 @@ void TeleopVisualization::teleopTimerCallback() {
 
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
 
-  kg->setChainStartToCurrent(true);
-  generatePlan(current_group_, false);
+  if(true)
+  {
+    sensor_msgs::JointState js;
+    planning_models::kinematicStateToJointState( kg->getGoalState(),js);
+    trajectory_msgs::JointTrajectoryPoint pt;
+    trajectory_msgs::JointTrajectory traj;
+    for(size_t i = 0 ; i < js.name.size(); i++)
+    {
+      std::string name = js.name[i];
+      if(name.find("r_") != 0 ) continue;
+      if(name.find("r_gripper") != std::string::npos ) continue;
 
-  // modify the trajectory so only the last point is sent...
-  if(last_trajectory_ok_){
-    size_t initial_points = last_trajectory_.points.size();
-    last_trajectory_.points.erase( last_trajectory_.points.begin(), last_trajectory_.points.end()- 1 );
-    ROS_INFO("Trajectory had %zd points, now only %zd.", initial_points, last_trajectory_.points.size());
+      traj.joint_names.push_back(js.name[i]);
+      pt.positions.push_back(js.position[i]);
+      //pt.velocities.push_back(js.velocity[i]);
+      pt.time_from_start = ros::Duration(0.1);
+    }
+    traj.points.push_back(pt);
+    traj.header.stamp = ros::Time::now();
+    traj.header.frame_id = "odom_combined";
+
+    last_trajectory_ = traj;
+    last_group_name_ = current_group_;
+    last_trajectory_ok_ = true;
   }
+  else
+  {
+    generatePlan(current_group_, false);
+
+    // The start state next time should be set to the last solved proxy pose.
+    planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
+    if(getProxyState(ks)) kg->setStartState( *ks );
+    delete ks;
+  }
+
   // Send command for next posture
   trajectory_execution_fn_();
-
-  // The start state next time should be set to the last solved proxy pose.
-  //planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
-  //if(getProxyState(ks)) kg->setStartState( *ks );
-  //delete ks;
-
 
   ros::Duration elapsed = ros::Time::now() - start_time;
   float lambda = 0.1;
