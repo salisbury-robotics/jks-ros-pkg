@@ -140,8 +140,8 @@ AssistedTeleop::AssistedTeleop() :
   rviz_frame_->getManager()->setCurrentTool(rviz_frame_->getManager()->getTool(1));
 
   std::string display_config_name = ros::package::getPath("assisted_teleop")+"/config/pr2_assisted_teleop_display.config";
-
   rviz_frame_->loadDisplayConfig(display_config_name);
+  rviz_frame_->getManager()->setFixedFrame(planning_scene_monitor_->getPlanningScene()->getPlanningFrame());
 
   main_window_ = new QWidget;
   main_window_->resize(1500,1000);
