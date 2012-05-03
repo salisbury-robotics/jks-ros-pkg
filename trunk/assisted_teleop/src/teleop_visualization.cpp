@@ -251,7 +251,7 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
                                                                                                      .001, .001));
 
   req.motion_plan_request.num_planning_attempts = 1;
-  req.motion_plan_request.allowed_planning_time = ros::Duration(3.0);
+  req.motion_plan_request.allowed_planning_time = ros::Duration(0.45);
 
   
   static ros::Duration average_duration = ros::Duration(0);
@@ -334,7 +334,7 @@ void TeleopVisualization::teleopTimerCallback() {
 
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
 
-  if(true)
+  if(false)
   {
     sensor_msgs::JointState js;
     planning_models::kinematicStateToJointState( kg->getGoalState(),js);
