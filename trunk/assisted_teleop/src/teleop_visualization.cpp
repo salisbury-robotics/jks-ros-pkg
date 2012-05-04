@@ -39,7 +39,9 @@
 
 namespace moveit_visualization_ros {
 
-  static const float TELEOP_PERIOD = 0.03333;
+  //static const float TELEOP_PERIOD = 0.5; //0.03333;
+
+  static bool constraint_aware = false;
 
 TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                              const std::map<std::string, std::vector<moveit_msgs::JointLimits> >& group_joint_limit_map,
@@ -80,7 +82,11 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
-  teleop_timer_ =  nh.createTimer(ros::Duration(TELEOP_PERIOD), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
+  ros::NodeHandle pnh("~");
+  double period = 0.0333;
+  pnh.param("teleop_period", period, 0.0333);
+  teleop_timer_ =  nh.createTimer(ros::Duration(period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
+  pnh.param("constraint_aware", constraint_aware, false);
 
 }
 
@@ -165,6 +171,7 @@ void TeleopVisualization::selectGroup(const std::string& group) {
   if(!current_group_.empty()) {
     group_visualization_map_[current_group_]->hideAllMarkers();
   }
+  last_trajectory_ok_ = false;
   current_group_ = group;
   group_visualization_map_[current_group_]->showAllMarkers();
 }
@@ -344,7 +351,16 @@ void TeleopVisualization::teleopTimerCallback() {
 
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
 
-  if(false)
+  if(constraint_aware)
+  {
+    generatePlan(current_group_, false);
+
+    // The start state next time should be set to the last solved proxy pose.
+    planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
+    if(getProxyState(ks)) kg->setStartState( *ks );
+    delete ks;
+  }
+  else
   {
     sensor_msgs::JointState js;
     planning_models::kinematicStateToJointState( kg->getGoalState(),js);
@@ -355,12 +371,10 @@ void TeleopVisualization::teleopTimerCallback() {
 
     for(size_t i = 0 ; i < js.name.size(); i++)
     {
-      std::string name = js.name[i];
-      if( !jmg->hasJointModel(name) ) continue;
-
+      if( !jmg->hasJointModel(js.name[i]) ) continue;
       traj.joint_names.push_back(js.name[i]);
       pt.positions.push_back(js.position[i]);
-      //pt.velocities.push_back(js.velocity[i]);
+      if(!js.velocity.empty()) pt.velocities.push_back(js.velocity[i]);
     }
     pt.time_from_start = ros::Duration(0.1);
     traj.points.push_back(pt);
@@ -371,15 +385,7 @@ void TeleopVisualization::teleopTimerCallback() {
     last_group_name_ = current_group_;
     last_trajectory_ok_ = true;
   }
-  else
-  {
-    generatePlan(current_group_, false);
 
-    // The start state next time should be set to the last solved proxy pose.
-    planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
-    if(getProxyState(ks)) kg->setStartState( *ks );
-    delete ks;
-  }
 
   // Send command for next posture
   trajectory_execution_fn_();

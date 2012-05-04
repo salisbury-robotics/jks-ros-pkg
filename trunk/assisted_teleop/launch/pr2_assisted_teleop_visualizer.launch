@@ -2,6 +2,11 @@
   <arg name="robot" default="false"/>
   <arg name="monitor_robot_state" default="$(arg robot)"/>
   <arg name="allow_trajectory_execution" default="$(arg robot)"/>
+  
+  <arg name="constraint_aware" default="true"/>
+  <arg name="teleop_period" default="0.03333"/>
+
+  
 
     <arg name="debug" default="false"/>
     <arg name="rviz_args" default=""/>
@@ -27,6 +32,8 @@
     <rosparam if="$(arg allow_trajectory_execution)" file="$(find pr2_arm_navigation)/config/pr2_execution_controllers.yaml"/>
     <param name="monitor_robot_state" value="$(arg monitor_robot_state)"/>
     <param name="allow_trajectory_execution" value="$(arg allow_trajectory_execution)"/>
+    <param name="constraint_aware" type="bool" value="$(arg constraint_aware)" />
+    <param name="teleop_period" type="double" value="$(arg teleop_period)" />
   </node>
 
 </launch>
