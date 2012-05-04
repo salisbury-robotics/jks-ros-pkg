@@ -1,13 +1,13 @@
 <package>
-  <description brief="assited_teleop">
+  <description brief="local_planners">
 
-     assited_teleop
+     local_planners
 
   </description>
   <author>Adam Leeper</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/assited_teleop</url>
+  <url>http://ros.org/wiki/local_planners</url>
   <depend package="roscpp"/>
   <depend package="urdf"/>
   <depend package="srdf"/>
@@ -15,7 +15,8 @@
   <depend package="planning_interface"/>
 
   <export>
-      <cpp cflags="-I${prefix}/include `rosboost-cfg --cflags`" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lassisted_teleop"/>
+      <cpp cflags="-I${prefix}/include `rosboost-cfg --cflags`" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -llocal_planners"/>
+    <planning_interface plugin="${prefix}/lib/plugin_description.xml"/>
   </export>
 
 </package>
