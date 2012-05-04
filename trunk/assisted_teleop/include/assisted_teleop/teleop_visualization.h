@@ -41,6 +41,8 @@
 #include <trajectory_processing/trajectory_shortcutter.h>
 #include <kinematics_plugin_loader/kinematics_plugin_loader.h>
 
+#include <local_planners/potential_field_solver.h>
+
 namespace moveit_visualization_ros
 {
   //typedef boost::function<void(const std::string&, const trajectory_msgs::JointTrajectory&)> TeleopExecutionFunction;
@@ -122,6 +124,7 @@ protected:
 
   planning_scene::PlanningSceneConstPtr planning_scene_;
   ompl_interface_ros::OMPLInterfaceROS ompl_interface_;
+  local_planners::LinearJointStepper my_planner_;
   boost::shared_ptr<trajectory_processing::TrajectorySmoother> trajectory_smoother_;
   boost::shared_ptr<trajectory_processing::TrajectoryShortcutter> unnormalize_shortcutter_;
   std::map<std::string, std::vector<moveit_msgs::JointLimits> > group_joint_limit_map_;

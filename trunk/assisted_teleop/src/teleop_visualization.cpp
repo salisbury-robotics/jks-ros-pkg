@@ -39,6 +39,8 @@
 
 namespace moveit_visualization_ros {
 
+  static const float TELEOP_PERIOD = 0.03333;
+
 TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                              const std::map<std::string, std::vector<moveit_msgs::JointLimits> >& group_joint_limit_map,
                                              boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
@@ -78,8 +80,7 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
-  float update_period = 0.05;
-  teleop_timer_ =  nh.createTimer(ros::Duration(update_period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
+  teleop_timer_ =  nh.createTimer(ros::Duration(TELEOP_PERIOD), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
 
 }
 
@@ -181,12 +182,14 @@ bool TeleopVisualization::getProxyState(planning_models::KinematicState* kin_sta
   planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
   planning_models::robotStateToKinematicState(robot_state, *kin_state);
 
+  //
+
   return true;
 }
 
 void TeleopVisualization::generatePlan(const std::string& name, bool play) {
 
-  bool print = false;
+  bool print = true;
 
   ROS_INFO_STREAM_COND(print, "Planning for " << name);
   if(group_visualization_map_.find(name) == group_visualization_map_.end()) {
@@ -240,7 +243,7 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
                                                  moveit_msgs::RobotTrajectory& robot_traj,
                                                  moveit_msgs::MoveItErrorCodes& error_code) const
 {
-  bool print = false;
+  bool print = true;
 
   moveit_msgs::GetMotionPlan::Request req;
   moveit_msgs::GetMotionPlan::Response res;
@@ -257,8 +260,11 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
   static ros::Duration average_duration = ros::Duration(0);
   ros::Time start_time = ros::Time::now();
 
-  bool success = ompl_interface_.solve(scene, req, res);
+  //bool success = ompl_interface_.solve(scene, req, res);
+  bool success = my_planner_.solve(scene, req, res);
+
   robot_traj = res.trajectory;
+  ret_traj = res.trajectory.joint_trajectory;
 
   if(success) {
     static ros::Duration average_duration = ros::Duration(0);
@@ -279,15 +285,19 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
                                        ros::Duration(0.0),
                                        traj,
                                        error_code);
-    trajectory_smoother_->smooth(traj,
-                                 ret_traj,
-                                 group_joint_limit_map_.at(group_name));
-    ROS_INFO_STREAM_COND(print, "Smoothed last time " << ret_traj.points.back().time_from_start);
+
+
+    ret_traj = traj;
+
+//    trajectory_smoother_->smooth(traj,
+//                                 ret_traj,
+//                                 group_joint_limit_map_.at(group_name));
+//    ROS_INFO_STREAM_COND(print, "Smoothed last time " << ret_traj.points.back().time_from_start);
 
     ros::Duration elapsed = ros::Time::now() - start_time;
     float lambda = 0.1;
     average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
-    ROS_INFO("Smoothing took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+    ROS_INFO("Unnormalizing took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
   }
   //else {
   //  return_val = false;
@@ -340,17 +350,19 @@ void TeleopVisualization::teleopTimerCallback() {
     planning_models::kinematicStateToJointState( kg->getGoalState(),js);
     trajectory_msgs::JointTrajectoryPoint pt;
     trajectory_msgs::JointTrajectory traj;
+
+    const planning_models::KinematicModel::JointModelGroup *jmg = planning_scene_->getKinematicModel()->getJointModelGroup(current_group_);
+
     for(size_t i = 0 ; i < js.name.size(); i++)
     {
       std::string name = js.name[i];
-      if(name.find("r_") != 0 ) continue;
-      if(name.find("r_gripper") != std::string::npos ) continue;
+      if( !jmg->hasJointModel(name) ) continue;
 
       traj.joint_names.push_back(js.name[i]);
       pt.positions.push_back(js.position[i]);
       //pt.velocities.push_back(js.velocity[i]);
-      pt.time_from_start = ros::Duration(0.1);
     }
+    pt.time_from_start = ros::Duration(0.1);
     traj.points.push_back(pt);
     traj.header.stamp = ros::Time::now();
     traj.header.frame_id = "odom_combined";
