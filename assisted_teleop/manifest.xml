@@ -12,7 +12,7 @@
   <depend package="urdf"/>
   <depend package="srdf"/>
   <depend package="moveit_visualization_ros"/>
-  <depend package="local_planners"/>
+  <depend package="local_planners"/> 
 
   <export>
       <cpp cflags="-I${prefix}/include `rosboost-cfg --cflags`" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lassisted_teleop"/>
