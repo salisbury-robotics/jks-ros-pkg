@@ -37,8 +37,8 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 #common commands for building c++ executables and libraries
 rosbuild_add_library(${PROJECT_NAME}
-src/potential_field_solver.cpp
-include/local_planners/potential_field_solver.h
+src/linear_joint_stepper.cpp
+include/local_planners/linear_joint_stepper.h
   )
 #target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
 
