@@ -1,11 +1,20 @@
 
 
-#include <local_planners/potential_field_solver.h>
+#include <local_planners/linear_joint_stepper.h>
 #include <pluginlib/class_list_macros.h>
 #include <planning_models/kinematic_model.h>
 
 namespace local_planners{
 
+  double normalizeAngle( double angle )
+  {
+    if(angle < -M_PI || angle > M_PI)
+    {
+      //angle - math.copysign(1.0, angle)*2*math.pi*math.ceil( math.fabs(angle) / (2*math.pi))
+      return angle - copysign(1.0, angle)*2*M_PI*ceil(fabs(angle)/ (2*M_PI));
+    }
+    return angle;
+  }
 
 bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& planning_scene,
                    const moveit_msgs::GetMotionPlan::Request &req,
@@ -25,14 +34,22 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
   unsigned int steps = 1  + (start_state.distance(goal_state) / 0.03);
 
   std::vector<planning_models::KinematicStatePtr> path;
-  path.push_back(planning_models::KinematicStatePtr(new planning_models::KinematicState(start_state)));
+  if(planning_scene->isStateValid(start_state))
+    path.push_back(planning_models::KinematicStatePtr(new planning_models::KinematicState(start_state)));
+  else
+  {
+    ROS_ERROR("Can't plan, start state is not valid.");
+    return false;
+  }
 
-  // TODO this is bad because, once again, it allows pop-through.
-  // If we properly handle the wrap-around, it will work fine to take linear steps.
+
   if (steps < 3)
   {
+    //planning_models::KinematicStatePtr point = planning_models::KinematicStatePtr(new planning_models::KinematicState(goal_state));
+
     if (planning_scene->isStateValid(goal_state))
       path.push_back(planning_models::KinematicStatePtr(new planning_models::KinematicState(goal_state)));
+
 
   }
   else
@@ -44,8 +61,26 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
       {
         double sv = start_state.getJointState(it->first)->getVariableValues()[0];
         double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
-        //planning_scene->getKinematicModel()->getJointModel(it->first)->getType();
-        double u = sv  + s * (gv - sv)/(double)steps;
+        std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+        double u = 0;
+        moveit_msgs::JointLimits &limit = limits[0];
+        bool continuous = !limit.has_position_limits;
+
+
+        //ROS_INFO("Joint %s is continuous: %d, start = %.2f, goal = %.2f ", limit.joint_name.c_str(), continuous, sv, gv);
+
+        gv = normalizeAngle(gv);
+        sv = normalizeAngle(sv);
+        // Handle wrap around
+        double delta = gv - sv;
+        if( delta >= M_PI || delta <= -M_PI )
+          u = sv  - s * delta/(double)steps;
+        else
+          u = sv  + s * delta/(double)steps;
+
+        //ROS_INFO("Now start = %.2f, goal = %.2f, update = %.2f ", sv, gv, u);
+
+        //planning_models::KinematicModel::JointModel jm = planning_scene->getKinematicModel()->getJointModel(it->first)->getType();
         point->getJointState(it->first)->setVariableValues(&u);
       }
       if (planning_scene->isStateValid(*point))
@@ -59,13 +94,13 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
     moveit_msgs::RobotTrajectory rt;
     trajectory_msgs::JointTrajectory traj;
     
-    for( size_t path_index = path.size()-1; path_index < path.size(); path_index++)
+    // Just take the last point
+    //for( size_t path_index = path.size()-1; path_index < path.size(); path_index++)
     {
-      sensor_msgs::JointState js;
-      planning_models::kinematicStateToJointState(*(path[path_index]), js);
-      trajectory_msgs::JointTrajectoryPoint pt;
 
-      //std::vector<std::string> jmg_names = planning_scene->getKinematicModel()->getJointModelGroup(req.motion_plan_request.group_name)->getJointModelNames();
+      sensor_msgs::JointState js;
+      planning_models::kinematicStateToJointState(*(path.back()), js);
+      trajectory_msgs::JointTrajectoryPoint pt;
 
       const planning_models::KinematicModel::JointModelGroup *jmg = planning_scene->getKinematicModel()->getJointModelGroup(req.motion_plan_request.group_name);
 
