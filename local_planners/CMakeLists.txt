@@ -27,8 +27,8 @@ include_directories(${QT_INCLUDE_DIR})
 
 add_definitions(-DQT_NO_KEYWORDS)
 
-qt4_wrap_cpp(MOC_FILES
-)
+#qt4_wrap_cpp(MOC_FILES
+#)
 
 #uncomment if you have defined messages
 #rosbuild_genmsg()
@@ -36,9 +36,10 @@ qt4_wrap_cpp(MOC_FILES
 #rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME}
-
-#  )
+rosbuild_add_library(${PROJECT_NAME}
+src/potential_field_solver.cpp
+include/local_planners/potential_field_solver.h
+  )
 #target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
 
 

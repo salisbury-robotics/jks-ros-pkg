@@ -1,0 +1,7 @@
+<library path="lib/lib_local_planners">
+  <class name="local_planners/LinearJointStepper" type="local_planners::LinearJointStepper" base_class_type="planning_interface::Planner">
+    <description>
+    </description>
+  </class>
+</library>
+
