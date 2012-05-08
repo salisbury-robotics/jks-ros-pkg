@@ -49,7 +49,7 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
                                              boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader>& kinematics_plugin_loader,
                                              ros::Publisher& marker_publisher)
   : planning_scene_(planning_scene), 
-    ompl_interface_(planning_scene->getKinematicModel(), kinematics_plugin_loader),
+    ompl_interface_(planning_scene->getKinematicModel()),
     group_joint_limit_map_(group_joint_limit_map),
     last_trajectory_ok_(false)
 {
