@@ -61,7 +61,7 @@ AssistedTeleop::AssistedTeleop() :
     boost::thread publisher_thread(boost::bind(&AssistedTeleop::publisherFunction, this, true));
   } else {
     transformer_.reset(new tf::TransformListener());
-    planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor("robot_description", transformer_.get()));
+    planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor("robot_description", transformer_, kinematics_plugin_loader_));
     joint_state_publisher_.reset(new KinematicStateJointStatePublisher());
     bool publish_root_transform = false;
     loc_nh.param("publish_root_transform", publish_root_transform, false);
