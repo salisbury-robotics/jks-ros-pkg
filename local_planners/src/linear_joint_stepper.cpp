@@ -16,6 +16,39 @@ namespace local_planners{
     return angle;
   }
 
+  void printCollisionInfo(const planning_scene::PlanningScene& ps, const planning_models::KinematicState& ks )
+  {
+
+    collision_detection::CollisionRequest req;
+    req.max_contacts = 50;
+    req.contacts = true;
+    req.distance = false;
+    req.verbose = false;
+    collision_detection::CollisionResult res;
+    ps.checkCollision(req, res, ks);
+    ROS_INFO("Contact count: %zd", res.contact_count);
+    if(res.collision)
+      for( collision_detection::CollisionResult::ContactMap::iterator it = res.contacts.begin(); it != res.contacts.end(); ++it)
+      {
+        std::string contact1 = it->first.first;
+        std::string contact2 = it->first.second;
+        std::vector<collision_detection::Contact>& vec = it->second;
+
+        for(size_t contact_index = 0; contact_index < vec.size(); contact_index++)
+        {
+          Eigen::Vector3d pos =     vec[contact_index].pos;
+          Eigen::Vector3d normal =  vec[contact_index].normal;
+          double depth = vec[contact_index].depth;
+          ROS_INFO("Contact between [%s] and [%s] point: %.2f %.2f %.2f normal: %.2f %.2f %.2f depth: %.3f",
+                   contact1.c_str(), contact2.c_str(),
+                   pos(0), pos(1), pos(2),
+                   normal(0), normal(1), normal(2),
+                   depth);
+        }
+
+      }
+  }
+
 bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& planning_scene,
                    const moveit_msgs::GetMotionPlan::Request &req,
                    moveit_msgs::GetMotionPlan::Response &res) const
@@ -39,6 +72,9 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
   else
   {
     ROS_ERROR("Can't plan, start state is not valid.");
+
+    printCollisionInfo(*planning_scene, start_state);
+
     return false;
   }
 
@@ -49,8 +85,6 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
 
     if (planning_scene->isStateValid(goal_state))
       path.push_back(planning_models::KinematicStatePtr(new planning_models::KinematicState(goal_state)));
-
-
   }
   else
   {
@@ -86,7 +120,10 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
       if (planning_scene->isStateValid(*point))
         path.push_back(point);
       else
+      {
+        printCollisionInfo(*planning_scene, *point);
         break;
+      }
     }
   }
 
