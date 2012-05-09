@@ -79,6 +79,9 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   joint_trajectory_visualization_.reset(new JointTrajectoryVisualization(planning_scene,
                                                                          marker_publisher));
 
+  collision_visualization_.reset(new CollisionVisualization(planning_scene,
+                                                            marker_publisher));
+
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
@@ -359,6 +362,15 @@ void TeleopVisualization::teleopTimerCallback() {
     planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
     if(getProxyState(ks)) kg->setStartState( *ks );
     delete ks;
+
+    collision_detection::CollisionRequest req;
+    req.max_contacts = 50;
+    req.contacts = true;
+    req.distance = false;
+    req.verbose = false;
+    collision_detection::CollisionResult res;
+    planning_scene_->checkCollision(req, res, kg->getGoalState());
+    collision_visualization_->drawCollisions(res, planning_scene_->getPlanningFrame());
   }
   else
   {

@@ -38,13 +38,15 @@ qt4_wrap_cpp(MOC_FILES
 
 #common commands for building c++ executables and libraries
 rosbuild_add_library(${PROJECT_NAME}
-  src/assisted_teleop.cpp
+  src/collision_visualization.cpp
   src/teleop_visualization.cpp
   src/teleop_visualization_qt_wrapper.cpp
+  src/assisted_teleop.cpp
 
-  include/assisted_teleop/assisted_teleop.h
+  include/assisted_teleop/collision_visualization.h
   include/assisted_teleop/teleop_visualization.h
   include/assisted_teleop/teleop_visualization_qt_wrapper.h
+  include/assisted_teleop/assisted_teleop.h
 
   ${MOC_FILES}
   )

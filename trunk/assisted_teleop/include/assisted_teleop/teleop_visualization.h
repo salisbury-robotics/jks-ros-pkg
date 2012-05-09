@@ -40,6 +40,7 @@
 #include <trajectory_processing/trajectory_smoother.h>
 #include <trajectory_processing/trajectory_shortcutter.h>
 #include <kinematics_plugin_loader/kinematics_plugin_loader.h>
+#include <assisted_teleop/collision_visualization.h>
 
 #include <local_planners/potential_field_solver.h>
 
@@ -131,6 +132,7 @@ protected:
   std::string current_group_;
   std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> > group_visualization_map_;
   boost::shared_ptr<JointTrajectoryVisualization> joint_trajectory_visualization_;
+  boost::shared_ptr<moveit_visualization_ros::CollisionVisualization> collision_visualization_;
   ros::Publisher display_traj_publisher_;
   
   std::string last_group_name_;
