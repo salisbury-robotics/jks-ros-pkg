@@ -40,7 +40,7 @@
 #include <trajectory_processing/trajectory_smoother.h>
 #include <trajectory_processing/trajectory_shortcutter.h>
 #include <kinematics_plugin_loader/kinematics_plugin_loader.h>
-#include <assisted_teleop/collision_visualization.h>
+#include <moveit_visualization_ros/collision_visualization.h>
 
 #include <local_planners/potential_field_solver.h>
 

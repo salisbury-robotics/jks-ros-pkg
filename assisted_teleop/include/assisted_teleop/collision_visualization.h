@@ -44,38 +44,17 @@ class CollisionVisualization
 {
 
 public:
-  CollisionVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                               ros::Publisher& marker_publisher);
-
-  void updatePlanningScene(const planning_scene::PlanningSceneConstPtr& planning_scene);
-     
-  //void setTrajectory(const planning_models::KinematicState& start_state,
-  //                   const std::string& group_name,
-  //                   const trajectory_msgs::JointTrajectory& traj,
-  //                   const std_msgs::ColorRGBA& color);
+  CollisionVisualization(ros::Publisher& marker_publisher);
 
   void drawCollisions(const collision_detection::CollisionResult& data,
                                               const std::string &frame);
 
-  //void playCurrentTrajectory(bool block = false);
-
 protected:
 
-  planning_scene::PlanningSceneConstPtr planning_scene_;
+  //planning_scene::PlanningSceneConstPtr planning_scene_;
   ros::Publisher marker_publisher_;
 
-  planning_models::KinematicState current_state_;
-  trajectory_msgs::JointTrajectory current_joint_trajectory_;
   std_msgs::ColorRGBA marker_color_;
-
-  std::vector<std::string> link_model_names_;
-
-  boost::shared_ptr<boost::thread> playback_thread_;
-
-  boost::condition_variable trajectory_finished_;
-  boost::mutex trajectory_playing_mutex_;
-  bool playback_happening_;
-
   
 };
 

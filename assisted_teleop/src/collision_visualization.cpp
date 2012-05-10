@@ -34,31 +34,18 @@
 //#include <eigen_conversions/eigen_msg.h>
 #include <conversion_utilities/msg_eigen.h>
 
-
-
-
-
-
 static const ros::WallDuration sleep_time = ros::WallDuration(0.01);
 
 namespace moveit_visualization_ros
 {
   using namespace conversion_utilities;
 
-CollisionVisualization::CollisionVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                                           ros::Publisher& marker_publisher)
-  : planning_scene_(planning_scene),
-    marker_publisher_(marker_publisher),
-    current_state_(planning_scene_->getCurrentState())
+CollisionVisualization::CollisionVisualization(ros::Publisher& marker_publisher)
+  : marker_publisher_(marker_publisher)
 {
   
 }; 
 
-
-void CollisionVisualization::updatePlanningScene(const planning_scene::PlanningSceneConstPtr& planning_scene)
-{  
-  planning_scene_ = planning_scene;
-}
 
 void CollisionVisualization::drawCollisions(const collision_detection::CollisionResult& data,
                                             const std::string &frame)
@@ -68,6 +55,7 @@ void CollisionVisualization::drawCollisions(const collision_detection::Collision
   {
     visualization_msgs::MarkerArray array;
     ros::Time now = ros::Time::now();
+    int arrow_count = 0;
     for( collision_detection::CollisionResult::ContactMap::const_iterator it = data.contacts.begin(); it != data.contacts.end(); ++it)
     {
       std::string contact1 = it->first.first;
@@ -86,9 +74,10 @@ void CollisionVisualization::drawCollisions(const collision_detection::Collision
                  depth);
 
 
-        visualization_msgs::Marker marker = makeArrow(msg::pointEigenToMsg(pos), msg::pointEigenToMsg(pos+normal));
+        visualization_msgs::Marker marker = makeArrow(msg::pointEigenToMsg(pos), msg::pointEigenToMsg(pos+0.2*normal));
         marker.header.frame_id= frame;
         marker.header.stamp = now;
+        marker.id = arrow_count++;
         marker.ns = "collision_markers";
         array.markers.push_back(marker);
       }

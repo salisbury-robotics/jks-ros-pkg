@@ -79,8 +79,7 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   joint_trajectory_visualization_.reset(new JointTrajectoryVisualization(planning_scene,
                                                                          marker_publisher));
 
-  collision_visualization_.reset(new CollisionVisualization(planning_scene,
-                                                            marker_publisher));
+  collision_visualization_.reset(new CollisionVisualization(marker_publisher));
 
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
