@@ -39,6 +39,9 @@ add_definitions(-DQT_NO_KEYWORDS)
 rosbuild_add_library(${PROJECT_NAME}
 src/linear_joint_stepper.cpp
 include/local_planners/linear_joint_stepper.h
+
+src/convex_constraint_solver.cpp
+include/local_planners/convex_constraint_solver.h
   )
 #target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
 
