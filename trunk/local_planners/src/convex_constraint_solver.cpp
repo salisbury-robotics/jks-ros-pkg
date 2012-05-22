@@ -1,51 +1,10 @@
 #include <local_planners/convex_constraint_solver.h>
 #include <pluginlib/class_list_macros.h>
 #include <planning_models/kinematic_model.h>
+#include <local_planners/util.h>
 
 namespace local_planners{
 
-  double normalizeAngle( double angle )
-  {
-    if(angle < -M_PI || angle > M_PI)
-    {
-      return angle - copysign(1.0, angle)*2*M_PI*ceil(fabs(angle)/ (2*M_PI));
-    }
-    return angle;
-  }
-
-  void printCollisionInfo(const planning_scene::PlanningScene& ps, const planning_models::KinematicState& ks )
-  {
-
-    collision_detection::CollisionRequest req;
-    req.max_contacts = 50;
-    req.contacts = true;
-    req.distance = false;
-    req.verbose = false;
-    collision_detection::CollisionResult res;
-    ps.checkCollision(req, res, ks);
-
-    ROS_INFO("Contact count: %zd", res.contact_count);
-    if(res.collision)
-      for( collision_detection::CollisionResult::ContactMap::iterator it = res.contacts.begin(); it != res.contacts.end(); ++it)
-      {
-        std::string contact1 = it->first.first;
-        std::string contact2 = it->first.second;
-        std::vector<collision_detection::Contact>& vec = it->second;
-
-        for(size_t contact_index = 0; contact_index < vec.size(); contact_index++)
-        {
-          Eigen::Vector3d pos =     vec[contact_index].pos;
-          Eigen::Vector3d normal =  vec[contact_index].normal;
-          double depth = vec[contact_index].depth;
-          ROS_INFO("Contact between [%s] and [%s] point: %.2f %.2f %.2f normal: %.2f %.2f %.2f depth: %.3f",
-                   contact1.c_str(), contact2.c_str(),
-                   pos(0), pos(1), pos(2),
-                   normal(0), normal(1), normal(2),
-                   depth);
-        }
-
-      }
-  }
 
 bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& planning_scene,
                    const moveit_msgs::GetMotionPlan::Request &req,
@@ -55,7 +14,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   // Need to add in joint limit constraints
   // Get the position constraints from the collision detector
 
-
+  // The raw algorithm laid out in Chan et. al. is as follows:
   //  1. Compute unconstrained motion to go from proxy to goal.
   //  2. Get the current contact set by moving the proxy toward the goal by some epsilon and get all collision points.
   //  3. Compute constrained motion (convex solver).
@@ -63,7 +22,21 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   //  5. Set proxy to stop at the first new contact along path.
 
 
+  // In our framework this will look more like this:
+  // Outside ths planner:
+  //  1. Compute error between cartesian end effector and cartesian goal.
+  //  2. Cap pose error (based on some heuristic?) because we are about to make a linear approximation.
+  //  3. Use Jinverse to compute the joint deltas for the pose error (or perhaps we should frame this as a velocity problem).
+  //  4. Add the joint deltas to the start state to get a goal state.
 
+  // Inside the planner:
+  //  1. Get the "current" contact set by moving the proxy toward the goal by some epsilon and get all collision points.
+  //  2. Compute constrained motion (convex solver).
+  //  3. Subdivide motion subject to some sort of minimum feature size.
+  //  4. Move proxy in steps, checking for colliding state along the way. Optionally use interval bisection to refine.
+
+
+  // We "getCurrentState" just to populate the structure with auxiliary info, then copy in the transform info from the planning request.
   planning_models::KinematicState start_state = planning_scene->getCurrentState();
   planning_models::robotStateToKinematicState(*(planning_scene->getTransforms()), req.motion_plan_request.start_state, start_state);
 

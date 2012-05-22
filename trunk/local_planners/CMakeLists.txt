@@ -42,6 +42,9 @@ include/local_planners/linear_joint_stepper.h
 
 src/convex_constraint_solver.cpp
 include/local_planners/convex_constraint_solver.h
+
+include/local_planners/util.h
+
   )
 #target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
 
