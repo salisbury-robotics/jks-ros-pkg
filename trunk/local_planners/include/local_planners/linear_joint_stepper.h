@@ -1,5 +1,5 @@
-#ifndef LOCAL_PLANNERS_POTENTIAL_FIELD_H
-#define LOCAL_PLANNERS_POTENTIAL_FIELD_H
+#ifndef LOCAL_PLANNERS_LINEAR_JOINT_STEPPER_H
+#define LOCAL_PLANNERS_LINEAR_JOINT_STEPPER_H
 
 #include <planning_scene/planning_scene.h>
 #include <moveit_msgs/GetMotionPlan.h>
@@ -66,4 +66,4 @@ class LinearJointStepper : public planning_interface::Planner
 
 } // local_planners
 
-#endif // LOCAL_PLANNERS_POTENTIAL_FIELD_H
+#endif // LOCAL_PLANNERS_LINEAR_JOINT_STEPPER_H

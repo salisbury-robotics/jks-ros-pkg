@@ -1,5 +1,3 @@
-
-
 #include <local_planners/linear_joint_stepper.h>
 #include <pluginlib/class_list_macros.h>
 #include <planning_models/kinematic_model.h>
@@ -10,7 +8,6 @@ namespace local_planners{
   {
     if(angle < -M_PI || angle > M_PI)
     {
-      //angle - math.copysign(1.0, angle)*2*math.pi*math.ceil( math.fabs(angle) / (2*math.pi))
       return angle - copysign(1.0, angle)*2*M_PI*ceil(fabs(angle)/ (2*M_PI));
     }
     return angle;
