@@ -5,6 +5,66 @@
 
 namespace local_planners{
 
+  // TODO can we pick the epsilon size more intelligently for each joint?
+
+  void createKinematicStatePoint(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                 planning_models::KinematicState &start_state, planning_models::KinematicState &goal_state,
+                                 std::map<std::string, double> &name_map,
+                                 double step_size,
+                                 planning_models::KinematicStatePtr &point)
+  {
+    for (std::map<std::string, double>::const_iterator it = name_map.begin() ; it != name_map.end() ; ++it)
+    {
+      double sv = start_state.getJointState(it->first)->getVariableValues()[0];
+      double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
+      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+      double u = 0;
+      moveit_msgs::JointLimits &limit = limits[0];
+      //bool continuous = !limit.has_position_limits;
+      //ROS_INFO("Joint %s is continuous: %d, start = %.2f, goal = %.2f ", limit.joint_name.c_str(), continuous, sv, gv);
+
+      gv = normalizeAngle(gv);
+      sv = normalizeAngle(sv);
+      // Handle wrap around
+      double delta = gv - sv;
+      if( delta >= M_PI || delta <= -M_PI )
+        u = sv - step_size;
+      else
+        u = sv + step_size;
+
+      point->getJointState(it->first)->setVariableValues(&u);
+    }
+  }
+
+  void createKinematicStatePoint(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                 planning_models::KinematicState &start_state, planning_models::KinematicState &goal_state,
+                                 std::map<std::string, double> &name_map,
+                                 unsigned int step_index, unsigned int num_steps,
+                                 planning_models::KinematicStatePtr &point)
+  {
+    for (std::map<std::string, double>::const_iterator it = name_map.begin() ; it != name_map.end() ; ++it)
+    {
+      double sv = start_state.getJointState(it->first)->getVariableValues()[0];
+      double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
+      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+      double u = 0;
+      moveit_msgs::JointLimits &limit = limits[0];
+      //bool continuous = !limit.has_position_limits;
+      //ROS_INFO("Joint %s is continuous: %d, start = %.2f, goal = %.2f ", limit.joint_name.c_str(), continuous, sv, gv);
+
+      gv = normalizeAngle(gv);
+      sv = normalizeAngle(sv);
+      // Handle wrap around
+      double delta = gv - sv;
+      if( delta >= M_PI || delta <= -M_PI )
+        u = sv - step_index * delta/(double)num_steps;
+      else
+        u = sv + step_index * delta/(double)num_steps;
+
+      point->getJointState(it->first)->setVariableValues(&u);
+    }
+  }
+
 
 bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& planning_scene,
                    const moveit_msgs::GetMotionPlan::Request &req,
@@ -35,37 +95,57 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   //  3. Subdivide motion subject to some sort of minimum feature size.
   //  4. Move proxy in steps, checking for colliding state along the way. Optionally use interval bisection to refine.
 
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -/
 
   // We "getCurrentState" just to populate the structure with auxiliary info, then copy in the transform info from the planning request.
   planning_models::KinematicState start_state = planning_scene->getCurrentState();
   planning_models::robotStateToKinematicState(*(planning_scene->getTransforms()), req.motion_plan_request.start_state, start_state);
 
+  // proxyState will be used as we step around, goal state is the final desired location.
+  planning_models::KinematicState proxy_state = start_state;
   planning_models::KinematicState goal_state = start_state;
-  const moveit_msgs::Constraints &c = req.motion_plan_request.goal_constraints[0];
+  planning_models::KinematicState constrained_goal_state = start_state;
 
+  const moveit_msgs::Constraints &c = req.motion_plan_request.goal_constraints[0];
   std::map<std::string, double> update;
   for (std::size_t i = 0 ; i < c.joint_constraints.size() ; ++i)
   {
     update[c.joint_constraints[i].joint_name] = c.joint_constraints[i].position;
   }
   goal_state.setStateValues(update);
-  unsigned int steps = 1  + (start_state.distance(goal_state) / 0.03);
 
+  // Move proxy an epsilon distance toward the goal
+  planning_models::KinematicStatePtr point = planning_models::KinematicStatePtr(new planning_models::KinematicState(start_state));
+  createKinematicStatePoint(planning_scene, start_state, goal_state, update, 0.001, point);
 
+  // get contact set
+  collision_detection::CollisionRequest collision_request;
+  collision_request.max_contacts = 100;
+  collision_request.contacts = true;
+  collision_request.distance = false;
+  collision_request.verbose = false;
+  collision_detection::CollisionResult collision_result;
+  planning_scene->checkCollision(collision_request, collision_result, *point);
 
+  // extract all contact points and normals, get associated Jacobians.
+
+  // pack into solver data structure, run solver.
+
+  // extract into constrained goal state.
+
+  unsigned int steps = 1  + (start_state.distance(constrained_goal_state) / 0.001);
 
   std::vector<planning_models::KinematicStatePtr> path;
   if(planning_scene->isStateValid(start_state))
+  {
     path.push_back(planning_models::KinematicStatePtr(new planning_models::KinematicState(start_state)));
+  }
   else
   {
     ROS_ERROR("Can't plan, start state is not valid.");
-
-    printCollisionInfo(*planning_scene, start_state);
-
+    //printCollisionInfo(*planning_scene, start_state);
     return false;
   }
-
 
   if (steps < 3)
   {
@@ -76,40 +156,15 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   }
   else
   {
-    for (size_t s = 1 ; s <= 5 ; ++s)
+    for (size_t s = 1 ; s <= steps ; ++s)
     {
       planning_models::KinematicStatePtr point = planning_models::KinematicStatePtr(new planning_models::KinematicState(start_state));
-      for (std::map<std::string, double>::const_iterator it = update.begin() ; it != update.end() ; ++it)
-      {
-        double sv = start_state.getJointState(it->first)->getVariableValues()[0];
-        double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
-        std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
-        double u = 0;
-        moveit_msgs::JointLimits &limit = limits[0];
-        bool continuous = !limit.has_position_limits;
-
-
-        //ROS_INFO("Joint %s is continuous: %d, start = %.2f, goal = %.2f ", limit.joint_name.c_str(), continuous, sv, gv);
-
-        gv = normalizeAngle(gv);
-        sv = normalizeAngle(sv);
-        // Handle wrap around
-        double delta = gv - sv;
-        if( delta >= M_PI || delta <= -M_PI )
-          u = sv  - s * delta/(double)steps;
-        else
-          u = sv  + s * delta/(double)steps;
-
-        //ROS_INFO("Now start = %.2f, goal = %.2f, update = %.2f ", sv, gv, u);
-
-        //planning_models::KinematicModel::JointModel jm = planning_scene->getKinematicModel()->getJointModel(it->first)->getType();
-        point->getJointState(it->first)->setVariableValues(&u);
-      }
+      createKinematicStatePoint(planning_scene, start_state, goal_state, update, s, steps, point);
       if (planning_scene->isStateValid(*point))
         path.push_back(point);
       else
       {
-        printCollisionInfo(*planning_scene, *point);
+        //printCollisionInfo(*planning_scene, *point);
         break;
       }
     }
