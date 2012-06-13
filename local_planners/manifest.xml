@@ -16,7 +16,7 @@
 
   <export>
       <cpp cflags="-I${prefix}/include `rosboost-cfg --cflags`" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -llocal_planners"/>
-    <planning_interface plugin="${prefix}/lib/plugin_description.xml"/>
+    <!-- <planning_interface plugin="${prefix}/lib/plugin_description.xml"/> -->
   </export>
 
 </package>
