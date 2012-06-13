@@ -52,6 +52,60 @@ namespace local_planners {
       }
   }
 
+  inline void createKinematicStatePoint(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                 planning_models::KinematicState &start_state, planning_models::KinematicState &goal_state,
+                                 std::map<std::string, double> &name_map,
+                                 double step_size,
+                                 planning_models::KinematicStatePtr &point)
+  {
+    for (std::map<std::string, double>::const_iterator it = name_map.begin() ; it != name_map.end() ; ++it)
+    {
+      double sv = start_state.getJointState(it->first)->getVariableValues()[0];
+      double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
+      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+      double u = 0;
+      moveit_msgs::JointLimits &limit = limits[0];
+
+      gv = normalizeAngle(gv);
+      sv = normalizeAngle(sv);
+      // Handle wrap around
+      double delta = gv - sv;
+      if( delta >= M_PI || delta <= -M_PI )
+        u = sv - step_size;
+      else
+        u = sv + step_size;
+
+      point->getJointState(it->first)->setVariableValues(&u);
+    }
+  }
+
+  inline void createKinematicStatePoint(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                 planning_models::KinematicState &start_state, planning_models::KinematicState &goal_state,
+                                 std::map<std::string, double> &name_map,
+                                 unsigned int step_index, unsigned int num_steps,
+                                 planning_models::KinematicStatePtr &point)
+  {
+    for (std::map<std::string, double>::const_iterator it = name_map.begin() ; it != name_map.end() ; ++it)
+    {
+      double sv = start_state.getJointState(it->first)->getVariableValues()[0];
+      double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
+      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+      double u = 0;
+      moveit_msgs::JointLimits &limit = limits[0];
+
+      gv = normalizeAngle(gv);
+      sv = normalizeAngle(sv);
+      // Handle wrap around
+      double delta = gv - sv;
+      if( delta >= M_PI || delta <= -M_PI )
+        u = sv - step_index * delta/(double)num_steps;
+      else
+        u = sv + step_index * delta/(double)num_steps;
+
+      point->getJointState(it->first)->setVariableValues(&u);
+    }
+  }
+
 }
 
 #endif
