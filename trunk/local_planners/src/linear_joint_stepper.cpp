@@ -1,7 +1,9 @@
+#include <local_planners/util.h>
 #include <local_planners/linear_joint_stepper.h>
 #include <pluginlib/class_list_macros.h>
 #include <planning_models/kinematic_model.h>
-#include <local_planners/util.h>
+#include <planning_interface/planning_interface.h>
+
 
 namespace local_planners{
 
@@ -98,5 +100,5 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
 
 PLUGINLIB_DECLARE_CLASS(local_planners, LinearJointStepper,
                         local_planners::LinearJointStepper,
-                        planning_interface::Planner);
+                        planning_interface::Planner)
 

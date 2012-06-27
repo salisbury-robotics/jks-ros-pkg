@@ -45,11 +45,11 @@ class TeleopVisualizationQtWrapper : public QObject, public TeleopVisualization
   Q_OBJECT
 public:
   
-  TeleopVisualizationQtWrapper(planning_scene::PlanningSceneConstPtr planning_scene,
-                                 const std::map<std::string, std::vector<moveit_msgs::JointLimits> >& group_joint_limits_map,
-                                 boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server, 
-                                 boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader>& kinematics_plugin_loader,
-                                 ros::Publisher& marker_publisher);
+  TeleopVisualizationQtWrapper(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                               const boost::shared_ptr<planning_pipeline::PlanningPipeline>& move_group_pipeline,
+                               boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
+                               boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematic_model_loader,
+                               ros::Publisher& marker_publisher);
 
   ~TeleopVisualizationQtWrapper() {
   }
