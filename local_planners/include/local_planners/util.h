@@ -1,11 +1,15 @@
 #ifndef LOCAL_PLANNERS_UTIL_H
 #define LOCAL_PLANNERS_UTIL_H
 
-#include <planning_scene/planning_scene.h>
+#include <ros/ros.h>
+
+#include <urdf_model/model.h>
 #include <moveit_msgs/GetMotionPlan.h>
 #include <moveit_msgs/MotionPlanDetailedResponse.h>
+#include <planning_scene/planning_scene.h>
 #include <planning_interface/planning_interface.h>
 #include <planning_models/conversions.h>
+
 
 namespace local_planners {
 
@@ -62,7 +66,7 @@ namespace local_planners {
     {
       double sv = start_state.getJointState(it->first)->getVariableValues()[0];
       double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
-      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getLimits();
       double u = 0;
       moveit_msgs::JointLimits &limit = limits[0];
 
@@ -89,7 +93,7 @@ namespace local_planners {
     {
       double sv = start_state.getJointState(it->first)->getVariableValues()[0];
       double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
-      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getJointLimits();
+      std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getLimits();
       double u = 0;
       moveit_msgs::JointLimits &limit = limits[0];
 

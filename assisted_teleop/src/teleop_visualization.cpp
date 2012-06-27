@@ -34,26 +34,21 @@
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <kinematic_constraints/utils.h>
 #include <planning_models/conversions.h>
-#include <trajectory_processing/iterative_smoother.h>
-#include <trajectory_processing/unnormalize_shortcutter.h>
 
 namespace moveit_visualization_ros {
 
-  //static const float TELEOP_PERIOD = 0.5; //0.03333;
-
-  static bool constraint_aware = false;
-
 TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                             const std::map<std::string, std::vector<moveit_msgs::JointLimits> >& group_joint_limit_map,
-                                             boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
-                                             boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader>& kinematics_plugin_loader,
-                                             ros::Publisher& marker_publisher)
-  : planning_scene_(planning_scene), 
-    ompl_interface_(planning_scene->getKinematicModel()),
-    group_joint_limit_map_(group_joint_limit_map),
-    last_trajectory_ok_(false)
+                                         const boost::shared_ptr<planning_pipeline::PlanningPipeline>& move_group_pipeline,
+                                         boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
+                                         boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematic_model_loader,
+                                         ros::Publisher& marker_publisher)
+  : planning_scene_(planning_scene),
+    move_group_pipeline_(move_group_pipeline),
+    last_start_state_(planning_scene->getCurrentState()),
+    last_trajectory_ok_(false),
+    cycle_ok_(false)
 {
-  ompl_interface_.getPlanningContextManager().setMaximumSolutionSegmentLength(.1);
+  //ompl_interface_.getPlanningContextManager().setMaximumSolutionSegmentLength(.1);
 
   const std::vector<srdf::Model::Group>& groups = planning_scene_->getSrdfModel()->getGroups();
 
@@ -62,33 +57,29 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
     if(groups[i].chains_.size() > 0 || groups[i].name_ == "arms") {
       group_visualization_map_[groups[i].name_].reset(new KinematicsStartGoalVisualization(planning_scene,
                                                                                            interactive_marker_server,
-                                                                                           kinematics_plugin_loader,
+                                                                                           kinematic_model_loader,
                                                                                            groups[i].name_,
                                                                                            marker_publisher,
                                                                                            false));
       group_visualization_map_[groups[i].name_]->addMenuEntry("Plan", boost::bind(&TeleopVisualization::generatePlan, this, _1, true));
+      //group_visualization_map_[groups[i].name_]->addMenuEntry("Plan out and back", boost::bind(&TeleopVisualization::generateOutAndBackPlan, this, _1, true));
+      group_visualization_map_[groups[i].name_]->addMenuEntry("Play last trajectory", boost::bind(&TeleopVisualization::playLastTrajectory, this));
       group_visualization_map_[groups[i].name_]->addMenuEntry("Random start / goal", boost::bind(&TeleopVisualization::generateRandomStartEnd, this, _1));
       group_visualization_map_[groups[i].name_]->addMenuEntry("Reset start and goal", boost::bind(&TeleopVisualization::resetStartGoal, this, _1));
       group_visualization_map_[groups[i].name_]->setGoodBadMode(true);
     }
   }
 
-  unnormalize_shortcutter_.reset(new trajectory_processing::UnnormalizeShortcutter(planning_scene->getKinematicModel()));
-  trajectory_smoother_.reset(new trajectory_processing::IterativeParabolicSmoother());
- 
-  joint_trajectory_visualization_.reset(new JointTrajectoryVisualization(planning_scene,
-                                                                         marker_publisher));
-
+  joint_trajectory_visualization_.reset(new JointTrajectoryVisualization(planning_scene, marker_publisher));
   collision_visualization_.reset(new CollisionVisualization(marker_publisher));
 
   ros::NodeHandle nh;
   display_traj_publisher_ = nh.advertise<moveit_msgs::DisplayTrajectory>("display_trajectory", 1);
 
   ros::NodeHandle pnh("~");
-  double period = 0.0333;
-  pnh.param("teleop_period", period, 0.0333);
-  teleop_timer_ =  nh.createTimer(ros::Duration(period), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
-  pnh.param("constraint_aware", constraint_aware, false);
+  pnh.param("teleop_period", teleop_period_, 0.0333);
+  teleop_timer_ =  nh.createTimer(ros::Duration(teleop_period_), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
+  pnh.param("constraint_aware", constraint_aware_, false);
 
 }
 
@@ -157,6 +148,16 @@ void TeleopVisualization::setStartState(const std::string& group_name,
   group_visualization_map_.at(group_name)->setStartState(state);
 }
 
+void TeleopVisualization::addStateChangedCallback(const boost::function<void(const std::string&,
+                                                                               const planning_models::KinematicState&)>& callback)
+{
+  for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
+      it != group_visualization_map_.end();
+      it++) {
+    it->second->addStateChangedCallback(callback);
+  }
+}
+
 void TeleopVisualization::setAllStartChainModes(bool chain) {
   for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
       it != group_visualization_map_.end(); 
@@ -191,15 +192,11 @@ bool TeleopVisualization::getProxyState(planning_models::KinematicState* kin_sta
   planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
   planning_models::robotStateToKinematicState(robot_state, *kin_state);
 
-  //
-
   return true;
 }
 
 void TeleopVisualization::generatePlan(const std::string& name, bool play) {
-
   bool print = true;
-
   ROS_INFO_STREAM_COND(print, "Planning for " << name);
   if(group_visualization_map_.find(name) == group_visualization_map_.end()) {
     ROS_INFO_STREAM_COND(print, "No group " << name << " so can't plan");
@@ -218,26 +215,15 @@ void TeleopVisualization::generatePlan(const std::string& name, bool play) {
                   traj,
                   robot_traj,
                   error_code)) {
-    std_msgs::ColorRGBA col;
-    col.a = .8;
-    col.b = 1.0;
-
-    joint_trajectory_visualization_->setTrajectory(start_state,
-                                                   name,
-                                                   traj,
-                                                   col);
-    if(play) {
-      joint_trajectory_visualization_->playCurrentTrajectory();
-    }
-    moveit_msgs::DisplayTrajectory d;
-    d.model_id = planning_scene_->getKinematicModel()->getName();
-    planning_models::kinematicStateToRobotState(start_state, d.trajectory_start);
-    d.trajectory.joint_trajectory = traj;
-    display_traj_publisher_.publish(d);
+    last_start_state_ = start_state;
     last_trajectory_ = traj;
     last_robot_trajectory_ = robot_traj;
     last_group_name_ = name;
     last_trajectory_ok_ = true;
+    cycle_ok_ = true;
+    if(play) {
+      playLastTrajectory();
+    }
   } else {
     last_trajectory_ok_ = false;
     ROS_INFO_STREAM("Planning failed");
@@ -245,15 +231,13 @@ void TeleopVisualization::generatePlan(const std::string& name, bool play) {
 }
 
 bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
-                                                 const std::string& group_name,
-                                                 const planning_models::KinematicState* start_state,
-                                                 const planning_models::KinematicState* goal_state,
-                                                 trajectory_msgs::JointTrajectory& ret_traj,
-                                                 moveit_msgs::RobotTrajectory& robot_traj,
-                                                 moveit_msgs::MoveItErrorCodes& error_code) const
+                                               const std::string& group_name,
+                                               const planning_models::KinematicState* start_state,
+                                               const planning_models::KinematicState* goal_state,
+                                               trajectory_msgs::JointTrajectory& ret_traj,
+                                               moveit_msgs::RobotTrajectory& robot_traj,
+                                               moveit_msgs::MoveItErrorCodes& error_code) const
 {
-  bool print = true;
-
   moveit_msgs::GetMotionPlan::Request req;
   moveit_msgs::GetMotionPlan::Response res;
 
@@ -265,60 +249,108 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
   req.motion_plan_request.num_planning_attempts = 1;
   req.motion_plan_request.allowed_planning_time = ros::Duration(0.45);
 
-  
-  static ros::Duration average_duration = ros::Duration(0);
-  ros::Time start_time = ros::Time::now();
-
-  //bool success = ompl_interface_.solve(scene, req, res);
-  bool success = my_planner_.solve(scene, req, res);
-
-  robot_traj = res.trajectory;
-  ret_traj = res.trajectory.joint_trajectory;
-
-  if(success) {
-    static ros::Duration average_duration = ros::Duration(0);
-    ros::Time start_time = ros::Time::now();
-
-    ROS_INFO_STREAM_COND(print, "Got " << res.trajectory.joint_trajectory.points.size());
-    ROS_INFO_STREAM_COND(print, "Original last time " << res.trajectory.joint_trajectory.points.back().time_from_start);
-    trajectory_msgs::JointTrajectory traj;
-    moveit_msgs::MoveItErrorCodes error_code;
-    moveit_msgs::Constraints emp_constraints;
-    unnormalize_shortcutter_->shortcut(scene,
-                                       group_name,
-                                       start_state,
-                                       group_joint_limit_map_.at(group_name),
-                                       emp_constraints,
-                                       emp_constraints,
-                                       res.trajectory.joint_trajectory,
-                                       ros::Duration(0.0),
-                                       traj,
-                                       error_code);
-
-
-    ret_traj = traj;
-
-//    trajectory_smoother_->smooth(traj,
-//                                 ret_traj,
-//                                 group_joint_limit_map_.at(group_name));
-//    ROS_INFO_STREAM_COND(print, "Smoothed last time " << ret_traj.points.back().time_from_start);
-
-    ros::Duration elapsed = ros::Time::now() - start_time;
-    float lambda = 0.1;
-    average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
-    ROS_INFO("Unnormalizing took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+  if(!move_group_pipeline_->generatePlan(scene, req, res)) {
+    ROS_WARN_STREAM("Response traj " << res.trajectory.joint_trajectory);
+    return false;
   }
-  //else {
-  //  return_val = false;
-  //}
+  ret_traj = res.trajectory.joint_trajectory;
+  return true;
+}
 
-  ros::Duration elapsed = ros::Time::now() - start_time;
-  float lambda = 0.1;
-  average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
-  ROS_INFO("All planning took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+//bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
+//                                                 const std::string& group_name,
+//                                                 const planning_models::KinematicState* start_state,
+//                                                 const planning_models::KinematicState* goal_state,
+//                                                 trajectory_msgs::JointTrajectory& ret_traj,
+//                                                 moveit_msgs::RobotTrajectory& robot_traj,
+//                                                 moveit_msgs::MoveItErrorCodes& error_code) const
+//{
+//  bool print = true;
 
-  return success;
-}                                         
+//  moveit_msgs::GetMotionPlan::Request req;
+//  moveit_msgs::GetMotionPlan::Response res;
+
+//  req.motion_plan_request.group_name = group_name;
+//  planning_models::kinematicStateToRobotState(*start_state,req.motion_plan_request.start_state);
+//  req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(goal_state->getJointStateGroup(group_name),
+//                                                                                                     .001, .001));
+
+//  req.motion_plan_request.num_planning_attempts = 1;
+//  req.motion_plan_request.allowed_planning_time = ros::Duration(0.1);
+
+  
+//  static ros::Duration average_duration = ros::Duration(0);
+//  ros::Time start_time = ros::Time::now();
+
+//  //bool success = ompl_interface_.solve(scene, req, res);
+//  bool success = my_planner_.solve(scene, req, res);
+
+//  robot_traj = res.trajectory;
+//  ret_traj = res.trajectory.joint_trajectory;
+
+//  if(success) {
+//    static ros::Duration average_duration = ros::Duration(0);
+//    ros::Time start_time = ros::Time::now();
+
+//    ROS_INFO_STREAM_COND(print, "Got " << res.trajectory.joint_trajectory.points.size());
+//    ROS_INFO_STREAM_COND(print, "Original last time " << res.trajectory.joint_trajectory.points.back().time_from_start);
+//    trajectory_msgs::JointTrajectory traj;
+//    moveit_msgs::MoveItErrorCodes error_code;
+//    moveit_msgs::Constraints emp_constraints;
+//    unnormalize_shortcutter_->shortcut(scene,
+//                                       group_name,
+//                                       start_state,
+//                                       group_joint_limit_map_.at(group_name),
+//                                       emp_constraints,
+//                                       emp_constraints,
+//                                       res.trajectory.joint_trajectory,
+//                                       ros::Duration(0.0),
+//                                       traj,
+//                                       error_code);
+
+
+//    ret_traj = traj;
+
+////    trajectory_smoother_->smooth(traj,
+////                                 ret_traj,
+////                                 group_joint_limit_map_.at(group_name));
+////    ROS_INFO_STREAM_COND(print, "Smoothed last time " << ret_traj.points.back().time_from_start);
+
+//    ros::Duration elapsed = ros::Time::now() - start_time;
+//    float lambda = 0.1;
+//    average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
+//    ROS_INFO("Unnormalizing took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+//  }
+//  //else {
+//  //  return_val = false;
+//  //}
+
+//  ros::Duration elapsed = ros::Time::now() - start_time;
+//  float lambda = 0.1;
+//  average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
+//  ROS_INFO("All planning took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+
+//  return success;
+//}
+
+void TeleopVisualization::playLastTrajectory() {
+  if(!last_trajectory_ok_) return;
+
+  std_msgs::ColorRGBA col;
+  col.a = .8;
+  col.b = 1.0;
+
+  joint_trajectory_visualization_->setTrajectory(last_start_state_,
+                                                 last_group_name_,
+                                                 last_trajectory_,
+                                                 col);
+  joint_trajectory_visualization_->playCurrentTrajectory();
+  moveit_msgs::DisplayTrajectory d;
+  d.model_id = planning_scene_->getKinematicModel()->getName();
+  planning_models::kinematicStateToRobotState(last_start_state_, d.trajectory_start);
+  d.trajectory.joint_trajectory = last_trajectory_;
+  display_traj_publisher_.publish(d);
+}
                                          
 
 void TeleopVisualization::generateRandomStartEnd(const std::string& name) {
@@ -353,7 +385,7 @@ void TeleopVisualization::teleopTimerCallback() {
 
   KinematicsStartGoalVisualization* kg = group_visualization_map_[current_group_].get();
 
-  if(constraint_aware)
+  if(constraint_aware_)
   {
     generatePlan(current_group_, false);
 

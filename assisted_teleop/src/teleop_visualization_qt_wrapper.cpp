@@ -36,12 +36,12 @@
 namespace moveit_visualization_ros {
 
 TeleopVisualizationQtWrapper::
-TeleopVisualizationQtWrapper(planning_scene::PlanningSceneConstPtr planning_scene,
-                               const std::map<std::string, std::vector<moveit_msgs::JointLimits> >& group_joint_limits_map,
-                               boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server, 
-                               boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader>& kinematics_plugin_loader,
-                               ros::Publisher& marker_publisher) :
-  TeleopVisualization(planning_scene, group_joint_limits_map, interactive_marker_server, kinematics_plugin_loader, marker_publisher)
+TeleopVisualizationQtWrapper(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                             const boost::shared_ptr<planning_pipeline::PlanningPipeline>& move_group_pipeline,
+                             boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
+                             boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematic_model_loader,
+                             ros::Publisher& marker_publisher) :
+  TeleopVisualization(planning_scene, move_group_pipeline, interactive_marker_server, kinematic_model_loader, marker_publisher)
 {
   qRegisterMetaType<planning_models::KinematicState*>("KinematicState");
   qRegisterMetaType<trajectory_msgs::JointTrajectory>("trajectory_msgs::JointTrajectory");
@@ -68,8 +68,8 @@ void TeleopVisualizationQtWrapper::generatePlanRequested(bool play) {
 }
 
 void TeleopVisualizationQtWrapper::generatePlanDiffSceneRequested(const std::string& group,
-                                                                    const planning_scene::PlanningSceneConstPtr& scene,
-                                                                    const planning_models::KinematicState* goal_state) 
+                                                                  const planning_scene::PlanningSceneConstPtr& scene,
+                                                                  const planning_models::KinematicState* goal_state)
 {
   trajectory_msgs::JointTrajectory traj;
   moveit_msgs::RobotTrajectory robot_traj;
@@ -90,14 +90,14 @@ void TeleopVisualizationQtWrapper::generatePlanDiffSceneRequested(const std::str
 
 
 void TeleopVisualizationQtWrapper::setStartStateRequested(const std::string& group_name,
-                                                            const planning_models::KinematicState* state)
+                                                          const planning_models::KinematicState* state)
 {
   setStartState(group_name,
                 *state);
 }
 
-void TeleopVisualizationQtWrapper::setGoalStateRequested(const std::string& group_name,
-                                                           const planning_models::KinematicState* state)
+void TeleopVisualizationQtWrapper::setGoalStateRequested( const std::string& group_name,
+                                                          const planning_models::KinematicState* state)
 {
   setGoalState(group_name,
                *state);

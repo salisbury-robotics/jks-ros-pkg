@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2012, Willow Garage, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Willow Garage, Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived from
+ *       this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #ifndef _ASSISTED_TELEOP_H_
 #define _ASSISTED_TELEOP_H_
 
@@ -6,8 +35,8 @@
 #include <moveit_visualization_ros/interactive_object_visualization_widget.h>
 #include <moveit_visualization_ros/planning_group_selection_menu.h>
 #include <moveit_visualization_ros/planning_scene_file_menu.h>
-//#include <moveit_visualization_ros/planning_visualization_qt_wrapper.h>
 #include <assisted_teleop/teleop_visualization_qt_wrapper.h>
+#include <moveit_visualization_ros/attach_object_addition_dialog.h>
 #include <planning_scene_monitor_tools/kinematic_state_joint_state_publisher.h>
 #include <trajectory_execution_ros/trajectory_execution_monitor_ros.h>
 
@@ -30,17 +59,23 @@ public:
 
   void updateToCurrentState();
 
-  bool doneWithExecution();
+  bool doneWithExecution(const trajectory_execution::TrajectoryExecutionDataVector& tedv);
 
   void executeLastTrajectory();
 
-  void executeTeleopUpdate(const std::string& group, const trajectory_msgs::JointTrajectory& traj);
+  //void executeTeleopUpdate(const std::string& group, const trajectory_msgs::JointTrajectory& traj);
 
 protected:
 
   void updateSceneCallback();
 
   void publisherFunction(bool joint_states);
+
+  void startCycle();
+  void cycleLastTrajectory();
+  void stopCycle();
+
+  void attachObject(const std::string& name);
 
   bool first_update_;
 
@@ -51,6 +86,7 @@ protected:
   QWidget* main_window_;
   moveit_visualization_ros::PlanningGroupSelectionMenu* planning_group_selection_menu_;
   QMenu* coll_object_menu_;
+  moveit_visualization_ros::AttachObjectAdditionDialog* attach_object_addition_dialog_;
   boost::shared_ptr<tf::TransformListener> transformer_;
 
   bool allow_trajectory_execution_;
@@ -63,9 +99,13 @@ protected:
   boost::shared_ptr<moveit_visualization_ros::TeleopVisualizationQtWrapper> tv_;
   boost::shared_ptr<moveit_visualization_ros::InteractiveObjectVisualizationQtWrapper> iov_;
   boost::shared_ptr<trajectory_execution::TrajectoryExecutionMonitor> trajectory_execution_monitor_;
-  boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader> kinematics_plugin_loader_;
+  boost::shared_ptr<planning_models_loader::KinematicModelLoader> kinematic_model_loader_;
 
-
+  bool execution_succeeded_;
+  boost::shared_ptr<boost::thread> cycle_thread_;
+  boost::condition_variable trajectory_execution_finished_;
+  boost::mutex trajectory_execution_mutex_;
+  bool stop_cycle_requested_;
 };
 
 }

@@ -33,16 +33,15 @@
 #define _TELEOP_VISUALIZATION_H_
 
 #include <ros/ros.h>
-#include <ompl_interface_ros/ompl_interface_ros.h>
 #include <moveit_visualization_ros/kinematics_start_goal_visualization.h>
 #include <moveit_visualization_ros/joint_trajectory_visualization.h>
 #include <boost/function.hpp>
-#include <trajectory_processing/trajectory_smoother.h>
-#include <trajectory_processing/trajectory_shortcutter.h>
-#include <kinematics_plugin_loader/kinematics_plugin_loader.h>
+#include <planning_models_loader/kinematic_model_loader.h>
+#include <planning_pipeline/planning_pipeline.h>
+
 #include <moveit_visualization_ros/collision_visualization.h>
 
-#include <local_planners/potential_field_solver.h>
+#include <local_planners/linear_joint_stepper.h>
 
 namespace moveit_visualization_ros
 {
@@ -55,10 +54,10 @@ class TeleopVisualization
 public:
 
   TeleopVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                        const std::map<std::string, std::vector<moveit_msgs::JointLimits> >& group_joint_limit_map,
-                        boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
-                        boost::shared_ptr<kinematics_plugin_loader::KinematicsPluginLoader>& kinematics_plugin_loader,
-                        ros::Publisher& marker_publisher);
+                      const boost::shared_ptr<planning_pipeline::PlanningPipeline>& move_group_pipeline,
+                      boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
+                      boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematics_plugin_loader,
+                      ros::Publisher& marker_publisher);
   
   void updatePlanningScene(const planning_scene::PlanningSceneConstPtr& planning_scene);
 
@@ -81,6 +80,10 @@ public:
     return true;
   }
 
+  bool cycleOk() const {
+    return cycle_ok_;
+  }
+
   void setAllStartChainModes(bool chain);
 
   std::string getCurrentGroup() const {
@@ -92,6 +95,10 @@ public:
 
   void setStartState(const std::string& group_name,
                      const planning_models::KinematicState& state);
+
+  void addStateChangedCallback(const boost::function<void(const std::string&,
+                                                          const planning_models::KinematicState&)>& callback);
+
   /* ael
   void setTeleopExecutionFunction(const TeleopExecutionFunction function)
   {
@@ -119,16 +126,20 @@ protected:
 
   void generateRandomStartEnd(const std::string& name);
   void resetStartGoal(const std::string& name);
+  void playLastTrajectory();
 
   /** @brief Callback for commanding robot to move. */
   void teleopTimerCallback();
 
   planning_scene::PlanningSceneConstPtr planning_scene_;
-  ompl_interface_ros::OMPLInterfaceROS ompl_interface_;
+  boost::shared_ptr<planning_pipeline::PlanningPipeline> move_group_pipeline_;
+
+  //ompl_interface_ros::OMPLInterfaceROS ompl_interface_;
   local_planners::LinearJointStepper my_planner_;
-  boost::shared_ptr<trajectory_processing::TrajectorySmoother> trajectory_smoother_;
-  boost::shared_ptr<trajectory_processing::TrajectoryShortcutter> unnormalize_shortcutter_;
-  std::map<std::string, std::vector<moveit_msgs::JointLimits> > group_joint_limit_map_;
+
+  //boost::shared_ptr<trajectory_processing::TrajectorySmoother> trajectory_smoother_;
+  //boost::shared_ptr<trajectory_processing::TrajectoryShortcutter> unnormalize_shortcutter_;
+
   std::string current_group_;
   std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> > group_visualization_map_;
   boost::shared_ptr<JointTrajectoryVisualization> joint_trajectory_visualization_;
@@ -138,13 +149,14 @@ protected:
   std::string last_group_name_;
   moveit_msgs::RobotTrajectory last_robot_trajectory_;
   trajectory_msgs::JointTrajectory last_trajectory_;
+  planning_models::KinematicState last_start_state_;
   bool last_trajectory_ok_;
+  bool cycle_ok_;
 
   /* ael */
+  double teleop_period_;
+  bool constraint_aware_;
   ros::Timer teleop_timer_;
-  //boost::shared_ptr<TeleopExecutionFunction> teleop_executution_fn_;
-
-
   TrajectoryExecutionFunction trajectory_execution_fn_;
 };
 
