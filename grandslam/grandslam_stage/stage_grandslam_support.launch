@@ -1,0 +1,20 @@
+<launch>
+  <param name="/use_sim_time" value="true" />
+  <param name="/amcl/initial_pose_x" value="9.116" />
+  <param name="/amcl/initial_pose_y" value="10.993" />
+  <param name="/amcl/initial_pose_a" value="1.546" />
+  
+  <node name="stage" type="stageros" pkg="stage" output="log"
+  	  args="$(find stage)/world/willow-erratic.world">
+  </node>
+
+  <include file="$(find grandslam_stage)/move_base.xml"/>
+  <node name="amcl_restarter" pkg="grandslam" type="amcl_restarter" args="$(find grandslam_stage)/amcl_node.xml"/>
+
+  <include file="$(find grandslam)/launch/map_store.launch"/>
+
+  <!--<node name="map_server" pkg="map_server" type="map_server" args="$(find stage)/world/willow-full.pgm 0.1" respawn="false" />-->
+
+  <!--<node name="rviz" pkg="rviz" type="rviz" args="-d $(find navigation_stage)/single_robot.vcg" />-->
+</launch>
+

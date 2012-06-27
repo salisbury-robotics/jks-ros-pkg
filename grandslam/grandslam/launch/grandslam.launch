@@ -1,0 +1,7 @@
+<launch>
+  <include file="$(find grandslam)/launch/map_store.launch" />
+  <node pkg="grandslam" type="grandslam" name="grandslam" output="screen" >
+  	<param name="definition_file" value="$(find grandslam)/maps/clarkcenter.yaml" />
+  </node>
+</launch>
+

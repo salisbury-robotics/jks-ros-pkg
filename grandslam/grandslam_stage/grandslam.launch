@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="grandslam" type="grandslam" name="grandslam" output="screen" >
+  	<param name="definition_file" value="$(find grandslam_stage)/maps/cfg.yaml" />
+  </node>
+</launch>
+

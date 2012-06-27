@@ -1,0 +1,63 @@
+#!/usr/bin/python
+
+import roslib
+roslib.load_manifest('grandslam')
+import rospy
+import subprocess
+import sys
+from nav_msgs.msg import *
+from geometry_msgs.msg import *
+import tf
+
+rospy.init_node("amcl_restart")
+
+proc = None
+shutdown = False
+cached_pose = None
+pose_out = None
+
+def poseCb(msg):
+    global pose_out
+    global cached_pose
+    cached_pose = msg
+    pose_out.publish(msg)
+    
+
+def mapCb(msg):
+    global proc
+    global shutdown
+    global cached_pose
+    rospy.loginfo("Restarting AMCL")
+    if (proc):
+        shutdown = True
+        try:
+            proc.terminate()
+            proc.wait()
+        except:
+            rospy.logerr("Exception when trying to shut down")
+    #write parameters
+    pose = cached_pose
+    if (pose):
+        pose = pose.pose.pose
+        rospy.set_param('/amcl/initial_pose_x', pose.position.x)
+        rospy.set_param('/amcl/initial_pose_y', pose.position.y)
+        roll, pitch, yaw = tf.transformations.euler_from_quaternion( \
+            [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
+        rospy.set_param('/amcl/initial_pose_a', yaw)
+    proc = subprocess.Popen(["roslaunch", sys.argv[1]])
+    shutdown = False
+
+if (len(sys.argv) < 2):
+    rospy.logerr("You must specify a roslaunch file as an argument.")
+else:
+    proc = subprocess.Popen(["roslaunch", sys.argv[1]])
+    secondary = rospy.Subscriber("map", OccupancyGrid, mapCb)
+    pose_out = rospy.Publisher("amclinitialpose", PoseWithCovarianceStamped)
+    sub = rospy.Subscriber("initialpose", PoseWithCovarianceStamped, poseCb)
+    rospy.spin()
+    if (not shutdown):
+        shutdown = True
+        proc.terminate()
+
+
+
