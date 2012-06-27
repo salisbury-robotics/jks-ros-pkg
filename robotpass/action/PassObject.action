@@ -1,0 +1,18 @@
+#goal
+int8 TAKE_OBJECT = 0 #Takes an object away from a person
+int8 GIVE_OBJECT = 1 #Gives an object to a person
+int8 LEFT_ARM = 0
+int8 RIGHT_ARM = 1
+int8 LOW = 0 #Low arm position
+int8 MEDIUM = 1 #Medium arm position
+int8 HIGH = 2 #High arm position
+
+int8 direction #TAKE_OBJECT or GIVE_OBJECT
+int8 arm #Gives you an arm object issue
+int8 arm_position #Position of the arm. For coffee grabbing, we used MEDIUM
+
+string object_name #Used in text to speech. Singular. For example "Please pass me the OBJECT_NAME."
+---
+#Result
+---
+#Feedback
