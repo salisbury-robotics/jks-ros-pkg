@@ -1,0 +1,13 @@
+<launch>
+  <node name="mongo" type="wrapper.py" pkg="mongodb" output="log">
+    <param name="database_path" value="warehouse_data"/>
+    <param name="overwrite" value="false"/>
+  </node>
+  <group ns="map_store">
+    <node pkg="map_store" type="map_manager" name="map_manager" output="screen">
+      <remap from="/map" to="/map_store/map" />
+    </node>
+  </group>
+
+</launch>
+

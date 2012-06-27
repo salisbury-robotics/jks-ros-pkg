@@ -1,0 +1,16 @@
+start_map: willow-up
+maps:
+     - name: willow-up
+     - name: willow-down
+wormholes:
+     - side_a: willow-down
+       side_a_location: [15.262, 46.661]
+       side_b: willow-up
+       side_b_location: [1.613, 46.661]
+       radius: 2.0
+     - side_a: willow-down
+       side_a_location: [19.498, 22.629]
+       side_b: willow-up
+       side_b_location: [5.669, 22.929]
+       radius: 1.0
+    

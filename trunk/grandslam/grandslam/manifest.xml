@@ -1,0 +1,19 @@
+<package>
+  <description brief="robotpass">
+    Grandslam multi-map manager technology
+  </description>
+  <author>Tony Pratkanis</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/grandslam</url>
+  <depend package="rospy"/>
+  <depend package="actionlib"/>
+  <depend package="map_store"/>
+  <depend package="visualization_msgs"/>
+  <depend package="move_base_msgs"/>
+  <depend package="nav_msgs"/>
+  
+  <rosdep name="python-yaml"/>
+</package>
+
+

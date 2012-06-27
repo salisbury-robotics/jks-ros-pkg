@@ -1,0 +1,459 @@
+#!/usr/bin/python
+
+import roslib
+roslib.load_manifest('grandslam')
+import rospy
+import actionlib
+import sys, os
+from map_store.msg import *
+from map_store.srv import *
+from nav_msgs.msg import *
+from nav_msgs.srv import *
+from geometry_msgs.msg import *
+from visualization_msgs.msg import *
+import yaml
+from grandslam.msg import *
+from grandslam.srv import *
+from move_base_msgs.msg import *
+import math
+import tf
+
+class GrandslamDataManager(object):
+    def __init__(self):
+        self.ready = False
+        self.listener = tf.TransformListener()
+        rospy.loginfo("Wait for list_maps")
+        rospy.wait_for_service("map_store/list_maps")
+        self.list_maps_proxy = rospy.ServiceProxy("map_store/list_maps", ListMaps)
+        rospy.loginfo("Wait for publish_map")
+        rospy.wait_for_service('map_store/publish_map')
+        self.select_map_proxy = rospy.ServiceProxy("map_store/publish_map", PublishMap)
+        rospy.loginfo("Wait for dynamic_map")
+        rospy.wait_for_service('map_store/dynamic_map')
+        self.dynamic_map_proxy = rospy.ServiceProxy("map_store/dynamic_map", GetMap)
+
+        self.list_maps_service = rospy.Service('~list_maps', ListMaps, self.list_maps)
+        self.visualization_publisher = rospy.Publisher('visualization_marker', Marker)
+
+        self.n_markers = 0
+
+        self.create_map_db()
+
+        if rospy.has_param('~definition_file'):
+            if (not self.loadyaml(rospy.get_param("~definition_file"))):
+                return
+        else:
+            rospy.logerr("You must specify a definition_file")
+            return
+
+        self.map_publisher = rospy.Publisher("map", OccupancyGrid, latch=True)
+        self.select_map(self.start_map)
+        self.dynamic_map_service = rospy.Service('dynamic_map', GetMap, self.dynamic_map)
+        self.seconday_map_service = rospy.Service('secondary_map', GetMap, self.secondary_map)
+
+        self.get_robot_position()
+       
+        self.ready = True
+
+        self.secondary_map_publisher = rospy.Publisher("secondary_map", OccupancyGrid, latch=True)
+        self.set_map_service = rospy.Service('~set_map', SetMap, self.set_map)
+        self.set_secondary_map_service = rospy.Service('~set_secondary_map', SetMap, self.set_secondary_map)
+
+    def get_robot_position(self):
+        while not rospy.is_shutdown():
+            try:
+                (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.get_rostime())
+                return [trans[0], trans[1]]
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                rospy.sleep(0.1)
+        return None
+    def get_robot_rotation(self):
+        while not rospy.is_shutdown():
+            try:
+                (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.get_rostime())
+                return rot
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                rospy.sleep(0.1)
+        return None
+
+    def set_map(self, msg):
+        rospy.loginfo("Setting map to " + msg.name)
+        if (msg.name in self.map_db):
+            self.select_map(msg.name)
+        return SetMapResponse()
+
+    def set_secondary_map(self, msg):
+        rospy.loginfo("Setting secondary map to " + msg.name)
+        if (msg.name in self.map_db):
+            self.select_map_proxy(self.map_db[msg.name])
+            self.secondary_map_data = self.dynamic_map_proxy().map
+            self.secondary_map_data.info.origin.position.z = -1.0
+            self.secondary_map_data.info.origin.position.x = 0.0
+            self.secondary_map_data.info.origin.position.y = 0.0
+            for i in self.wormholes:
+                ends = [i["side_a"], i["side_b"]]
+                if (msg.name in ends and self.current_map in ends):
+                    if (i["side_b"] == msg.name):
+                        delta_x = i["side_a_location"][0] - i["side_b_location"][0]
+                        delta_y = i["side_a_location"][1] - i["side_b_location"][1]
+                    else:
+                        delta_x = i["side_b_location"][0] - i["side_a_location"][0]
+                        delta_y = i["side_b_location"][1] - i["side_a_location"][1]
+                    self.secondary_map_data.info.origin.position.x = delta_x
+                    self.secondary_map_data.info.origin.position.y = delta_y
+                    break
+            self.secondary_map_publisher.publish(self.secondary_map_data)
+        else:
+            rospy.logerr("Invalid secondary map name. Valid maps: " + str(self.map_db))
+        return SetMapResponse()
+    
+    def list_maps(self, msg):
+        response = ListMapsResponse()
+        for i in self.map_db:
+            next = MapListEntry()
+            next.name = i
+            next.session_id = ""
+            next.date = 0
+            next.map_id = i
+            response.map_list.append(next)
+        return response
+
+    def select_map(self, name):
+        self.current_map = name
+        self.select_map_proxy(self.map_db[name])
+        self.current_map_data = self.dynamic_map_proxy().map
+        self.map_publisher.publish(self.current_map_data)
+        self.publish_markers()
+
+    def secondary_map(self, msg):
+        response = GetMapResponse()
+        response.map = self.secondary_map_data
+        return response
+    
+    def dynamic_map(self, msg):
+        response = GetMapResponse()
+        response.map = self.current_map_data
+        return response
+        
+    def publish_markers(self):
+        n_markers = 0
+        for i in self.wormholes:
+            loc = False
+            if (i["side_a"] == self.current_map):
+                loc = i["side_a_location"]
+            if (i["side_b"] == self.current_map):
+                loc = i["side_b_location"]
+            if (loc):
+                marker = Marker()
+                marker.header.frame_id = "/map"
+                marker.header.stamp = rospy.get_rostime()
+                marker.ns = "grandslam"
+                marker.type = Marker.CYLINDER
+                marker.action = Marker.MODIFY
+                marker.id = n_markers
+                marker.pose.position.x = loc[0]
+                marker.pose.position.y = loc[1]
+                marker.pose.position.z = 0.5
+                marker.pose.orientation.x = 0.0
+                marker.pose.orientation.y = 0.0
+                marker.pose.orientation.z = 0.0
+                marker.pose.orientation.w = 1.0
+                marker.scale.x = i["radius"] * 2.0
+                marker.scale.y = i["radius"] * 2.0
+                marker.scale.z = 1
+                marker.color.a = 1.0
+                marker.color.r = 0.0
+                marker.color.g = 0.0
+                marker.color.b = 1.0
+                
+                n_markers = n_markers + 1
+                self.visualization_publisher.publish(marker)
+
+        if (self.n_markers > n_markers):
+            for i in range(n_markers, self.n_markers):
+                marker = Marker()
+                marker.action = Marker.DELETE
+                marker.id = self.n_markers
+                self.visualization_publisher.publish(marker)
+        self.n_markers = n_markers
+    
+    def loadyaml(self, filename):
+        try:
+            f = open(filename, 'r') 
+            text = f.read()
+            data = yaml.load(text)
+        except:
+            rospy.logerr("Error attempting to load YAML: " + filename)
+            return False
+        if (not "maps" in data):
+            rospy.logerr("YAML file: " + filename + " contains no maps")
+            return False
+        if (not "wormholes" in data):
+            rospy.logerr("YAML file: " + filename + " contains no wormholes")
+            return False
+        if (not "start_map" in data):
+            rospy.logerr("YAML file: " + filename + " contains no start_map")
+            return False
+
+        self.maps = {}
+        for i in data["maps"]:
+            if (not "name" in i):
+                rospy.logerr("YAML file: " + filename + " contains an invalid map with no name")
+                return False
+            if (not i["name"] in self.map_db):
+                rospy.logerr("YAML file: " + filename + " contains an invalid map: " + i["name"] + " that is not in the database")
+                return False
+            self.maps[i["name"]] = self.map_db[i["name"]]
+        
+        self.wormholes = data["wormholes"]
+        n = 0
+        for i in self.wormholes:
+            fields = ["side_a", "side_b", "side_a_location", "side_b_location", "radius"]
+            for f in fields:
+                if (not f in i):
+                    rospy.logerr("YAML file: " + filename + " contains an invalid wormhole, that is missing " + f)
+                    return False
+            if (len(i["side_a_location"]) != 2):
+                rospy.logerr("YAML file: " + filename + " invalid side_a_location: " + i["side_a_location"] + ". Needs to be [x, y]")
+                return False
+            if (len(i["side_b_location"]) != 2):
+                rospy.logerr("YAML file: " + filename + " invalid side_b_location: " + i["side_b_location"] + ". Needs to be [x, y]")
+                return False
+
+            
+
+        self.start_map = data["start_map"]
+
+        return True
+
+    def create_map_db(self):
+        #Create a database of all maps
+        map_list = self.list_maps_proxy()
+        self.map_db = {}
+        for i in map_list.map_list:
+            if (i.name != ""):
+                self.map_db[i.name] = i.map_id
+    
+
+
+
+class GrandslamNavigator():
+    def __init__(self, manager):
+        self.manager = manager
+        self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        self.move_base.wait_for_server()
+        self.action_server = actionlib.SimpleActionServer("grandslam/move", GrandSlamAction,
+                                                          execute_cb=self.execute_cb, auto_start=False)
+        self.pose_pub = rospy.Publisher("initialpose", PoseWithCovarianceStamped)
+        while not self.manager.ready:
+            rospy.sleep(1.0)
+        self.action_server.start()
+
+    def execute_cb(self, goal):
+        print self.manager.current_map
+
+        #Create a graph of all the wormholes
+        graph = {'start': {}, 'end': {}}
+
+        def calc_distance(l1, l2):
+            dx = l1[0] - l2[0]
+            dy = l1[1] - l2[1]
+            return math.sqrt(dx * dx + dy * dy)
+
+        for n in range(0, len(self.manager.wormholes)):
+            graph['wormhole_' + str(n) + '_side_a'] = {}
+            graph['wormhole_' + str(n) + '_side_b'] = {}
+
+        robot_pos = self.manager.get_robot_position()
+                
+        for n in range(0, len(self.manager.wormholes)):
+            wn = self.manager.wormholes[n]
+            n = str(n)
+            
+            #Wormhole traversal. In the future this could be some cost to account for
+            #the difficultly of openning the door or riding in the elevator
+            graph['wormhole_' + n + '_side_a'] = {'wormhole_' + n + '_side_b': 0.0}
+            graph['wormhole_' + n + '_side_b'] = {'wormhole_' + n + '_side_a': 0.0}
+            
+            #Create links accross the map
+            for m in range(0, len(self.manager.wormholes)):
+                wm = self.manager.wormholes[m]
+                m = str(m)
+                if (wn["side_a"] == wm["side_a"]):
+                    graph['wormhole_' + n + '_side_a']['wormhole_' + m + '_side_a'] \
+                        = calc_distance(wn["side_a_location"], wm["side_a_location"])
+                if (wn["side_a"] == wm["side_b"]):
+                    graph['wormhole_' + n + '_side_a']['wormhole_' + m + '_side_b'] \
+                        = calc_distance(wn["side_a_location"], wm["side_b_location"])
+                if (wn["side_b"] == wm["side_b"]):
+                    graph['wormhole_' + n + '_side_b']['wormhole_' + m + '_side_b'] \
+                        = calc_distance(wn["side_b_location"], wm["side_b_location"])
+                if (wn["side_b"] == wm["side_a"]):
+                    graph['wormhole_' + n + '_side_b']['wormhole_' + m + '_side_a'] \
+                        = calc_distance(wn["side_b_location"], wm["side_a_location"])
+
+            if (wn["side_a"] == goal.goal_map):
+                dist = calc_distance([goal.target_pose.pose.position.x, 
+                                      goal.target_pose.pose.position.y], wn["side_a_location"])
+                graph['wormhole_' + n + '_side_a']["end"] = dist
+                graph["end"]['wormhole_' + n + '_side_a'] = dist
+            if (wn["side_b"] == goal.goal_map):
+                dist = calc_distance([goal.target_pose.pose.position.x, 
+                                      goal.target_pose.pose.position.y], wn["side_b_location"])
+                graph['wormhole_' + n + '_side_b']["end"] = dist
+                graph["end"]['wormhole_' + n + '_side_b'] = dist
+            if (wn["side_a"] == self.manager.current_map):
+                dist = calc_distance(robot_pos, wn["side_a_location"])
+                graph['wormhole_' + n + '_side_a']["start"] = dist
+                graph["start"]['wormhole_' + n + '_side_a'] = dist
+            if (wn["side_b"] == self.manager.current_map):
+                dist = calc_distance(robot_pos, wn["side_b_location"])
+                graph['wormhole_' + n + '_side_b']["start"] = dist
+                graph["start"]['wormhole_' + n + '_side_b'] = dist
+
+        
+        path = self.shortest_path(graph, "start", "end")[1:] #skip "start"
+
+
+        offset = []
+
+        while (path[0] != "end"):
+            print path[0]
+            
+            #wormhole
+            n = int(path[0].split("_")[1])
+            pos = self.manager.wormholes[n]["side_" + path[0].split("_")[3] + "_location"]
+            angle = 0
+            radius = self.manager.wormholes[n]["radius"]
+            mapname = self.manager.wormholes[n]["side_" + path[0].split("_")[3]]
+
+            if (mapname != self.manager.current_map):
+                msg = PoseWithCovarianceStamped()
+                msg.header.frame_id = "map"
+                msg.header.stamp = rospy.get_rostime()
+                msg.pose.pose.position.x = pos[0] + offset[0]
+                msg.pose.pose.position.y = pos[1] + offset[1]
+                msg.pose.pose.position.z = 0.0
+                
+                roll, pitch, yaw = tf.transformations.euler_from_quaternion( \
+                    self.manager.get_robot_rotation())
+                quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
+                msg.pose.pose.orientation.x = quat[0]
+                msg.pose.pose.orientation.y = quat[1]
+                msg.pose.pose.orientation.z = quat[2]
+                msg.pose.pose.orientation.w = quat[3]
+
+                print msg
+                self.pose_pub.publish(msg)
+                
+                self.manager.select_map(mapname)
+
+
+            print pos
+            msg = MoveBaseGoal()
+            msg.target_pose.header.stamp = rospy.get_rostime()
+            msg.target_pose.header.frame_id = "map"
+            msg.target_pose.pose.position.x = pos[0]
+            msg.target_pose.pose.position.y = pos[1]
+            msg.target_pose.pose.position.z = 0
+            quat = tf.transformations.quaternion_from_euler(0, 0, angle)
+            msg.target_pose.pose.orientation.x = quat[0]
+            msg.target_pose.pose.orientation.y = quat[1]
+            msg.target_pose.pose.orientation.z = quat[2]
+            msg.target_pose.pose.orientation.w = quat[3]
+            
+
+            print msg
+            self.move_base.send_goal(msg)
+            while (calc_distance(pos, self.manager.get_robot_position()) > radius):
+                rospy.sleep(0.1)
+            self.move_base.cancel_goal()
+            self.move_base.wait_for_result()
+            
+            offset = self.manager.get_robot_position()
+            offset[0] = offset[0] - pos[0]
+            offset[1] = offset[1] - pos[1]
+
+            path = path[1:]
+        
+
+        #Get to the end point
+        msg = MoveBaseGoal()
+        msg.target_pose = goal.target_pose
+        print msg
+        self.move_base.send_goal(msg)
+        self.move_base.wait_for_result()
+        
+        self.action_server.set_succeeded(GrandSlamResult())
+
+    def shortest_path(self, graph, start, end):
+        distances = {}
+        predecessors = {}
+        queue = {}
+        queue[start] = 0
+        
+        while True:
+            #find min
+            vertex = None
+            for v in queue:
+                if (vertex == None):
+                    vertex = v
+                if (queue[v] < queue[vertex]):
+                    vertex = v
+            #Dijksta
+            distances[vertex] = queue[vertex]
+            if (vertex == end):
+                break
+            for option in graph[vertex]:
+                length = distances[vertex] + graph[vertex][option]
+                if option in distances:
+                    if length < distances[vertex]:
+                        print "Error"
+                elif option not in queue or length < queue[option]:
+                    queue[option] = length
+                    predecessors[option] = vertex
+            #Remove
+            del queue[vertex]
+        
+        path = []
+        while True:
+            path.append(end)
+            if (end == start): break
+            end = predecessors[end]
+        path.reverse()
+        return path
+
+
+        
+
+
+class TestClient():
+    def __init__(self):
+        self.action_client = actionlib.SimpleActionClient("grandslam/move", GrandSlamAction)
+        self.action_client.wait_for_server()
+        goal = GrandSlamGoal()
+        goal.target_pose.header.stamp = rospy.get_rostime()
+        goal.target_pose.header.frame_id = "map"
+        #goal.target_pose.pose.position.x = 10.0
+        #goal.target_pose.pose.position.y = 46.661
+        goal.target_pose.pose.position.x = 2.0
+        goal.target_pose.pose.position.y = 46.661
+        goal.target_pose.pose.orientation.w = 1.0
+        goal.goal_map = "willow-up"
+        self.action_client.send_goal(goal)
+                                                          
+
+
+
+if (__name__ == "__main__"):
+    rospy.init_node('grandslam')
+    manager = GrandslamDataManager()
+    navigator = GrandslamNavigator(manager)
+    test = TestClient()
+    while not rospy.is_shutdown():
+        manager.publish_markers()
+        rospy.sleep(1.0)
+
+
+
+
