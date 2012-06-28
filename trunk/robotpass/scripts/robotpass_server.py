@@ -71,21 +71,24 @@ class RobotPass(object):
         self.grip(gripper, 0.09, -1.0)
     
     def gripper_close(self, gripper):
-        self.grip(gripper, 0.00002, 15)
+        self.grip(gripper, 0.00002, 20)
     
-    def start_wait_for_hit(self, sensor):
+    def start_wait_for_hit(self, sensor, mag = 4.5):
         if (not self.hit_started):
             place_goal = PR2GripperEventDetectorGoal()
             place_goal.command.trigger_conditions = 4 # use just acceleration as our contact signal
-            place_goal.command.acceleration_trigger_magnitude = 4.0 # m/^2
+            place_goal.command.acceleration_trigger_magnitude = mag # m/^2
             place_goal.command.slip_trigger_magnitude = 0.008 # slip gain
             sensor.send_goal(place_goal)
+        else:
+            rospy.logerr("Hit already started")
         self.hit_started = True
 
     def wait_for_hit(self, sensor):
         if (not self.hit_started):
             start_wait_for_hit()
         sensor.wait_for_result()
+        self.hit_started = False
 
     def tts(self, text):
         #FIXME: Should use sound_play once we fix it.
@@ -163,8 +166,8 @@ class RobotPass(object):
         arm.wait_for_result()
         self.gripper_close(gripper)
         gripper.wait_for_result()
-    
-        self.start_wait_for_hit(sensor)
+
+        self.start_wait_for_hit(sensor, 4.0)
         self.tts("Please take the %s." % object_name)
         self.wait_for_hit(sensor)
         
