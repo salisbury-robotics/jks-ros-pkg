@@ -139,10 +139,9 @@ class GrandslamDataManager(object):
         n_markers = 0
         for i in self.wormholes:
             loc = False
-            if (i["side_a"] == self.current_map):
-                loc = i["side_a_location"]
-            if (i["side_b"] == self.current_map):
-                loc = i["side_b_location"]
+            for location in i["locations"]:
+                if (location["map"] == self.current_map):
+                    loc = location["position"]
             if (loc):
                 marker = Marker()
                 marker.header.frame_id = "/map"
@@ -158,8 +157,12 @@ class GrandslamDataManager(object):
                 marker.pose.orientation.y = 0.0
                 marker.pose.orientation.z = 0.0
                 marker.pose.orientation.w = 1.0
-                marker.scale.x = i["radius"] * 2.0
-                marker.scale.y = i["radius"] * 2.0
+                if "radius" in i:
+                    marker.scale.x = i["radius"] * 2.0
+                    marker.scale.y = i["radius"] * 2.0
+                else:
+                    marker.scale.x = 0.5
+                    marker.scale.y = 0.5
                 marker.scale.z = 1
                 marker.color.a = 1.0
                 marker.color.r = 0.0
@@ -208,17 +211,29 @@ class GrandslamDataManager(object):
         self.wormholes = data["wormholes"]
         n = 0
         for i in self.wormholes:
-            fields = ["side_a", "side_b", "side_a_location", "side_b_location", "radius"]
-            for f in fields:
-                if (not f in i):
-                    rospy.logerr("YAML file: " + filename + " contains an invalid wormhole, that is missing " + f)
+            if (not "name" in i):
+                rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing a name")
+                return False
+            if (not "locations" in i):
+                rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing locations")
+                return False
+            if (not "type" in i):
+                rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing type")
+                return False
+            valid_types = ["normal"]
+            if (not i["type"] in valid_types):
+                rospy.logerr("YAML file: " + filename + " contains an invalid wormhole of type " + i["type"]
+                             + " valid types are: " + str(valid_types))
+                return False
+            for loc in i["locations"]:
+                if (not "map" in loc):
+                    rospy.logerr("YAML file: " + filename + " contains an invalid location which is missing a map")
                     return False
-            if (len(i["side_a_location"]) != 2):
-                rospy.logerr("YAML file: " + filename + " invalid side_a_location: " + i["side_a_location"] + ". Needs to be [x, y]")
-                return False
-            if (len(i["side_b_location"]) != 2):
-                rospy.logerr("YAML file: " + filename + " invalid side_b_location: " + i["side_b_location"] + ". Needs to be [x, y]")
-                return False
+                if (not "position" in loc):
+                    rospy.logerr("YAML file: " + filename + " contains an invalid location which is missing a position")
+                    return False
+                
+            
 
             
 
@@ -250,9 +265,10 @@ class GrandslamNavigator():
         self.action_server.start()
 
     def execute_cb(self, goal):
-        print self.manager.current_map
+        #print self.manager.current_map
+        #print goal.goal_map
 
-        #Create a graph of all the wormholes
+        #Create a graph of all the wormholes. The nodes are the locations.
         graph = {'start': {}, 'end': {}}
 
         def calc_distance(l1, l2):
@@ -260,96 +276,108 @@ class GrandslamNavigator():
             dy = l1[1] - l2[1]
             return math.sqrt(dx * dx + dy * dy)
 
-        for n in range(0, len(self.manager.wormholes)):
-            graph['wormhole_' + str(n) + '_side_a'] = {}
-            graph['wormhole_' + str(n) + '_side_b'] = {}
+        for w in self.manager.wormholes:
+            #The cost of moving through a wormhole is nothing. In the future, this
+            #could be non-zero if there is an object such as a door or elevator that
+            #could slow the robot's motion.
+            for l in range(0, len(w["locations"])):
+                traverse = {} 
+                for j in range(0, len(w["locations"])):
+                    traverse[str(j) + "_" + w["name"]] = 0
+                graph[str(l) + "_" + w["name"]] = traverse
 
         robot_pos = self.manager.get_robot_position()
-                
-        for n in range(0, len(self.manager.wormholes)):
-            wn = self.manager.wormholes[n]
-            n = str(n)
-            
-            #Wormhole traversal. In the future this could be some cost to account for
-            #the difficultly of openning the door or riding in the elevator
-            graph['wormhole_' + n + '_side_a'] = {'wormhole_' + n + '_side_b': 0.0}
-            graph['wormhole_' + n + '_side_b'] = {'wormhole_' + n + '_side_a': 0.0}
-            
-            #Create links accross the map
-            for m in range(0, len(self.manager.wormholes)):
-                wm = self.manager.wormholes[m]
-                m = str(m)
-                if (wn["side_a"] == wm["side_a"]):
-                    graph['wormhole_' + n + '_side_a']['wormhole_' + m + '_side_a'] \
-                        = calc_distance(wn["side_a_location"], wm["side_a_location"])
-                if (wn["side_a"] == wm["side_b"]):
-                    graph['wormhole_' + n + '_side_a']['wormhole_' + m + '_side_b'] \
-                        = calc_distance(wn["side_a_location"], wm["side_b_location"])
-                if (wn["side_b"] == wm["side_b"]):
-                    graph['wormhole_' + n + '_side_b']['wormhole_' + m + '_side_b'] \
-                        = calc_distance(wn["side_b_location"], wm["side_b_location"])
-                if (wn["side_b"] == wm["side_a"]):
-                    graph['wormhole_' + n + '_side_b']['wormhole_' + m + '_side_a'] \
-                        = calc_distance(wn["side_b_location"], wm["side_a_location"])
-
-            if (wn["side_a"] == goal.goal_map):
-                dist = calc_distance([goal.target_pose.pose.position.x, 
-                                      goal.target_pose.pose.position.y], wn["side_a_location"])
-                graph['wormhole_' + n + '_side_a']["end"] = dist
-                graph["end"]['wormhole_' + n + '_side_a'] = dist
-            if (wn["side_b"] == goal.goal_map):
-                dist = calc_distance([goal.target_pose.pose.position.x, 
-                                      goal.target_pose.pose.position.y], wn["side_b_location"])
-                graph['wormhole_' + n + '_side_b']["end"] = dist
-                graph["end"]['wormhole_' + n + '_side_b'] = dist
-            if (wn["side_a"] == self.manager.current_map):
-                dist = calc_distance(robot_pos, wn["side_a_location"])
-                graph['wormhole_' + n + '_side_a']["start"] = dist
-                graph["start"]['wormhole_' + n + '_side_a'] = dist
-            if (wn["side_b"] == self.manager.current_map):
-                dist = calc_distance(robot_pos, wn["side_b_location"])
-                graph['wormhole_' + n + '_side_b']["start"] = dist
-                graph["start"]['wormhole_' + n + '_side_b'] = dist
-
         
-        path = self.shortest_path(graph, "start", "end")[1:] #skip "start"
+        #Create the graph for each of the wormholes
+        for w in self.manager.wormholes:
+            for l in range(0, len(w["locations"])):
+                #loop through the locations of the wormhole and add links
+                #to the start and end as well as other locations
+                ll = w["locations"][l]
+                for m in self.manager.wormholes:
+                    for j in range(0, len(m["locations"])):
+                        jl = m["locations"][j]
+                        if (ll["map"] == jl["map"]):
+                            #We only need to do this one-way because the other side
+                            #is done automatically in other iterations of the loop.
+                            #For now we use eucleadian distance. This works but it
+                            #would be better if we used actual planner results.
+                            graph[str(l) + "_" + w["name"]][str(j) + "_" + m["name"]] \
+                                = calc_distance(ll["position"], jl["position"])
 
+                if (ll["map"] == goal.goal_map):
+                    dist = calc_distance([goal.target_pose.pose.position.x, 
+                                          goal.target_pose.pose.position.y], ll["position"])
+                    graph[str(l) + "_" + w["name"]]["end"] = dist
+                    graph["end"][str(l) + "_" + w["name"]] = dist
+                if (ll["map"] == self.manager.current_map):
+                    dist = calc_distance(robot_pos, ll["position"])
+                    graph[str(l) + "_" + w["name"]]["start"] = dist
+                    graph["start"][str(l) + "_" + w["name"]] = dist
+        
+        #print graph
+        path = self.shortest_path(graph, "start", "end")[1:] #skip "start"
+        #print path
 
         offset = []
 
         while (path[0] != "end"):
-            print path[0]
+            #print path[0]
             
             #wormhole
-            n = int(path[0].split("_")[1])
-            pos = self.manager.wormholes[n]["side_" + path[0].split("_")[3] + "_location"]
+            name = path[0][path[0].find("_") + 1:]
+            #print name
+            wormhole = None
+            for i in self.manager.wormholes:
+                if (i["name"] == name):
+                    wormhole = i
+            #print wormhole
+            location = wormhole["locations"][int(path[0].split("_")[0])]
+            pos = location["position"]
+            mapname = location["map"]
             angle = 0
-            radius = self.manager.wormholes[n]["radius"]
-            mapname = self.manager.wormholes[n]["side_" + path[0].split("_")[3]]
+            radius = None
+            if "radius" in wormhole: 
+                #This is in fact not required. Some wormholes have zero radius
+                #in which case the robot must drive as close as possible to the
+                #wormhole. Examples include doors and elevators.
+                radius = wormhole["radius"]
+            if "angle" in wormhole:
+                #This requires the robot to take a fixed angle position. This is 
+                #used for things like doors and elevators. It won't work if a
+                #radius is specified
+                angle = wormhole["angle"]
+                if (radius != None):
+                    rospy.logwarn("Angle ignored because radius specified")
 
+            #We have switched maps in the wormhole
             if (mapname != self.manager.current_map):
+                #Create and publish the new pose for AMCL
                 msg = PoseWithCovarianceStamped()
                 msg.header.frame_id = "map"
                 msg.header.stamp = rospy.get_rostime()
+                
                 msg.pose.pose.position.x = pos[0] + offset[0]
                 msg.pose.pose.position.y = pos[1] + offset[1]
                 msg.pose.pose.position.z = 0.0
                 
                 roll, pitch, yaw = tf.transformations.euler_from_quaternion( \
                     self.manager.get_robot_rotation())
+                #print yaw
                 quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
                 msg.pose.pose.orientation.x = quat[0]
                 msg.pose.pose.orientation.y = quat[1]
                 msg.pose.pose.orientation.z = quat[2]
                 msg.pose.pose.orientation.w = quat[3]
 
-                print msg
+                #print msg
                 self.pose_pub.publish(msg)
-                
+                #Select the new map
                 self.manager.select_map(mapname)
 
 
-            print pos
+            #print pos
+            #Create the goal for the next waypoint (at the target)
             msg = MoveBaseGoal()
             msg.target_pose.header.stamp = rospy.get_rostime()
             msg.target_pose.header.frame_id = "map"
@@ -363,13 +391,18 @@ class GrandslamNavigator():
             msg.target_pose.pose.orientation.w = quat[3]
             
 
-            print msg
+            #print msg
+            #print "Wait for move base"
             self.move_base.send_goal(msg)
-            while (calc_distance(pos, self.manager.get_robot_position()) > radius):
-                rospy.sleep(0.1)
-            self.move_base.cancel_goal()
+            if (radius != None):
+                #print "with radius", pos
+                while (calc_distance(pos, self.manager.get_robot_position()) > radius 
+                       and not rospy.is_shutdown()):
+                    rospy.sleep(0.1)
+                self.move_base.cancel_goal()
             self.move_base.wait_for_result()
             
+            #print "done"
             offset = self.manager.get_robot_position()
             offset[0] = offset[0] - pos[0]
             offset[1] = offset[1] - pos[1]
@@ -380,7 +413,7 @@ class GrandslamNavigator():
         #Get to the end point
         msg = MoveBaseGoal()
         msg.target_pose = goal.target_pose
-        print msg
+        #print msg
         self.move_base.send_goal(msg)
         self.move_base.wait_for_result()
         
@@ -434,12 +467,12 @@ class TestClient():
         goal = GrandSlamGoal()
         goal.target_pose.header.stamp = rospy.get_rostime()
         goal.target_pose.header.frame_id = "map"
-        #goal.target_pose.pose.position.x = 10.0
-        #goal.target_pose.pose.position.y = 46.661
-        goal.target_pose.pose.position.x = 2.0
+        goal.target_pose.pose.position.x = 10.0
         goal.target_pose.pose.position.y = 46.661
+        #goal.target_pose.pose.position.x = 2.0
+        #goal.target_pose.pose.position.y = 46.661
         goal.target_pose.pose.orientation.w = 1.0
-        goal.goal_map = "willow-up"
+        goal.goal_map = "willow-down"
         self.action_client.send_goal(goal)
                                                           
 

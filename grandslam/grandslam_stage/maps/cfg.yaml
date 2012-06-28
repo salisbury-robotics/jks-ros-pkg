@@ -3,14 +3,21 @@ maps:
      - name: willow-up
      - name: willow-down
 wormholes:
-     - side_a: willow-down
-       side_a_location: [15.262, 46.661]
-       side_b: willow-up
-       side_b_location: [1.613, 46.661]
+     - name: intern-alley
+       type: normal
        radius: 2.0
-     - side_a: willow-down
-       side_a_location: [19.498, 22.629]
-       side_b: willow-up
-       side_b_location: [5.669, 22.929]
+       locations:
+            - map: willow-down
+              position: [15.262, 46.661]
+            - map: willow-up
+              position: [1.613, 46.661]
+     - name: hallway-door
+       type: normal
        radius: 1.0
+       locations:
+            - map: willow-down
+              position: [19.498, 22.629]
+            - map: willow-up
+              position: [5.669, 22.929]
+
     
