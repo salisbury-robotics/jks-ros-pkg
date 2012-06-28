@@ -1,0 +1,162 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{02c2ac24-c4cc-415d-aacc-cc9cd667923e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{75053b7c-c2d2-4e7e-97f4-46effd77eca0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\crc32.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\deflate.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gzguts.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\inffast.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\inffixed.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\inflate.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\inftrees.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\png.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pngconf.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pngpriv.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\trees.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\zconf.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\zlib.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\zutil.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pnginfo.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pnglibconf.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pngstruct.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pngdebug.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\adler32.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\compress.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crc32.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\deflate.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gzclose.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gzlib.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gzread.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gzwrite.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\infback.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\inffast.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\inflate.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\inftrees.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\png.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngerror.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngget.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngmem.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngpread.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngread.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngrio.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngrtran.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngrutil.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngset.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngtest.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngtrans.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngwio.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngwrite.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngwtran.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pngwutil.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trees.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\uncompr.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\zutil.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

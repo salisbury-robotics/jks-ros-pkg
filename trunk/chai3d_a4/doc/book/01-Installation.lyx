@@ -1,0 +1,608 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass scrbook
+\begin_preamble
+% increase link area for cross-references and autoname them
+\AtBeginDocument{\renewcommand{\ref}[1]{\mbox{\autoref{#1}}}}
+\newlength{\abc}
+\settowidth{\abc}{\space}
+\AtBeginDocument{%
+\addto\extrasenglish{
+ \renewcommand{\equationautorefname}{\hspace{-\abc}}
+ \renewcommand{\sectionautorefname}{sec.\negthinspace}
+ \renewcommand{\subsectionautorefname}{sec.\negthinspace}
+ \renewcommand{\subsubsectionautorefname}{sec.\negthinspace}
+ \renewcommand{\figureautorefname}{Fig.\negthinspace}
+ \renewcommand{\tableautorefname}{Tab.\negthinspace}
+}
+}
+
+% in case somebody want to have the label "Gleichung"
+%\renewcommand{\eqref}[1]{Gleichung~(\negthinspace\autoref{#1})}
+
+% put the link to figure floats to the beginning
+% of the figure and not to its end
+\usepackage[figure]{hypcap}
+
+% the pages of the TOC is numbered roman
+% and a pdf-bookmark for the TOC is added
+\let\myTOC\tableofcontents
+\renewcommand\tableofcontents{%
+  \frontmatter
+  \pdfbookmark[1]{\contentsname}{}
+  \myTOC
+  \mainmatter }
+
+% make caption labels bold
+\setkomafont{captionlabel}{\bfseries}
+\setcapindent{1em}
+
+% enable calculations
+\usepackage{calc}
+
+% fancy page header/footer settings
+\renewcommand{\chaptermark}[1]{\markboth{#1}{#1}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}}
+
+% increase the bottom float placement fraction
+\renewcommand{\bottomfraction}{0.5}
+
+% avoid that floats are placed above its sections
+\let\mySection\section\renewcommand{\section}{\suppressfloats[t]\mySection}
+\end_preamble
+\options intoc,bibliography=totoc,index=totoc,BCOR10mm,captions=tableheading,titlepage,fleqn
+\use_default_options true
+\begin_modules
+customHeadersFooters
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman lmodern
+\font_sans lmss
+\font_typewriter lmtt
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement h
+\paperfontsize 12
+\spacing single
+\use_hyperref true
+\pdf_title "Your title"
+\pdf_author "Your name"
+\pdf_bookmarks true
+\pdf_bookmarksnumbered true
+\pdf_bookmarksopen true
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder true
+\pdf_colorlinks false
+\pdf_backref false
+\pdf_pdfusetitle false
+\pdf_quoted_options "pdfpagelayout=OneColumn, pdfnewwindow=true, pdfstartview=XYZ, plainpages=false"
+\papersize a4paper
+\use_geometry false
+\use_amsmath 2
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 0
+\branch NoChildDocument
+\selected 0
+\filename_suffix 0
+\color #ff0000
+\end_branch
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 2
+\paragraph_separation skip
+\defskip medskip
+\quotes_language english
+\papercolumns 1
+\papersides 2
+\paperpagestyle fancy
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Chapter
+Introduction
+\end_layout
+
+\begin_layout Section
+Overview
+\end_layout
+
+\begin_layout Subsection
+Foreword
+\end_layout
+
+\begin_layout Standard
+The following tutorial was designed to give the reader a short overview
+ about the organization and the fundamental components composing the CHAI3D
+ framework.
+ We advise the reader to use this tutorial in combination with the various
+ examples for which the code has been extensively documented inline.
+ 
+\end_layout
+
+\begin_layout Subsection
+Background 
+\end_layout
+
+\begin_layout Standard
+CHAI3D (Computer Haptics and Active Interface) is an open source set of
+ C++ libraries for com-puter haptics, visualization and interactive real-time
+ simulation.
+ Originally started at the Artifi-cial Intelligence Laboratory at Stanford
+ University, CHAI3D was developed to provide a simple and compact framework
+ for introducing experimental haptics to the research community.
+ With further contributions from EPFL (Switzerland) and the University of
+ Siena (Italy) the first public version of CHAI3D was released in 2004.
+ Written entirely in C++, CHAI 3D was designed to make it easier and more
+ intuitive for developers to produce applications that combine 3D modeling
+ with force-feedback rendering capabilities.
+ By supporting different types of force-feedback devices, CHAI3D offers
+ a unique interface to eas-ily design and deploy advanced computer haptic
+ solutions.
+ Over the years, CHAI 3D has grown to become one of the most popular open-source
+ multi-platform haptics rendering frameworks, and since then, has been used
+ in a large number of re-search and production projects, in such diverse
+ areas as games, simulators, educational soft-ware, interactive art, scientific
+ visualization, and medical applications.
+ 
+\end_layout
+
+\begin_layout Subsection
+Capabilities 
+\end_layout
+
+\begin_layout Standard
+CHAI3D combines an extensive number of force rendering algorithms, including
+ the finger-proxy model, potential fields and implicit based models which
+ allow programmers to easily develop sophisticated simulations with integrated
+ force-feedback capabilities.
+ The framework also pro-vides the necessary data structures required to
+ create multi-level scene-graphs which carry static, dynamic and articulated
+ bodies.
+ A lightweight OpenGL-based graphics engine provides the foundations for
+ easy rendering of virtual environments using dedicated 3D graphic accelera-tion
+ hardware.
+ Object meshes, implicit shapes, surface materials and texture properties
+ are all represented in well organized base classes that can easily be extended
+ by the programmer to incorporate more advanced or application-specific
+ features.
+ CHAI3D also provides support for importing 3D files from professional applicati
+ons such as Autodesk 3D Studio Max and Alias Wavefront.
+ 
+\end_layout
+
+\begin_layout Subsection
+Extension Modules 
+\end_layout
+
+\begin_layout Standard
+Support for third party components is achieved through organized extension
+ modules that inde-pendently complement the capabilities of the CHAI 3D
+ core elements.
+ Extension modules cur-rently include the ODE and GEL dynamics engines for
+ simulating rigid and deformable bodies in real time.
+ CHAI 3D currently supports various commercially-available three-, six-
+ and seven-degree-of-freedom haptic devices, and makes it simple to support
+ new custom force feedback devices.
+ Thanks to its lightweight and modular architecture, CHAI3D can easily be
+ combined with third party libraries including graphics or dynamics engines.
+\end_layout
+
+\begin_layout Subsection
+Operating Systems
+\end_layout
+
+\begin_layout Standard
+The CHAI3D framework is currently supported under the following operating
+ systems: 
+\end_layout
+
+\begin_layout Itemize
+Windows
+\end_layout
+
+\begin_layout Itemize
+Mac OS X
+\end_layout
+
+\begin_layout Itemize
+Linux 
+\end_layout
+
+\begin_layout Section
+Installation
+\end_layout
+
+\begin_layout Subsection
+Installing CHAI3D
+\end_layout
+
+\begin_layout Standard
+The latest version of the software can be downloaded from the CHAI3D website.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Open a browser to the following webpage: 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.chai3d.org/download.html
+\end_layout
+
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Enumerate
+Decide which operating system you wish to use.
+ options are: 
+\shape italic
+Windows
+\shape default
+, 
+\shape italic
+Linux
+\shape default
+ and 
+\shape italic
+Mac OS-X
+\shape default
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Download the corresponding compressed file for your platform.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Uncompress the file to your desired working directory.
+ 
+\end_layout
+
+\begin_layout Subsection
+Graphic Drivers
+\end_layout
+
+\begin_layout Standard
+CHAI3D uses the OpenGL framework to perform 3D graphic rendering.
+ Under the Linux and Mac OS-X operating systems, OpenGL drivers are provided
+ by default.
+ If you are using Windows and have installed the operating system directly
+ from a Microsoft Windows Installation CD or DVD, you will need to update
+ your graphic drivers by downloading a fresh copy from the website of your
+ graphic card manufacturer.
+ 
+\end_layout
+
+\begin_layout Standard
+If you card is an ATI or an NVIDIA model, you may find a link to their website
+ here: 
+\end_layout
+
+\begin_layout Itemize
+NVIDIA: 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.nvidia.com
+\end_layout
+
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Itemize
+ATI: 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.amd.com 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that Microsoft only provides an emulated version of OpenGL using DirectX.
+ Therefore if you are encountering any performance issues with the graphic
+ rendering, OpenGL drivers are among the first things to check.
+ 
+\end_layout
+
+\begin_layout Subsection
+Generating Documentation 
+\end_layout
+
+\begin_layout Standard
+HTML documentation is provided with CHAI3D in the ./doc directory.
+ The documentation has been automatically generated from the source code
+ by using the software tool Doxygen.
+ If you wish to regenerate your own documentation with different settings,
+ you will need to install doxy-gen and the GraphViz framework from the following
+ websites:
+\end_layout
+
+\begin_layout Itemize
+Doxygen: http://www.doxygen.org
+\end_layout
+
+\begin_layout Itemize
+GraphViz: http://www.graphviz.org/
+\end_layout
+
+\begin_layout Subsection
+Installing Haptic Devices 
+\end_layout
+
+\begin_layout Standard
+CHAI3D currently supports the following commercial haptic devices:
+\end_layout
+
+\begin_layout Paragraph
+Force Dimension
+\end_layout
+
+\begin_layout Itemize
+omega.x, delta.x and sigma.x haptic devices
+\end_layout
+
+\begin_layout Itemize
+Under the Linux and Mac OS-X platforms the compiles libraries are included
+ with CHAI3D so there is nothing else to do.
+\end_layout
+
+\begin_layout Itemize
+Under Windows you may download the latest drivers from the Force Dimension
+ support website.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+http://www.forcedimension.com/download
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Novint Technologies 
+\end_layout
+
+\begin_layout Itemize
+Falcon haptic device
+\end_layout
+
+\begin_layout Itemize
+Under the Linux and Mac OS-X platforms the binary libraries are included
+ with CHAI3D so there is nothing else to do.
+ Under Windows you may download the latest drivers from the Novint website
+ or directly use Force Dimension's drivers.
+\end_layout
+
+\begin_layout Paragraph
+MPB Technologies
+\end_layout
+
+\begin_layout Itemize
+Freedom6 haptic device
+\end_layout
+
+\begin_layout Itemize
+Please directly contact MPB Technologies to obtain drivers for the Freedom
+ 6 haptic device.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.mpb-technologies.ca/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Sensable Technologies
+\end_layout
+
+\begin_layout Itemize
+PHANToM haptic devices
+\end_layout
+
+\begin_layout Itemize
+Please contact Sensable Technologies to obtain a copy of their latest Windows
+ drivers and a copy of OpenHaptics 3.0 or higher.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.sensable.com/support-downloads
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+If you wish to use two Phantom device simultaneously, please make sure that
+ you name the second device as “Phantom2”.
+ This operation is performed in the main PHANTOM Configuration Panel program.
+\end_layout
+
+\begin_layout Subsection
+SDK
+\end_layout
+
+\begin_layout Paragraph
+Windows
+\end_layout
+
+\begin_layout Standard
+The recommended SDK under Windows is the edition 2008 (MSVC9) of Microsoft
+ Visual Studio.
+ You may also use the free Express Edition which can be downloaded here
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.microsoft.com/exPress/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Linux
+\end_layout
+
+\begin_layout Standard
+The following packages need to be installed.
+ These package include support for USB communication and the OpenGL GLUT
+ display libraries:
+\end_layout
+
+\begin_layout Subparagraph
+ubuntu: 
+\end_layout
+
+\begin_layout Itemize
+libusb-1.0-dev 
+\end_layout
+
+\begin_layout Itemize
+freeglut-dev 
+\end_layout
+
+\begin_layout Subparagraph
+fedora
+\end_layout
+
+\begin_layout Itemize
+libusb1-devel 
+\end_layout
+
+\begin_layout Itemize
+freeglut-devel 
+\end_layout
+
+\begin_layout Subparagraph
+suse: 
+\end_layout
+
+\begin_layout Itemize
+libusb1-devel 
+\end_layout
+
+\begin_layout Itemize
+freeglut-devel 
+\end_layout
+
+\begin_layout Standard
+In order to connect to your haptic device, make sure to run your application
+ with super user privileges (SUDO).
+ This is required for your application to connect to your hard.
+ 
+\end_layout
+
+\begin_layout Paragraph
+Mac OS-X 
+\end_layout
+
+\begin_layout Standard
+CHAI3D requires version 10.6 (Snow Leopard) of the operating system to be
+ installed as well as the latest version of Xcode.
+ More information can be found on the Apple website: 
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://developer.apple.com/tools/xcode/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+\noindent
+License
+\end_layout
+
+\begin_layout Standard
+To be completed
+\end_layout
+
+\end_body
+\end_document
