@@ -74,7 +74,8 @@ IF(APPLE)
                           "-framework OpenGL -framework GLUT"
                           "-framework CoreFoundation -framework IOKit")
 ELSEIF(UNIX)
-    ADD_DEFINITIONS(-DLINUX -fPIC -D_ENABLE_DELTA_DEVICE_SUPPORT -D_ENABLE_PHANTOM_DEVICE_SUPPORT -DO2)
+    ADD_DEFINITIONS(-DLINUX -fPIC -D_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
+    #ADD_DEFINITIONS(-D_ENABLE_PHANTOM_DEVICE_SUPPORT )
     INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/include")
   IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
     SET(CHAI3D_LIBPATH "lin-x86_64/release/")
@@ -84,7 +85,8 @@ ELSEIF(UNIX)
   LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib"
                    "${CHAI3D_SOURCE_DIR}/external/DHD/lib/${CHAI3D_LIBPATH}")
   SET(CHAI_LINK_LIBRARIES "-lHD")
-  SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -ljpeg -lpng -lgif -lHD")
+  #SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -ljpeg -lpng -lgif -lHD")
+  SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -ljpeg -lpng -lgif")
 ENDIF(APPLE)
 
 #-----------------------------------------------------------------------------
