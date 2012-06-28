@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{02c2ac24-c4cc-415d-aacc-cc9cd667923e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{75053b7c-c2d2-4e7e-97f4-46effd77eca0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\lib3ds_atmosphere.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_background.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_camera.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_chunk.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_chunktable.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_file.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_io.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_light.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_material.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_math.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_matrix.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_mesh.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_node.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_quat.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_shadow.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_track.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_util.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_vector.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib3ds_viewport.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\lib3ds.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lib3ds_impl.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,113 @@
+=========================================================
+
+CHAI3D - 3.0
+
+=========================================================
+
+---------------------------------------------------------
+GENERAL						      (1d)
+---------------------------------------------------------     	
+- clean and document cRenderOptions                   (1h)
+- use GL list when possible
+
+
+---------------------------------------------------------
+LIGHTING			                      (1d)
+---------------------------------------------------------         
+- update shadow casting to support old intel cards    (4h)
+- fix transparency with shadows.                      (4h)
+- shadow casting: setSize1024x1024()
+		     
+
+---------------------------------------------------------
+COLLISION					      (1d)
+---------------------------------------------------------
+- move collisionDetector in collision detection function (2h)
+
+
+---------------------------------------------------------
+TOOLS						      (1d)
+---------------------------------------------------------
+- adjust gripper for non omega.7 devices	      (4h)
+
+
+---------------------------------------------------------
+HAPTIC RENDERING	             		      (2d)
+---------------------------------------------------------
+- review magnetic effect			      (3h)
+- review effects with meshes                          (2h)     
+- fix texture rendering                               (4h)
+- fix normal shading (oscillation)		      (4h)
+                     
+
+---------------------------------------------------------
+HAPTIC DEVICES				   	      (1d)
+---------------------------------------------------------
+- compile 32-bit DLL for Sensable device	      (2h)
+
+
+---------------------------------------------------------
+WIDGETS						      (1d)
+---------------------------------------------------------
+- implement setTransparencyLevel() in scope
+- remove applyToTextures in setTransparencyLevel()
+- modify addChild() to automatically set world parent to all children 
+- set m_enabledPanel option
+- cLabel to inherit from cPanel
+
+---------------------------------------------------------
+SHADER						      (2d)
+---------------------------------------------------------
+- create cShaderProgram and related code              (2d)
+- create a directory with shader programs to load     
+
+
+---------------------------------------------------------
+DEMOS						      (5d)   
+---------------------------------------------------------
+
+- 02-multidevice				      (4h)
+- 03-analytics (graphs, plots, etc..)		      (1d)
+- 04-shapes					      (4h)
+- 05-fonts					      (3h)
+- 13-primitives					      (3h)
+- 14-textures					      (2h)
+- 15-paint					      (8h)
+- 16-friction					      (2h)
+- 17-shading					      (2h)
+- 21-object					      (4h)
+- 22-chrome					      (2h)
+- 23-tooth					      (2h)
+- 24-turntable					      (2h)
+
+
+- In all demos, do not start() the tool before adjusting the workspace!
+
+
+---------------------------------------------------------
+ODE						      (4d)
+---------------------------------------------------------
+- fixup previous demos				      (1d)
+- add ODE tool					      (4h)
+- add articulations				      (4h)
+- 43-ODE-robot					      (1d)
+- 44-ODE-polaroid				      (4h)
+- 45-ODE-engine					      (1d)
+
+
+---------------------------------------------------------
+GEL						      (10d)
+---------------------------------------------------------
+- collisions between spheres			      (4h)
+- collision detector for triangles using spheres      (1d)
+- add volume constraint                               (4h)
+- review deformation on vertices attached to links    (1d)
+- proxy for volume rendering                          (1d)
+- GEL Demos					      (3d)
+- proxy model - deformable                            (4h)
+
+---------------------------------------------------------
+DOCUMENTATION					     
+---------------------------------------------------------
+- update and validate doxygen			     	
+- user manual

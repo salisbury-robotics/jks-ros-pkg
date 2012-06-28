@@ -1,0 +1,217 @@
+=============================================================================
+
+CHAI3D 3.0 - DOCUMENTATION
+
+=============================================================================
+
+
+//---------------------------------------------------------------------------
+//!     Timers
+//---------------------------------------------------------------------------
+[s] timers/CFrequencyCounter.h"
+		- some trailing "\t" in the documentation
+		- there is a risk of miscalculating the frequency if it is called irregularly, because the timeout is only reset on ::signal() being called
+		  fixing it requires the ability to reset to clock to an arbitrary value (so that ::signal() can reset it to current_time%timeout)
+[s] timers/CPrecisionClock.h"
+		- some trailing "\t" in the documentation
+		- consider changing clock::reset() to clock::reset(const double a_currentTime) to address concern above
+[s] timers/CThread.h"
+		- updated ::setPriority (esp. the Windows part, now on steroids)
+		- renamed ::set() to ::start()
+		- added ::stop()
+
+
+//---------------------------------------------------------------------------
+//!     Extras
+//---------------------------------------------------------------------------
+[s] "extras/CExtras.h"
+	- deleted (merged into CGlobals.h)
+[s] "extras/CGenericType.h"
+[s] "extras/CGlobals.h"
+	- purged unnecessary OS headers
+[s] "extras/CString.h"
+	- reimplemented most functions using C++ string methods and/or STL functions
+	
+NOTE:
+	- 'extras' renamed to 'system'
+	- 'timers/CThread' has been moved to 'system'
+
+
+//---------------------------------------------------------------------------
+//!	Math 
+//---------------------------------------------------------------------------
+[s] "math/CConstants.h"
+	- not quite sure what to make of C_DBL_MAX (which is either redundant with C_LARGE, or very misleadingly labeled)
+[s] "math/CMaths.h"
+	- why CMaths.cpp ?
+	- is there a point to all the vect/matrix functions (i.e. they are redundant with cVector3d/cMatrix3d operators, which is confusing)
+[s] "math/CMatrix3d.h"
+[s] "math/CQuaternion.h"
+[s] "math/CVector3d.h"
+	- why not put distanceSquaredToPoint() in the header like the rest (it's lonely!)
+
+
+//---------------------------------------------------------------------------
+//!	Devices
+//---------------------------------------------------------------------------
+[s] "devices/CCallback.h"
+	- why CCallback.cpp ?
+[s] "devices/CGenericDevice.h"
+	- refactored m_system* to m_device*
+[s] "devices/CHapticDeviceHandler.h"
+	- suggestion: in order to reduce the class count, why not remove CHapticDeviceHandler and put its members as static members of CGenericHapticDevice ?
+	- removed a "*&" argument in ::getDevice()
+[s] "devices/CGenericHapticDevice.h"
+[s] "devices/CMyCustomDevice.h"
+[s] "devices/CDeltaDevices.h"     
+[s] "devices/CFalconDevice.h"
+[?] "devices/CFreedom6SDevice.h"
+	- non-existent file!
+[s] "devices/CPhantomDevices.h"
+	- missing quite a few parameter documentation - any reason ? (I'm not pushing for better Phantom support :) )
+[s] "devices/CVirtualDevice.h"
+
+
+//---------------------------------------------------------------------------
+//!     Graphics 
+//---------------------------------------------------------------------------
+[ ] "graphics/CColor.h"
+[ ] "graphics/CFog.h"
+[ ] "graphics/CImage.h"
+[ ] "graphics/CEdge.h"
+[ ] "graphics/CFont.h"
+[ ] "graphics/CMacrosGL.h"
+[ ] "graphics/CDraw3D.h"
+[ ] "graphics/CPrimitives.h"
+[ ] "graphics/CVertex.h"
+[ ] "graphics/CTriangle.h"
+[ ] "graphics/CDisplayList.h"
+[ ] "graphics/CRenderOptions.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   resources Resources
+//---------------------------------------------------------------------------
+[ ] "resources/CChai3dLogo.h"
+[ ] "resources/CFontCalibri16.h"
+[ ] "resources/CFontCalibri18.h"
+[ ] "resources/CFontCalibri20.h"
+[ ] "resources/CFontCalibri22.h"
+[ ] "resources/CFontCalibri24.h"
+[ ] "resources/CFontCalibri26.h"
+[ ] "resources/CFontCalibri28.h"
+[ ] "resources/CFontCalibri32.h"
+[ ] "resources/CFontMetaCorr36.h"
+
+
+
+//---------------------------------------------------------------------------
+//!     Material Properties 
+//---------------------------------------------------------------------------
+[ ] "materials/CMaterial.h"
+[ ] "materials/CGenericTexture.h"
+[ ] "materials/CTexture1d.h"
+[ ] "materials/CTexture2d.h"
+
+
+//---------------------------------------------------------------------------
+//!     Files
+//---------------------------------------------------------------------------
+[ ] "files/CFileImageBMP.h"
+[ ] "files/CFileImageGIF.h"
+[ ] "files/CFileImageJPG.h"
+[ ] "files/CFileImagePNG.h"
+[ ] "files/CFileImagePPM.h"
+[ ] "files/CFileImageRAW.h"
+[ ] "files/CFileModel3DS.h"
+[ ] "files/CFileModelOBJ.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   world  World
+//---------------------------------------------------------------------------
+[ ] "world/CGenericObject.h"
+[ ] "world/CWorld.h"
+[ ] "world/CShapeBox.h"
+[ ] "world/CShapeCylinder.h"
+[ ] "world/CShapeLine.h"
+[ ] "world/CShapeSphere.h"
+[ ] "world/CShapeTorus.h"
+[ ] "world/CMesh.h"
+[ ] "world/CMultiMesh.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   lighting  Lighting Properties 
+//---------------------------------------------------------------------------
+[ ] "lighting/CGenericLight.h"
+[ ] "lighting/CDirectionalLight.h"
+[ ] "lighting/CPositionalLight.h"
+[ ] "lighting/CSpotLight.h"
+[ ] "lighting/CShadowMap.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   tools  Haptic Tools
+//---------------------------------------------------------------------------
+[ ] "tools/CInteractionPoint.h"
+[ ] "tools/CGenericTool.h"
+[ ] "tools/CToolCursor.h"
+[ ] "tools/CToolGripper.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   widgets  Widgets
+//---------------------------------------------------------------------------
+[ ] "widgets/CGenericWidget.h"
+[ ] "widgets/CBackground.h"
+[ ] "widgets/CBitmap.h"
+[ ] "widgets/CDial.h"
+[ ] "widgets/CLabel.h"
+[ ] "widgets/CLevel.h"
+[ ] "widgets/CPanel.h"
+[ ] "widgets/CScope.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   effects  Haptic Effects
+//---------------------------------------------------------------------------
+[ ] "effects/CGenericEffect.h"
+[ ] "effects/CEffectMagnet.h"
+[ ] "effects/CEffectPotentialField.h"
+[ ] "effects/CEffectSurface.h"
+[ ] "effects/CEffectStickSlip.h"
+[ ] "effects/CEffectViscosity.h"
+[ ] "effects/CEffectVibration.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   forces  Force Rendering Algorithms
+//---------------------------------------------------------------------------
+[ ] "forces/CInteractionBasics.h"
+[ ] "forces/CGenericForceAlgorithm.h"
+[ ] "forces/CAlgorithmPotentialField.h"
+[ ] "forces/CAlgorithmFingerProxy.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   collisions  Collision Detection
+//---------------------------------------------------------------------------
+[ ] "collisions/CGenericCollision.h"
+[ ] "collisions/CCollisionBasics.h"
+[ ] "collisions/CCollisionBrute.h"
+[ ] "collisions/CCollisionAABB.h"
+[ ] "collisions/CCollisionAABBBox.h"
+[ ] "collisions/CCollisionAABBTree.h"
+
+
+//---------------------------------------------------------------------------
+//!     \defgroup   display  Viewports
+//---------------------------------------------------------------------------
+[ ] "display/CCamera.h"
+[ ] "display/CViewport.h"
+
+
+//---------------------------------------------------------------------------
+#endif
+//---------------------------------------------------------------------------

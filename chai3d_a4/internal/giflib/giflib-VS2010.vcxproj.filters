@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{24cf721d-01e6-4b6b-a6a6-47d58e527df1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{1fd4e27a-0996-4af8-89cf-cae1bdfdec00}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\config.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\getarg.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gif_hash.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gif_lib.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\gif_lib_private.h">
+      <Filter>include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\dev2gif.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dgif_lib.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\egif_lib.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\getarg.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gif_err.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gif_font.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gif_hash.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gifalloc.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\qprintf.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\quantize.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
