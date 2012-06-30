@@ -213,7 +213,7 @@ int hdPhantomSetTorque(const int a_deviceID,
 					   const double *a_torqueY,
 					   const double *a_torqueZ);
 
-int hdPhantomSetForceAndTorque) (const int a_deviceID,
+int hdPhantomSetForceAndTorque(const int a_deviceID,
 								 const double *a_forceX,
 								 const double *a_forceY,
 								 const double *a_forceZ,
@@ -1093,6 +1093,41 @@ int hdPhantomSetTorque(const int a_deviceID,
 	return (0);
 }
 
+//==========================================================================
+/*!
+	Send a force and a torque to the device
+*/
+//==========================================================================
+int hdPhantomSetForceAndTorque(const int a_deviceID, 
+					   const double *a_forceX,
+					   const double *a_forceY,
+					   const double *a_forceZ,
+					   const double *a_torqueX,
+					   const double *a_torqueY,
+					   const double *a_torqueZ)
+{
+	// check id
+	if ((a_deviceID < 0) || (a_deviceID >= numPhantomDevices)) { return (-1); }
+
+	// check if servo started
+	if (!servoStarted) { hdPhantomStartServo(); }
+
+	// check if enabled
+	if (!phantomDevices[a_deviceID].enabled) { return (-1); }
+
+	// set force
+	phantomDevices[a_deviceID].force[2] = *a_forceX;
+	phantomDevices[a_deviceID].force[0] = *a_forceY;
+	phantomDevices[a_deviceID].force[1] = *a_forceZ;
+	
+  // set torque
+	phantomDevices[a_deviceID].torque[2] = *a_torqueX;
+	phantomDevices[a_deviceID].torque[0] = *a_torqueY;
+	phantomDevices[a_deviceID].torque[1] = *a_torqueZ;
+
+	// success
+	return (0);
+}
 
 //==========================================================================
 /*!
