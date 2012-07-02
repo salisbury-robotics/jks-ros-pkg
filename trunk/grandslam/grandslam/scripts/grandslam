@@ -90,15 +90,28 @@ class GrandslamDataManager(object):
             self.secondary_map_data.info.origin.position.z = -1.0
             self.secondary_map_data.info.origin.position.x = 0.0
             self.secondary_map_data.info.origin.position.y = 0.0
+
+            if (self.current_map in self.map_north):
+                yaw = self.map_north[msg.name] - self.map_north[self.current_map]
+            else:
+                yaw = 0
+            quat = tf.transformations.quaternion_from_euler(0, 0, -yaw)
+            self.secondary_map_data.info.origin.orientation.x = quat[0]
+            self.secondary_map_data.info.origin.orientation.y = quat[1]
+            self.secondary_map_data.info.origin.orientation.z = quat[2]
+            self.secondary_map_data.info.origin.orientation.w = quat[3]
+
             for i in self.wormholes:
-                ends = [i["side_a"], i["side_b"]]
-                if (msg.name in ends and self.current_map in ends):
-                    if (i["side_b"] == msg.name):
-                        delta_x = i["side_a_location"][0] - i["side_b_location"][0]
-                        delta_y = i["side_a_location"][1] - i["side_b_location"][1]
-                    else:
-                        delta_x = i["side_b_location"][0] - i["side_a_location"][0]
-                        delta_y = i["side_b_location"][1] - i["side_a_location"][1]
+                pos = {}
+                for loc in i["locations"]:
+                    pos[loc["map"]] = loc["position"]
+                if (msg.name in pos and self.current_map in pos):
+                    angle = math.atan2(pos[msg.name][1], pos[msg.name][0])
+                    distance = pos[msg.name][1] * pos[msg.name][1] + pos[msg.name][0] * pos[msg.name][0]
+                    distance = math.sqrt(distance)
+                    
+                    delta_x = pos[self.current_map][0] + distance * math.cos(angle + yaw)
+                    delta_y = pos[self.current_map][1] + distance * math.sin(angle + yaw)
                     self.secondary_map_data.info.origin.position.x = delta_x
                     self.secondary_map_data.info.origin.position.y = delta_y
                     break
@@ -199,6 +212,7 @@ class GrandslamDataManager(object):
             return False
 
         self.maps = {}
+        self.map_north = {}
         for i in data["maps"]:
             if (not "name" in i):
                 rospy.logerr("YAML file: " + filename + " contains an invalid map with no name")
@@ -206,6 +220,10 @@ class GrandslamDataManager(object):
             if (not i["name"] in self.map_db):
                 rospy.logerr("YAML file: " + filename + " contains an invalid map: " + i["name"] + " that is not in the database")
                 return False
+            if (not "north_angle" in i):
+                rospy.logerr("YAML file: " + filename + " contains an invalid map: " + i["name"] + " that has no north_angle attribute")
+                return False
+            self.map_north[i["name"]] = float(i["north_angle"])
             self.maps[i["name"]] = self.map_db[i["name"]]
         
         self.wormholes = data["wormholes"]
@@ -320,6 +338,7 @@ class GrandslamNavigator():
         #print path
 
         offset = []
+        old_north = 0.0
 
         while (path[0] != "end"):
             #print path[0]
@@ -335,6 +354,7 @@ class GrandslamNavigator():
             location = wormhole["locations"][int(path[0].split("_")[0])]
             pos = location["position"]
             mapname = location["map"]
+            north = self.manager.map_north[mapname]
             angle = 0
             radius = None
             if "radius" in wormhole: 
@@ -357,13 +377,19 @@ class GrandslamNavigator():
                 msg.header.frame_id = "map"
                 msg.header.stamp = rospy.get_rostime()
                 
-                msg.pose.pose.position.x = pos[0] + offset[0]
-                msg.pose.pose.position.y = pos[1] + offset[1]
+                offset_angle = math.atan2(offset[1], offset[0])
+                offset_radius = math.sqrt(offset[0] * offset[0] + offset[1] * offset[1])
+
+                offset_angle += north - old_north
+
+                msg.pose.pose.position.x = pos[0] + math.cos(offset_angle) * offset_radius
+                msg.pose.pose.position.y = pos[1] + math.sin(offset_angle) * offset_radius
                 msg.pose.pose.position.z = 0.0
                 
                 roll, pitch, yaw = tf.transformations.euler_from_quaternion( \
                     self.manager.get_robot_rotation())
                 #print yaw
+                yaw += north - old_north
                 quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
                 msg.pose.pose.orientation.x = quat[0]
                 msg.pose.pose.orientation.y = quat[1]
@@ -374,6 +400,8 @@ class GrandslamNavigator():
                 self.pose_pub.publish(msg)
                 #Select the new map
                 self.manager.select_map(mapname)
+
+                rospy.sleep(2) #FIXME: come up with an alternative approach to know when AMCL is done
 
 
             #print pos
@@ -406,6 +434,7 @@ class GrandslamNavigator():
             offset = self.manager.get_robot_position()
             offset[0] = offset[0] - pos[0]
             offset[1] = offset[1] - pos[1]
+            old_north = north
 
             path = path[1:]
         
@@ -467,8 +496,8 @@ class TestClient():
         goal = GrandSlamGoal()
         goal.target_pose.header.stamp = rospy.get_rostime()
         goal.target_pose.header.frame_id = "map"
-        goal.target_pose.pose.position.x = 10.0
-        goal.target_pose.pose.position.y = 46.661
+        goal.target_pose.pose.position.x = 12.039
+        goal.target_pose.pose.position.y = 10.0
         #goal.target_pose.pose.position.x = 2.0
         #goal.target_pose.pose.position.y = 46.661
         goal.target_pose.pose.orientation.w = 1.0
