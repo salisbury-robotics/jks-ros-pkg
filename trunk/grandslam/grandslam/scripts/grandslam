@@ -21,7 +21,7 @@ import tf
 class GrandslamDataManager(object):
     def __init__(self):
         self.ready = False
-        self.listener = tf.TransformListener()
+        self.listener = tf.TransformListener(True, rospy.Duration(100))
         rospy.loginfo("Wait for list_maps")
         rospy.wait_for_service("map_store/list_maps")
         self.list_maps_proxy = rospy.ServiceProxy("map_store/list_maps", ListMaps)
@@ -51,6 +51,7 @@ class GrandslamDataManager(object):
         self.dynamic_map_service = rospy.Service('dynamic_map', GetMap, self.dynamic_map)
         self.seconday_map_service = rospy.Service('secondary_map', GetMap, self.secondary_map)
 
+        rospy.loginfo("Waiting for position")
         self.get_robot_position()
        
         self.ready = True
@@ -58,21 +59,26 @@ class GrandslamDataManager(object):
         self.secondary_map_publisher = rospy.Publisher("secondary_map", OccupancyGrid, latch=True)
         self.set_map_service = rospy.Service('~set_map', SetMap, self.set_map)
         self.set_secondary_map_service = rospy.Service('~set_secondary_map', SetMap, self.set_secondary_map)
+        rospy.loginfo("Starting")
 
     def get_robot_position(self):
         while not rospy.is_shutdown():
             try:
-                (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.get_rostime())
+                self.listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(10))
+                (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.Time())
                 return [trans[0], trans[1]]
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+                rospy.logwarn("Failed to get robot transform")
                 rospy.sleep(0.1)
         return None
     def get_robot_rotation(self):
         while not rospy.is_shutdown():
             try:
-                (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.get_rostime())
+                self.listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(10))
+                (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.Time())
                 return rot
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+                rospy.logwarn("Failed to get robot transform")
                 rospy.sleep(0.1)
         return None
 
@@ -511,7 +517,7 @@ if (__name__ == "__main__"):
     rospy.init_node('grandslam')
     manager = GrandslamDataManager()
     navigator = GrandslamNavigator(manager)
-    test = TestClient()
+    #test = TestClient()
     while not rospy.is_shutdown():
         manager.publish_markers()
         rospy.sleep(1.0)
