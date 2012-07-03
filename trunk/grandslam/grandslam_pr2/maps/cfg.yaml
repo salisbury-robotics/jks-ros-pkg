@@ -1,0 +1,17 @@
+start_map: clarkcenterfirstfloor
+maps:
+     - name: kidsdaystage
+       north_angle: 0
+     - name: clarkcenterfirstfloor
+       north_angle: 0
+wormholes:
+     - name: first_floor_exit
+       type: normal
+       radius: 1.0
+       locations:
+           - map: kidsdaystage
+             position: [0.0, 0.0]
+           - map: clarkcenterfirstfloor
+             position: [20.403, 18.274]
+             angle: -2.721
+

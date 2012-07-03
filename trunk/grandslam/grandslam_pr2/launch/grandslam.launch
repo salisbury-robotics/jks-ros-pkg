@@ -1,0 +1,8 @@
+<launch>
+  <include file="$(find pr2_machine)/$(env ROBOT).machine" />
+  <include file="$(find grandslam)/launch/map_store.launch" />
+  <node pkg="grandslam" type="grandslam" name="grandslam" output="screen" >
+  	<param name="definition_file" value="$(find grandslam_pr2)/maps/cfg.yaml" />
+  </node>
+</launch>
+
