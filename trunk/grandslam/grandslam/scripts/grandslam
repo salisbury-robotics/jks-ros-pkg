@@ -35,6 +35,13 @@ class GrandslamDataManager(object):
         self.list_maps_service = rospy.Service('~list_maps', ListMaps, self.list_maps)
         self.visualization_publisher = rospy.Publisher('visualization_marker', Marker)
 
+        self.transition_action_clients = {"normal": None}
+        for client in ["door_blast"]:
+            rospy.loginfo("Waiting for " + client)
+            cli = actionlib.SimpleActionClient(client, GrandSlamTransitionAction)
+            cli.wait_for_server()
+            self.transition_action_clients[client] = cli
+        
         self.n_markers = 0
 
         self.create_map_db()
@@ -45,7 +52,7 @@ class GrandslamDataManager(object):
         else:
             rospy.logerr("You must specify a definition_file")
             return
-
+        
         self.map_publisher = rospy.Publisher("map", OccupancyGrid, latch=True)
         self.select_map(self.start_map)
         self.dynamic_map_service = rospy.Service('dynamic_map', GetMap, self.dynamic_map)
@@ -245,8 +252,7 @@ class GrandslamDataManager(object):
             if (not "type" in i):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing type")
                 return False
-            valid_types = ["normal", "door_blast"]
-            if (not i["type"] in valid_types):
+            if (not i["type"] in self.transition_action_clients):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole of type " + i["type"]
                              + " valid types are: " + str(valid_types))
                 return False
@@ -372,6 +378,16 @@ class GrandslamNavigator():
             pos = location["position"]
             mapname = location["map"]
             north = self.manager.map_north[mapname]
+            wormhole_type = "normal"
+            wormhole_goal = None
+            if (len(path) > 1):
+                if (path[0][path[0].find("_") + 1:] == path[1][path[0].find("_") + 1:]):
+                    wormhole_type = wormhole["type"]
+                    wormhole_goal = GrandSlamTransitionGoal()
+                    wormhole_goal.wormhole = yaml.dump(wormhole)
+                    wormhole_goal.start = int(path[0].split("_")[0])
+                    wormhole_goal.end = int(path[1].split("_")[0])
+            
             angle = 0
             radius = None
             if "radius" in wormhole: 
@@ -379,11 +395,11 @@ class GrandslamNavigator():
                 #in which case the robot must drive as close as possible to the
                 #wormhole. Examples include doors and elevators.
                 radius = wormhole["radius"]
-            if "angle" in wormhole:
+            if "angle" in location:
                 #This requires the robot to take a fixed angle position. This is 
                 #used for things like doors and elevators. It won't work if a
                 #radius is specified
-                angle = wormhole["angle"]
+                angle = location["angle"]
                 if (radius != None):
                     rospy.logwarn("Angle ignored because radius specified")
 
@@ -407,6 +423,8 @@ class GrandslamNavigator():
                     self.manager.get_robot_rotation())
                 #print yaw
                 yaw += north - old_north
+                if (angle):
+                    yaw = angle
                 quat = tf.transformations.quaternion_from_euler(0, 0, yaw)
                 msg.pose.pose.orientation.x = quat[0]
                 msg.pose.pose.orientation.y = quat[1]
@@ -436,7 +454,7 @@ class GrandslamNavigator():
             msg.target_pose.pose.orientation.w = quat[3]
             
 
-            #print msg
+            print msg
             #print "Wait for move base"
             self.move_base.send_goal(msg)
             if (radius != None):
@@ -446,6 +464,12 @@ class GrandslamNavigator():
                     rospy.sleep(0.1)
                 self.move_base.cancel_goal()
             self.move_base.wait_for_result()
+
+            if (wormhole_type != "normal" and wormhole_goal != None):
+                cli = self.manager.transition_action_clients[wormhole_type]
+                print wormhole_goal
+                cli.send_goal(wormhole_goal)
+                cli.wait_for_result()
             
             #print "done"
             offset = self.manager.get_robot_position()
