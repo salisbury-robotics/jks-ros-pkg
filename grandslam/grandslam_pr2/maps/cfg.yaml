@@ -8,13 +8,24 @@ maps:
        north_angle: 0
 wormholes:
      - name: first_floor_exit
-       type: normal
-       radius: 1.0
+       type: door_blast
        locations:
            - map: clarkcenterfirstfloordoor
-             position: [23.372, 26.703]
-             angle: -2.800
+             position: [21.221, 26.481]
+             angle: -2.855
+             direction: exit
            - map: clarkcenterfirstfloor
              position: [20.742, 18.390]
              angle: -2.737
-
+             direction: entrance
+     - name: first_floor_door_exit
+       type: door_blast
+       locations:
+           - map: clarkcenterfirstfloordoor
+             position: [21.221, 26.481]
+             angle: -2.855
+             direction: entrance
+           - map: clarkcenterfirstflooroutside
+             position: [45.427, 49.668]
+             angle: -1.735
+             direction: exit
