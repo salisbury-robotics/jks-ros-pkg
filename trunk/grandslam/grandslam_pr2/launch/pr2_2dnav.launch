@@ -8,5 +8,6 @@
   <include file="$(find pr2_navigation_teleop)/teleop.xml" />
   <include file="$(find pr2_navigation_perception)/lasers_and_filters.xml" />
   <include file="$(find pr2_navigation_perception)/ground_plane.xml" />
-  <include file="$(find pr2_navigation_global)/move_base.xml" />
+  
+  <node name="door_blast" pkg="door_blast" type="door_blast" />
 </launch>
