@@ -1,0 +1,33 @@
+#!/usr/bin/python
+
+import roslib
+roslib.load_manifest('grandslam')
+import rospy
+import actionlib
+import sys
+from grandslam.msg import *
+from grandslam.srv import *
+
+
+class TestClient():
+    def __init__(self, xp, yp, map):
+        self.action_client = actionlib.SimpleActionClient("grandslam/move", GrandSlamAction)
+        self.action_client.wait_for_server()
+        goal = GrandSlamGoal()
+        goal.target_pose.header.stamp = rospy.get_rostime()
+        goal.target_pose.header.frame_id = "map"
+        goal.target_pose.pose.position.x = xp
+        goal.target_pose.pose.position.y = yp
+        goal.target_pose.pose.orientation.w = 1.0
+        goal.goal_map = map
+        self.action_client.send_goal(goal)
+        self.wait_for_result()
+
+
+if (__name__ == "__main__"):
+   rospy.init_node("grandslam_test")
+   xp = float(sys.argv[1])
+   yp = float(sys.argv[2])
+   map = sys.argv[3] 
+   test = TestClient(xp, yp, map)
+

@@ -71,6 +71,7 @@ class GrandslamDataManager(object):
                 rospy.logwarn("Failed to get robot transform")
                 rospy.sleep(0.1)
         return None
+
     def get_robot_rotation(self):
         while not rospy.is_shutdown():
             try:
@@ -244,7 +245,7 @@ class GrandslamDataManager(object):
             if (not "type" in i):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing type")
                 return False
-            valid_types = ["normal"]
+            valid_types = ["normal", "door_blast"]
             if (not i["type"] in valid_types):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole of type " + i["type"]
                              + " valid types are: " + str(valid_types))
@@ -305,12 +306,22 @@ class GrandslamNavigator():
             #could be non-zero if there is an object such as a door or elevator that
             #could slow the robot's motion.
             for l in range(0, len(w["locations"])):
-                traverse = {} 
-                for j in range(0, len(w["locations"])):
-                    traverse[str(j) + "_" + w["name"]] = 0
+                direction = "double"
+                if ("direction" in w["locations"][l]):
+                    direction = w["locations"][l]["direction"]
+                traverse = {}
+                if (direction == "double" or direction == "entrance"):
+                    for j in range(0, len(w["locations"])):
+                        direction = "double"
+                        if ("direction" in w["locations"][j]):
+                            direction = w["locations"][j]["direction"]
+                        if (direction == "exit" or direction == "double"):
+                            traverse[str(j) + "_" + w["name"]] = 0
                 graph[str(l) + "_" + w["name"]] = traverse
 
         robot_pos = self.manager.get_robot_position()
+
+        print graph
         
         #Create the graph for each of the wormholes
         for w in self.manager.wormholes:
@@ -492,32 +503,10 @@ class GrandslamNavigator():
         return path
 
 
-        
-
-
-class TestClient():
-    def __init__(self):
-        self.action_client = actionlib.SimpleActionClient("grandslam/move", GrandSlamAction)
-        self.action_client.wait_for_server()
-        goal = GrandSlamGoal()
-        goal.target_pose.header.stamp = rospy.get_rostime()
-        goal.target_pose.header.frame_id = "map"
-        goal.target_pose.pose.position.x = 12.039
-        goal.target_pose.pose.position.y = 10.0
-        #goal.target_pose.pose.position.x = 2.0
-        #goal.target_pose.pose.position.y = 46.661
-        goal.target_pose.pose.orientation.w = 1.0
-        goal.goal_map = "willow-down"
-        self.action_client.send_goal(goal)
-                                                          
-
-
-
 if (__name__ == "__main__"):
     rospy.init_node('grandslam')
     manager = GrandslamDataManager()
     navigator = GrandslamNavigator(manager)
-    #test = TestClient()
     while not rospy.is_shutdown():
         manager.publish_markers()
         rospy.sleep(1.0)
