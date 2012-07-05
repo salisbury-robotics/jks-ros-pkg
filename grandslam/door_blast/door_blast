@@ -9,7 +9,8 @@ from sensor_msgs.msg import *
 from visualization_msgs.msg import *
 from geometry_msgs.msg import *
 from pr2_msgs.srv import *
-
+from grandslam.msg import *
+import actionlib
 
 class DoorBlast:
     def __init__(self):
@@ -20,6 +21,8 @@ class DoorBlast:
         rospy.wait_for_service("/laser_tilt_controller/set_periodic_cmd")
         self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
+        self.server = actionlib.SimpleActionServer("door_blast", GrandSlamTransitionAction, execute_cb=self.run, auto_start=False)
+        self.server.start()
 
     
     def on_scan_msg(self, msg):
@@ -110,16 +113,18 @@ class DoorBlast:
                 break
 
 
-    def run(self):
+    def run(self, msg):
         self.set_laser_and_wait(0.2)
         min_depth = self.get_vertical_depth(self.scan_msg)
 
         print "Depth", min_depth
         self.get_scan_point(min_depth, 0, 0.3)
 
+        angle = None
         while True:
             self.wait_for_scan()
-            if (self.line_up(self.scan_msg)):
+            angle = self.line_up(self.scan_msg)
+            if (angle):
                 break
 
         self.set_laser_and_wait(0.2)
@@ -128,7 +133,11 @@ class DoorBlast:
             self.wait_for_scan()
             if (self.horizontal_align(self.scan_msg, min_depth)):
                 break
-        self.go_forward(min_depth)
+
+        if (angle):
+            self.go_forward(min_depth, angle)
+
+        self.server.set_succeeded(GrandSlamTransitionResult())
         
     def line_up(self, msg):
         xy = self.scan_to_points(msg)
@@ -196,12 +205,15 @@ class DoorBlast:
         else:
             msg.angular.z = -a * scal
 
+        print "Line up"
         print msg
         self.cmd_vel_publisher.publish(msg)
         
         tol = 0.01 #FIXME: param
 
-        return a < tol and a > -tol
+        if (a < tol and a > -tol):
+            return a
+        return False
         
 
     def scan_to_points(self, msg):
@@ -282,6 +294,9 @@ class DoorBlast:
                 y_pos.append(pt[1])
         y_pos.sort()
         
+        if (len(y_pos) == 0):
+            return False
+
         last_pos = y_pos[0]
         max_delta = 0
         best = y_pos[0]
@@ -346,9 +361,10 @@ class DoorBlast:
             marker.id = n
             self.visualization_publisher.publish(marker)
 
-    def go_forward(self, min_door):
+    def go_forward(self, min_door, angle):
         print "done"
         
+        angle = math.atan(angle)
         
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param
@@ -359,14 +375,17 @@ class DoorBlast:
                 
                 goal = PoseStamped()
                 goal.header.frame_id = base_frame
-                goal.pose.position.x = min_door + 1.5
-                goal = listener.transformPose(odom_frame, goal)
+                dist = min_door + 1.5
+                goal.pose.position.x = dist * math.cos(angle)
+                goal.pose.position.y = dist * math.sin(angle)
+                goal = self.listener.transformPose(odom_frame, goal)
                 print goal
                 break
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
                 rospy.logwarn("TF error") #FIXME: warning
 
         rate = rospy.Rate(10)
+        reset = False
         while not rospy.is_shutdown(): #FIXME
             try:
                 goal_transformed = self.listener.transformPose(base_frame, goal)
@@ -388,13 +407,31 @@ class DoorBlast:
                                                                     goal_transformed.pose.orientation.w))
                 msg.angular.x = 0
                 msg.angular.y = 0
-                msg.angular.z = scaleclamp(y, 1, 0.5)
+                if (reset):
+                    msg.angular.z = scaleclamp(y, 1, 0.5)
+                    if (y > -0.05 and y < 0.05):
+                        break
+                else:
+                    w = y + math.pi
+                    while (w > math.pi):
+                        w = w - math.pi * 2.0
+                    while (w < -math.pi):
+                        w = w + math.pi * 2.0
+                    msg.angular.z = scaleclamp(w, 1, 0.5)
                 
-                if (y > -0.05 and y < 0.05):
-                    msg.linear.y = scaleclamp(goal_transformed.pose.position.y, 1, 0.1)
-                    msg.linear.x = scaleclamp(goal_transformed.pose.position.x, 1, 0.1)
+                    if (w > -0.05 and w < 0.05):
+                        dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
+                        dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
+                        dist = math.sqrt(dist)
+                        if (dist < 0.01): #Fixme
+                            reset = True
+
+                        dist = scaleclamp(dist, 1, 0.6)
+                        ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
+                        msg.linear.x = dist * math.cos(ang)
+                        msg.linear.y = dist * math.sin(ang)
                     
-                print msg
+                print "go forward", msg
                 
                 self.cmd_vel_publisher.publish(msg)
                 
@@ -406,6 +443,5 @@ class DoorBlast:
 if __name__ == '__main__':
     rospy.init_node("door_blast")
     blast = DoorBlast()
-    blast.run()
     rospy.spin()
     
