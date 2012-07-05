@@ -21,7 +21,7 @@ class TestClient():
         goal.target_pose.pose.orientation.w = 1.0
         goal.goal_map = map
         self.action_client.send_goal(goal)
-        self.wait_for_result()
+        self.action_client.wait_for_result()
 
 
 if (__name__ == "__main__"):
