@@ -12,6 +12,7 @@
   <depend package="visualization_msgs"/>
   <depend package="move_base_msgs"/>
   <depend package="nav_msgs"/>
+  <depend package="pr2_msgs"/>
   
   <rosdep name="python-yaml"/>
 </package>
