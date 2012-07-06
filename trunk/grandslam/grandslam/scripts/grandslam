@@ -224,7 +224,7 @@ class GrandslamDataManager(object):
         if (not "start_map" in data):
             rospy.logerr("YAML file: " + filename + " contains no start_map")
             return False
-
+        
         self.maps = {}
         self.map_north = {}
         for i in data["maps"]:
@@ -439,36 +439,36 @@ class GrandslamNavigator():
                 #Select the new map
                 self.manager.select_map(mapname)
 
-                rospy.sleep(2) #FIXME: come up with an alternative approach to know when AMCL is done
+                rospy.sleep(4) #FIXME: come up with an alternative approach to know when AMCL is done
                 rospy.loginfo("Wait for movebase")
                 self.move_base.wait_for_server()
+            else: #We need to do driving to get to the next wormhole
 
-
-            #print pos
-            #Create the goal for the next waypoint (at the target)
-            msg = MoveBaseGoal()
-            msg.target_pose.header.stamp = rospy.get_rostime()
-            msg.target_pose.header.frame_id = "map"
-            msg.target_pose.pose.position.x = pos[0]
-            msg.target_pose.pose.position.y = pos[1]
-            msg.target_pose.pose.position.z = 0
-            quat = tf.transformations.quaternion_from_euler(0, 0, angle)
-            msg.target_pose.pose.orientation.x = quat[0]
-            msg.target_pose.pose.orientation.y = quat[1]
-            msg.target_pose.pose.orientation.z = quat[2]
-            msg.target_pose.pose.orientation.w = quat[3]
-            
-
-            print msg
-            #print "Wait for move base"
-            self.move_base.send_goal(msg)
-            if (radius != None):
-                #print "with radius", pos
-                while (calc_distance(pos, self.manager.get_robot_position()) > radius 
-                       and not rospy.is_shutdown()):
-                    rospy.sleep(0.1)
-                self.move_base.cancel_goal()
-            self.move_base.wait_for_result()
+                #print pos
+                #Create the goal for the next waypoint (at the target)
+                msg = MoveBaseGoal()
+                msg.target_pose.header.stamp = rospy.get_rostime()
+                msg.target_pose.header.frame_id = "map"
+                msg.target_pose.pose.position.x = pos[0]
+                msg.target_pose.pose.position.y = pos[1]
+                msg.target_pose.pose.position.z = 0
+                quat = tf.transformations.quaternion_from_euler(0, 0, angle)
+                msg.target_pose.pose.orientation.x = quat[0]
+                msg.target_pose.pose.orientation.y = quat[1]
+                msg.target_pose.pose.orientation.z = quat[2]
+                msg.target_pose.pose.orientation.w = quat[3]
+                
+                
+                print msg
+                #print "Wait for move base"
+                self.move_base.send_goal(msg)
+                if (radius != None):
+                    #print "with radius", pos
+                    while (calc_distance(pos, self.manager.get_robot_position()) > radius 
+                           and not rospy.is_shutdown()):
+                        rospy.sleep(0.1)
+                    self.move_base.cancel_goal()
+                self.move_base.wait_for_result()
 
             if (wormhole_type != "normal" and wormhole_goal != None):
                 cli = self.manager.transition_action_clients[wormhole_type]
