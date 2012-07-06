@@ -114,8 +114,19 @@ class DoorBlast:
 
 
     def run(self, msg):
-        self.set_laser_and_wait(0.2)
-        min_depth = self.get_vertical_depth(self.scan_msg)
+        self.set_laser_and_wait(-0.3)
+        min_depth = 0.0
+        while min_depth < 1.5:
+            self.wait_for_scan()
+            min_depth = self.get_vertical_depth(self.scan_msg)
+            print min_depth
+            msg = Twist()
+            msg.linear.x = -0.2
+            print msg
+            self.cmd_vel_publisher.publish(msg)
+        self.cmd_vel_publisher.publish(Twist())
+            
+            
 
         print "Depth", min_depth
         self.get_scan_point(min_depth, 0, 0.3)
@@ -127,7 +138,7 @@ class DoorBlast:
             if (angle):
                 break
 
-        self.set_laser_and_wait(0.2)
+        self.set_laser_and_wait(-0.3)
         
         while True:
             self.wait_for_scan()
@@ -282,7 +293,14 @@ class DoorBlast:
         marker.color.b = 1.0
         self.visualization_publisher.publish(marker)
 
-        return min_door
+        goal = PoseStamped()
+        goal.header.frame_id = msg.header.frame_id
+        dist = min_door
+        goal.pose.position.x = min_door
+        print goal
+        goal = self.listener.transformPose("/base_link", goal)
+        print goal
+        return goal.pose.position.x
 
     def horizontal_align(self, msg, min_door):
         xy = self.scan_to_points(msg)
@@ -333,8 +351,8 @@ class DoorBlast:
         marker.color.b = 1.0
         self.visualization_publisher.publish(marker)
 
-        
-        tol = 0.01 #FIXME param
+        print best
+        tol = 0.02 #FIXME param
         if (best < tol and best > -tol):
             return True
 
