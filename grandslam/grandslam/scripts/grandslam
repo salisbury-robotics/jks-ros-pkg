@@ -363,6 +363,9 @@ class GrandslamNavigator():
         offset = []
         old_north = 0.0
 
+        old_pos = [None, None]
+        old_angle = None
+
         while (path[0] != "end"):
             print path[0]
             
@@ -444,8 +447,8 @@ class GrandslamNavigator():
                 self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
                 self.move_base.wait_for_server()
                 rospy.loginfo("Done")
-            else: #We need to do driving to get to the next wormhole
-
+            elif (angle != old_angle or old_pos[0] != pos[0] or old_pos[1] != pos[1]):
+                #We need to do driving to get to the next wormhole
                 #print pos
                 #Create the goal for the next waypoint (at the target)
                 msg = MoveBaseGoal()
@@ -471,6 +474,8 @@ class GrandslamNavigator():
                         rospy.sleep(0.1)
                     self.move_base.cancel_goal()
                 self.move_base.wait_for_result()
+            else:
+                print "Skipped move base for a case"
 
             if (wormhole_type != "normal" and wormhole_goal != None):
                 print "Transition: ", wormhole_type
@@ -484,6 +489,8 @@ class GrandslamNavigator():
             offset = self.manager.get_robot_position()
             offset[0] = offset[0] - pos[0]
             offset[1] = offset[1] - pos[1]
+            old_pos = pos
+            old_angle = angle
             old_north = north
 
             path = path[1:]
