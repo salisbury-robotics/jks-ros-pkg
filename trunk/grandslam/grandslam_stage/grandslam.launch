@@ -2,5 +2,7 @@
   <node pkg="grandslam" type="grandslam" name="grandslam" output="screen" >
   	<param name="definition_file" value="$(find grandslam_stage)/maps/cfg.yaml" />
   </node>
+  <node pkg="grandslam" type="grandslam_test" name="grandslam_test" output="screen" args="12 10 willow-down">
+  </node>
 </launch>
 
