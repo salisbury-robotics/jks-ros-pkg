@@ -440,6 +440,8 @@ class GrandslamNavigator():
                 self.manager.select_map(mapname)
 
                 rospy.sleep(2) #FIXME: come up with an alternative approach to know when AMCL is done
+                rospy.loginfo("Wait for movebase")
+                self.move_base.wait_for_server()
 
 
             #print pos
