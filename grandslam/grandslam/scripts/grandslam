@@ -356,15 +356,15 @@ class GrandslamNavigator():
                     graph[str(l) + "_" + w["name"]]["start"] = dist
                     graph["start"][str(l) + "_" + w["name"]] = dist
         
-        #print graph
+        print graph
         path = self.shortest_path(graph, "start", "end")[1:] #skip "start"
-        #print path
+        print path
 
         offset = []
         old_north = 0.0
 
         while (path[0] != "end"):
-            #print path[0]
+            print path[0]
             
             #wormhole
             name = path[0][path[0].find("_") + 1:]
@@ -441,7 +441,9 @@ class GrandslamNavigator():
 
                 rospy.sleep(4) #FIXME: come up with an alternative approach to know when AMCL is done
                 rospy.loginfo("Wait for movebase")
+                self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
                 self.move_base.wait_for_server()
+                rospy.loginfo("Done")
             else: #We need to do driving to get to the next wormhole
 
                 #print pos
@@ -471,12 +473,14 @@ class GrandslamNavigator():
                 self.move_base.wait_for_result()
 
             if (wormhole_type != "normal" and wormhole_goal != None):
+                print "Transition: ", wormhole_type
                 cli = self.manager.transition_action_clients[wormhole_type]
                 print wormhole_goal
                 cli.send_goal(wormhole_goal)
                 cli.wait_for_result()
             
             #print "done"
+            print "Get position"
             offset = self.manager.get_robot_position()
             offset[0] = offset[0] - pos[0]
             offset[1] = offset[1] - pos[1]
