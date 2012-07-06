@@ -114,6 +114,7 @@ class DoorBlast:
 
 
     def run(self, msg):
+        #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
         min_depth = 0.0
         while min_depth < 1.5:
@@ -127,10 +128,9 @@ class DoorBlast:
         self.cmd_vel_publisher.publish(Twist())
             
             
-
+        #Line up straight along the wall
         print "Depth", min_depth
         self.get_scan_point(min_depth, 0, 0.3)
-
         angle = None
         while True:
             self.wait_for_scan()
@@ -138,15 +138,20 @@ class DoorBlast:
             if (angle):
                 break
 
+        #Set the position of the laser
         self.set_laser_and_wait(-0.3)
-        
+        hits = 0
         while True:
             self.wait_for_scan()
             if (self.horizontal_align(self.scan_msg, min_depth)):
-                break
+                hits = hits + 1
+                if (hits > 10):
+                    break
+            else:
+                hits = 0
 
-        if (angle):
-            self.go_forward(min_depth, angle)
+        #Go forward into the door
+        self.go_forward(min_depth, 0)
 
         self.server.set_succeeded(GrandSlamTransitionResult())
         
@@ -204,7 +209,7 @@ class DoorBlast:
         Var_a, Var_b = ss * n / det, ss * Sxx / det
         print a, b, RR
         
-        a = a - 0.1 #FIXME: param for offset
+        #a = a - 0.12 #FIXME: param for offset
 
         msg = Twist()
         speed_lim = 0.15 #FIXME param                                                                                                              
@@ -220,7 +225,7 @@ class DoorBlast:
         print msg
         self.cmd_vel_publisher.publish(msg)
         
-        tol = 0.01 #FIXME: param
+        tol = 0.005 #FIXME: param
 
         if (a < tol and a > -tol):
             return a
@@ -326,7 +331,7 @@ class DoorBlast:
             last_pos = i
 
         gaps = sorted(gaps, key=lambda gap: gap[0], reverse=True)
-        best = (gaps[0][2] + gaps[0][3]) / 2
+        best = (gaps[0][2] + gaps[0][3]) / 2 - 0.1
         
         marker = Marker()
         marker.header.frame_id = msg.header.frame_id
@@ -337,7 +342,7 @@ class DoorBlast:
         marker.id = 2
         marker.pose.position.x = min_door
         marker.pose.position.y = best
-        marker.pose.position.z = 0.5
+        marker.pose.position.z = 0
         marker.pose.orientation.x = 0.0
         marker.pose.orientation.y = 0.0
         marker.pose.orientation.z = 0.0
@@ -352,13 +357,13 @@ class DoorBlast:
         self.visualization_publisher.publish(marker)
 
         print best
-        tol = 0.02 #FIXME param
+        tol = 0.01 #FIXME param
         if (best < tol and best > -tol):
             return True
 
         msg = Twist()
-        speed_lim = 0.1 #FIXME param                                                                                                     
-        scal = 0.4
+        speed_lim = 0.1 #FIXME param
+        scal = 1.0
         if (best * scal > speed_lim):
             msg.linear.y = speed_lim
         elif (best * scal < -speed_lim):
@@ -382,7 +387,7 @@ class DoorBlast:
     def go_forward(self, min_door, angle):
         print "done"
         
-        angle = math.atan(angle)
+        angle = math.atan(angle) * -1
         
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param
@@ -431,20 +436,26 @@ class DoorBlast:
                         break
                 else:
                     w = y + math.pi
+
+                    dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
+                    dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
+                    dist = math.sqrt(dist)
+                    print dist
+
+                    if (dist > 1.6):
+                        w = w - (math.pi / 8)
+
                     while (w > math.pi):
                         w = w - math.pi * 2.0
                     while (w < -math.pi):
                         w = w + math.pi * 2.0
                     msg.angular.z = scaleclamp(w, 1, 0.5)
                 
-                    if (w > -0.05 and w < 0.05):
-                        dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
-                        dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
-                        dist = math.sqrt(dist)
+                    if (w > -0.1 and w < 0.1):
                         if (dist < 0.01): #Fixme
                             reset = True
 
-                        dist = scaleclamp(dist, 1, 0.6)
+                        dist = scaleclamp(dist, 1, 0.2)
                         ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
                         msg.linear.x = dist * math.cos(ang)
                         msg.linear.y = dist * math.sin(ang)
