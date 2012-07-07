@@ -212,7 +212,7 @@ class DoorBlast:
         #a = a - 0.12 #FIXME: param for offset
 
         msg = Twist()
-        speed_lim = 0.15 #FIXME param                                                                                                              
+        speed_lim = 0.15 #FIXME param
         scal = 4.0
         if (-a * scal > speed_lim):
             msg.angular.z = speed_lim
@@ -357,7 +357,7 @@ class DoorBlast:
         self.visualization_publisher.publish(marker)
 
         print best
-        tol = 0.01 #FIXME param
+        tol = 0.015 #FIXME param
         if (best < tol and best > -tol):
             return True
 
@@ -435,15 +435,15 @@ class DoorBlast:
                     if (y > -0.05 and y < 0.05):
                         break
                 else:
-                    w = y + math.pi
+                    w = y + math.pi + math.pi/12.0
 
                     dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
                     dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
                     dist = math.sqrt(dist)
                     print dist
 
-                    if (dist > 1.6):
-                        w = w - (math.pi / 8)
+                    #if (dist > 1.6):
+                    #    w = w - (math.pi / 8)
 
                     while (w > math.pi):
                         w = w - math.pi * 2.0
@@ -451,11 +451,11 @@ class DoorBlast:
                         w = w + math.pi * 2.0
                     msg.angular.z = scaleclamp(w, 1, 0.5)
                 
-                    if (w > -0.1 and w < 0.1):
+                    if (w > -0.15 and w < 0.15):
                         if (dist < 0.01): #Fixme
                             reset = True
 
-                        dist = scaleclamp(dist, 1, 0.2)
+                        dist = scaleclamp(dist, 1, 0.4)
                         ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
                         msg.linear.x = dist * math.cos(ang)
                         msg.linear.y = dist * math.sin(ang)
