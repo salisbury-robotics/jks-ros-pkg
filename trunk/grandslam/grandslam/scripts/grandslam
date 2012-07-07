@@ -442,11 +442,16 @@ class GrandslamNavigator():
                 #Select the new map
                 self.manager.select_map(mapname)
 
-                rospy.sleep(4) #FIXME: come up with an alternative approach to know when AMCL is done
+                rospy.sleep(2) #FIXME: come up with an alternative approach to know when AMCL is done
+
+                offset = self.manager.get_robot_position()
+                offset[0] = offset[0] - pos[0]
+                offset[1] = offset[1] - pos[1]
+
                 rospy.loginfo("Wait for movebase")
-                self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
                 self.move_base.wait_for_server()
                 rospy.loginfo("Done")
+
             elif (angle != old_angle or old_pos[0] != pos[0] or old_pos[1] != pos[1]):
                 #We need to do driving to get to the next wormhole
                 #print pos
@@ -495,12 +500,13 @@ class GrandslamNavigator():
             old_north = north
 
             path = path[1:]
+            print path
         
 
         #Get to the end point
         msg = MoveBaseGoal()
         msg.target_pose = goal.target_pose
-        #print msg
+        print msg
         self.move_base.send_goal(msg)
         self.move_base.wait_for_result()
         
