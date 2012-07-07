@@ -474,6 +474,11 @@ class GrandslamNavigator():
                         rospy.sleep(0.1)
                     self.move_base.cancel_goal()
                 self.move_base.wait_for_result()
+
+
+                offset = self.manager.get_robot_position()
+                offset[0] = offset[0] - pos[0]
+                offset[1] = offset[1] - pos[1]
             else:
                 print "Skipped move base for a case"
 
@@ -485,10 +490,6 @@ class GrandslamNavigator():
                 cli.wait_for_result()
             
             #print "done"
-            print "Get position"
-            offset = self.manager.get_robot_position()
-            offset[0] = offset[0] - pos[0]
-            offset[1] = offset[1] - pos[1]
             old_pos = pos
             old_angle = angle
             old_north = north
