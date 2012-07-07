@@ -48,6 +48,7 @@ class RobotPass(object):
             wait_for +=[self.r_arm, self.r_gripper, self.r_sensor]
         rospy.Subscriber("joint_states", JointState, self.joint_state_callback)
         for actionclient in wait_for:
+            rospy.loginfo("Wait for item")
             actionclient.wait_for_server()
         self.action_server.start()
     
