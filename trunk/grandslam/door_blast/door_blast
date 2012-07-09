@@ -21,8 +21,10 @@ class DoorBlast:
         rospy.wait_for_service("/laser_tilt_controller/set_periodic_cmd")
         self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
-        self.server = actionlib.SimpleActionServer("door_blast", GrandSlamTransitionAction, execute_cb=self.run, auto_start=False)
-        self.server.start()
+        self.blast_server = actionlib.SimpleActionServer("door_blast", GrandSlamTransitionAction, execute_cb=self.blast, auto_start=False)
+        self.drag_server = actionlib.SimpleActionServer("door_drag", GrandSlamTransitionAction, execute_cb=self.drag, auto_start=False)
+        self.blast_server.start()
+        self.drag_server.start()
 
     
     def on_scan_msg(self, msg):
@@ -113,7 +115,7 @@ class DoorBlast:
                 break
 
 
-    def run(self, msg):
+    def blast(self, msg):
         #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
         min_depth = 0.0
@@ -138,7 +140,7 @@ class DoorBlast:
             if (angle):
                 break
 
-        #Set the position of the laser
+        #Side to side
         self.set_laser_and_wait(-0.3)
         hits = 0
         while True:
@@ -151,9 +153,63 @@ class DoorBlast:
                 hits = 0
 
         #Go forward into the door
-        self.go_forward(min_depth, 0)
+        goal = self.generate_goal(min_door + 1.5, 0.0)
+        self.move_to_target(goal, math.pi + math.pi/12.0)
 
-        self.server.set_succeeded(GrandSlamTransitionResult())
+        self.blast_server.set_succeeded(GrandSlamTransitionResult())
+
+    def drag_b(self, msg):
+        #Move to the right position away from the wall
+        self.set_laser_and_wait(-0.3)
+        min_depth = 0.0
+        while min_depth < 1.5:
+            self.wait_for_scan()
+            min_depth = self.get_vertical_depth(self.scan_msg)
+            print min_depth
+            msg = Twist()
+            msg.linear.x = -0.2
+            print msg
+            self.cmd_vel_publisher.publish(msg)
+        self.cmd_vel_publisher.publish(Twist())
+
+        #Line up straight along the wall
+        print "Depth", min_depth
+        self.get_scan_point(min_depth, 0, 0.3)
+        angle = None
+        while True:
+            self.wait_for_scan()
+            angle = self.line_up(self.scan_msg)
+            if (angle):
+                break
+        
+        #Line up side to side
+        self.set_laser_and_wait(-0.3)
+        hits = 0
+        while True:
+            self.wait_for_scan()
+            if (self.horizontal_align(self.scan_msg, min_depth)):
+                hits = hits + 1
+                if (hits > 10):
+                    break
+            else:
+                hits = 0
+
+        goal = self.generate_goal(min_door - 0.7, 0.0)
+        self.move_to_target(goal, 0)
+
+        goal = self.generate_goal(0.7, math.pi)
+        self.move_to_target(goal, 0)
+
+    def drag(self, msg):
+        pass
+
+    def exit(self, msg):
+        goal = self.generate_goal(0.7, -math.pi)
+        self.move_to_target(goal, 0)
+        
+
+
+
         
     def line_up(self, msg):
         xy = self.scan_to_points(msg)
@@ -384,11 +440,7 @@ class DoorBlast:
             marker.id = n
             self.visualization_publisher.publish(marker)
 
-    def go_forward(self, min_door, angle):
-        print "done"
-        
-        angle = math.atan(angle) * -1
-        
+    def generate_goal(self, dist, angle):
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param
         
@@ -398,7 +450,6 @@ class DoorBlast:
                 
                 goal = PoseStamped()
                 goal.header.frame_id = base_frame
-                dist = min_door + 1.5
                 goal.pose.position.x = dist * math.cos(angle)
                 goal.pose.position.y = dist * math.sin(angle)
                 goal = self.listener.transformPose(odom_frame, goal)
@@ -406,7 +457,13 @@ class DoorBlast:
                 break
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
                 rospy.logwarn("TF error") #FIXME: warning
+        
+        return goal
 
+    def move_to_target(self, goal, angle_offset):
+        base_frame = "/base_footprint"
+        odom_frame = "/odom_combined" #FIXME param 
+        
         rate = rospy.Rate(10)
         reset = False
         while not rospy.is_shutdown(): #FIXME
