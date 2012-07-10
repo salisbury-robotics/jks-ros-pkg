@@ -205,10 +205,10 @@ class DoorBlast:
                     break
             else:
                 hits = 0
-        
+    
         xpos = 0.35
         zpos = 1.1
-
+        
         self.arm_move(xpos - 0.1, -0.5, zpos, 4.0)
 
         #Move up to the door
@@ -223,23 +223,36 @@ class DoorBlast:
         self.set_gripper(0.0)
         rospy.sleep(1.0)
 
-        self.arm_move(xpos, -0.5, zpos, 2.0)
-        self.arm_move(xpos, 0.0, zpos, 10.0) #FIXME
-        
+        ypos = -0.5
+        self.arm_move(xpos, ypos, zpos, 2.0)
+        while (ypos < 0.0 and not rospy.is_shutdown()):
+            self.arm_move(xpos, ypos, zpos, 0.3)
+            print xpos, ypos, zpos
+            dist = 0.0
+            for axis in zip((xpos, ypos, zpos), self.get_end_effector_pos()):
+                delta = axis[0] - axis[1]
+                dist = dist + (delta * delta)
+            dist = math.sqrt(dist)
+            if (dist > 0.01):
+                break
+            print dist
+            ypos = ypos + 0.01
+
         target_pos = self.get_end_effector_pos()
         self.arm_move(xpos - 0.1, target_pos[1] - 0.20, zpos, 3.0)
-        self.arm_move(xpos - 0.1, target_pos[1], zpos, 3.0)
+        self.arm_move(xpos - 0.1, target_pos[1] + 0.05, zpos, 3.0)
 
         self.set_gripper(0.086)
 
         rospy.sleep(1.0)
 
         print target_pos
-        self.arm_move(xpos + 0.1, target_pos[1], zpos)
+        self.arm_move(xpos + 0.1, target_pos[1] + 0.05, zpos)
 
         rospy.sleep(1.0)
         
         self.set_gripper(0.00)
+
         
         target_pos = self.get_end_effector_pos()
         self.arm_move(xpos, -0.46, zpos, 5.0, False) 
@@ -252,9 +265,18 @@ class DoorBlast:
         self.arm_move(-0.135, -0.46, zpos, 0.5)
 
         #goal = self.generate_goal(0, 0)
-        goal = self.generate_goal(-1.0, math.pi / 2)
+        goal = self.generate_goal(-0.1, math.pi / 2)
+        goal2 = self.generate_goal(-0.15, math.pi / 2)
+        goal3 = self.generate_goal(-0.18, math.pi / 2)
         print goal
-        self.move_to_target(goal, -math.pi * 3.0 / 4.0, True)
+        print "one"
+        self.move_to_target(goal, -math.pi * 3.0 / 4.0, True, True)
+        print "two"
+        self.move_to_target(goal2, -math.pi * (1.0 - 25.0 / 180.0), True, True)
+        print "three"
+        self.move_to_target(goal3, -math.pi * (1.0 - 15.0 / 180.0), True, True)
+        print "four"
+        self.move_to_target(goal3, -math.pi, True, True)
 
         #goal = self.generate_goal(0.7, -math.pi)
         #self.move_to_target(goal, 0)
@@ -578,7 +600,7 @@ class DoorBlast:
         
         return goal
 
-    def move_to_target(self, goal, angle_offset, no_y_reset=False):
+    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False):
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param 
         
@@ -630,7 +652,11 @@ class DoorBlast:
                         if (dist < 0.03): #Fixme
                             reset = True
 
-                        dist = scaleclamp(dist, 1, 0.4)
+                        scale = 1.0
+                        if (extreme_turn):
+                            scale = 3.0
+
+                        dist = scaleclamp(dist, scale, 0.4)
                         ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
                         msg.linear.x = dist * math.cos(ang)
                         msg.linear.y = dist * math.sin(ang)
