@@ -14,7 +14,8 @@
   <depend package="nav_msgs"/>
   <depend package="pr2_msgs"/>
   <depend package="grandslam"/>
-  
+  <depend package="kinematics_msgs"/>  
+  <depend package="pr2_controllers_msgs"/>
   <rosdep name="python-yaml"/>
 </package>
 
