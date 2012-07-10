@@ -1,6 +1,5 @@
 <launch>
   <include file="$(find pr2_machine)/$(env ROBOT).machine" />
-  <include file="$(find pr2_navigation_global)/move_base.xml" />
   <node pkg="amcl" type="amcl" name="amcl" machine="c2">
     <remap from="scan" to="base_scan" />
     
