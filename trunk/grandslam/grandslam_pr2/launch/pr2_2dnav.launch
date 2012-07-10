@@ -4,10 +4,16 @@
   <param name="/amcl/initial_pose_y" value="40.957" />
   <param name="/amcl/initial_pose_a" value="0.148" />
 
+<!--  <param name="/amcl/initial_pose_x" value="20.742" />
+  <param name="/amcl/initial_pose_y" value="18.390" />
+  <param name="/amcl/initial_pose_a" value="-2.737" />
+-->
+  <include file="$(find pr2_navigation_global)/move_base.xml" />
+
   <node name="amcl_restarter" pkg="grandslam" type="amcl_restarter" args="$(find grandslam_pr2)/launch/amcl_node.xml"/>
   <include file="$(find pr2_navigation_teleop)/teleop.xml" />
   <include file="$(find pr2_navigation_perception)/lasers_and_filters.xml" />
   <include file="$(find pr2_navigation_perception)/ground_plane.xml" />
   
-  <node name="door_blast" pkg="door_blast" type="door_blast" />
+  <include file="$(find door_blast)/door_blast.launch" />
 </launch>
