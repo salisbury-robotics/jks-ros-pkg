@@ -30,10 +30,10 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #target_link_libraries(example ${PROJECT_NAME})
 
 rosbuild_add_library(haptic_sandbox
-src/geometry/GenericSampler.cpp
-src/geometry/PointSetSampler.cpp
-src/geometry/VoxelSampler.cpp
-src/geometry/RigidBody.cpp
+#src/geometry/GenericSampler.cpp
+#src/geometry/PointSetSampler.cpp
+#src/geometry/VoxelSampler.cpp
+#src/geometry/RigidBody.cpp
 src/ToolBody.cpp
 
 manifest.xml
