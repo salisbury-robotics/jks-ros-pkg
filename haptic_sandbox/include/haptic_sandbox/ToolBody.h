@@ -28,7 +28,7 @@ class ToolBody : public cGenericTool
     //-----------------------------------------------------------------------
     
     // Single contact point of cursor.
-    cInteractionPoint* m_interactionPoint;
+    cHapticPoint* m_hapticPoint;
 
     //cGenericObject m;
 

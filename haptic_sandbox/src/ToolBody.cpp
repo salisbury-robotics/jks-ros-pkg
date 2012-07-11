@@ -17,10 +17,10 @@ namespace srl {
 ToolBody::ToolBody(cWorld* a_parentWorld):cGenericTool(a_parentWorld)
 {
     // create a single point contact
-    m_interactionPoint = new cInteractionPoint(this);
+    m_hapticPoint = new cHapticPoint(this);
 
     // add point to list
-    m_interactionPoints.push_back(m_interactionPoint);
+    m_hapticPoints.push_back(m_hapticPoint);
 
     // show proxy spheres only
     setShowContactPoints(true, false);
@@ -36,7 +36,7 @@ ToolBody::ToolBody(cWorld* a_parentWorld):cGenericTool(a_parentWorld)
 //===========================================================================
 ToolBody::~ToolBody()
 {
-    delete m_interactionPoint;
+    delete m_hapticPoint;
 }
 
 
@@ -51,7 +51,7 @@ void ToolBody::updateToolImagePosition()
 {
     // set the position and orientation of the tool image to be equal to the 
     // one of the contact point proxy.
-    cVector3d pos = m_interactionPoint->getLocalPosProxy();
+    cVector3d pos = m_hapticPoint->getLocalPosProxy();
     m_image->setPos(pos);
     m_image->setRot(m_deviceLocalRot);
 }
@@ -68,7 +68,7 @@ void ToolBody::updateToolImagePosition()
 void ToolBody::computeInteractionForces()
 {
     // compute force interaction forces at contact point
-    m_lastComputedGlobalForce = m_interactionPoint->computeInteractionForces(m_deviceGlobalPos, m_deviceGlobalLinVel);
+    m_lastComputedGlobalForce = m_hapticPoint->computeInteractionForces(m_deviceGlobalPos, m_deviceGlobalLinVel);
     m_lastComputedGlobalTorque.zero();
     m_lastComputedGripperForce = 0.0;
 
@@ -90,11 +90,11 @@ void ToolBody::render(cRenderOptions& a_options)
     ///////////////////////////////////////////////////////////////////////
     // render contact points
     ///////////////////////////////////////////////////////////////////////
-    int numContactPoint = (int)(m_interactionPoints.size());
+    int numContactPoint = (int)(m_hapticPoints.size());
     for (int i=0; i<numContactPoint; i++)
     {
         // get next contact point
-        cInteractionPoint* nextContactPoint = m_interactionPoints[i];
+        cHapticPoint* nextContactPoint = m_hapticPoints[i];
 
         // render tool
         nextContactPoint->render(a_options);

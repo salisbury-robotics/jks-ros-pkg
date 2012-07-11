@@ -8,12 +8,16 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/haptic_sandbox</url>
-  <depend package="chai3d-3.0"/>
-  <depend package="eigen"/>
+  
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="tf"/>
   <depend package="pcl"/>
+  <depend package="chai3d_a4"/>
 
   <export>
-    <cpp  cflags="-I${prefix}/include -I${prefix}/include/haptic_display_tools" 
+    <cpp  cflags="-I${prefix}/include" 
           lflags="-L${prefix}/lib -lhaptic_sandbox "/>
   </export>
 </package>

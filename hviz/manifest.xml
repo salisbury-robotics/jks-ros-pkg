@@ -12,7 +12,6 @@
   <depend package="pr2_controller_interface"/>
   <depend package="pr2_mechanism_model"/>
   <depend package="pluginlib"/>
-  <depend package="eigen" />
   <depend package="kdl" />
   <depend package="visualization_msgs" />
   <depend package="joy" />
@@ -31,7 +30,7 @@
   <!--
     <depend package="rviz_interaction_tools" />
 -->
-  <depend package="chai3d-3.0" />
+  <depend package="chai3d-2.1" />
   <!--<depend package="haptic_display_tools" />-->
 </package>
 

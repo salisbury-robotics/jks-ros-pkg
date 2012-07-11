@@ -1,5 +1,0 @@
-\applications
-\Debug
-\Release
-\chai3d_complete___Win32_Debug
-\.svn

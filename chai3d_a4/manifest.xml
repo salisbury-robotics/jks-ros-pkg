@@ -14,7 +14,10 @@
   <export>
 	<!-- need -lHD for phantom I think -->
     <cpp 
-    cflags="-I${prefix}/src -I${prefix}/modules/GEL -DLINUX" 
+    cflags="-I${prefix}/src 
+            -I${prefix}/modules/GEL 
+            -DLINUX
+           " 
     lflags="-L${prefix}/lib -lchai3d 
             -L${prefix}/internal/DHD/lib/lin-x86_64/ 
             -L${prefix}/internal/lib3ds/lib/release/lin-x86_64/ 
