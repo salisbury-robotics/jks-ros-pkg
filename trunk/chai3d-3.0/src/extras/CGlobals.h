@@ -129,7 +129,7 @@
     //--------------------------------------------------------------------
     // HAPTIC DEVICES
     //--------------------------------------------------------------------
-    #define _ENABLE_CUSTOM_DEVICE_SUPPORT
+    //#define _ENABLE_CUSTOM_DEVICE_SUPPORT
     // (support for Force Dimension devices is handled in the Makefile structure)
     // #define _ENABLE_DELTA_DEVICE_SUPPORT
 
