@@ -6,13 +6,22 @@
 #-----------------------------------------------------------------------------
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
+#include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+#set(ROS_BUILD_TYPE Release)
+#rosbuild_init()
+
+
 PROJECT(CHAI3D)
 
-SET(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo" 
+SET(CMAKE_CONFIGURATION_TYPES "Release;ReleaseWithDebInfo" 
     CACHE STRING "Available build configurations." FORCE)
     
 #-----------------------------------------------------------------------------
 # Output directories.
+
+#TODO: Need to add these system dependencies:
+#giflib
+# How do I make it so it does NOT overwrite the default ROS Makefile?
 
 #SET(CHAI3D_LIBRARY_PATH "${CHAI3D_BINARY_DIR}/lib")
 #SET(CHAI3D_RUNTIME_PATH "${CHAI3D_BINARY_DIR}/bin")
@@ -51,18 +60,36 @@ IF(MSVC)
 ENDIF(MSVC)
 
 IF(APPLE)
-    ADD_DEFINITIONS(-D_APPLE)
-ENDIF(APPLE)
-
-IF(UNIX)
-    ADD_DEFINITIONS(-D_LINUX -fPIC -D_ENABLE_PHANTOM_DEVICE_SUPPORT)
-    INCLUDE_DIRECTORIES("external/DHD/include")
+    ADD_DEFINITIONS(-DMACOSX -D_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/libpng/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/libjpeg/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/giflib/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/include")
+    LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib"
+                     "${CHAI3D_SOURCE_DIR}/external/libpng/lib/mac/Release"
+                     "${CHAI3D_SOURCE_DIR}/external/libjpeg/lib/mac/Release"
+                     "${CHAI3D_SOURCE_DIR}/external/giflib/lib/mac/Release"
+                     "${CHAI3D_SOURCE_DIR}/external/DHD/lib/mac")
+    SET(LINK_DEPENDENCIES "chai3d -ldhd -lpthread -ljpeg -lpng -lgif"
+                          "-framework OpenGL -framework GLUT"
+                          "-framework CoreFoundation -framework IOKit")
+ELSEIF(UNIX)
+    ADD_DEFINITIONS(-DLINUX -fPIC -DC_ENABLE_DELTA_DEVICE_SUPPORT -DO2)
+    ADD_DEFINITIONS(-DC_ENABLE_PHANTOM_DEVICE_SUPPORT )
+    SET(CHAI_LINK_LIBRARIES "-lHD")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/DHD/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/lib3ds/include")
+    INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/BASS/include")
   IF(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
-    SET(CHAI3D_LIBPATH "lin-x86_64")
+    SET(CHAI3D_LIBPATH "lin-x86_64/")
   ELSE()
-    SET(CHAI3D_LIBPATH "lin-i686")
+    SET(CHAI3D_LIBPATH "lin-i686/")
   ENDIF()
-  LINK_DIRECTORIES("lib/${CHAI3D_LIBPATH}" "external/DHD/lib/${CHAI3D_LIBPATH}")
+  LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib" )
+  LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/DHD/lib/${CHAI3D_LIBPATH}")
+  LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/lib3ds/lib/release/${CHAI3D_LIBPATH}") 
+  SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -lHD")
+  #SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut")
 ENDIF(UNIX)
 
 #-----------------------------------------------------------------------------
