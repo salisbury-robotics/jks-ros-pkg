@@ -20,7 +20,7 @@ SET(CMAKE_CONFIGURATION_TYPES "Release;ReleaseWithDebInfo"
 # Output directories.
 
 #TODO: Need to add these system dependencies:
-#giflib
+#libgif-dev lib3ds-dev
 # How do I make it so it does NOT overwrite the default ROS Makefile?
 
 #SET(CHAI3D_LIBRARY_PATH "${CHAI3D_BINARY_DIR}/lib")
