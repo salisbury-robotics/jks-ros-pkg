@@ -126,8 +126,8 @@
   //--------------------------------------------------------------------
   // HAPTIC DEVICES
   //--------------------------------------------------------------------
-	#define _ENABLE_CUSTOM_DEVICE_SUPPORT
-	#define _ENABLE_DELTA_DEVICE_SUPPORT
+	//#define _ENABLE_CUSTOM_DEVICE_SUPPORT
+	//#define _ENABLE_DELTA_DEVICE_SUPPORT
 
   // disabled devices
   //#define _ENABLE_PHANTOM_DEVICE_SUPPORT
