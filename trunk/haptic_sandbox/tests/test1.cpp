@@ -61,10 +61,6 @@
 // DECLARED CONSTANTS
 //---------------------------------------------------------------------------
 
-// initial size (width/height) in pixels of the window display
-const int WINDOW_SIZE_W         = 800;
-const int WINDOW_SIZE_H         = 800;
-
 // mouse menu options (right button)
 const int OPTION_FULLSCREEN     = 1;
 const int OPTION_WINDOWDISPLAY  = 2;
@@ -87,8 +83,8 @@ cCamera* camera;
 cDirectionalLight *light;
 
 // width and height of the current window display
-int displayWidth  = 0;
-int displayHeight = 0;
+int displayW = 0;
+int displayH = 0;
 
 // a haptic device handler
 cHapticDeviceHandler* handler;
@@ -146,7 +142,8 @@ void menuSelect(int value);
 // function called before exiting the application
 void close(void);
 
-// main graphics callback
+// main graphics timer and callback
+void graphicsTimer(int data);
 void updateGraphics(void);
 
 // main haptics loop
@@ -188,11 +185,11 @@ int main(int argc, char* argv[])
     printf ("[1] - Enable/Disable potential field\n");
     printf ("[2] - Enable/Disable damping\n");
     printf ("[x] - Exit application\n");
-    printf ("\n\n");
+    printf ("\n\n>\r");
 
    
     //-----------------------------------------------------------------------
-    // WORLD
+    // WORLD - CAMERA - LIGHTING
     //-----------------------------------------------------------------------
 
     // create a new world.
@@ -205,9 +202,9 @@ int main(int argc, char* argv[])
     camera = new cCamera(world);
     world->addChild(camera);
 
-    // position and oriente the camera
+    // position and orient the camera
     camera->set( cVector3d (0.5, 0.0, 0.0),    // camera position (eye)
-                 cVector3d (0.0, 0.0, 0.0),    // lookat position (target)
+                 cVector3d (0.0, 0.0, 0.0),    // look at position (target)
                  cVector3d (0.0, 0.0, 1.0));   // direction of the (up) vector
 
     // set the near and far clipping planes of the camera
@@ -267,6 +264,9 @@ int main(int argc, char* argv[])
         cursor->setFrameSize(0.05, 0.05);
     }
 
+	// if the device has a gripper, enable the gripper to behave like a user switch
+	hapticDevice->setEnableGripperUserSwitch(true);
+
 
     //-----------------------------------------------------------------------
     // WIDGETS
@@ -277,18 +277,18 @@ int main(int argc, char* argv[])
 
     // create a label to display the haptic device model
     labelHapticDeviceModel = new cLabel(font);
-    camera->m_frontLayer.addChild(labelHapticDeviceModel);
-    labelHapticDeviceModel->m_string = "haptic device: "+info.m_modelName;
+    camera->m_frontLayer->addChild(labelHapticDeviceModel);
+    labelHapticDeviceModel->setString("haptic device: "+info.m_modelName);
 
     // create a label to display the position of haptic device
     labelHapticDevicePosition = new cLabel(font);
-    camera->m_frontLayer.addChild(labelHapticDevicePosition);
+    camera->m_frontLayer->addChild(labelHapticDevicePosition);
     
     // create a label to display the haptic rate of the simulation
     labelHapticRate = new cLabel(font);
-    camera->m_frontLayer.addChild(labelHapticRate);
-    
-           
+    camera->m_frontLayer->addChild(labelHapticRate);
+
+
     //-----------------------------------------------------------------------
     // OPEN GL - WINDOW DISPLAY
     //-----------------------------------------------------------------------
@@ -303,12 +303,14 @@ int main(int argc, char* argv[])
     // of the GLUT window so that it is located at the center of the screen
     int screenW = glutGet(GLUT_SCREEN_WIDTH);
     int screenH = glutGet(GLUT_SCREEN_HEIGHT);
-    int windowPosX = (screenW - WINDOW_SIZE_W) / 2;
-    int windowPosY = (screenH - WINDOW_SIZE_H) / 2;
+    int windowW = 0.7 * screenH;
+    int windowH = 0.7 * screenH;
+    int windowPosX = (screenW - windowH) / 2;
+    int windowPosY = (screenH - windowW) / 2;
 
     // initialize the OpenGL GLUT window
     glutInitWindowPosition(windowPosX, windowPosY);
-    glutInitWindowSize(WINDOW_SIZE_W, WINDOW_SIZE_H);
+    glutInitWindowSize(windowW, windowH);
     if (USE_STEREO_DISPLAY)
     {
         glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE | GLUT_STEREO);
@@ -338,9 +340,10 @@ int main(int argc, char* argv[])
 
     // create a thread which starts the main haptics rendering loop
     cThread* hapticsThread = new cThread();
-    hapticsThread->set(updateHaptics, CTHREAD_PRIORITY_HAPTICS);
+    hapticsThread->start(updateHaptics, CTHREAD_PRIORITY_HAPTICS);
 
     // start the main graphics rendering loop
+    glutTimerFunc(30, graphicsTimer, 0);
     glutMainLoop();
 
     // close everything
@@ -355,9 +358,9 @@ int main(int argc, char* argv[])
 void resizeWindow(int w, int h)
 {
     // update the size of the viewport
-    displayWidth  = w;
-    displayHeight = h;
-    glViewport(0, 0, displayWidth, displayHeight);
+    displayW = w;
+    displayH = h;
+    glViewport(0, 0, displayW, displayH);
 }
 
 //---------------------------------------------------------------------------
@@ -376,13 +379,9 @@ void keySelect(unsigned char key, int x, int y)
     {
         useForceField = !useForceField;
         if (useForceField)
-        {
-            printf ("- Enable force field\n");
-        }
+            printf ("> Enable force field     \r");    
         else
-        {
-            printf ("- Disable force field\n");
-        }
+            printf ("> Disable force field    \r");    
     }
 
     // option 2:
@@ -390,13 +389,9 @@ void keySelect(unsigned char key, int x, int y)
     {
         useDamping = !useDamping;
         if (useDamping)
-        {
-            printf ("- Enable damping\n");
-        }
+            printf ("> Enable damping         \r");    
         else
-        {
-            printf ("- Disable damping\n");
-        }
+            printf ("> Disable damping        \r");   
     }
 }
 
@@ -441,31 +436,45 @@ void close(void)
 
 //---------------------------------------------------------------------------
 
+void graphicsTimer(int data)
+{
+    // inform the GLUT window to call updateGraphics again (next frame)
+    if (simulationRunning)
+    {
+        glutPostRedisplay();
+    }
+
+    glutTimerFunc(30, graphicsTimer, 0);
+}
+
+//---------------------------------------------------------------------------
+
 void updateGraphics(void)
 {
+    int px;
+
     // update position of label
-    labelHapticDeviceModel->setPos(10, displayHeight - 30, 0.0);
+    labelHapticDeviceModel->setLocalPos(10, displayH - 30, 0.0);
 
     // update position of label and content
     double posX = 1000 * hapticDevicePosition.x();
     double posY = 1000 * hapticDevicePosition.y();
     double posZ = 1000 * hapticDevicePosition.z();
 
-    labelHapticDevicePosition->m_string = "position: " + cStr(posX, 0) + " " +
-                                                         cStr(posY, 0) + " " +
-                                                         cStr(posZ, 0);
+    labelHapticDevicePosition->setString("position [mm]: " + cStr(posX, 0) + " " +
+                                                        cStr(posY, 0) + " " +
+                                                        cStr(posZ, 0));
 
-    labelHapticDevicePosition->setPos(10, displayHeight - 50, 0.0);
+    labelHapticDevicePosition->setLocalPos(10, displayH - 50, 0.0);
 
+    // update haptic rate label
+    labelHapticRate->setString ("haptic rate: "+cStr(frequencyCounter.getFrequency(), 0) + " [Hz]");
 
-    // update position of label and content
-    labelHapticRate->m_string = "haptic rate: "+cStr(frequencyCounter.getFrequency(), 0) + " [Hz]";
-    
-    int px = (int)(0.5 * (displayWidth - labelHapticRate->getLength()));
-    labelHapticRate->setPos(px, 10, 0);
+    px = (int)(0.5 * (displayW - labelHapticRate->getWidth()));
+    labelHapticRate->setLocalPos(px, 15);
 
     // render world
-    camera->renderView(displayWidth, displayHeight);
+    camera->renderView(displayW, displayH);
 
     // swap buffers
     glutSwapBuffers();
@@ -474,12 +483,6 @@ void updateGraphics(void)
     GLenum err;
     err = glGetError();
     if (err != GL_NO_ERROR) printf("Error:  %s\n", gluErrorString(err));
-
-    // inform the GLUT window to call updateGraphics again (next frame)
-    if (simulationRunning)
-    {
-        glutPostRedisplay();
-    }
 }
 
 //---------------------------------------------------------------------------
@@ -506,7 +509,7 @@ void updateHaptics(void)
 
         // read gripper position
         double gripperAngle;
-        hapticDevice->getGripperAngleRAD(gripperAngle);
+        hapticDevice->getGripperAngleRad(gripperAngle);
 
         // read linear velocity 
         cVector3d linearVelocity;
@@ -541,8 +544,8 @@ void updateHaptics(void)
         velocity->m_pointB = cAdd(position, linearVelocity);
 
         // update position and orientation of cursor
-        cursor->setPos(position);
-        cursor->setRot(rotation);
+        cursor->setLocalPos(position);
+        cursor->setLocalRot(rotation);
 
         // adjust the  color of the cursor according to the status of
         // the user switch (ON = TRUE / OFF = FALSE)
@@ -582,9 +585,17 @@ void updateHaptics(void)
         // apply force field
         if (useForceField)
         {
-            double Kp = 20.0; // [N/m]
-            cVector3d forceField = cMul(-Kp, position);
+			// compute linear force
+            double Kp = 20; // [N/m]
+            cVector3d forceField = -Kp * position;
             force.add(forceField);
+
+			// compute angular torque
+			double Kr = 0.05; // [N/m.rad]
+			cVector3d axis;
+			double angle;
+			rotation.toAngleAxis(angle, axis);
+			torque = (-Kr * angle) * axis;
         }
     
         // apply damping term
@@ -593,22 +604,22 @@ void updateHaptics(void)
             cHapticDeviceInfo info = hapticDevice->getSpecifications();
 
             // compute linear damping force
-            double Kv = info.m_maxLinearDamping;
-            cVector3d forceDamping = cMul(-Kv, linearVelocity);
+            double Kv = 1.0 * info.m_maxLinearDamping;
+            cVector3d forceDamping = -Kv * linearVelocity;
             force.add(forceDamping);
 
             // compute angluar damping force
-            double Kvr = info.m_maxAngularDamping;
-            cVector3d torqueDamping = cMul(-Kvr, angularVelocity);
+            double Kvr = 1.0 * info.m_maxAngularDamping;
+            cVector3d torqueDamping = -Kvr * angularVelocity;
             torque.add(torqueDamping);
 
             // compute gripper angular damping force
-            double Kvg = info.m_maxGripperAngularDamping;
-            gripperForce = gripperForce - 20 * Kvg * gripperAngularVelocity;
+            double Kvg = 1.0 * info.m_maxGripperAngularDamping;
+            gripperForce = gripperForce - Kvg * gripperAngularVelocity;
         }
 
         // send computed force, torque and gripper force to haptic device	
-        hapticDevice->setForceAndTorqueAndGripperForce(force, torque, gripperForce);
+		hapticDevice->setForceAndTorqueAndGripperForce(force, torque, gripperForce);
 
         // update frequency counter
         frequencyCounter.signal(1);
