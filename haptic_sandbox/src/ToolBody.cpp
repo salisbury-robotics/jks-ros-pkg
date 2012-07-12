@@ -52,8 +52,8 @@ void ToolBody::updateToolImagePosition()
     // set the position and orientation of the tool image to be equal to the 
     // one of the contact point proxy.
     cVector3d pos = m_hapticPoint->getLocalPosProxy();
-    m_image->setPos(pos);
-    m_image->setRot(m_deviceLocalRot);
+    m_image->setLocalPos(pos);
+    m_image->setLocalRot(m_deviceLocalRot);
 }
 
 
@@ -68,12 +68,12 @@ void ToolBody::updateToolImagePosition()
 void ToolBody::computeInteractionForces()
 {
     // compute force interaction forces at contact point
-    m_lastComputedGlobalForce = m_hapticPoint->computeInteractionForces(m_deviceGlobalPos, m_deviceGlobalLinVel);
+    m_lastComputedGlobalForce = m_hapticPoint->computeInteractionForces(m_deviceGlobalPos,
+                                                                        m_deviceGlobalRot,
+                                                                        m_deviceGlobalLinVel,
+                                                                        m_deviceGlobalAngVel);
     m_lastComputedGlobalTorque.zero();
     m_lastComputedGripperForce = 0.0;
-
-    // update coolision and interaction event lists
-    updateCollisionAndInteractionEventLists();
 }
 
 
