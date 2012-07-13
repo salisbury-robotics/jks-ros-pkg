@@ -301,71 +301,8 @@ class DoorBlast:
         self.move_to_target(self.generate_goal(1.5, math.pi), 0, True, True)
         self.move_to_target(self.generate_goal(0, 0), math.pi, True, True)
 
-        #print "one"
-        #self.move_to_target(self.generate_goal(-0.4, 0), 0)
-        #print "two"
-        #self.move_to_target(self.generate_goal(-0.3, math.pi / 2), 0)
-        #print "three"
-        #self.move_to_target(self.generate_goal(-0.3, 0), 0)
-        #print "four"
-        #self.move_to_target(self.generate_goal(-0.5, math.pi / 2), 0)
-        #print "five"
-        #self.move_to_target(self.generate_goal(0.0, 0), -math.pi / 2, True, True)
-        #print "six"
-        #self.move_to_target(self.generate_goal(0.05, math.pi / 2), 0, True, True)
-        #print "seven"
-        #self.move_to_target(self.generate_goal(0.04, math.pi / 2), -math.pi * 30 / 180.0, True, True)
-        #print "eight"
-        #self.move_to_target(self.generate_goal(0.02, math.pi / 2), -math.pi * 10 / 180.0, True, True)
-        
-        #print "force"
-        #for i in range(0, 30):
-        #    msg = Twist()
-        #    msg.linear.y = 0.1
-        #    self.cmd_vel_publisher.publish(msg)
-        #    rospy.sleep(0.1)
-        #self.cmd_vel_publisher.publish(Twist())
-
         print "done"
         
-        #self.set_gripper(0.086)
-        #self.move_to_target(door_center_goal, -math.pi, True, True)
-
-        
-        #target_pos = self.get_end_effector_pos()
-        #self.arm_move(-0.135, -0.46, zpos, 0.5)
-
-        #goal = self.generate_goal(0, 0)
-        #goal = self.generate_goal(-0.1, math.pi / 2)
-        #goal2 = self.generate_goal(-0.15, math.pi / 2)
-        #goal3 = self.generate_goal(-0.18, math.pi / 2)
-        #goal4 = self.generate_goal(-0.9, math.pi / 2)
-        #print goal
-        #print "one"
-        #self.move_to_target(goal, -math.pi * 3.0 / 4.0, True, True)
-        #print "two"
-        #self.move_to_target(goal2, -math.pi * (1.0 - 25.0 / 180.0), True, True)
-        #print "three"
-        #self.move_to_target(goal3, -math.pi * (1.0 - 15.0 / 180.0), True, True)
-        #print "four"
-        #self.move_to_target(goal3, -math.pi, True, True)
-        #print "open"
-
-        #Replace with joint states FIXME
-        #target_pos = self.get_end_effector_pos()
-        #self.arm_move(target_pos[0], target_pos[1], target_pos[2])
-
-        #self.set_gripper(0.86)
-        print "move" 
-        #self.move_to_target(goal4, -math.pi, True, True)
-
-        #Failed....
-        #self.arm_move(-0.222, -0.198, -0.600)
-
-        #goal = self.generate_goal(1.5, math.pi)
-        #self.move_to_target(goal, 0.0, True)
-        #self.move_to_target(goal, math.pi, True)
-
         self.drag_server.set_succeeded(GrandSlamTransitionResult())        
         return True
 
