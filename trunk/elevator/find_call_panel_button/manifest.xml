@@ -7,7 +7,12 @@
   <depend package="roscpp"/>
   <depend package="std_msgs"/>
   <depend package="stair_msgs"/>
-  <depend package="opencv_latest"/>
+  <rosdep name="opencv2" />
+
+
+  <platform os="ubuntu" version="9.04"/>
+  <platform os="ubuntu" version="9.10"/>
+  <platform os="ubuntu" version="10.04"/>
   <export>
     <cpp lflags="-L${prefix}/lib_find_buttons -l_find_buttons"/>
   </export>
