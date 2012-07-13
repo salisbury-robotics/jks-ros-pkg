@@ -10,6 +10,10 @@
   <arg if="$(arg debug)" name="rviz_prefix" value="xterm -e gdb -ex run --args"/>
   <arg unless="$(arg debug)" name="rviz_prefix" value=""/>
 
+  <!-- <arg name="planning_plugin" default="ompl_interface_ros/OMPLPlanner" /> -->
+  <arg name="planning_plugin" default="local_planners/LinearJointStepper" />
+  <arg name="planning_adapters" default="default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints" />
+
   <param unless="$(arg monitor_robot_state)" name="robot_description" textfile="$(find planning_models)/test/urdf/robot.xml" />
   <param name="robot_description_semantic" textfile="$(find planning_models)/test/srdf/robot.xml" />
 
@@ -24,10 +28,11 @@
   <node unless="$(arg monitor_robot_state)" pkg="moveit_visualization_ros" name="wall_clock_server" type="fake_time.py" />
 
   <node pkg="assisted_teleop" type="assisted_teleop_node" name="assisted_teleop_node" output="screen" launch-prefix="$(arg rviz_prefix)">
+    <param name="planning_plugin" value="$(arg planning_plugin)" />
+    <param name="request_adapters" value="$(arg planning_adapters)" />
     <rosparam command="load" file="$(find pr2_moveit_config)/config/ompl_planning.yaml"/>
     <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
     <rosparam if="$(arg allow_trajectory_execution)" file="$(find pr2_moveit_config)/config/pr2_execution_controllers.yaml"/>
-    <param name="request_adapters" value="default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStatePathConstraints default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateCollision" />
     <param name="monitor_robot_state" value="$(arg monitor_robot_state)"/>
     <param name="allow_trajectory_execution" value="$(arg allow_trajectory_execution)"/>
     <param name="constraint_aware" type="bool" value="$(arg constraint_aware)" />
