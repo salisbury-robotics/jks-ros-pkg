@@ -174,16 +174,32 @@ class DoorBlast:
 
         self.blast_server.set_succeeded(GrandSlamTransitionResult())
 
+    def hand_dist(self, pos1):
+        dist = 0.0
+        for axis in zip(pos1, self.get_end_effector_pos()):
+            delta = axis[0] - axis[1]
+            dist = dist + (delta * delta)
+        dist = math.sqrt(dist)
+        return dist
+
     def drag(self, msg):
         #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
         min_depth = 0.0
-        while min_depth < 1.5:
+        hits = 0
+        while not rospy.is_shutdown() and hits < 20:
             self.wait_for_scan()
             min_depth = self.get_vertical_depth(self.scan_msg)
             print min_depth
             msg = Twist()
-            msg.linear.x = -0.2
+            if (min_depth < 1.5):
+                msg.linear.x = -0.2
+                hits = 0
+            elif (min_depth > 1.6):
+                msg.linear.x = 0.2
+                hits = 0
+            else:
+                hits = hits + 1
             print msg
             self.cmd_vel_publisher.publish(msg)
         self.cmd_vel_publisher.publish(Twist())
@@ -210,38 +226,77 @@ class DoorBlast:
             else:
                 hits = 0
     
-        xpos = 0.40
+        xpos = 0.2
+        ypos = -0.5
         zpos = 1.1
         
-        self.arm_move(xpos - 0.1, -0.5, zpos, 4.0)
+        self.arm_move(xpos - 0.1, -0.7, zpos, 4.0)
 
         #Move up to the door
-        goal = self.generate_goal(min_depth - 0.5, 0.0)
+        goal = self.generate_goal(min_depth - 0.4, 0.9, True)
         self.move_to_target(goal, 0)
 
-        door_center_goal = self.generate_goal(0.05, math.pi / 2)
+        door_center_goal = self.generate_goal(0.05 - 0.9, math.pi / 2)
 
-        #Move to the handle
-        goal = self.generate_goal(0.9, math.pi / 2) 
-        self.move_to_target(goal, 0)
-        
         self.set_gripper(0.0)
         rospy.sleep(1.0)
 
-        ypos = -0.5
+        #Feel door depth at the right
+        xpos1 = xpos
+        ypos1 = -0.7
+        zpos1 = zpos
+        self.arm_move(xpos1, ypos1, zpos1, 1.0)
+        while (xpos1 < 0.6 and not rospy.is_shutdown()):
+            self.arm_move(xpos1, ypos1, zpos1, 0.3)
+            if (self.hand_dist((xpos1, ypos1, zpos1)) > 0.01):
+                break
+            xpos1 = xpos1 + 0.01
+        
+        rospy.sleep(1.0)
+        (xpos1, ypos1, zpos1) = self.get_end_effector_pos()
+
+        xpos2 = xpos
+        ypos2 = -0.5
+        zpos2 = zpos
+        self.arm_move(xpos, ypos1, zpos1, 1.0) #Move hand back
+        self.arm_move(xpos, ypos2, zpos2, 1.0) #Move to other target
+        while (xpos2 < 0.6 and not rospy.is_shutdown()):
+            self.arm_move(xpos2, ypos2, zpos2, 0.3)
+            if (self.hand_dist((xpos2, ypos2, zpos2)) > 0.01):
+                break
+            xpos2 = xpos2 + 0.01
+        rospy.sleep(1.0)
+        (xpos2, ypos2, zpos2) = self.get_end_effector_pos()
+
+        print (xpos1, ypos1, zpos1)
+        print (xpos2, ypos2, zpos2)
+        angle = math.atan2(xpos2 - xpos1, ypos2 - ypos1)
+        print angle
+        
+        self.arm_move(xpos2 - 0.2, ypos2, zpos2, 1.0)
+        
+        self.move_to_target(self.generate_goal(0, 0), angle, True, False)
+        
         self.arm_move(xpos, ypos, zpos, 2.0)
+        while (xpos < 0.5 and not rospy.is_shutdown()):
+            self.arm_move(xpos, ypos, zpos, 0.3)
+            if (self.hand_dist((xpos, ypos, zpos)) > 0.01):
+                break
+            xpos = xpos + 0.01
+        xpos = xpos - 0.04
+
+        ypos = -0.5
+        self.arm_move(xpos, ypos, zpos, 1.0)
         while (ypos < 0.0 and not rospy.is_shutdown()):
             self.arm_move(xpos, ypos, zpos, 0.3)
-            print xpos, ypos, zpos
-            dist = 0.0
-            for axis in zip((xpos, ypos, zpos), self.get_end_effector_pos()):
-                delta = axis[0] - axis[1]
-                dist = dist + (delta * delta)
-            dist = math.sqrt(dist)
-            if (dist > 0.01):
+            if (self.hand_dist((xpos, ypos, zpos)) > 0.01):
                 break
-            print dist
             ypos = ypos + 0.01
+        
+        if (ypos >= 0):
+            self.tuck_arms()
+            #self.move_to_target(self.generate_goal(-0.9, math.pi / 2))
+            self.drag(msg)
 
         target_pos = self.get_end_effector_pos()
         self.arm_move(xpos - 0.1, target_pos[1] - 0.20, zpos, 3.0)
@@ -276,6 +331,7 @@ class DoorBlast:
         for step in range(0, 20):
             cmd = Twist()
             cmd.linear.y = 0.3
+            cmd.angular.z = 0.01
             self.cmd_vel_publisher.publish(cmd) 
             rospy.sleep(0.1)
 
@@ -287,14 +343,11 @@ class DoorBlast:
         self.cmd_vel_publisher.publish(Twist())
         
         self.set_gripper(0.086)
-        self.move_to_target(door_center_goal, math.pi, True, True)
+        self.move_to_target(door_center_goal, -math.pi * 6 / 5, True, True)
+        self.move_to_target(door_center_goal, -math.pi, True, True)
 
         #Tuck
-        tuck_goal = TuckArmsGoal()
-        tuck_goal.tuck_left = True
-        tuck_goal.tuck_right = True
-        self.tuck.send_goal(tuck_goal)
-        self.tuck.wait_for_result()
+        self.tuck_arms()
 
         self.set_gripper(0.0)
 
@@ -313,6 +366,13 @@ class DoorBlast:
         #print grip
         self.gripper.send_goal(grip)
         self.gripper.wait_for_result()
+
+    def tuck_arms(self):
+        tuck_goal = TuckArmsGoal()
+        tuck_goal.tuck_left = True
+        tuck_goal.tuck_right = True
+        self.tuck.send_goal(tuck_goal)
+        self.tuck.wait_for_result()
 
         
     def get_end_effector_pos(self):
@@ -602,7 +662,7 @@ class DoorBlast:
             marker.id = n
             self.visualization_publisher.publish(marker)
 
-    def generate_goal(self, dist, angle):
+    def generate_goal(self, dist, angle, xy = False):
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param
         
@@ -612,8 +672,12 @@ class DoorBlast:
                 
                 goal = PoseStamped()
                 goal.header.frame_id = base_frame
-                goal.pose.position.x = dist * math.cos(angle)
-                goal.pose.position.y = dist * math.sin(angle)
+                if (xy):
+                    goal.pose.position.x = dist
+                    goal.pose.position.y = angle
+                else:
+                    goal.pose.position.x = dist * math.cos(angle)
+                    goal.pose.position.y = dist * math.sin(angle)
                 goal = self.listener.transformPose(odom_frame, goal)
                 #print goal
                 break
@@ -670,7 +734,7 @@ class DoorBlast:
                     while (w < -math.pi):
                         w = w + math.pi * 2.0
 
-                    scale = 1.0
+                    scale = 1.5
                     if (extreme_turn):
                         scale = 3.0
                     msg.angular.z = scaleclamp(w, scale, 0.5)
