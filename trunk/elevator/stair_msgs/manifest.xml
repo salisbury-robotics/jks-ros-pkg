@@ -1,0 +1,11 @@
+<package>
+  <description brief="Messages for STAIR project">
+    Messages particular to the STAIR project
+  </description>
+  <author>Kaijen Hsiao/kaijenhsiao@gmail.com</author>
+  <license>BSD</license>
+  <depend package="roslib"/>
+  <export>
+    <cpp cflags="-I${prefix}/msg/cpp"/>
+  </export>
+</package>

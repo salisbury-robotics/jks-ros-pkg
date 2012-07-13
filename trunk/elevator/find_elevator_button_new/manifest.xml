@@ -1,0 +1,15 @@
+<package>
+  <description>
+    A ros node to identify a desired elevator button.
+  </description>
+  <author>Ellen Klingbeil</author>
+  <license>BSD</license>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="stair_msgs"/>
+<!--  <depend package="opencv_latest"/> -->
+  <export>
+    <cpp lflags="-L${prefix}/lib_find_buttons -l_find_buttons"/>
+  </export>
+  <url></url>
+</package>

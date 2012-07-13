@@ -1,0 +1,112 @@
+#MPK v1.0 robot
+
+selfcoll {
+	MidArm Shoulder
+	LowerArm Shoulder
+	LowerArm UpperArm
+	Wrist Shoulder
+	Wrist UpperArm
+	LeftFinger Shoulder
+	LeftFinger UpperArm
+	RightFinger Shoulder
+	RightFinger UpperArm
+}
+
+joint Shoulder {
+  ConstTransl_Rot1 0 0.1080 0 0 1 0 -2.95 2.95
+  param 0
+  model0 "ivmodels/k1_450.iv"
+}
+
+joint UpperArm {
+  parent Shoulder
+  ConstTransl_Rot1 0 0.077 0 0 0 1 -0.52 1.78
+  param 1
+  model0 "ivmodels/k2_450.iv"
+}
+
+
+joint MidArm {
+  parent UpperArm
+  ConstTransl_Rot1 0 0.190 0 0 0 1 -2.13 2.103
+  param 2
+  model0 "ivmodels/k3_450.iv"
+}
+
+joint LowerArm {
+  parent MidArm
+  ConstTransl_Rot1 0 0.139 0 0 0 -1 -1.95 1.95
+  param 3
+  model0 "ivmodels/k4_450.iv"
+}
+
+joint Wrist {
+  parent LowerArm
+  ConstTransl_Rot1 0 0.1201 0 0 -1 0 -2.93 2.93
+  param 4
+  model0 "ivmodels/k5_450.iv"
+}
+
+joint LeftFinger {
+  parent Wrist
+  ConstTransl_Rot1 0 0.0949 -0.013 1 0 0 -0.785398163 0
+  param 5
+  model0 "ivmodels/kfinger_450.iv"
+}
+
+joint RightFinger {
+  parent Wrist
+  ConstTransl_Rot1 0 0.0949 0.013 -1 0 0 -0.785398163 0
+  param 5
+  model0 "ivmodels/kfinger_450.iv"
+}
+
+joint TracePointC {
+  parent Wrist
+  ConstTransl 0 0.100 0
+  tracePoint
+  coll FALSE
+}
+
+joint TracePointL {
+  parent LeftFinger
+  ConstTransl 0 0.060 0
+  tracePoint
+  coll FALSE
+}
+
+joint TracePointR {
+  parent RightFinger
+  ConstTransl 0 0.060 0
+  tracePoint
+  coll FALSE
+}
+
+joint TracePointLT {
+  parent LeftFinger
+  ConstTransl 0 0.100 0
+  tracePoint
+  coll FALSE
+}
+
+joint TracePointRT {
+  parent RightFinger
+  ConstTransl 0 0.100 0
+  tracePoint
+  coll FALSE
+}
+
+joint TracePointWrist {
+  parent LowerArm
+  ConstTransl 0 0.0950 0
+  tracePoint
+  coll FALSE
+}
+
+joint TracePointPalm {
+  parent Wrist
+  # hacky change for Ellen
+  ConstTransl 0 0.220 0
+  tracePoint
+  coll FALSE
+}

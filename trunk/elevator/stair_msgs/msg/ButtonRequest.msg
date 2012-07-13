@@ -1,0 +1,4 @@
+string button_category
+string button_label
+string image_filename
+string cloud_filename
