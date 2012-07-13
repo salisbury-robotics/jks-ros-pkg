@@ -1,0 +1,14 @@
+<package>
+  <description>
+    
+    A simple detector to see which of two doors has opened.
+  
+  </description>
+  <author>Morgan Quigley</author>
+  <license>BSD</license>
+  <depend package="roscpp"/>
+  <depend package="sensor_msgs"/>
+  <depend package="std_msgs"/>
+  <depend package="world_db"/>
+</package>
+

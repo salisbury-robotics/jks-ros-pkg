@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 2.4.6)
+include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+rospack(elevator_door_status)
+
+rospack_add_library(elevator_door_status elevator_door_status.cpp)
+
+rospack_add_executable(laser_dump_reader laser_dump_reader.cpp)
+target_link_libraries(laser_dump_reader elevator_door_status)
+
+rospack_add_executable(elevator_door_detector_node elevator_door_detector_node.cpp)
+target_link_libraries(elevator_door_detector_node elevator_door_status)

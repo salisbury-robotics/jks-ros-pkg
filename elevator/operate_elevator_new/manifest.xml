@@ -1,0 +1,15 @@
+<package>
+  <description>
+    A ros node to help stair 1 operate an elevator given a map of the building.
+  </description>
+  <author>Ellen Klingbeil</author>
+  <license>BSD</license>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="stair_msgs"/>
+  <depend package="std_srvs"/>
+  <depend package="opencv_latest"/>
+  <depend package="katana450"/>
+  <depend package="katana_ik_bridge"/>
+  <depend package="borg"/>
+</package>
