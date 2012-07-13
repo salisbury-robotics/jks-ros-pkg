@@ -119,19 +119,23 @@ AssistedTeleop::AssistedTeleop() :
 
   iov_->setUpdateCallback(boost::bind(&AssistedTeleop::updatePlanningScene, this, _1));
 
-  if(monitor_robot_state) {
-    tv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
-    if(allow_trajectory_execution_) {
-      tv_->setAllStartChainModes(false);
-      /* ael */
-      //tv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
-      //tv_->addMenuEntry("Start Following",  boost::bind(&AssistedTeleop::startFollowing, this));
-      //tv_->addMenuEntry("Stop Following",   boost::bind(&AssistedTeleop::stopFollowing, this));
-      //tv_.setExecutionFunction( boost::bind(&AssistedTeleop::executeTeleopUpdate, this, _1, _2) );
-      tv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
-    }
-  }
+//  if(monitor_robot_state) {
+
+//    if(allow_trajectory_execution_) {
+
+//      /* ael */
+//      //tv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
+//      //tv_->addMenuEntry("Start Following",  boost::bind(&AssistedTeleop::startFollowing, this));
+//      //tv_->addMenuEntry("Stop Following",   boost::bind(&AssistedTeleop::stopFollowing, this));
+//      //tv_.setExecutionFunction( boost::bind(&AssistedTeleop::executeTeleopUpdate, this, _1, _2) );
+//    }
+//  }
+  tv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
+  tv_->setAllStartChainModes(false);
+  tv_->setAllStartControlModes(false);
+  tv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
   tv_->hideAllGroups();
+
   //EGJ: no longer necessary as of visualization 1.8.3 but kept as reference
   //Ogre::LogManager* log_manager = new Ogre::LogManager();
   //log_manager->createLog( "Ogre.log", false, false, false );
@@ -268,6 +272,7 @@ void AssistedTeleop::updatePlanningScene(planning_scene::PlanningSceneConstPtr p
 }
 
 void AssistedTeleop::updateSceneCallback() {
+  return;
   if(first_update_) {
     tv_->resetAllStartAndGoalStates();
     first_update_ = false;
@@ -286,6 +291,8 @@ bool AssistedTeleop::doneWithExecution(const trajectory_execution::TrajectoryExe
 
 
 void AssistedTeleop::executeLastTrajectory() {
+  if(!allow_trajectory_execution_) return;
+
   std::string group_name;
   trajectory_msgs::JointTrajectory traj;
   if(tv_->getLastTrajectory(group_name, traj)) {
@@ -357,6 +364,7 @@ void AssistedTeleop::attachObject(const std::string& name) {
 }
 
 void AssistedTeleop::updateToCurrentState() {
+  ROS_WARN("Updating to current state.");
   iov_->updateCurrentState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
   tv_->resetAllStartStates();
 }

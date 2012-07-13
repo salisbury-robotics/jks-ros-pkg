@@ -85,6 +85,8 @@ public:
   }
 
   void setAllStartChainModes(bool chain);
+  void setAllStartControlModes(bool enable);
+  void setAllGoalControlModes(bool enable);
 
   std::string getCurrentGroup() const {
     return current_group_;
@@ -110,7 +112,7 @@ public:
     trajectory_execution_fn_ = function;
   }
 
- bool getProxyState(planning_models::KinematicState* kin_state);
+ bool getProxyState(planning_models::KinematicState &kin_state);
 
 
 protected:

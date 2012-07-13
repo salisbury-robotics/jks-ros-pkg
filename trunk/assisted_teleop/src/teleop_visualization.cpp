@@ -61,9 +61,9 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
                                                                                            groups[i].name_,
                                                                                            marker_publisher,
                                                                                            false));
-      group_visualization_map_[groups[i].name_]->addMenuEntry("Plan", boost::bind(&TeleopVisualization::generatePlan, this, _1, true));
+      //group_visualization_map_[groups[i].name_]->addMenuEntry("Plan", boost::bind(&TeleopVisualization::generatePlan, this, _1, true));
       //group_visualization_map_[groups[i].name_]->addMenuEntry("Plan out and back", boost::bind(&TeleopVisualization::generateOutAndBackPlan, this, _1, true));
-      group_visualization_map_[groups[i].name_]->addMenuEntry("Play last trajectory", boost::bind(&TeleopVisualization::playLastTrajectory, this));
+      //group_visualization_map_[groups[i].name_]->addMenuEntry("Play last trajectory", boost::bind(&TeleopVisualization::playLastTrajectory, this));
       group_visualization_map_[groups[i].name_]->addMenuEntry("Random start / goal", boost::bind(&TeleopVisualization::generateRandomStartEnd, this, _1));
       group_visualization_map_[groups[i].name_]->addMenuEntry("Reset start and goal", boost::bind(&TeleopVisualization::resetStartGoal, this, _1));
       group_visualization_map_[groups[i].name_]->setGoodBadMode(true);
@@ -160,9 +160,25 @@ void TeleopVisualization::addStateChangedCallback(const boost::function<void(con
 
 void TeleopVisualization::setAllStartChainModes(bool chain) {
   for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
-      it != group_visualization_map_.end(); 
+      it != group_visualization_map_.end();
       it++) {
     it->second->setChainStartToCurrent(chain);
+  }
+}
+
+void TeleopVisualization::setAllStartControlModes(bool enable) {
+  for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
+      it != group_visualization_map_.end();
+      it++) {
+    it->second->setStartControlMode(enable);
+  }
+}
+
+void TeleopVisualization::setAllGoalControlModes(bool enable) {
+  for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
+      it != group_visualization_map_.end();
+      it++) {
+    it->second->setGoalControlMode(enable);
   }
 }
 
@@ -179,10 +195,13 @@ void TeleopVisualization::selectGroup(const std::string& group) {
   group_visualization_map_[current_group_]->showAllMarkers();
 }
 
-bool TeleopVisualization::getProxyState(planning_models::KinematicState* kin_state)
+bool TeleopVisualization::getProxyState(planning_models::KinematicState &kin_state)
 {
 
-  if(!last_trajectory_ok_) return false;
+  if(!last_trajectory_ok_){
+    ROS_WARN("Last trajectory was invalid, can't get proxy state");
+    return false;
+  }
 
   trajectory_msgs::JointTrajectory traj;
   getLastTrajectory(current_group_, traj);
@@ -190,8 +209,9 @@ bool TeleopVisualization::getProxyState(planning_models::KinematicState* kin_sta
   moveit_msgs::RobotState robot_state;
 
   planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
-  planning_models::robotStateToKinematicState(robot_state, *kin_state);
+  planning_models::robotStateToKinematicState(robot_state, kin_state);
 
+  ROS_INFO("Returning with Proxy state!");
   return true;
 }
 
@@ -389,10 +409,14 @@ void TeleopVisualization::teleopTimerCallback() {
   {
     generatePlan(current_group_, false);
 
-    // The start state next time should be set to the last solved proxy pose.
-    planning_models::KinematicState* ks = new planning_models::KinematicState(kg->getStartState());
-    if(getProxyState(ks)) kg->setStartState( *ks );
-    delete ks;
+//    // The start state next time should be set to the last solved proxy pose.
+//    planning_models::KinematicState ks(kg->getStartState());
+//    if(getProxyState(ks))
+//      kg->setStartState( ks );
+//    else
+//      ROS_WARN("Couldn't set new proxy state!");
+////    delete ks;
+    kg->setStartState(planning_scene_->getCurrentState());
 
     collision_detection::CollisionRequest req;
     req.max_contacts = 50;
