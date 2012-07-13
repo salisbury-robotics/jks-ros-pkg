@@ -12,6 +12,7 @@ from pr2_msgs.srv import *
 from grandslam.msg import *
 from kinematics_msgs.srv import *
 from pr2_controllers_msgs.msg import *
+from pr2_common_action_msgs.msg import *
 from trajectory_msgs.msg import *
 import actionlib
 
@@ -36,6 +37,9 @@ class DoorBlast:
         self.gripper = actionlib.SimpleActionClient("r_gripper_controller/gripper_action", Pr2GripperCommandAction)
         self.blast_server.start()
         self.drag_server.start()
+        rospy.loginfo("Wait for tuck arm")
+        self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
+        self.tuck.wait_for_server()
         rospy.loginfo("started")
 
     
@@ -206,7 +210,7 @@ class DoorBlast:
             else:
                 hits = 0
     
-        xpos = 0.35
+        xpos = 0.40
         zpos = 1.1
         
         self.arm_move(xpos - 0.1, -0.5, zpos, 4.0)
@@ -215,10 +219,11 @@ class DoorBlast:
         goal = self.generate_goal(min_depth - 0.5, 0.0)
         self.move_to_target(goal, 0)
 
+        door_center_goal = self.generate_goal(0.05, math.pi / 2)
+
         #Move to the handle
-        goal = self.generate_goal(0.8, math.pi / 2) 
+        goal = self.generate_goal(0.9, math.pi / 2) 
         self.move_to_target(goal, 0)
-        
         
         self.set_gripper(0.0)
         rospy.sleep(1.0)
@@ -240,14 +245,14 @@ class DoorBlast:
 
         target_pos = self.get_end_effector_pos()
         self.arm_move(xpos - 0.1, target_pos[1] - 0.20, zpos, 3.0)
-        self.arm_move(xpos - 0.1, target_pos[1] + 0.05, zpos, 3.0)
+        self.arm_move(xpos - 0.1, target_pos[1] + 0.03, zpos, 3.0)
 
         self.set_gripper(0.086)
 
         rospy.sleep(1.0)
 
         print target_pos
-        self.arm_move(xpos + 0.1, target_pos[1] + 0.05, zpos)
+        self.arm_move(xpos + 0.1, target_pos[1] + 0.03, zpos)
 
         rospy.sleep(1.0)
         
@@ -259,27 +264,107 @@ class DoorBlast:
         goal = self.generate_goal(0.46 + target_pos[1], math.pi / 2)
         self.move_to_target(goal, 0.0)
         rospy.sleep(5.0)
+
+        #Cancel out forward and backwards offset
+        self.move_to_target(self.generate_goal(xpos - target_pos[0], 0), 0)
+
+        #Turn to face the door
+        self.move_to_target(self.generate_goal(0.1, -math.pi / 2), -math.pi / 2, True, True)
+        self.move_to_target(self.generate_goal(0.05, 0.0), -math.pi / 4, True, True)
+        self.move_to_target(self.generate_goal(0.05, math.pi / 4), -math.pi / 8, True, True)
         
+        for step in range(0, 20):
+            cmd = Twist()
+            cmd.linear.y = 0.3
+            self.cmd_vel_publisher.publish(cmd) 
+            rospy.sleep(0.1)
+
+        #Reset the robot's wheels straight forward
+        cmd = Twist()
+        cmd.linear.x = 0.02
+        self.cmd_vel_publisher.publish(cmd)
+        rospy.sleep(0.1)
+        self.cmd_vel_publisher.publish(Twist())
         
-        target_pos = self.get_end_effector_pos()
-        self.arm_move(-0.135, -0.46, zpos, 0.5)
+        self.set_gripper(0.086)
+        self.move_to_target(door_center_goal, math.pi, True, True)
+
+        #Tuck
+        tuck_goal = TuckArmsGoal()
+        tuck_goal.tuck_left = True
+        tuck_goal.tuck_right = True
+        self.tuck.send_goal(tuck_goal)
+        self.tuck.wait_for_result()
+
+        self.set_gripper(0.0)
+
+        self.move_to_target(self.generate_goal(1.5, math.pi), 0, True, True)
+        self.move_to_target(self.generate_goal(0, 0), math.pi, True, True)
+
+        #print "one"
+        #self.move_to_target(self.generate_goal(-0.4, 0), 0)
+        #print "two"
+        #self.move_to_target(self.generate_goal(-0.3, math.pi / 2), 0)
+        #print "three"
+        #self.move_to_target(self.generate_goal(-0.3, 0), 0)
+        #print "four"
+        #self.move_to_target(self.generate_goal(-0.5, math.pi / 2), 0)
+        #print "five"
+        #self.move_to_target(self.generate_goal(0.0, 0), -math.pi / 2, True, True)
+        #print "six"
+        #self.move_to_target(self.generate_goal(0.05, math.pi / 2), 0, True, True)
+        #print "seven"
+        #self.move_to_target(self.generate_goal(0.04, math.pi / 2), -math.pi * 30 / 180.0, True, True)
+        #print "eight"
+        #self.move_to_target(self.generate_goal(0.02, math.pi / 2), -math.pi * 10 / 180.0, True, True)
+        
+        #print "force"
+        #for i in range(0, 30):
+        #    msg = Twist()
+        #    msg.linear.y = 0.1
+        #    self.cmd_vel_publisher.publish(msg)
+        #    rospy.sleep(0.1)
+        #self.cmd_vel_publisher.publish(Twist())
+
+        print "done"
+        
+        #self.set_gripper(0.086)
+        #self.move_to_target(door_center_goal, -math.pi, True, True)
+
+        
+        #target_pos = self.get_end_effector_pos()
+        #self.arm_move(-0.135, -0.46, zpos, 0.5)
 
         #goal = self.generate_goal(0, 0)
-        goal = self.generate_goal(-0.1, math.pi / 2)
-        goal2 = self.generate_goal(-0.15, math.pi / 2)
-        goal3 = self.generate_goal(-0.18, math.pi / 2)
-        print goal
-        print "one"
-        self.move_to_target(goal, -math.pi * 3.0 / 4.0, True, True)
-        print "two"
-        self.move_to_target(goal2, -math.pi * (1.0 - 25.0 / 180.0), True, True)
-        print "three"
-        self.move_to_target(goal3, -math.pi * (1.0 - 15.0 / 180.0), True, True)
-        print "four"
-        self.move_to_target(goal3, -math.pi, True, True)
+        #goal = self.generate_goal(-0.1, math.pi / 2)
+        #goal2 = self.generate_goal(-0.15, math.pi / 2)
+        #goal3 = self.generate_goal(-0.18, math.pi / 2)
+        #goal4 = self.generate_goal(-0.9, math.pi / 2)
+        #print goal
+        #print "one"
+        #self.move_to_target(goal, -math.pi * 3.0 / 4.0, True, True)
+        #print "two"
+        #self.move_to_target(goal2, -math.pi * (1.0 - 25.0 / 180.0), True, True)
+        #print "three"
+        #self.move_to_target(goal3, -math.pi * (1.0 - 15.0 / 180.0), True, True)
+        #print "four"
+        #self.move_to_target(goal3, -math.pi, True, True)
+        #print "open"
 
-        #goal = self.generate_goal(0.7, -math.pi)
-        #self.move_to_target(goal, 0)
+        #Replace with joint states FIXME
+        #target_pos = self.get_end_effector_pos()
+        #self.arm_move(target_pos[0], target_pos[1], target_pos[2])
+
+        #self.set_gripper(0.86)
+        print "move" 
+        #self.move_to_target(goal4, -math.pi, True, True)
+
+        #Failed....
+        #self.arm_move(-0.222, -0.198, -0.600)
+
+        #goal = self.generate_goal(1.5, math.pi)
+        #self.move_to_target(goal, 0.0, True)
+        #self.move_to_target(goal, math.pi, True)
 
         self.drag_server.set_succeeded(GrandSlamTransitionResult())        
         return True
@@ -633,6 +718,7 @@ class DoorBlast:
                         break
                 else:
                     w = y + angle_offset
+                    print y, angle_offset, w
 
                     dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
                     dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
@@ -646,17 +732,18 @@ class DoorBlast:
                         w = w - math.pi * 2.0
                     while (w < -math.pi):
                         w = w + math.pi * 2.0
-                    msg.angular.z = scaleclamp(w, 1, 0.5)
+
+                    scale = 1.0
+                    if (extreme_turn):
+                        scale = 3.0
+                    msg.angular.z = scaleclamp(w, scale, 0.5)
                 
                     if (w > -0.15 and w < 0.15):
                         if (dist < 0.03): #Fixme
-                            reset = True
+                            if (w > -0.01 and w < 0.01 or not no_y_reset):
+                                reset = True
 
-                        scale = 1.0
-                        if (extreme_turn):
-                            scale = 3.0
-
-                        dist = scaleclamp(dist, scale, 0.4)
+                        dist = scaleclamp(dist, 1.0, 0.4)
                         ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
                         msg.linear.x = dist * math.cos(ang)
                         msg.linear.y = dist * math.sin(ang)
