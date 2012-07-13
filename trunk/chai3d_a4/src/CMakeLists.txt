@@ -216,7 +216,7 @@ IF(APPLE)
 ENDIF(APPLE)
 
 TARGET_LINK_LIBRARIES(chai3d 
-  #${CHAI_LINK_LIBRARIES}
+  ${CHAI_LINK_LIBRARIES}
 )
 
 # This is a BAD HACK for MSVC projects to put their targets in the right place!

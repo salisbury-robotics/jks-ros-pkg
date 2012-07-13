@@ -36,10 +36,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_SOURCE_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_BINARY_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -66,9 +66,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
