@@ -15,7 +15,11 @@ PROJECT(CHAI3D)
 
 SET(CMAKE_CONFIGURATION_TYPES "Release;ReleaseWithDebInfo" 
     CACHE STRING "Available build configurations." FORCE)
-    
+
+#-----------------------------------------------------------------------------    
+# Flags for changint he compile settings
+SET(PHANTOM_DEVICE_SUPPORT True)
+
 #-----------------------------------------------------------------------------
 # Output directories.
 
@@ -77,8 +81,6 @@ ELSEIF(UNIX)
     ADD_DEFINITIONS(-DLINUX -fPIC -DO2)
     #ADD_DEFINITIONS(-DC_ENABLE_CUSTOM_DEVICE_SUPPORT )
     ADD_DEFINITIONS(-DC_ENABLE_DELTA_DEVICE_SUPPORT )
-    #ADD_DEFINITIONS(-DC_ENABLE_PHANTOM_DEVICE_SUPPORT )
-    #SET(CHAI_LINK_LIBRARIES "-lHD")
     INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/DHD/include")
     INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/lib3ds/include")
     INCLUDE_DIRECTORIES("${CHAI3D_SOURCE_DIR}/external/BASS/include")
@@ -90,11 +92,15 @@ ELSEIF(UNIX)
   LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/lib")
   LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/DHD/lib/${CHAI3D_LIBPATH}")
   LINK_DIRECTORIES("${CHAI3D_SOURCE_DIR}/internal/lib3ds/lib/release/${CHAI3D_LIBPATH}")
-  IF(C_ENABLE_PHANTOM_DEVICE_SUPPORT)
+  IF(PHANTOM_DEVICE_SUPPORT MATCHES True)
+    MESSAGE("Configuring with support for Phantom devices.")
+    ADD_DEFINITIONS(-DC_ENABLE_PHANTOM_DEVICE_SUPPORT )
+    SET(CHAI_LINK_LIBRARIES "-lHD")
     SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -ljpeg -lpng -lgif -l3ds -lHD")
   ELSE()
+    MESSAGE("Configuring with NO support for Phantom devices.")
     SET(LINK_DEPENDENCIES "-lchai3d -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -ljpeg -lpng -lgif -l3ds")
-  ENDIF(C_ENABLE_PHANTOM_DEVICE_SUPPORT)
+  ENDIF(PHANTOM_DEVICE_SUPPORT MATCHES True)
 ENDIF(APPLE)
 
 #-----------------------------------------------------------------------------
