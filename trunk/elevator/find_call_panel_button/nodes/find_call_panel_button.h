@@ -11,7 +11,7 @@
 #include "opencv/highgui.h"
 #include "../SvlClassify/svlElevatorClassifier.h"
 #include "../SvlClassify/svlElevatorOverlayer.h"
-#include "ros/node.h"
+#include "ros/ros.h"
 #include "stair_msgs/Button.h"
 #include "stair_msgs/ButtonRequest.h"
 
@@ -22,6 +22,8 @@ using namespace std;
 class FindCallPanelButton
 {
  public:
+  ros::Publisher pub;
+  ros::Subscriber request;
   stair_msgs::Button single_button;
   stair_msgs::ButtonRequest button_request;
 
@@ -29,7 +31,7 @@ class FindCallPanelButton
   ~FindCallPanelButton();
   void init();
   void shutdown();
-  void findButtons();
+  void findButtons(const stair_msgs::ButtonRequest::ConstPtr &button_request);
 
  private:
   svlObject2dFrame svlDetections;

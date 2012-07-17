@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <map>
-#include "ros/node.h"
+#include <ros/package.h>
 using namespace std;
 
 
@@ -26,7 +26,7 @@ struct statistics {
   double gt_std[2];
 };
 
-const string BASE_PATH = ros::getPackagePath("find_call_panel_button") + "/";	   
+const string BASE_PATH = ros::package::getPath("find_call_panel_button") + "/";	   
 const string DATA_PATH = BASE_PATH+"data/";
 const string DEFAULT_MODEL="plastic_retrain";
 
