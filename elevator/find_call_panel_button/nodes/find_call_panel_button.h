@@ -25,7 +25,6 @@ class FindCallPanelButton
   ros::Publisher pub;
   ros::Subscriber request;
   stair_msgs::Button single_button;
-  stair_msgs::ButtonRequest button_request;
 
   FindCallPanelButton();
   ~FindCallPanelButton();

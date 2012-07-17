@@ -24,7 +24,7 @@ void FindCallPanelButton::init()
 void FindCallPanelButton::findButtons(const stair_msgs::ButtonRequest::ConstPtr &button_request) 
 {
   cout << "find_call_panel_button: searching for buttons" << endl;
-  this->image_file = this->button_request.image_filename;
+  this->image_file = button_request->image_filename;
 
   size_t beginPos = this->image_file.find_last_of("/") + 1;
   size_t len = this->image_file.find_last_of(".") - beginPos;
@@ -66,7 +66,7 @@ void FindCallPanelButton::findButtons(const stair_msgs::ButtonRequest::ConstPtr 
 
   if(this->svlDetections.size() <1){
     this->single_button.label = "NA";
-  }else if(this->button_request.button_label.compare("up") !=0){
+  }else if(button_request->button_label.compare("up") !=0){
     this->single_button.X = this->svlDetections[0].x + this->svlDetections[0].w/2;
     this->single_button.Y = this->svlDetections[0].y + this->svlDetections[0].h/2;
     this->single_button.label = "up";
