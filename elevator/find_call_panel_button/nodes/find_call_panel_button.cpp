@@ -5,10 +5,10 @@ void FindCallPanelButton::init()
 {
   bVerbose = false;
 
-  ros::Node *node = ros::Node::instance();
-  node->subscribe("elevator_call_panel_buttons_request", button_request,
-		  &FindCallPanelButton::findButtons, this, 10);
-  node->advertise<stair_msgs::Button>("single_button", 10);
+  ros::NodeHandle node;
+  request = node.subscribe<stair_msgs::ButtonRequest>("elevator_call_panel_buttons_request", 1,
+					    boost::bind(&FindCallPanelButton::findButtons, this, _1));
+  pub = node.advertise<stair_msgs::Button>("single_button", 10);
   /*
     cout << "creating own start msg" << endl;
     node->advertise<stair_msgs::ButtonRequest>("begin_operate_elevator", 10);
@@ -21,7 +21,7 @@ void FindCallPanelButton::init()
 
 }
 
-void FindCallPanelButton::findButtons() 
+void FindCallPanelButton::findButtons(const stair_msgs::ButtonRequest::ConstPtr &button_request) 
 {
   cout << "find_call_panel_button: searching for buttons" << endl;
   this->image_file = this->button_request.image_filename;
@@ -67,17 +67,16 @@ void FindCallPanelButton::findButtons()
   if(this->svlDetections.size() <1){
     this->single_button.label = "NA";
   }else if(this->button_request.button_label.compare("up") !=0){
-    this->single_button.x = this->svlDetections[0].x + this->svlDetections[0].w/2;
-    this->single_button.y = this->svlDetections[0].y + this->svlDetections[0].h/2;
+    this->single_button.X = this->svlDetections[0].x + this->svlDetections[0].w/2;
+    this->single_button.Y = this->svlDetections[0].y + this->svlDetections[0].h/2;
     this->single_button.label = "up";
   }else{
-    this->single_button.x = this->svlDetections[this->svlDetections.size()>1?1:0].x + this->svlDetections[this->svlDetections.size()>1?1:0].w/2;
-    this->single_button.y = this->svlDetections[this->svlDetections.size()>1?1:0].y + this->svlDetections[this->svlDetections.size()>1?1:0].h/2;
+    this->single_button.X = this->svlDetections[this->svlDetections.size()>1?1:0].x + this->svlDetections[this->svlDetections.size()>1?1:0].w/2;
+    this->single_button.Y = this->svlDetections[this->svlDetections.size()>1?1:0].y + this->svlDetections[this->svlDetections.size()>1?1:0].h/2;
     this->single_button.label = "down";
   }
-  ros::Node *node = ros::Node::instance();
 
-  node->publish("single_button",this->single_button);
+  pub.publish(this->single_button);
   
 }
 
@@ -91,20 +90,16 @@ FindCallPanelButton::~FindCallPanelButton() {}
 
 void FindCallPanelButton::shutdown()
 {
-  ros::Node *node = ros::Node::instance();
-  node->unadvertise("door_status");
-  node->unsubscribe("elevator_call_panel_buttons_request",
-		    &FindCallPanelButton::findButtons,this);
 }
 
 
 int main (int argc, char **argv)
 {
-  ros::init(argc, argv);
-  ros::Node n("find_call_panel_button");
+  ros::init(argc, argv, "find_call_panel_button");
+  ros::NodeHandle n;
   FindCallPanelButton callPanelButton;
   callPanelButton.init();
-  n.spin();
+  ros::spin();
   callPanelButton.shutdown();
   printf("Ros process find_call_panel_button is shutting down.\n");
 
