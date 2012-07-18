@@ -1,0 +1,554 @@
+#!/usr/bin/env python
+
+import roslib
+roslib.load_manifest('elevator_control')
+import rospy
+import math
+import tf
+from sensor_msgs.msg import *
+from visualization_msgs.msg import *
+from geometry_msgs.msg import *
+from pr2_msgs.srv import *
+from grandslam.msg import *
+from kinematics_msgs.srv import *
+from pr2_controllers_msgs.msg import *
+from pr2_common_action_msgs.msg import *
+from trajectory_msgs.msg import *
+import actionlib
+import cv
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
+
+
+class DoorBlast:
+    def __init__(self):
+        self.scan_msg = None
+        self.visualization_publisher = rospy.Publisher("/visualization_markers", Marker)
+        self.cmd_vel_publisher = rospy.Publisher("/base_controller/command", Twist)
+        self.listener = tf.TransformListener()
+        rospy.loginfo("Wait for laser control")
+        rospy.wait_for_service("/laser_tilt_controller/set_periodic_cmd")
+        self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
+        rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
+        self.ac_server = actionlib.SimpleActionServer("ac_elevator", GrandSlamTransitionAction, execute_cb=self.do_elevator, auto_start=False)
+        rospy.loginfo("wait for IK")
+        rospy.wait_for_service("pr2_right_arm_kinematics/get_ik_solver_info")
+        rospy.wait_for_service("pr2_right_arm_kinematics/get_ik")
+        self.query_client = rospy.ServiceProxy("pr2_right_arm_kinematics/get_ik_solver_info", GetKinematicSolverInfo)
+        self.ik_client = rospy.ServiceProxy("pr2_right_arm_kinematics/get_ik", GetPositionIK)
+        self.arm = rospy.Publisher("r_arm_controller/command", JointTrajectory)
+        self.gripper = actionlib.SimpleActionClient("r_gripper_controller/gripper_action", Pr2GripperCommandAction)
+        self.ac_server.start()
+        rospy.loginfo("Wait for tuck arm")
+        self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
+        self.tuck.wait_for_server()
+        self.process_fb = False
+        rospy.loginfo("started")
+
+        self.cv_debug = False
+        self.location = False
+        self.process_im = False
+        if (self.cv_debug):
+            cv.NamedWindow("Open CV Image", 0)
+        self.bridge = CvBridge()
+        self.image_sub = rospy.Subscriber("/r_forearm_cam/image_rect_color", Image, self.image_callback)
+
+        self.do_elevator(False)
+
+    def do_elevator(self, msg):
+        self.set_laser_and_wait(-0.4)
+        self.tuck_arms()
+        while not self.line_up(self.scan_msg):
+            self.wait_for_scan()
+        
+        self.set_depth(0.8)
+
+        rospy.sleep(1.0)
+
+        self.extend_arm()
+
+        self.location = False
+        self.process_im = True
+
+        hc = 0
+        while not rospy.is_shutdown() and hc < 1:
+            print self.location
+            msg = Twist()
+            if (self.location == False):
+                hc = 0
+                msg.linear.y = 0.03
+            elif (self.location > 0.05):
+                hc = 0
+                msg.linear.y = -0.03
+            elif (self.location < -0.05):
+                hc = 0
+                msg.linear.y = 0.03
+            elif (self.location < -0.01):
+                hc = 0
+                msg.linear.y = 0.02
+            elif (self.location > 0.01):
+                hc = 0
+                msg.linear.y = -0.02
+            else:
+                hc = hc + 1
+                print "Hit", hc
+                self.cmd_vel_publisher.publish(Twist())
+                rospy.sleep(0.2)
+                #break
+            print msg
+            self.cmd_vel_publisher.publish(msg)
+            rospy.sleep(0.01)
+
+        self.cmd_vel_publisher.publish(Twist())
+
+        self.process_im = False
+        
+        pos = self.get_end_effector_pos()
+
+        #UP
+        self.arm_move(pos[0] - 0.1, pos[1], pos[2] + 0.2, 1)
+        #DOWN
+        
+
+
+    def image_callback(self, data):
+        if (not self.process_im):
+            return
+
+        try:
+            """ Convert the raw image to OpenCV format """
+            img = self.bridge.imgmsg_to_cv(data, "bgr8")
+        except CvBridgeError, e:
+          print e
+  
+        #text_font = cv.InitFont(cv2.CV_FONT_HERSHEY_DUPLEX, 2, 2)
+        #cv.PutText(cv_image, "OpenCV Image", (50, height / 2), text_font, cv.RGB(255, 255, 0))
+        
+
+        gray = cv.CreateImage(cv.GetSize(img), 8, 1)
+        edges = cv.CreateImage(cv.GetSize(img), 8, 1)
+        cv.CvtColor(img, gray, cv.CV_BGR2GRAY)
+        cv.Canny(gray, edges, 50, 100, 3)
+        cv.Smooth(gray, gray, cv.CV_GAUSSIAN, 9, 9)
+
+        storage = cv.CreateMat(30, 1, cv.CV_32FC3)
+
+        cv.HoughCircles(edges, storage, cv.CV_HOUGH_GRADIENT, 2, 10.0, 250, 50,
+                        min_radius=15, max_radius=30)
+
+        avg_y = 0
+        for i in range(0, storage.rows):
+            dat = storage[i, 0]
+            if (self.cv_debug):
+                cv.Circle(edges, (dat[0], dat[1]), int(dat[2]), 200)
+            avg_y = avg_y + dat[1]
+        
+        if (storage.rows > 0):
+            avg_y = avg_y / storage.rows
+            self.location = avg_y / edges.height - 0.5
+        else:
+            self.location = False
+        
+        """ Refresh the image on the screen """
+        if (self.cv_debug):
+            cv.ShowImage(self.cv_window_name, edges)
+            cv.WaitKey(3)
+
+
+    def extend_arm(self):
+        goal = JointTrajectory()
+        goal.header.stamp = rospy.get_rostime()
+        goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint", "r_upper_arm_roll_joint",
+                            "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
+        goal.points = [JointTrajectoryPoint()]
+        goal.points[0].positions = [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+        goal.points[0].velocities = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        goal.points[0].time_from_start = rospy.Duration.from_sec(3.0)
+
+        self.arm.publish(goal)
+        rospy.sleep(3.0)
+            
+    def set_depth(self, goal):
+        while not rospy.is_shutdown():
+            delta = self.get_vertical_depth(self.scan_msg) - goal
+            if (delta > 0.2):
+                delta = 0.2
+            if (delta < -0.2):
+                delta = -0.2
+            if (delta < 0.01 and delta > -0.01):
+                break
+            msg = Twist()
+            msg.linear.x = delta
+            #print msg
+            self.cmd_vel_publisher.publish(msg)
+
+    def on_scan_msg(self, msg):
+        self.scan_msg = msg
+
+    def wait_for_scan(self, clear = True):
+        if (clear):
+            self.scan_msg = False
+        while not rospy.is_shutdown() and not self.scan_msg:
+            rospy.sleep(0.01)
+
+    def set_laser_pos(self, pos):
+        laser_per = SetPeriodicCmdRequest()
+        laser_per.command.header.stamp = rospy.Time.now()
+        laser_per.command.profile = "linear"
+        laser_per.command.period = 1
+        laser_per.command.amplitude = 0
+        laser_per.command.offset = pos
+        resp1 = self.set_laser(laser_per)
+
+    def set_laser_and_wait(self, pos):
+        self.set_laser_pos(pos)
+        rospy.sleep(2.0)
+        self.wait_for_scan()
+
+    def hand_dist(self, pos1):
+        dist = 0.0
+        for axis in zip(pos1, self.get_end_effector_pos()):
+            delta = axis[0] - axis[1]
+            dist = dist + (delta * delta)
+        dist = math.sqrt(dist)
+        return dist
+
+    def set_gripper(self, pos):
+        grip = Pr2GripperCommandGoal()
+        grip.command.position = pos
+        grip.command.max_effort = 10000
+        #print grip
+        self.gripper.send_goal(grip)
+        self.gripper.wait_for_result()
+
+    def tuck_arms(self):
+        tuck_goal = TuckArmsGoal()
+        tuck_goal.tuck_left = True
+        tuck_goal.tuck_right = True
+        self.tuck.send_goal(tuck_goal)
+        self.tuck.wait_for_result()
+
+        
+    def get_end_effector_pos(self):
+        self.listener.waitForTransform("/r_wrist_roll_link", "/base_link", rospy.Time(), rospy.Duration(30))
+        target, rot = self.listener.lookupTransform("/base_link", "/r_wrist_roll_link", rospy.Time())
+        return target
+
+
+    def arm_move(self, x, y, z, duration=3, wait=True):
+        response = self.query_client(GetKinematicSolverInfoRequest())
+        if (not response):
+            print "Failed - no info:", x, y, z
+            return False
+        
+        kin = GetPositionIKRequest()
+        kin.timeout = rospy.Duration(5.0);
+        kin.ik_request.ik_link_name = "r_wrist_roll_link"
+        kin.ik_request.pose_stamped.header.frame_id = "base_link"
+        kin.ik_request.pose_stamped.pose.position.x = x
+        kin.ik_request.pose_stamped.pose.position.y = y
+        kin.ik_request.pose_stamped.pose.position.z = z
+        kin.ik_request.pose_stamped.pose.orientation.x = 0.0
+        kin.ik_request.pose_stamped.pose.orientation.y = 0.0
+        kin.ik_request.pose_stamped.pose.orientation.z = 0.0
+        kin.ik_request.pose_stamped.pose.orientation.w = 1.0
+        kin.ik_request.ik_seed_state.joint_state.name = response.kinematic_solver_info.joint_names;
+        for i in range(0, len(response.kinematic_solver_info.joint_names)):
+            minp = response.kinematic_solver_info.limits[i].min_position 
+            maxp = response.kinematic_solver_info.limits[i].max_position
+            while (len(kin.ik_request.ik_seed_state.joint_state.position) <= i):
+                kin.ik_request.ik_seed_state.joint_state.position += [0.0]
+            kin.ik_request.ik_seed_state.joint_state.position[i] = (minp + maxp) / 2.0
+        
+        resp = self.ik_client(kin)
+        if (not resp):
+            #FIXME
+            print "Failed - no response:", x, y, z
+            return False
+
+        if (len(resp.solution.joint_state.position) != len(kin.ik_request.ik_seed_state.joint_state.name)):
+            print "Failed - no data:", x, y, z
+            return False
+        
+        goal = JointTrajectory()
+        goal.header.stamp = rospy.get_rostime()
+        goal.joint_names = kin.ik_request.ik_seed_state.joint_state.name
+        goal.points = [JointTrajectoryPoint()]
+        goal.points[0].positions = resp.solution.joint_state.position
+        goal.points[0].velocities = map(lambda (x): 0.0, resp.solution.joint_state.position)
+        goal.points[0].time_from_start = rospy.Duration.from_sec(duration)
+
+        self.arm.publish(goal)
+        if (wait):
+            rospy.sleep(duration)
+        
+        return True
+        
+        
+
+        
+    def line_up(self, msg):
+        xy = self.scan_to_points(msg)
+        xy_c = []
+        for i in xy:
+            if (i[1] > -0.25 and i[1] < 0.25 and i[0] > 0.05):
+                xy_c.append(i)
+
+        marker = Marker()
+        marker.header.frame_id = msg.header.frame_id
+        marker.header.stamp = rospy.get_rostime()
+        marker.ns = "door_blast"
+        marker.type = Marker.CUBE
+        marker.action = Marker.MODIFY
+        marker.id = 0
+        marker.pose.position.x = 1.2
+        marker.pose.position.y = 0
+        marker.pose.position.z = 0.5
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 0.5
+        marker.scale.y = 1.0
+        marker.scale.z = 1
+        marker.color.a = 0.1
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+        self.visualization_publisher.publish(marker)
+
+        #print xy_c
+        n = len(xy_c)
+        Sx = Sy = Sxx = Syy = Sxy = 0.0
+        for pt in xy_c:
+            x = pt[1]
+            y = pt[0]
+            Sx = Sx + x
+            Sy = Sy + y
+            Sxx = Sxx + x*x
+            Syy = Syy + y*y
+            Sxy = Sxy + x*y
+        det = Sxx * n - Sx * Sx
+        a, b = (Sxy * n - Sy * Sx)/det, (Sxx * Sy - Sx * Sxy)/det
+        meanerror = residual = 0.0
+        for pt in xy_c:
+            x = pt[1]
+            y = pt[0]
+            meanerror = meanerror + (y - Sy/n)**2
+            residual = residual + (y - a * x - b)**2
+        RR = 1 - residual/meanerror
+        ss = residual / (n-2)
+        Var_a, Var_b = ss * n / det, ss * Sxx / det
+        print a, b, RR
+        
+        #a = a - 0.12 #FIXME: param for offset
+
+        msg = Twist()
+        speed_lim = 0.15 #FIXME param
+        scal = 4.0
+        if (-a * scal > speed_lim):
+            msg.angular.z = speed_lim
+        elif (-a * scal < -speed_lim):
+            msg.angular.z = -speed_lim
+        else:
+            msg.angular.z = -a * scal
+
+        print "Line up"
+        print msg
+        self.cmd_vel_publisher.publish(msg)
+        
+        tol = 0.005 #FIXME: param
+
+        if (a < tol and a > -tol):
+            return a
+        return False
+        
+
+    def scan_to_points(self, msg):
+        xy = []
+        angle = msg.angle_min
+        for r in range(0, len(msg.ranges)):
+            dist = msg.ranges[r]
+            xy.append([dist * math.cos(angle), dist * math.sin(angle)])
+            angle = angle + msg.angle_increment
+        return xy
+
+
+    def get_vertical_depth(self, msg):
+        marker = Marker()
+        marker.header.frame_id = msg.header.frame_id
+        marker.header.stamp = rospy.get_rostime()
+        marker.ns = "door_blast"
+        marker.type = Marker.CYLINDER
+        marker.action = Marker.MODIFY
+        marker.id = 0
+        marker.pose.position.x = 0
+        marker.pose.position.y = 0
+        marker.pose.position.z = 0.5
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 0.5
+        marker.scale.y = 0.5
+        marker.scale.z = 1
+        marker.color.a = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+        self.visualization_publisher.publish(marker)
+        
+        xy = self.scan_to_points(msg)
+    
+        #Find the distance to the wall
+        min_door = False
+        for pt in xy:
+            if (pt[1] < 0.75 and pt[1] > -0.75 and pt[0] > 0.01):
+                if (min_door == False or min_door > pt[0]):
+                    min_door = pt[0]
+                
+        marker = Marker()
+        marker.header.frame_id = msg.header.frame_id
+        marker.header.stamp = rospy.get_rostime()
+        marker.ns = "door_blast"
+        marker.type = Marker.CUBE
+        marker.action = Marker.MODIFY
+        marker.id = 1
+        marker.pose.position.x = min_door
+        marker.pose.position.y = 0
+        marker.pose.position.z = 0.5
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 2.0
+        marker.scale.y = 2.0
+        marker.scale.z = 1
+        marker.color.a = 0.4
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+        self.visualization_publisher.publish(marker)
+
+        goal = PoseStamped()
+        goal.header.frame_id = msg.header.frame_id
+        dist = min_door
+        goal.pose.position.x = min_door
+        #print goal
+        goal = self.listener.transformPose("/base_link", goal)
+        #print goal
+        return goal.pose.position.x
+
+    def delete_markers(self, frame_id, lim):
+        for n in range(0, lim):
+            marker = Marker()
+            marker.header.frame_id = frame_id
+            marker.header.stamp = rospy.get_rostime()
+            marker.ns = "door_blast"
+            marker.type = Marker.CYLINDER
+            marker.action = Marker.DELETE
+            marker.id = n
+            self.visualization_publisher.publish(marker)
+
+    def generate_goal(self, dist, angle, xy = False):
+        base_frame = "/base_footprint"
+        odom_frame = "/odom_combined" #FIXME param
+        
+        while not rospy.is_shutdown(): #FIXME
+            try:
+                self.listener.waitForTransform(base_frame, odom_frame, rospy.Time(), rospy.Duration(30))
+                
+                goal = PoseStamped()
+                goal.header.frame_id = base_frame
+                if (xy):
+                    goal.pose.position.x = dist
+                    goal.pose.position.y = angle
+                else:
+                    goal.pose.position.x = dist * math.cos(angle)
+                    goal.pose.position.y = dist * math.sin(angle)
+                goal = self.listener.transformPose(odom_frame, goal)
+                #print goal
+                break
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+                rospy.logwarn("TF error") #FIXME: warning
+        
+        return goal
+
+    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False):
+        base_frame = "/base_footprint"
+        odom_frame = "/odom_combined" #FIXME param 
+        
+        rate = rospy.Rate(10)
+        reset = False
+        while not rospy.is_shutdown(): #FIXME
+            try:
+                goal_transformed = self.listener.transformPose(base_frame, goal)
+                
+                #print goal_transformed
+                
+                def scaleclamp(val, scale, lim):
+                    t = val * scale
+                    if (t > lim):
+                        return lim
+                    if (t < -lim):
+                        return -lim
+                    return t
+                
+                msg = Twist()
+                p, r, y = tf.transformations.euler_from_quaternion((goal_transformed.pose.orientation.x,
+                                                                    goal_transformed.pose.orientation.y,
+                                                                    goal_transformed.pose.orientation.z,
+                                                                    goal_transformed.pose.orientation.w))
+                msg.angular.x = 0
+                msg.angular.y = 0
+                if (reset):
+                    msg.angular.z = scaleclamp(y, 1, 0.5)
+                    if (y > -0.05 and y < 0.05 or no_y_reset):
+                        break
+                else:
+                    w = y + angle_offset
+                    print y, angle_offset, w
+
+                    dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
+                    dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
+                    dist = math.sqrt(dist)
+                    #print dist
+
+                    #if (dist > 1.6):
+                    #    w = w - (math.pi / 8)
+
+                    while (w > math.pi):
+                        w = w - math.pi * 2.0
+                    while (w < -math.pi):
+                        w = w + math.pi * 2.0
+
+                    scale = 1.5
+                    if (extreme_turn):
+                        scale = 3.0
+                    msg.angular.z = scaleclamp(w, scale, 0.5)
+                
+                    if (w > -0.15 and w < 0.15):
+                        if (dist < 0.03): #Fixme
+                            if (w > -0.01 and w < 0.01 or not no_y_reset):
+                                reset = True
+
+                        dist = scaleclamp(dist, 1.0, 0.4)
+                        ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
+                        msg.linear.x = dist * math.cos(ang)
+                        msg.linear.y = dist * math.sin(ang)
+                    
+                #print "go forward", msg
+                
+                self.cmd_vel_publisher.publish(msg)
+                
+                rate.sleep()
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+                rospy.logwarn("TF error") #FIXME
+                
+
+if __name__ == '__main__':
+    rospy.init_node("door_blast")
+    blast = DoorBlast()
+    rospy.spin()
+    
