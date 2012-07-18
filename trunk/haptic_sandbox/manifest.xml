@@ -17,7 +17,7 @@
   <depend package="chai3d_a4"/>
 
   <export>
-    <cpp  cflags="-I${prefix}/include" 
+    <cpp  cflags="-I${prefix}/include  -I${prefix}/src" 
           lflags="-L${prefix}/lib -lhaptic_sandbox "/>
   </export>
 </package>
