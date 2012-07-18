@@ -29,14 +29,19 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_add_library(haptic_sandbox
+#include_directories("${PROJECT_SOURCE_DIR}/include/haptic_sandbox")
+
+#rosbuild_add_library(haptic_sandbox
 #src/geometry/GenericSampler.cpp
 #src/geometry/PointSetSampler.cpp
 #src/geometry/VoxelSampler.cpp
 #src/geometry/RigidBody.cpp
-src/ToolBody.cpp
+#src/ToolBody.cpp
 
-manifest.xml
-)
+#src/haptic_interaction_tool.cpp
+#manifest.xml
+#)
 
-ADD_SUBDIRECTORY(tests)
+include_directories(src)
+add_subdirectory(src)
+add_subdirectory(tests)
