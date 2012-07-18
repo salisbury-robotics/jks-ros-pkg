@@ -4,6 +4,8 @@
 #include <Eigen/Geometry>
 #include <chai3d.h>
 
+#include <ros/ros.h>
+
 
 
 namespace something {
@@ -22,7 +24,16 @@ public:
 
     // open a connection with the haptic device
     if(chai_device_->open() != 0)
+    {
       printf("Error opening chai device!");
+      return;
+    }
+
+    ros::NodeHandle nh;
+    float update_period = 0.01;
+    interaction_timer_ = nh.createTimer(ros::Duration(update_period), boost::bind( &HapticInteractionTool::update, this ) );
+
+
   }
 
   ~HapticInteractionTool()
@@ -104,7 +115,60 @@ protected:
 // Methods
 
   // Call an update?
-  virtual void update();
+  virtual void update()
+  {
+    /////////////////////////////////////////////////////////////////////
+    // READ HAPTIC DEVICE
+    /////////////////////////////////////////////////////////////////////
+
+    // read position
+    cVector3d position;
+    chai_device_->getPosition(position);
+
+    // read orientation
+    cMatrix3d rotation;
+    chai_device_->getRotation(rotation);
+
+    // read gripper position
+    double gripperAngle;
+    chai_device_->getGripperAngleRad(gripperAngle);
+
+    // read linear velocity
+    cVector3d linearVelocity;
+    chai_device_->getLinearVelocity(linearVelocity);
+
+    // read angular velocity
+    cVector3d angularVelocity;
+    chai_device_->getAngularVelocity(angularVelocity);
+
+    // read gripper angular velocity
+    double gripperAngularVelocity;
+    chai_device_->getGripperAngularVelocity(gripperAngularVelocity);
+
+
+//    // read userswitch status (button 0)
+//    bool button0, button1, button2, button3;
+//    button0 = false;
+//    button1 = false;
+//    button2 = false;
+//    button3 = false;
+
+//    hapticDevice->getUserSwitch(0, button0);
+//    hapticDevice->getUserSwitch(1, button1);
+//    hapticDevice->getUserSwitch(2, button2);
+//    hapticDevice->getUserSwitch(3, button3);
+
+
+    cVector3d force, torque;
+    float gripperForce = 0;
+
+    // send computed force, torque and gripper force to haptic device
+    chai_device_->setForceAndTorqueAndGripperForce(force, torque, gripperForce);
+
+
+
+
+  }
 
   virtual void draw();
 
@@ -113,6 +177,8 @@ protected:
 
   cHapticDeviceHandler *chai_device_handler_;
   cGenericHapticDevice *chai_device_;
+
+  ros::Timer interaction_timer_;
 
 };
 
