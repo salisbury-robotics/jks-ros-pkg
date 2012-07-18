@@ -49,12 +49,33 @@ class DoorBlast:
         self.cv_debug = False
         self.location = False
         self.process_im = False
+        self.process_head_im = False
+        self.elevator_state = False
         if (self.cv_debug):
             cv.NamedWindow("Open CV Image", 0)
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber("/r_forearm_cam/image_rect_color", Image, self.image_callback)
-
+        self.head_image_sub = rospy.Subscriber("/wide_stereo/right/image_rect", Image, self.head_image_callback)
+        
+        self.head_client = actionlib.SimpleActionClient('/head_traj_controller/point_head_action', PointHeadAction)
+        self.head_client.wait_for_server()
+        
         self.do_elevator(False)
+
+
+    def point_head(self, x, y, z, wait=True):
+        g = PointHeadGoal()
+        g.target.header.frame_id = 'head_pan_link'
+        g.target.point.x = x
+        g.target.point.y = y
+        g.target.point.z = z
+        g.min_duration = rospy.Duration(1.0)
+        self.head_client.send_goal(g)
+        #self.head_client.wait_for_result()
+        if (wait):
+            rospy.sleep(1.0)
+
+
 
     def do_elevator(self, msg):
         self.set_laser_and_wait(-0.4)
@@ -66,58 +87,204 @@ class DoorBlast:
 
         rospy.sleep(1.0)
 
-        self.extend_arm()
+        #From intent
+        #FIXME: sanity maintenance
+        left_seq = [(1.1, math.pi / 2, 0.0), (2.0, 0.0, 0.0), 
+                    (0.0, 0.0, -math.pi /2), (-1.0, 0.0, 0.0),
+                    ("FD", 0.0, 0.3, 3.0)]
+        right_seq = [(1.2, -math.pi / 2, 0.0), (2.7, 0.0, 0.0),
+                     (0.0, 0.0, -math.pi / 2), ("FD", 0.3, 0.0, 3.0)]
+        self.elevator_locations = {
+            "mult-elevator":
+                {"call-button": {"up": (0, 0, 0.02),
+                                 "down": (0, 0, -0.14),
+                                 "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+                                 },
+                 "left": {"lights": {"up": (185.0, 138.0),
+                                     "down": (185.0, 180.0)},
+                          "motion_seq": left_seq,
+                          },
+                 "right": {"lights": {"up": (375.0, 130.0),
+                                       "down": (375.0, 174.0)},
+                           "motion_seq": right_seq,
+                           },
+                 },
+            "single-elevator-down":
+                {"call-button": {"down": (0, 0, 0.01),
+                                 "arm": [0.0, -3.14159 / 180.0 * 10.0, 0.0, 
+                                         -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]},
+                 "left": {"lights": {"down": (195.0, (138.0 + 180.0) / 2.0)},
+                          "motion_seq": left_seq,
+                          },
+                 "right": {"lights": {"down": (385.0, (130.0 + 174.0) / 2.0)},
+                           "motion_seq": right_seq,
+                           },
+                 },
+            }
+
+        #From intent
+        direct = "down"
+        elevator_info = self.elevator_locations["single-elevator-down"]
+
+
+        #Create lights array for head perception
+        lights = {}
+        for i in elevator_info:
+            if (i != "call-button"):
+                lights[i] = elevator_info[i]["lights"]
+        self.lights = lights
+
+        
+        self.extend_arm(0.0, elevator_info["call-button"]["arm"])
 
         self.location = False
         self.process_im = True
 
         hc = 0
-        while not rospy.is_shutdown() and hc < 1:
+        while not rospy.is_shutdown() and hc < 4:
             print self.location
             msg = Twist()
+            stop = False
             if (self.location == False):
                 hc = 0
                 msg.linear.y = 0.03
-            elif (self.location > 0.05):
+            elif (self.location > 0.1):
                 hc = 0
                 msg.linear.y = -0.03
-            elif (self.location < -0.05):
+            elif (self.location < -0.1):
                 hc = 0
                 msg.linear.y = 0.03
-            elif (self.location < -0.01):
+            elif (self.location < -0.04 or self.location > 0.04):
                 hc = 0
-                msg.linear.y = 0.02
-            elif (self.location > 0.01):
-                hc = 0
-                msg.linear.y = -0.02
+                msg.linear.y = -self.location / 2.0
             else:
                 hc = hc + 1
                 print "Hit", hc
-                self.cmd_vel_publisher.publish(Twist())
-                rospy.sleep(0.2)
-                #break
-            print msg
             self.cmd_vel_publisher.publish(msg)
             rospy.sleep(0.01)
 
         self.cmd_vel_publisher.publish(Twist())
 
+        hc = 0
+        pos = 0.0
+        while not rospy.is_shutdown() and hc < 4:
+            print self.location
+            msg = Twist()
+            stop = False
+
+            if (self.location < -0.01):
+                pos = pos + 0.003
+                hc = 0
+            elif (self.location > 0.01):
+                pos = pos - 0.003
+                hc = 0
+            else:
+                hc = hc + 1
+
+            goal = JointTrajectory()
+            goal.header.stamp = rospy.get_rostime()
+            goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint", "r_upper_arm_roll_joint",
+                                "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
+            goal.points = [JointTrajectoryPoint()]
+            goal.points[0].positions = [pos, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+            goal.points[0].velocities = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            goal.points[0].time_from_start = rospy.Duration.from_sec(0.3)
+            
+            self.arm.publish(goal)
+            rospy.sleep(0.3)
+            print pos, self.location
+        
         self.process_im = False
         
         pos = self.get_end_effector_pos()
 
-        #UP
-        self.arm_move(pos[0] - 0.1, pos[1], pos[2] + 0.2, 1)
-        #DOWN
-        
+        self.arm_move(pos[0] - 0.1, pos[1], pos[2], 1)
 
+        self.set_gripper(0.01)
+
+        offset = elevator_info["call-button"][direct]
+        self.arm_move(pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2], 1)
+        
+        self.tuck_arms(False)
+
+        self.move_to_target(self.generate_goal(pos[1], math.pi / 2), 0.0, True)
+
+        print "Point head"
+        self.point_head(1.0, 0.0, 2.0, False)
+
+        self.elevator_state = False
+        self.process_head_im = True
+
+        time_limit = 0
+
+        elevator = False
+
+        print "Start"
+        while not rospy.is_shutdown() and elevator == False:
+            print self.elevator_state
+            if (self.elevator_state):
+                for i in self.elevator_state:
+                    if (self.elevator_state[i] == direct):
+                        elevator = i
+            rospy.sleep(0.1)
+            time_limit = time_limit + 1
+
+        self.process_head_im = False
+
+        seq = elevator_info[elevator]["motion_seq"]
+        for step in seq:
+            if (step[0] == "FD"):
+                move = Twist()
+                move.linear.x = step[1]
+                move.linear.y = step[2]
+                n = step[3] / 30.0
+                for i in range(0, 30):
+                    self.cmd_vel_publisher.publish(move)
+                    rospy.sleep(n)
+            else:
+                self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True)
+
+        self.extend_arm(-math.pi / 2)
+
+        
+    def head_image_callback(self, data):
+        if (not self.process_head_im):
+            return
+
+        try:
+            img = self.bridge.imgmsg_to_cv(data, "bgr8")
+        except CvBridgeError, e:
+            print e
+        
+        elevator_state = {}
+
+        lights = self.lights #Avoid possible race condition
+        for elevator in lights:
+            up = 0.0
+            down = 0.0
+            if ("up" in lights[elevator]):
+                up = cv.Get2D(img, lights[elevator]["up"][1],
+                              lights[elevator]["up"][0])[0]
+                cv.Circle(img, lights[elevator]["up"], 5, 200)
+            if ("down" in lights[elevator]):
+                down = cv.Get2D(img, lights[elevator]["down"][1],
+                                lights[elevator]["down"][0])[0]
+                cv.Circle(img, lights[elevator]["down"], 5, 200)
+            if (up > 250.0):
+                elevator_state[elevator] = "up"
+            elif (down > 250.0):
+                elevator_state[elevator] = "down"
+            else:
+                elevator_state[elevator] = "off"
+                
+        self.elevator_state = elevator_state
+                
 
     def image_callback(self, data):
         if (not self.process_im):
             return
 
         try:
-            """ Convert the raw image to OpenCV format """
             img = self.bridge.imgmsg_to_cv(data, "bgr8")
         except CvBridgeError, e:
           print e
@@ -137,15 +304,18 @@ class DoorBlast:
         cv.HoughCircles(edges, storage, cv.CV_HOUGH_GRADIENT, 2, 10.0, 250, 50,
                         min_radius=15, max_radius=30)
 
+        found = 0
         avg_y = 0
         for i in range(0, storage.rows):
             dat = storage[i, 0]
-            if (self.cv_debug):
-                cv.Circle(edges, (dat[0], dat[1]), int(dat[2]), 200)
-            avg_y = avg_y + dat[1]
+            if (dat[0] > 150.0):
+                if (self.cv_debug):
+                    cv.Circle(edges, (dat[0], dat[1]), int(dat[2]), 200)
+                avg_y = avg_y + dat[1]
+                found = found + 1
         
-        if (storage.rows > 0):
-            avg_y = avg_y / storage.rows
+        if (found > 0):
+            avg_y = avg_y / found
             self.location = avg_y / edges.height - 0.5
         else:
             self.location = False
@@ -156,13 +326,16 @@ class DoorBlast:
             cv.WaitKey(3)
 
 
-    def extend_arm(self):
+    def extend_arm(self, root = 0.0, force = None):
         goal = JointTrajectory()
         goal.header.stamp = rospy.get_rostime()
         goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint", "r_upper_arm_roll_joint",
                             "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
         goal.points = [JointTrajectoryPoint()]
-        goal.points[0].positions = [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+        if (force):
+            goal.points[0].positions = force
+        else:
+            goal.points[0].positions = [root, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
         goal.points[0].velocities = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         goal.points[0].time_from_start = rospy.Duration.from_sec(3.0)
 
@@ -222,12 +395,13 @@ class DoorBlast:
         self.gripper.send_goal(grip)
         self.gripper.wait_for_result()
 
-    def tuck_arms(self):
+    def tuck_arms(self, wait=True):
         tuck_goal = TuckArmsGoal()
         tuck_goal.tuck_left = True
         tuck_goal.tuck_right = True
         self.tuck.send_goal(tuck_goal)
-        self.tuck.wait_for_result()
+        if (wait):
+            self.tuck.wait_for_result()
 
         
     def get_end_effector_pos(self):
