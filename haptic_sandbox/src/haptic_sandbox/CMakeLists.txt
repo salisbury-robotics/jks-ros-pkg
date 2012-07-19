@@ -7,6 +7,11 @@ rosbuild_add_library(haptic_sandbox
 #src/geometry/RigidBody.cpp
 #src/ToolBody.cpp
 #marker_interaction_tool.cpp
+tf_scenegraph_object.cpp
+
+user_entity.cpp
+tool_entity.cpp
 haptic_interaction_tool.cpp
+abstract_coupling.cpp
 #manifest.xml
 )
