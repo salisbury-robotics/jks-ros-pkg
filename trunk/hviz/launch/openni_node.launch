@@ -1,5 +1,6 @@
 <launch>
   <arg name="index" />
+  <arg name="image_mode" default="5" />
 
   <node pkg="openni_camera" type="openni_node" name="openni_node$(arg index)" output="screen" >
     <!--param name="topic" value="first" /-->
@@ -12,8 +13,8 @@
     <param name="rgb_frame_id" value="/kinect$(arg index)/openni_rgb_optical_frame" />
     <param name="depth_frame_id" value="/kinect$(arg index)//openni_depth_optical_frame" />
     <param name="depth_registration" value="true" />
-    <param name="image_mode" value="2" />
-    <param name="depth_mode" value="2" />
+    <param name="image_mode" value="$(arg image_mode)" />
+    <param name="depth_mode" value="$(arg image_mode)" />
     <param name="debayering" value="2" />
     <param name="depth_time_offset" value="0" />
     <param name="image_time_offset" value="0" />

@@ -1,6 +1,7 @@
 <launch>
 
   <arg name="index" default="1" />
+  <arg name="filters" default="true" />
 
   <!--<include file="$(find haptic_points)/launch/freenect_node.launch" />--> 
   <include file="$(find hviz)/launch/openni_node.launch">
@@ -13,4 +14,10 @@
     args="0 0 0.6 3.141592 0.436 0 /world /kinect$(arg index)/base 60" /> 
   <!--  args="0 0.4 0.6 -0.5 0 0 /world /kinect$(arg index)/base 60" /> -->
 
+
+  <node ns="kinect$(arg index)_aux" pkg="kinect_aux" type="kinect_aux_node" name="kinect_aux_node" />
+
+  <include if="$(arg filters)" file="$(find hviz)/launch/kinect_filters.launch" >
+    <arg name="index" value="$(arg index)" />
+  </include>
 </launch>

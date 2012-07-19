@@ -9,24 +9,32 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/</url>
 
+  <!-- 
   <depend package="pr2_controller_interface"/>
   <depend package="pr2_mechanism_model"/>
   <depend package="pluginlib"/>
   <depend package="kdl" />
-  <depend package="visualization_msgs" />
   <depend package="joy" />
+  <depend package="rospy" />
+  <depend package="roscpp" />
+  -->
+  
+  <depend package="object_manipulator" />
+  <depend package="eigen" /> 
+  <depend package="visualization_msgs" />
   <depend package="geometry_msgs" />
   <depend package="stereo_msgs" />
 
-  <depend package="rospy" />
-  <depend package="roscpp" />
   <depend package="pcl" />
   <depend package="pcl_ros" />
   <!-- <depend package="pcl_visualization" /> -->
   <depend package="dynamic_reconfigure" />
   <depend package="profiling" />
 
-  <depend package="object_manipulator" />
+
+  <!--
+  <rosdep name="eigen" />
+  -->
   <!--
     <depend package="rviz_interaction_tools" />
 -->
