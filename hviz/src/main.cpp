@@ -283,7 +283,7 @@ public:
 
     object = new PointCloudObject(world);
     object->addEffect(new cEffectSurface(object));
-    object->m_material.setStiffness(0.9 * stiffnessMax);
+    object->m_material.setStiffness(0.7 * stiffnessMax);
     object->m_material.setDynamicFriction(0.2);
     object->setUseVertexColors(true, false);
     object->useDisplayList(false, true);

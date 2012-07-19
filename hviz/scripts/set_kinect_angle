@@ -1,0 +1,1 @@
+rostopic pub -1 /kinect1_aux/tilt_angle std_msgs/Float64 -- $angle
