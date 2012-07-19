@@ -87,9 +87,8 @@ public:
   // Set tool quaternion
   virtual void setToolQuaternion(const Quaternion &quaternion)
   {
-    cMatrix3d device_matrix, device_matrix_transpose;
+    cMatrix3d device_matrix;
     chai_device_->getRotation(device_matrix);
-    device_matrix.transr(device_matrix_transpose);
     Quaternion device_quaternion(device_matrix);
     base_frame_quaternion_ = quaternion * device_quaternion.conjugate();
   }
