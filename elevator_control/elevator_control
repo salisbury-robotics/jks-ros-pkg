@@ -65,7 +65,7 @@ class DoorBlast:
 
     def point_head(self, x, y, z, wait=True):
         g = PointHeadGoal()
-        g.target.header.frame_id = 'head_pan_link'
+        g.target.header.frame_id = 'base_link'
         g.target.point.x = x
         g.target.point.y = y
         g.target.point.z = z
@@ -78,6 +78,7 @@ class DoorBlast:
 
 
     def do_elevator(self, msg):
+        self.point_head(1.0, -0.3, 2.0)
         self.set_laser_and_wait(-0.4)
         self.tuck_arms()
         while not self.line_up(self.scan_msg):
@@ -90,42 +91,71 @@ class DoorBlast:
         #From intent
         #FIXME: sanity maintenance
         left_seq = [(1.1, math.pi / 2, 0.0), (2.0, 0.0, 0.0), 
-                    (0.0, 0.0, -math.pi /2), (-1.0, 0.0, 0.0),
-                    ("FD", 0.0, 0.3, 3.0)]
-        right_seq = [(1.2, -math.pi / 2, 0.0), (2.7, 0.0, 0.0),
-                     (0.0, 0.0, -math.pi / 2), ("FD", 0.3, 0.0, 3.0)]
-        self.elevator_locations = {
-            "mult-elevator":
-                {"call-button": {"up": (0, 0, 0.02),
-                                 "down": (0, 0, -0.14),
-                                 "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
-                                 },
-                 "left": {"lights": {"up": (185.0, 138.0),
-                                     "down": (185.0, 180.0)},
-                          "motion_seq": left_seq,
+                    (0.8, math.pi / 2, 0.0), (0.0, 0.0, -math.pi /2),
+                    ("FD", -0.1, 0.0, 5.0), ("FD", 0.0, -0.1, 3.0),
+                    (0.6, math.pi / 2, 0.0), 
+                    ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]), 
+                    ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
+                    (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), ("HEAD", 1.0, -0.3, 2.0)]
+        right_seq = [(1.2, -math.pi / 2, 0.0), (2.0, 0.0, 0.0),
+                     (0.6, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
+                     ("FD", 0.1, 0.0, 3.0), ("FD", 0.0, -0.1, 3.0),
+                     (0.7, math.pi / 2, 0.0), (-0.5, 0.0, 0.0),
+                     ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]),
+                     (0.45, 0.0, 0.0), ("FD", 0.1, 0.0, 1.0), 
+                     ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),]
+        mult = {"call-button": {"up": (0, 0, 0.02),
+                                "down": (0, 0, -0.12),
+                                "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+                                },
+                "left": {"lights": {"up": (185.0, 138.0),
+                                    "down": (185.0, 180.0)},
+                         "motion_seq": left_seq,
+                         },
+                "right": {"lights": {"up": (375.0, 130.0),
+                                     "down": (375.0, 174.0)},
+                          "motion_seq": right_seq,
                           },
-                 "right": {"lights": {"up": (375.0, 130.0),
-                                       "down": (375.0, 174.0)},
-                           "motion_seq": right_seq,
+                }
+        single = {"call-button": {"down": (0, 0, 0.01),
+                                  "arm": [0.0, -3.14159 / 180.0 * 10.0, 0.0, 
+                                          -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]},
+                  "left": {"lights": {"down": (195.0, (138.0 + 180.0) / 2.0)},
+                           "motion_seq": left_seq,
                            },
-                 },
-            "single-elevator-down":
-                {"call-button": {"down": (0, 0, 0.01),
-                                 "arm": [0.0, -3.14159 / 180.0 * 10.0, 0.0, 
-                                         -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]},
-                 "left": {"lights": {"down": (195.0, (138.0 + 180.0) / 2.0)},
-                          "motion_seq": left_seq,
-                          },
-                 "right": {"lights": {"down": (385.0, (130.0 + 174.0) / 2.0)},
-                           "motion_seq": right_seq,
-                           },
-                 },
-            }
+                  "right": {"lights": {"down": (385.0, (130.0 + 174.0) / 2.0)},
+                            "motion_seq": right_seq,
+                            },
+                  }
+        self.elevator_locations = {"B": single, "1": mult, "2": mult, "3": single, 
+                                   "floor-order": ["B", "1", "2", "3"],
+                                   "floor-buttons": {"left": {"3": [-1.5675391915428039, -0.1615763031295083, -0.016156285133952952, -1.4376911415880722, -15.743258254855892, -1.5125801804718826, -0.0040836229237051214],
+                                                              "2": [-1.5855299275092696, -0.043481790475689695, -0.016637349613062513, -1.5616148705323718, -15.679337223775521, -1.5005282096042947, 0.010578883149858331],
+                                                              "1": [-1.5921624568978283, 0.074358937408815759, -0.02064622027230989, -1.6765628153708929, -15.679221529601621, -1.5099696452659073, -0.0043446764443024755],
+                                                              "B": [-1.5948154686532519, 0.21097973822251009, -0.026739703674365511, -1.7834036003719365, -15.679221529601621, -1.4737702237430448, -0.00564994404728969]},
+                                                     "right": {"3": [-1.310, -0.106, 0.133],
+                                                               "2": [-1.254, -0.117, 0.255],
+                                                               "1": [-1.108, -0.188, 0.577],
+                                                               "B": [-0.894, -0.232, 0.856],
+                                                               "push-offset": [0.0, 0.0, 0.0]}
+                                                     }}
 
         #From intent
-        direct = "down"
-        elevator_info = self.elevator_locations["single-elevator-down"]
 
+        self.floor = "2"
+        self.goal_floor = "3"
+
+
+        #Calculate direction - down or up
+        direct = "down"
+        for floor in self.elevator_locations["floor-order"]:
+            if (floor == self.goal_floor):
+                direct = "down"
+                break
+            if (floor == self.floor):
+                direct = "up"
+                break
+        elevator_info = self.elevator_locations[self.floor]
 
         #Create lights array for head perception
         lights = {}
@@ -198,11 +228,12 @@ class DoorBlast:
         
         pos = self.get_end_effector_pos()
 
-        self.arm_move(pos[0] - 0.1, pos[1], pos[2], 1)
+        self.arm_move(pos[0] - 0.05, pos[1], pos[2], 1)
 
         self.set_gripper(0.01)
 
         offset = elevator_info["call-button"][direct]
+        self.arm_move(pos[0] + offset[0] - 0.05, pos[1] + offset[1], pos[2] + offset[2], 1)
         self.arm_move(pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2], 1)
         
         self.tuck_arms(False)
@@ -241,11 +272,17 @@ class DoorBlast:
                 for i in range(0, 30):
                     self.cmd_vel_publisher.publish(move)
                     rospy.sleep(n)
+            elif (step[0] == "ARM"):
+                self.extend_arm(0.0, step[1])
+            elif (step[0] == "PRESS"):
+                pos = self.elevator_locations["floor-buttons"][elevator][self.goal_floor]
+                self.extend_arm(0.0, pos)
+            elif (step[0] == "HEAD"):
+                self.point_head(step[1], step[2], step[3], True)
             else:
                 self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True)
 
-        self.extend_arm(-math.pi / 2)
-
+        
         
     def head_image_callback(self, data):
         if (not self.process_head_im):
