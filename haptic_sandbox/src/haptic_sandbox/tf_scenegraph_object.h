@@ -1,3 +1,5 @@
+#ifndef _TF_SCENEGRAPH_OBJECT_H_
+#define _TF_SCENEGRAPH_OBJECT_H_
 
 #include <ros/ros.h>
 #include <tf/tf.h>
@@ -14,47 +16,89 @@ class SceneGraphNode{
 public:
   // Methods
 
-    SceneGraphNode(tf::TransformListener *tfl, tf::TransformBroadcaster *tfb)
-        : tfl_(tfl), tfb_(tfb)
+    SceneGraphNode(const std::string &frame_id, tf::TransformListener *tfl, tf::TransformBroadcaster *tfb)
+        : tfl_(tfl), tfb_(tfb), parent_(0)
     {
-
-
-
+        transform_.child_frame_id_ = frame_id;
+        transform_.setIdentity();
     }
 
-    ~ScenGraphNode()
+    ~SceneGraphNode()
     {
         // cleanup...
     }
 
-    bool addChild(tf::SceneGraphNode *node)
+    void setPosition(const tf::Vector3 &position)   { transform_.setOrigin(position); }
+    void setQuaternion(const tf::Quaternion &quaternion)   { transform_.setRotation(quaternion); }
+    void setTransform(const tf::Transform &transform)
     {
+        transform_.setOrigin(transform.getOrigin());
+        transform_.setRotation(transform.getRotation());
+    }
+
+    tf::Vector3     getPosition() const       { return transform_.getOrigin();   }
+    tf::Quaternion  getQuaternion() const     { return transform_.getRotation(); }
+    tf::Transform   getTransform() const      { return transform_; }
+
+    void addChild(tf::SceneGraphNode *node)
+    {
+        printf("Adding child...");
         node->setParent(this);
-        children_.at(node->getFrameId()) = node;
+        children_[node->getFrameId()] = node;
+
+        printf("done! Size is now %zd.\n", children_.size());
     }
 
     bool removeChild(tf::SceneGraphNode *node)
     {
-
-
-        //        // Recursively add all children to the list
-//        std::list<tf::SceneGraphNode>::iterator it = children_.begin();
-//        while(it != children_.end())
-//        {
-//            (*it).updateTransforms(now, transforms);
-//        }
+        // Recursively add all children to the list
+        std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
+        for( ; it != children_.end(); it++)
+        {
+            if(it->second == node)
+            {
+                children_.erase(it);
+                return true;
+            }
+        }
+        return false;
     }
 
-    bool removeChild(std::string )
+    bool removeChild(const std::string &key)
     {
+        return (bool)children_.erase(key); // returns 1 if it erased a child, 0 otherwise
+    }
+
+    void printChildren(const bool &recursive = false)
+    {
+        std::vector<std::string> names;
+        names.reserve(children_.size());
+
+        // Get children
+        std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
+        for( ; it != children_.end(); it++)
+        {
+            names.push_back(it->first);
+        }
 
 
-        //        // Recursively add all children to the list
-//        std::list<tf::SceneGraphNode>::iterator it = children_.begin();
-//        while(it != children_.end())
-//        {
-//            (*it).updateTransforms(now, transforms);
-//        }
+        printf("Frame %s has %zd children: ", getFrameId().c_str(), names.size());
+        std::string children_string = "";
+        for(size_t i = 0; i < names.size(); i++)
+        {
+            children_string += names[i] + " ";
+        }
+        printf("%s\n", children_string.c_str());
+
+        if(recursive)
+        {
+            // Recurse down
+            std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
+            for( ; it != children_.end(); it++)
+            {
+                it->second->printChildren(recursive);
+            }
+        }
     }
 
     std::string getFrameId()
@@ -68,82 +112,60 @@ public:
     }
 
 
-    void updateTransforms(const ros::Time now)
+    virtual void publishTransformTree(const ros::Time now)
     {
         std::vector<tf::StampedTransform> transforms;
-        getTransforms(now, transforms);
+        addTransformsToVector(now, transforms);
         tfb_->sendTransform(transforms);
     }
 
-    void getTransforms(const ros::Time now, std::vector<tf::StampedTransform> &transforms)
+    virtual void addTransformsToVector(const ros::Time now, std::vector<tf::StampedTransform> &transforms)
     {
         // Add this node to the list
         transform_.stamp_ = now;
-        transforms->push_back(transform_);
+        transforms.push_back(transform_);
 
         // Recursively add all children to the list
         std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
-        while(it != children_.end())
+        for( ; it != children_.end(); it++)
         {
-            it->second->updateTransforms(now, transforms);
+            it->second->addTransformsToVector(now, transforms);
         }
     }
 
-//    void updateTransforms(const ros::Time now, std::vector<tf::StampedTransform> *transforms = 0)
-//    {
-//        // -------------------------------------------
-//        // Check if this is the root node:
-
-//        bool delete_transforms = false;
-//        if(!transforms)
-//        {
-//            transforms = new std::vector<tf::StampedTransform>();
-//            delete_transforms = true;
-//        }
-
-//        // -------------------------------------------
-//        // All elements do this:
-//        transform_.stamp_ = now;
-//        transforms->push_back(transform_);
-
-//        std::list<tf::SceneGraphNode>::iterator it = children_.begin();
-//        while(it != children_.end())
-//        {
-//            (*it).updateTransforms(now, transforms);
-//        }
-//        // -------------------------------------------
-
-//        if(delete_transforms)
-//        {
-//            tfb_->sendTransform(*transforms);
-//            delete transforms;
-//        }
-//    }
+    tf::StampedTransform getTransform()
+    {
+        return transform_;
+    }
 
 
 protected:
     // Methods
-    setParent(const tf::SceneGraphNode *parent)
+    void setParent(tf::SceneGraphNode* const parent)
     {
-        parent_->removeChild(this);
+        if(parent_)
+            parent_->removeChild(getFrameId());
         parent_ = parent;
+        setParentFrameId(parent->getFrameId());
+    }
+
+    void setParentFrameId(const std::string &parent_id)
+    {
+        transform_.frame_id_ = parent_id;
     }
 
   // Members
-  //std::string parent_frame_id_;
-  //std::string frame_id_;
   tf::StampedTransform transform_;
 
-  tf::TransformBroadcaster *tfb_;
   tf::TransformListener *tfl_;
+  tf::TransformBroadcaster *tfb_;
 
-  SceneGraphNode *parent_;
+  tf::SceneGraphNode *parent_;
   std::map<std::string, tf::SceneGraphNode*> children_;
 
 };
 
 
-
-
-
 }  // namespace something
+
+#endif // header

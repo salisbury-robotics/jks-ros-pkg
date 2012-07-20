@@ -1,9 +1,8 @@
-#ifndef _ABSTRACT_INTERACTION_TOOL_H_
-#define _ABSTRACT_INTERACTION_TOOL_H_
+#ifndef _ABSTRACT_HANDLE_H_
+#define _ABSTRACT_HANDLE_H_
 
 #include <Eigen/Geometry>
 #include <haptic_sandbox/tf_scenegraph_object.h>
-#include <haptic_sandbox/abstract_handle.h>
 
 namespace something {
 
@@ -11,14 +10,14 @@ typedef tf::Vector3 Vector3;
 typedef tf::Quaternion Quaternion;
 typedef tf::Transform Transform;
 
-class AbstractInteractionTool: public tf::SceneGraphNode{
+class AbstractHandle: public tf::SceneGraphNode{
 
 public:
   // Methods only!
 
   // Constructor
     // Constructor
-      AbstractInteractionTool(const std::string &frame_id,
+      AbstractHandle(const std::string &frame_id,
                  tf::TransformListener *tfl, tf::TransformBroadcaster *tfb)
         : SceneGraphNode(frame_id, tfl, tfb)
     {
@@ -27,8 +26,8 @@ public:
 
     void init()
     {
-        handle_ = new something::AbstractHandle(transform_.child_frame_id_ + "_handle", tfl_, tfb_);
-        addChild(handle_);
+//        handle_ = new something::AbstractHandle(transform_.child_frame_id_ + "_handle", tfl_, tfb_);
+//        addChild(handle_);
     }
 
 
@@ -73,13 +72,13 @@ public:
 //          }
 //      }
 
-protected: 
+protected:
 // Methods
 
 
 // Members
 
-    something::AbstractHandle *handle_;
+    //something::AbstractHandle *handle_;
 
   Vector3 last_tool_force_;
   Vector3 last_tool_torque_;
