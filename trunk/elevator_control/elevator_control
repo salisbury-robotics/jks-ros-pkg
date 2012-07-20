@@ -96,8 +96,9 @@ class DoorBlast:
                     (0.6, math.pi / 2, 0.0), 
                     ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]), 
                     ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
-                    ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.05, 0.0, 0.0), (0.1, math.pi / 2, 0.0),
-                    (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), ("HEAD", 1.0, -0.3, 2.0)]
+                    #(0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
+                    ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
+                    ("HEAD", 1.0, -1.0, 1.1)]
         right_seq = [(1.2, -math.pi / 2, 0.0), (2.0, 0.0, 0.0),
                      (0.6, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
                      ("FD", 0.1, 0.0, 3.0), ("FD", 0.0, -0.1, 3.0),
@@ -105,7 +106,9 @@ class DoorBlast:
                      ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]),
                      (0.65, 0.0, 0.0), ("FD", 0.1, 0.0, 1.0), 
                      ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
-                     (-0.7, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), ("HEAD", 1.0, 1.0, 2.0)]
+                     #(-0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
+                     (-0.7, 0.0, 0.0), ("TUCK", False), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
+                     ("HEAD", 1.0, 1.0, 2.0)]
         mult = {"call-button": {"up": (0, 0, 0.02),
                                 "down": (0, 0, -0.12),
                                 "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
@@ -281,6 +284,8 @@ class DoorBlast:
                 self.extend_arm(0.0, pos)
             elif (step[0] == "HEAD"):
                 self.point_head(step[1], step[2], step[3], True)
+            elif (step[0] == "TUCK"):
+                self.tuck_arms(step[1])
             else:
                 self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True)
 
