@@ -31,6 +31,7 @@ class DoorBlast:
         rospy.wait_for_service("/laser_tilt_controller/set_periodic_cmd")
         self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
+        rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
         self.ac_server = actionlib.SimpleActionServer("ac_elevator", GrandSlamTransitionAction, execute_cb=self.do_elevator, auto_start=False)
         rospy.loginfo("wait for IK")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik_solver_info")
@@ -90,7 +91,8 @@ class DoorBlast:
 
         #From intent
         #FIXME: sanity maintenance
-        left_seq = [(1.1, math.pi / 2, 0.0), (2.0, 0.0, 0.0), 
+        left_seq = [(1.1, math.pi / 2, 0.0, "BAIL"), 
+                    (1.2, 0.0, 0.0), ("SQUARE_CHECK",), (0.8, 0.0, 0.0),
                     (0.8, math.pi / 2, 0.0), (0.0, 0.0, -math.pi /2),
                     ("FD", -0.1, 0.0, 5.0), ("FD", 0.0, -0.1, 3.0),
                     (0.6, math.pi / 2, 0.0), 
@@ -98,9 +100,10 @@ class DoorBlast:
                     ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     #(0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                    ("HEAD", 1.0, -1.0, 1.1)]
-        right_seq = [(1.2, -math.pi / 2, 0.0), (2.0, 0.0, 0.0),
-                     (0.6, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
+                    ("HEAD", 0.0, -1.0, 4.0)]
+        right_seq = [(1.05, -math.pi / 2, 0.0, "BAIL"),
+                     (1.2, 0.0, 0.0), ("SQUARE_CHECK",), (0.8, 0.0, 0.0),
+                     (0.75, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
                      ("FD", 0.1, 0.0, 3.0), ("FD", 0.0, -0.1, 3.0),
                      (0.7 * math.sqrt(2), math.pi / 2 + math.pi / 4, 0.0),
                      ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]),
@@ -108,9 +111,11 @@ class DoorBlast:
                      ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      #(-0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      (-0.7, 0.0, 0.0), ("TUCK", False), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                     ("HEAD", 1.0, 1.0, 2.0)]
-        mult = {"call-button": {"up": (0, 0, 0.02),
-                                "down": (0, 0, -0.12),
+                     ("HEAD", 0.0, 1.0, 4.0)]
+        out_seq = [(0.4, 0.0, 0.0)]
+        wrong_floor_seq = [(-0.4, 0.0, 0.0)]
+        mult = {"call-button": {"up": (0.05, 0, 0.02),
+                                "down": (0.05, 0, -0.12),
                                 "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
                                 },
                 "left": {"lights": {"up": (185.0, 138.0),
@@ -286,11 +291,16 @@ class DoorBlast:
                 self.point_head(step[1], step[2], step[3], True)
             elif (step[0] == "TUCK"):
                 self.tuck_arms(step[1])
+            elif (step[0] == "SQUARE_CHECK"):
+                print "Check!"
             else:
-                self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True)
-
-        
-        
+                state = False
+                if (len(step) > 3):
+                    state = step[3]
+                if (not self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True, watch_scans=state)):
+                    print "Dead"
+                    break
+    
     def head_image_callback(self, data):
         if (self.process_head_im):
             self.process_lights(data)
@@ -424,6 +434,9 @@ class DoorBlast:
 
     def on_scan_msg(self, msg):
         self.scan_msg = msg
+
+    def on_base_scan(self, msg):
+        self.base_scan_msg = msg
 
     def wait_for_scan(self, clear = True):
         if (clear):
@@ -715,7 +728,7 @@ class DoorBlast:
         
         return goal
 
-    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False):
+    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False, watch_scans=False):
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param 
         
@@ -724,6 +737,37 @@ class DoorBlast:
         while not rospy.is_shutdown(): #FIXME
             try:
                 goal_transformed = self.listener.transformPose(base_frame, goal)
+
+                if (watch_scans != False):
+                    blocked = True
+                    while blocked and not rospy.is_shutdown():
+                        blocked = False
+                        pts = self.scan_to_points(self.base_scan_msg)
+                        
+                        x_c = goal_transformed.pose.position.x
+                        y_c = goal_transformed.pose.position.y
+                        d = math.sqrt(x_c * x_c + y_c * y_c)
+                        x_c = x_c / d * 0.7
+                        y_c = y_c / d * 0.7
+
+                        print x_c, y_c
+
+                        for i in pts:
+                            dx = i[0] - x_c
+                            dy = i[1] - y_c
+                            d = math.sqrt(dx * dx + dy * dy)
+                            if ((i[0] > 0.3 or i[0] < -0.3) and (i[1] > 0.3 or i[1] < 0.3)):
+                                #print i, dx, dy, d
+                                if (d < 0.25):
+                                    blocked = True
+                        blocked = False
+                        if (blocked):
+                            rate.sleep()
+                            self.cmd_vel_publisher.publish(Twist())
+                            if (watch_scans == "BAIL"):
+                                print "Bail"
+                                return False
+
                 
                 #print goal_transformed
                 
@@ -785,6 +829,7 @@ class DoorBlast:
                 rate.sleep()
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
                 rospy.logwarn("TF error") #FIXME
+        return True
                 
 
 if __name__ == '__main__':
