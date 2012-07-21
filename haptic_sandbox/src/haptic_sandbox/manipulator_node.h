@@ -4,7 +4,8 @@
 
 #include <Eigen/Geometry>
 #include <haptic_sandbox/tf_scenegraph_object.h>
-#include <haptic_sandbox/abstract_interaction_tool.h>
+//#include <haptic_sandbox/abstract_interaction_tool.h>
+#include <haptic_sandbox/haptic_interaction_tool.h>
 
 
 namespace something {
@@ -29,11 +30,11 @@ public:
 
     void init()
     {
-        device_ = new something::AbstractInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
-        device_->setPosition(tf::Vector3(0.05, 0, -0.05));
-        device_->setQuaternion(tf::createQuaternionFromRPY(0,0, M_PI));
+        device_ = new something::HapticInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
         addChild(device_);
     }
+
+    // Get button stuff should go here, so user can query it?
 
 
 
@@ -43,7 +44,7 @@ protected:
 protected:
     // Members
 
-    something::AbstractInteractionTool *device_;
+    something::HapticInteractionTool *device_;
 };
 
 }  // namespace something

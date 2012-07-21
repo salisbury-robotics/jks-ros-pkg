@@ -37,14 +37,14 @@ public:
         right_ = new something::ManipulatorNode(prefix_ + "right_workspace", tfl_, tfb_);
         right_->setPosition(tf::Vector3(0, -0.2, 0));
 
-        left_ =  new something::ManipulatorNode(prefix_ + "left_workspace", tfl_, tfb_);
-        left_->setPosition(tf::Vector3(0, 0.2, 0));
+        //left_ =  new something::ManipulatorNode(prefix_ + "left_workspace", tfl_, tfb_);
+        //left_->setPosition(tf::Vector3(0, 0.2, 0));
 
         view_ = new something::CameraNode(prefix_ + "camera", tfl_, tfb_);
         view_->setPosition(tf::Vector3(-1.0, 0, 0));
 
         addChild(right_);
-        addChild(left_);
+        //addChild(left_);
         addChild(view_);
 
         printChildren(true);

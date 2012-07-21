@@ -23,30 +23,27 @@ public:
         transform_.setIdentity();
     }
 
-    ~SceneGraphNode()
+    virtual ~SceneGraphNode()
     {
         // cleanup...
     }
 
-    void setPosition(const tf::Vector3 &position)   { transform_.setOrigin(position); }
-    void setQuaternion(const tf::Quaternion &quaternion)   { transform_.setRotation(quaternion); }
-    void setTransform(const tf::Transform &transform)
+    virtual void setPosition(const tf::Vector3 &position)   { transform_.setOrigin(position); }
+    virtual void setQuaternion(const tf::Quaternion &quaternion)   { transform_.setRotation(quaternion); }
+    virtual void setTransform(const tf::Transform &transform)
     {
         transform_.setOrigin(transform.getOrigin());
         transform_.setRotation(transform.getRotation());
     }
 
-    tf::Vector3     getPosition() const       { return transform_.getOrigin();   }
-    tf::Quaternion  getQuaternion() const     { return transform_.getRotation(); }
-    tf::Transform   getTransform() const      { return transform_; }
+    virtual tf::Vector3     getPosition() const       { return transform_.getOrigin();   }
+    virtual tf::Quaternion  getQuaternion() const     { return transform_.getRotation(); }
+    virtual tf::Transform   getTransform() const      { return transform_; }
 
     void addChild(tf::SceneGraphNode *node)
     {
-        printf("Adding child...");
         node->setParent(this);
         children_[node->getFrameId()] = node;
-
-        printf("done! Size is now %zd.\n", children_.size());
     }
 
     bool removeChild(tf::SceneGraphNode *node)
@@ -112,14 +109,14 @@ public:
     }
 
 
-    virtual void publishTransformTree(const ros::Time now)
+    void publishTransformTree(const ros::Time now)
     {
         std::vector<tf::StampedTransform> transforms;
         addTransformsToVector(now, transforms);
         tfb_->sendTransform(transforms);
     }
 
-    virtual void addTransformsToVector(const ros::Time now, std::vector<tf::StampedTransform> &transforms)
+    void addTransformsToVector(const ros::Time now, std::vector<tf::StampedTransform> &transforms)
     {
         // Add this node to the list
         transform_.stamp_ = now;
@@ -133,11 +130,15 @@ public:
         }
     }
 
-    tf::StampedTransform getTransform()
+    virtual tf::StampedTransform getTransform()
     {
         return transform_;
     }
 
+    virtual void publishMarkers()
+    {
+      // Default implementation does nothing because I suppose we could have different geometry representations.
+    }
 
 protected:
     // Methods
