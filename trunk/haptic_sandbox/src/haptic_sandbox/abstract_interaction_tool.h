@@ -25,6 +25,10 @@ public:
         init();
     }
 
+    virtual ~AbstractInteractionTool()
+    {
+    }
+
     void init()
     {
         handle_ = new something::AbstractHandle(transform_.child_frame_id_ + "_handle", tfl_, tfb_);
@@ -75,6 +79,15 @@ public:
 
 protected: 
 // Methods
+
+//    virtual void updateDevice()
+//    {
+//      // Here is where, for example, we:
+//      // readDevicePosition();
+//      // getAttachedFramePosition();
+//      // computeVirtualCouplingForce();
+//      // sendDeviceForce();
+//    }
 
 
 // Members

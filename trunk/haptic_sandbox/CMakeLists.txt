@@ -42,6 +42,8 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #manifest.xml
 #)
 
+ADD_DEFINITIONS(-fPIC)
+
 include_directories(src)
 add_subdirectory(src)
 add_subdirectory(tests)
