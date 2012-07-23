@@ -24,6 +24,8 @@ from cv_bridge import CvBridge, CvBridgeError
 class DoorBlast:
     def __init__(self):
         self.scan_msg = None
+        self.imu_data = False
+        self.height = 0.0
         self.visualization_publisher = rospy.Publisher("/visualization_markers", Marker)
         self.cmd_vel_publisher = rospy.Publisher("/base_controller/command", Twist)
         self.listener = tf.TransformListener()
@@ -32,6 +34,7 @@ class DoorBlast:
         self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
         rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
+        rospy.Subscriber("/torso_lift_imu/data", Imu, self.on_imu)
         self.ac_server = actionlib.SimpleActionServer("ac_elevator", GrandSlamTransitionAction, execute_cb=self.do_elevator, auto_start=False)
         rospy.loginfo("wait for IK")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik_solver_info")
@@ -102,9 +105,27 @@ class DoorBlast:
         marker.color.b = 1.0
         visualization_publisher.publish(marker)
 
-
+    def on_imu(self, msg):
+        if (not self.imu_data):
+            self.imu_data = {"last": msg.linear_acceleration.z, "accel": 0.0, "velocity": 0.0,
+                             "height": 0.0, "time": msg.header.stamp}
+        else:
+            deriv = (msg.linear_acceleration.z - imu_data["last"])
+            dt = msg.header.stamp - imu_data["time"]
+            imu_data["accel"] = imu_data["accel"] + deriv
+            imu_data["velocity"] = imu_data["velocity"] + (imu_data["accel"] * dt)
+            imu_data["height"] = imu_data["height"] + (imu_data["velocity"] * dt)
+            imu_data["last"] = msg.linear_acceleration.z
+            imu_data["time"] = msg.header.stamp
+            if (self.imu_data):
+                self.imu_data = imu_data
+        print self.imu_data
+        print self.imu_data["height"]
 
     def do_elevator(self, msg):
+        self.imu_data = False
+        self.height = 0.0
+
         self.point_head(1.0, 0.0, 2.0)
         self.set_laser_and_wait(-0.4)
         self.tuck_arms()
