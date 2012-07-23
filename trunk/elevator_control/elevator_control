@@ -78,6 +78,31 @@ class DoorBlast:
             rospy.sleep(1.0)
 
 
+    def cube(f, x, y, z, sx, sy, sz, i):
+        marker = Marker()
+        marker.header.frame_id = f
+        marker.header.stamp = rospy.get_rostime()
+        marker.ns = "elevator_blast"
+        marker.type = Marker.CUBE
+        marker.action = Marker.ADD
+        marker.id = i
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = z
+        marker.pose.orientation.x = 1.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = sx
+        marker.scale.y = sy
+        marker.scale.z = sz
+        marker.color.a = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+        visualization_publisher.publish(marker)
+
+
 
     def do_elevator(self, msg):
         self.point_head(1.0, 0.0, 2.0)
@@ -92,7 +117,7 @@ class DoorBlast:
         #From intent
         #FIXME: sanity maintenance
         left_seq = [(1.1, math.pi / 2, 0.0, "BAIL"), 
-                    (1.2, 0.0, 0.0), ("SQUARE_CHECK",), (0.8, 0.0, 0.0),
+                    (1.2, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.8, 0.0, 0.0),
                     (0.8, math.pi / 2, 0.0), (0.0, 0.0, -math.pi /2),
                     ("FD", -0.1, 0.0, 5.0), ("FD", 0.0, -0.1, 3.0),
                     (0.6, math.pi / 2, 0.0), 
@@ -102,7 +127,7 @@ class DoorBlast:
                     ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
                     ("HEAD", 0.0, -1.0, 4.0)]
         right_seq = [(1.05, -math.pi / 2, 0.0, "BAIL"),
-                     (1.2, 0.0, 0.0), ("SQUARE_CHECK",), (0.8, 0.0, 0.0),
+                     (1.2, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.8, 0.0, 0.0),
                      (0.75, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
                      ("FD", 0.1, 0.0, 3.0), ("FD", 0.0, -0.1, 3.0),
                      (0.7 * math.sqrt(2), math.pi / 2 + math.pi / 4, 0.0),
@@ -292,7 +317,14 @@ class DoorBlast:
             elif (step[0] == "TUCK"):
                 self.tuck_arms(step[1])
             elif (step[0] == "SQUARE_CHECK"):
-                print "Check!"
+                self.cmd_vel_publisher.publish(Twist())
+                rospy.sleep(1.0)
+                self.scan_msg = False
+                self.wait_for_scan()
+                if (self.check_square(self.scan_msg)):
+                    print "Square"
+                else:
+                    print "Dead squares"
             else:
                 state = False
                 if (len(step) > 3):
@@ -628,6 +660,39 @@ class DoorBlast:
         return xy
 
 
+    def check_square(self, msg):
+        pts = scan_to_points(msg)
+    
+        front_wall = pts[0]
+        for i in pts:
+            if (i[0] > 0.0 and abs(i[1]) < abs(front_wall[1])):
+                front_wall = i
+        left_wall = pts[0]
+        for i in pts:
+            if (i[1] < 0.0 and abs(i[0]) < abs(left_wall[0])):
+                left_wall = i
+        right_wall = pts[0]
+        for i in pts:
+            if (i[1] > 0.0 and abs(i[0]) < abs(right_wall[0])):
+                right_wall = i
+        
+        self.cube(msg.header.frame_id, front_wall[0], 0.0, 0.0, 0.1, 0.5, 3.0, 0)
+        self.cube(msg.header.frame_id, 0.0, left_wall[1], 0.0, 3.0, 0.5, 0.1, 1)
+        self.cube(msg.header.frame_id, 0.0, right_wall[1], 0.0, 3.0, 0.5, 0.1, 2)
+        
+        print front_wall[0], left_wall[1], right_wall[1]
+        for i in pts:
+            if (i[0] < 0.0):
+                continue
+            if (i[0] > front_wall[0] - 0.05 and i[0] < front_wall[0] + 0.05):
+                continue
+            if (i[1] > left_wall[1] - 0.05 and i[1] < left_wall[1] + 0.05):
+                continue
+            if (i[1] > right_wall[1] - 0.05 and i[1] < right_wall[1] + 0.05):
+                continue
+            return False
+        return True
+        
     def get_vertical_depth(self, msg):
         marker = Marker()
         marker.header.frame_id = msg.header.frame_id
@@ -737,37 +802,6 @@ class DoorBlast:
         while not rospy.is_shutdown(): #FIXME
             try:
                 goal_transformed = self.listener.transformPose(base_frame, goal)
-
-                if (watch_scans != False):
-                    blocked = True
-                    while blocked and not rospy.is_shutdown():
-                        blocked = False
-                        pts = self.scan_to_points(self.base_scan_msg)
-                        
-                        x_c = goal_transformed.pose.position.x
-                        y_c = goal_transformed.pose.position.y
-                        d = math.sqrt(x_c * x_c + y_c * y_c)
-                        x_c = x_c / d * 0.7
-                        y_c = y_c / d * 0.7
-
-                        print x_c, y_c
-
-                        for i in pts:
-                            dx = i[0] - x_c
-                            dy = i[1] - y_c
-                            d = math.sqrt(dx * dx + dy * dy)
-                            if ((i[0] > 0.3 or i[0] < -0.3) and (i[1] > 0.3 or i[1] < 0.3)):
-                                #print i, dx, dy, d
-                                if (d < 0.25):
-                                    blocked = True
-                        blocked = False
-                        if (blocked):
-                            rate.sleep()
-                            self.cmd_vel_publisher.publish(Twist())
-                            if (watch_scans == "BAIL"):
-                                print "Bail"
-                                return False
-
                 
                 #print goal_transformed
                 
@@ -822,6 +856,36 @@ class DoorBlast:
                         msg.linear.x = dist * math.cos(ang)
                         msg.linear.y = dist * math.sin(ang)
                     
+
+                    if (watch_scans != False):
+                        pts = self.scan_to_points(self.base_scan_msg)
+                        blocked = False
+                        if (msg.linear.y < -0.03):
+                            for i in pts:
+                                if (i[0] < 0.00 and i[0] > -0.50 and i[1] > -0.80 and i[1] < -0.30):
+                                    blocked = True
+                        if (msg.linear.y > 0.03):
+                            for i in pts:
+                                if (i[0] < 0.00 and i[0] > -0.50 and i[1] < 0.80 and i[1] > 0.30):
+                                    blocked = True
+                        if (msg.linear.x > 0.03):
+                            for i in pts:
+                                if (i[0] < 0.50 and i[0] > 0.00 and i[1] < 0.25 and i[1] > -0.25):
+                                    blocked = True
+
+                        if (blocked):
+                            rate.sleep()
+                            msg.linear.x = 0
+                            msg.linear.y = 0
+                            msg.angular.z = 0
+                            if (watch_scans == "BAIL"):
+                                self.cmd_vel_publisher.publish(msg)
+                                print "Bail"
+                                return False
+
+
+
+
                 #print "go forward", msg
                 
                 self.cmd_vel_publisher.publish(msg)
