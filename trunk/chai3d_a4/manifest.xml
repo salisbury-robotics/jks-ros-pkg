@@ -21,8 +21,9 @@
     lflags="-L${prefix}/lib -lchai3d 
             -L${prefix}/internal/DHD/lib/lin-x86_64/ 
             -L${prefix}/internal/lib3ds/lib/release/lin-x86_64/ 
-            -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut -lpng -ljpeg -lgif 
-            -lHD
+            -ldhd -lpthread -lrt -lusb-1.0 -lGL -lGLU -lglut 
+            -lpng -ljpeg -lgif -l3ds
+            -lHD            
            " 
     />
     <doxymaker external=""/>

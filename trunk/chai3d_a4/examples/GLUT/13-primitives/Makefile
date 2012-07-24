@@ -36,10 +36,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_SOURCE_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_BINARY_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -66,14 +66,14 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /u/aleeper/ros/jks-ros-pkg/chai3d_a4/examples/GLUT/13-primitives/CMakeFiles/progress.marks
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /home/aleeper/ros/jks-ros-pkg/chai3d_a4/examples/GLUT/13-primitives/CMakeFiles/progress.marks
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/clean
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/clean
 .PHONY : clean
 
 # The main clean target
@@ -82,22 +82,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/preinstall
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/preinstall
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule
 .PHONY : examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule
 
 # Convenience name for target.
@@ -106,7 +106,7 @@ examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule:
 
 # fast build rule for target.
 13-primitives/fast:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build
 .PHONY : 13-primitives/fast
 
 13-primitives.o: 13-primitives.cpp.o
@@ -114,7 +114,7 @@ examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule:
 
 # target to build an object file
 13-primitives.cpp.o:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/13-primitives.cpp.o
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/13-primitives.cpp.o
 .PHONY : 13-primitives.cpp.o
 
 13-primitives.i: 13-primitives.cpp.i
@@ -122,7 +122,7 @@ examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule:
 
 # target to preprocess a source file
 13-primitives.cpp.i:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/13-primitives.cpp.i
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/13-primitives.cpp.i
 .PHONY : 13-primitives.cpp.i
 
 13-primitives.s: 13-primitives.cpp.s
@@ -130,7 +130,7 @@ examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/rule:
 
 # target to generate assembly for a file
 13-primitives.cpp.s:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/13-primitives.cpp.s
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/build.make examples/GLUT/13-primitives/CMakeFiles/13-primitives.dir/13-primitives.cpp.s
 .PHONY : 13-primitives.cpp.s
 
 # Help Target
@@ -156,6 +156,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

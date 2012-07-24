@@ -36,10 +36,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_SOURCE_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_BINARY_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -66,14 +66,14 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /u/aleeper/ros/jks-ros-pkg/chai3d_a4/examples/GLUT/17-shading/CMakeFiles/progress.marks
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /home/aleeper/ros/jks-ros-pkg/chai3d_a4/examples/GLUT/17-shading/CMakeFiles/progress.marks
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/clean
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/clean
 .PHONY : clean
 
 # The main clean target
@@ -82,22 +82,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/preinstall
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/preinstall
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule
 .PHONY : examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule
 
 # Convenience name for target.
@@ -106,7 +106,7 @@ examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule:
 
 # fast build rule for target.
 17-shading/fast:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build
 .PHONY : 17-shading/fast
 
 17-shading.o: 17-shading.cpp.o
@@ -114,7 +114,7 @@ examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule:
 
 # target to build an object file
 17-shading.cpp.o:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/17-shading.cpp.o
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/17-shading.cpp.o
 .PHONY : 17-shading.cpp.o
 
 17-shading.i: 17-shading.cpp.i
@@ -122,7 +122,7 @@ examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule:
 
 # target to preprocess a source file
 17-shading.cpp.i:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/17-shading.cpp.i
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/17-shading.cpp.i
 .PHONY : 17-shading.cpp.i
 
 17-shading.s: 17-shading.cpp.s
@@ -130,7 +130,7 @@ examples/GLUT/17-shading/CMakeFiles/17-shading.dir/rule:
 
 # target to generate assembly for a file
 17-shading.cpp.s:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/17-shading.cpp.s
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/17-shading/CMakeFiles/17-shading.dir/build.make examples/GLUT/17-shading/CMakeFiles/17-shading.dir/17-shading.cpp.s
 .PHONY : 17-shading.cpp.s
 
 # Help Target
@@ -156,6 +156,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 
