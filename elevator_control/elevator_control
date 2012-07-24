@@ -25,6 +25,7 @@ class DoorBlast:
     def __init__(self):
         self.scan_msg = None
         self.imu_data = False
+        self.imu_print = False
         self.height = 0.0
         self.visualization_publisher = rospy.Publisher("/visualization_markers", Marker)
         self.cmd_vel_publisher = rospy.Publisher("/base_controller/command", Twist)
@@ -139,8 +140,12 @@ class DoorBlast:
             if (self.imu_data):
                 self.imu_data = imu_data
         #print self.imu_data
-        #if (imu_data):
-        #    print imu_data["height"], imu_data["accel"], imu_data["max"]
+        if (imu_data):
+            if (not self.imu_print):
+                self.imu_print = msg.header.stamp
+            if ((msg.header.stamp - self.imu_print).to_sec() > 0.1):
+                #print imu_data["height"], imu_data["velocity"], imu_data["accel"], imu_data["max"]
+                self.imu_print = msg.header.stamp
 
     def do_elevator(self, msg):
         self.imu_data = False
@@ -170,7 +175,9 @@ class DoorBlast:
                     ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     #(0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                    ("FLOOR_WAIT",), (0.1, 0.0, 0.0, "WAIT"), (0.6, 0.0, 0.0), (1.1, math.pi / 2, 0.0),]
+                    #("FLOOR_WAIT",),
+                    ("HEAD", 0.0, 1.0, 2.0), (0.7, 0.0, 0.0, "WAIT"), 
+                    (0.9, 0.0, 0.0), (1.1, math.pi / 2, 0.0), (0.0, 0.0, math.pi),]
         right_seq = [(1.1, -math.pi / 2, 0.0, "BAIL"),
                      (1.6, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.5, 0.0, 0.0),
                      (0.8, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
@@ -181,7 +188,9 @@ class DoorBlast:
                      ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      #(-0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      (-0.7, 0.0, 0.0), ("TUCK", False), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                     ("FLOOR_WAIT",), (0.1, 0.0, 0.0, "WAIT"), (0.6, 0.0, 0.0), (1.1, math.pi / 2, 0.0),]
+                     #("FLOOR_WAIT",), 
+                     ("HEAD", 0.0, 1.0, 2.0), (0.7, 0.0, 0.0, "WAIT"),
+                     (0.9, 0.0, 0.0), (1.1, math.pi / 2, 0.0), (0.0, 0.0, math.pi),]
         out_seq = [(0.4, 0.0, 0.0)]
         wrong_floor_seq = [(-0.4, 0.0, 0.0)]
         mult = {"call-button": {"up": (0.05, 0, 0.02),
@@ -197,7 +206,7 @@ class DoorBlast:
                           "motion_seq": right_seq,
                           },
                 }
-        single = {"call-button": {"down": (0, 0, 0.01),
+        single = {"call-button": {"down": (0.1, 0, -0.1),
                                   "arm": [0.0, -3.14159 / 180.0 * 10.0, 0.0, 
                                           -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]},
                   "left": {"lights": {"down": (195.0, (138.0 + 180.0) / 2.0)},
@@ -209,7 +218,7 @@ class DoorBlast:
                   }
         self.elevator_locations = {"B": single, "1": mult, "2": mult, "3": single, 
                                    "floor-order": ["B", "1", "2", "3"],
-                                   "floor-heights": {"B": -4.5, "1": 0.0, "2": 4.5, "3": 9.0}, 
+                                   "floor-heights": {"B": -6.0, "1": 0.0, "2": 6.0, "3": 12.0}, 
                                    "floor-buttons": {"left": {"3": [-1.5675391915428039, -0.1615763031295083, -0.016156285133952952, -1.4376911415880722, 
                                                                      -15.743258254855892, -1.5125801804718826, -0.0040836229237051214],
                                                               "2": [-1.5855299275092696, -0.043481790475689695, -0.016637349613062513, -1.5616148705323718, 
@@ -230,8 +239,8 @@ class DoorBlast:
 
         #From intent
 
-        self.floor = "2"
-        self.goal_floor = "3"
+        self.floor = "3"
+        self.goal_floor = "1"
 
 
         #Calculate direction - down or up
@@ -305,7 +314,9 @@ class DoorBlast:
             goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint", "r_upper_arm_roll_joint",
                                 "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
             goal.points = [JointTrajectoryPoint()]
-            goal.points[0].positions = [pos, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+            goal.points[0].positions = [pos]
+            for i in elevator_info["call-button"]["arm"][1:]:
+                goal.points[0].positions.append(i)
             goal.points[0].velocities = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             goal.points[0].time_from_start = rospy.Duration.from_sec(0.3)
             
@@ -319,7 +330,7 @@ class DoorBlast:
 
         self.arm_move(pos[0] - 0.05, pos[1], pos[2], 1)
 
-        self.set_gripper(0.01)
+        self.set_gripper(0.02)
 
         offset = elevator_info["call-button"][direct]
         self.arm_move(pos[0] + offset[0] - 0.05, pos[1] + offset[1], pos[2] + offset[2], 1)
@@ -348,6 +359,8 @@ class DoorBlast:
                         elevator = i
             rospy.sleep(0.1)
             time_limit = time_limit + 1
+            if (time_limit > 300):
+                return self.do_elevator(msg)
 
         self.process_head_im = False
 
@@ -376,7 +389,7 @@ class DoorBlast:
             elif (step[0] == "SQUARE_CHECK"):
                 self.imu_data = False
                 self.cmd_vel_publisher.publish(Twist())
-                rospy.sleep(1.0)
+                rospy.sleep(3.0)
                 self.scan_msg = False
                 self.wait_for_scan()
                 if (self.check_square(self.scan_msg)):
@@ -387,14 +400,17 @@ class DoorBlast:
                     #break
             elif (step[0] == "FLOOR_WAIT"):
                 while not rospy.is_shutdown():
-                    height = self.imu_data["height"] - self.elevator_locations["floor-heights"][self.floor]
+                    height = -self.imu_data["height"] - self.elevator_locations["floor-heights"][self.floor]
                     current_floor = self.floor
                     for i in self.elevator_locations["floor-heights"]:
                         delta = height - self.elevator_locations["floor-heights"][i]
                         delta_c = height - self.elevator_locations["floor-heights"][current_floor]
                         if (abs(delta) < abs(delta_c)):
                             current_floor = i
-                    print height, self.floor, self.imu_data["height"], current_floor
+                    print height, self.floor, self.imu_data["height"], self.imu_data["velocity"], current_floor
+                    if (current_floor == self.goal_floor):
+                        print "HIT"
+                        #break
                     rospy.sleep(0.1)
             else:
                 state = False
@@ -410,7 +426,8 @@ class DoorBlast:
             for i in backup:
                 print i
                 self.move_to_target(i, 0.0, True, True)
-            print "done"
+            print "Stuck!"
+            return self.do_elevator(msg)
     
     def head_image_callback(self, data):
         if (self.process_head_im):
