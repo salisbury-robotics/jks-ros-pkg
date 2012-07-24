@@ -1,71 +1,89 @@
-#include <ros/ros.h>
+
+#include <haptic_sandbox/haptic_interaction_tool.h>
+#include <conversions/tf_chai.h>
+
 #include <tf/tf.h>
 #include <Eigen/Geometry>
-#include <conversions/tf_chai.h>
+#include <ros/ros.h>
 #include <chai3d.h>
-#include <haptic_sandbox/haptic_interaction_tool.h>
 
 
 
 namespace something {
 
-    void HapticInteractionTool::init()
-    {
-        chai_device_handler_ = new cHapticDeviceHandler();
-        chai_device_handler_->getDevice(chai_device_, 0);
 
-        // open a connection with the haptic device
-        if(chai_device_->open() != 0)
+HapticInteractionTool::~HapticInteractionTool()
+    {
+        if(chai_device_handler_) delete chai_device_handler_;
+        if(chai_device_)
         {
-            ROS_ERROR("Error opening chai device!");
-            return;
+            chai_device_->setForceAndTorqueAndGripperForce(cVector3d(0,0,0), cVector3d(0,0,0), 0);
+            chai_device_->close();
+            delete chai_device_;
         }
-
-        cHapticDeviceInfo info = chai_device_->getSpecifications();
-        cVector3d pos = info.m_positionOffset;
-        setPosition(tf::Vector3(pos.x(), pos.y(), pos.z()));
-        setQuaternion(tf::createQuaternionFromYaw(M_PI));
-
-
-        // TODO this should be a chai thread...!
-        ros::NodeHandle nh;
-        float update_period = 0.01;
-        interaction_timer_ = nh.createTimer(ros::Duration(update_period), boost::bind( &HapticInteractionTool::updateDevice, this ) );
     }
 
-    HapticInteractionTool::~HapticInteractionTool()
-    {
-        chai_device_->setForceAndTorqueAndGripperForce(cVector3d(0,0,0), cVector3d(0,0,0), 0);
-        chai_device_->close();
-    }
 
-    // Read the state of the binary switches on the tool.
-    bool HapticInteractionTool::getToolButtonState(const unsigned int &index) const
+void HapticInteractionTool::init()
+{
+
+    cHapticDeviceInfo info = chai_device_->getSpecifications();
+    cVector3d pos = info.m_positionOffset;
+    setPosition(tf::Vector3(pos.x(), pos.y(), pos.z()));
+    setQuaternion(tf::createQuaternionFromYaw(M_PI));
+
+    std::string modelName = info.m_modelName;
+
+    if(modelName == "PHANTOM Omni") button_count_ = 2;
+    else if(modelName == "Falcon") button_count_ = 4;
+    else if(modelName == "omega") button_count_ = 1;
+    else button_count_ =  0;
+
+    // Get the number of buttons and initialize to false
+    button_state_.resize(getToolButtonCount(), false);
+
+    // TODO this should be a chai thread...!
+    ros::NodeHandle nh;
+    float update_period = 0.01;
+    interaction_timer_ = nh.createTimer(ros::Duration(update_period), boost::bind( &HapticInteractionTool::updateDevice, this ) );
+}
+
+
+// Read the state of the binary switches on the tool.
+bool HapticInteractionTool::getToolButtonState(const unsigned int &index) const
+{
+    if(index >= getToolButtonCount()) return false;
+    return button_state_[index];
+}
+
+// Get the number of buttons available on the tool.
+unsigned int HapticInteractionTool::getToolButtonCount() const
+{
+    return button_count_;
+}
+
+/////////////////////////////////////////////////////////////////////
+// PROTECTED FUNCTIONS LIVE UNDER HERE
+/////////////////////////////////////////////////////////////////////
+
+void HapticInteractionTool::updateButtonStates()
+{
+    for(size_t i = 0; i < getToolButtonCount(); ++i)
     {
         bool state = false;
-        chai_device_->getUserSwitch(index, state);
-        return state;
+        chai_device_->getUserSwitch(i, state );
+        button_state_[i] = state;
     }
+}
 
-    // Get the number of buttons available on the tool.
-    unsigned int HapticInteractionTool::getToolButtonCount() const
-    {
-        std::string modelName = chai_device_->getSpecifications().m_modelName;
+// Call an update?
+void HapticInteractionTool::updateDevice()
+{
 
-        if(modelName == "PHANTOM Omni") return 2;
-        else if(modelName == "Falcon") return 4;
-        else if(modelName == "omega") return 1;
-        else return 0;
-    }
+    // Get the state of all buttons
+    updateButtonStates();
 
-
-
-  // Call an update?
-  void HapticInteractionTool::updateDevice()
-  {
-    /////////////////////////////////////////////////////////////////////
-    // READ HAPTIC DEVICE
-    /////////////////////////////////////////////////////////////////////
+    // Get position and velocity info for the haptic handle
 
     // read position
     cVector3d position;
@@ -91,23 +109,16 @@ namespace something {
     double gripperAngularVelocity;
     chai_device_->getGripperAngularVelocity(gripperAngularVelocity);
 
-    tf::Transform handle = tf::Transform(tf::matrixChaiToTf(rotation), tf::vectorChaiToTf(position));
-    tf::Transform desired_frame = tf::Transform(tf::createQuaternionFromRPY(0,0,M_PI))*handle;
+    tf::Transform haptic_handle, interaction_handle;
+    haptic_handle = interaction_handle = tf::Transform::getIdentity();
+    haptic_handle = tf::Transform(tf::matrixChaiToTf(rotation), tf::vectorChaiToTf(position));
+    //if(getToolButtonState(0))
+        interaction_handle = haptic_handle*tf::Transform(tf::createQuaternionFromRPY(0,0,M_PI));
+    //else
+    //    interaction_handle = haptic_handle;
+    handle_->setTransform(interaction_handle);
 
-    handle_->setTransform(handle);
 
-
-//    // read userswitch status (button 0)
-//    bool button0, button1, button2, button3;
-//    button0 = false;
-//    button1 = false;
-//    button2 = false;
-//    button3 = false;
-
-//    hapticDevice->getUserSwitch(0, button0);
-//    hapticDevice->getUserSwitch(1, button1);
-//    hapticDevice->getUserSwitch(2, button2);
-//    hapticDevice->getUserSwitch(3, button3);
 
 
     cVector3d force, torque;
@@ -116,7 +127,7 @@ namespace something {
     // send computed force, torque and gripper force to haptic device
     chai_device_->setForceAndTorqueAndGripperForce(force, torque, gripperForce);
 
-  }
+}
 
 
 

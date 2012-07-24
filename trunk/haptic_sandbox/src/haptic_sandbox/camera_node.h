@@ -1,8 +1,9 @@
 #ifndef _CAMERA_NODE_H_
 #define _CAMERA_NODE_H_
 
-#include <Eigen/Geometry>
+
 #include <haptic_sandbox/tf_scenegraph_object.h>
+#include <Eigen/Geometry>
 
 
 namespace something {

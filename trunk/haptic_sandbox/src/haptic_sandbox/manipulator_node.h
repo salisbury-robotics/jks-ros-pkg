@@ -2,10 +2,11 @@
 #ifndef _MANIPULATOR_NODE_H_
 #define _MANIPULATOR_NODE_H_
 
-#include <Eigen/Geometry>
-#include <haptic_sandbox/tf_scenegraph_object.h>
-//#include <haptic_sandbox/abstract_interaction_tool.h>
+#include <haptic_sandbox/abstract_interaction_tool.h>
 #include <haptic_sandbox/haptic_interaction_tool.h>
+#include <haptic_sandbox/tf_scenegraph_object.h>
+
+#include <Eigen/Geometry>
 
 
 namespace something {
@@ -28,14 +29,27 @@ public:
         init();
     }
 
+    virtual ~ManipulatorNode()
+    {
+        if(tool_) delete tool_;
+    }
+
     void init()
     {
-        device_ = new something::HapticInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
-        addChild(device_);
+        tool_ = new something::HapticInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
+        //device_ = new something::AbstractInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
+        addChild(tool_);
+
+        button_name_map_["grab"] = 0;
     }
 
     // Get button stuff should go here, so user can query it?
 
+    bool isGrabbing()
+    {
+        unsigned int index = button_name_map_["grab"];
+        return tool_->getToolButtonState(index);
+    }
 
 
 protected:
@@ -44,7 +58,8 @@ protected:
 protected:
     // Members
 
-    something::HapticInteractionTool *device_;
+    something::AbstractInteractionTool *tool_;
+    std::map<std::string, unsigned int> button_name_map_;
 };
 
 }  // namespace something

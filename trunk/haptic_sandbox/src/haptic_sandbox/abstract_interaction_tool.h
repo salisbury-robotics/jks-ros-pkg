@@ -1,9 +1,11 @@
 #ifndef _ABSTRACT_INTERACTION_TOOL_H_
 #define _ABSTRACT_INTERACTION_TOOL_H_
 
-#include <Eigen/Geometry>
+
 #include <haptic_sandbox/tf_scenegraph_object.h>
 #include <haptic_sandbox/abstract_handle.h>
+
+#include <Eigen/Geometry>
 
 namespace something {
 
@@ -27,6 +29,7 @@ public:
 
     virtual ~AbstractInteractionTool()
     {
+          if(handle_) delete handle_;
     }
 
     void init()
@@ -36,46 +39,36 @@ public:
     }
 
 
+    const something::AbstractHandle* getHandle()
+    {
+        return handle_;
+    }
 
-//    // Read the state of the binary switches on the tool.
-//    virtual bool getToolButtonState(const unsigned int &index) const  { return false; }
 
-//    // Get the number of buttons available on the tool.
-//    virtual unsigned int getToolButtonCount() const                   { return 0; }
+    // Read the state of the binary switches on the tool.
+    virtual bool getToolButtonState(const unsigned int &index) const  { return false; }
 
-//    // Set the force applied to the tool
-//    virtual void setToolForce(const Vector3 &force)           { last_tool_force_ = force; }
+    // Get the number of buttons available on the tool.
+    virtual unsigned int getToolButtonCount() const                   { return 0; }
 
-//    // Set the torque applied to the tool
-//    virtual void setToolTorque(const Vector3 &torque)         { last_tool_torque_ = torque; }
+    // Set the force applied to the tool
+    virtual void setToolForce(const Vector3 &force)           { last_tool_force_ = force; }
 
-//    // Set the force and torque applied to the tool
-//    virtual void setToolForceAndTorque(const Vector3 &force, const Vector3 &torque) { setToolForce(force); setToolTorque(torque); }
+    // Set the torque applied to the tool
+    virtual void setToolTorque(const Vector3 &torque)         { last_tool_torque_ = torque; }
+
+    // Set the force and torque applied to the tool
+    virtual void setToolForceAndTorque(const Vector3 &force, const Vector3 &torque) { setToolForce(force); setToolTorque(torque); }
 
 //    // Set the gripper force on the tool
 //    virtual void setToolGripperForce(const float &force);
 
-//    void update()
+//    virtual void update()
 //    {
 //        transform_.setOrigin(tf::Vector3(0,0,0));
 //        transform_.setRotation(tf::Quaternion::getIdentity());
 //    }
 
-//      void addTransformsToVector(const ros::Time now, std::vector<tf::StampedTransform> &transforms)
-//      {
-//          tf::SceneGraphNode::addTransformsToVector(now, transforms);
-
-//          // Add this node to the list
-//          transform_.stamp_ = now;
-//          transforms.push_back(transform_);
-
-//          // Recursively add all children to the list
-//          std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
-//          for( ; it != children_.end(); it++)
-//          {
-//              it->second->addTransformsToVector(now, transforms);
-//          }
-//      }
 
 protected: 
 // Methods
