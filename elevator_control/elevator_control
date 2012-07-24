@@ -109,7 +109,7 @@ class DoorBlast:
         imu_data = self.imu_data
         if (not imu_data):
             self.imu_data = {"accel": 0.0, "velocity": 0.0, "height": 0.0, "time": msg.header.stamp,
-                             "accel_avg": [msg.linear_acceleration.z], "limit": 0.0}
+                             "accel_avg": [msg.linear_acceleration.z], "limit": 0.0, "max": 0.0}
         elif (len(imu_data["accel_avg"]) < 100):
             imu_data["accel_avg"].append(msg.linear_acceleration.z)
             imu_data["limit"] = 0.0
@@ -127,16 +127,27 @@ class DoorBlast:
 
             dt = (msg.header.stamp - imu_data["time"]).to_sec()
             imu_data["accel"] = msg.linear_acceleration.z - imu_data["limit"]
+
+            if (abs(imu_data["accel"]) < 0.0218838682662):
+                imu_data["accel"] = 0.0
+
+            if (abs(imu_data["accel"]) > abs(imu_data["max"])):
+                imu_data["max"] = imu_data["accel"]
             imu_data["velocity"] = imu_data["velocity"] + (imu_data["accel"] * dt)
             imu_data["height"] = imu_data["height"] + (imu_data["velocity"] * dt)
             imu_data["time"] = msg.header.stamp
             if (self.imu_data):
                 self.imu_data = imu_data
         #print self.imu_data
-        #print self.imu_data["height"]
+        #if (imu_data):
+        #    print imu_data["height"], imu_data["accel"], imu_data["max"]
 
     def do_elevator(self, msg):
         self.imu_data = False
+
+
+        print "Done"
+
         self.height = 0.0
 
         self.point_head(1.0, 0.0, 2.0)
@@ -159,7 +170,7 @@ class DoorBlast:
                     ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     #(0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                    ("FLOOR_WAIT",),]
+                    ("FLOOR_WAIT",), (0.1, 0.0, 0.0, "WAIT"), (0.6, 0.0, 0.0), (1.1, math.pi / 2, 0.0),]
         right_seq = [(1.1, -math.pi / 2, 0.0, "BAIL"),
                      (1.6, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.5, 0.0, 0.0),
                      (0.8, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
@@ -170,7 +181,7 @@ class DoorBlast:
                      ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      #(-0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      (-0.7, 0.0, 0.0), ("TUCK", False), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                     ("FLOOR_WAIT",),]
+                     ("FLOOR_WAIT",), (0.1, 0.0, 0.0, "WAIT"), (0.6, 0.0, 0.0), (1.1, math.pi / 2, 0.0),]
         out_seq = [(0.4, 0.0, 0.0)]
         wrong_floor_seq = [(-0.4, 0.0, 0.0)]
         mult = {"call-button": {"up": (0.05, 0, 0.02),
@@ -341,9 +352,9 @@ class DoorBlast:
         self.process_head_im = False
 
         seq = elevator_info[elevator]["motion_seq"]
-        backup = []
+        backup = [self.generate_goal(0, 0), ]
         dead = False
-        imu_data = False
+        self.imu_data = False
         for step in seq:
             if (step[0] == "FD"):
                 move = Twist()
@@ -363,6 +374,7 @@ class DoorBlast:
             elif (step[0] == "TUCK"):
                 self.tuck_arms(step[1])
             elif (step[0] == "SQUARE_CHECK"):
+                self.imu_data = False
                 self.cmd_vel_publisher.publish(Twist())
                 rospy.sleep(1.0)
                 self.scan_msg = False
@@ -370,12 +382,12 @@ class DoorBlast:
                 if (self.check_square(self.scan_msg)):
                     print "Square"
                 else:
-                    dead = True
+                    #dead = True
                     print "Dead square"
-                    break
+                    #break
             elif (step[0] == "FLOOR_WAIT"):
                 while not rospy.is_shutdown():
-                    height = -self.imu_data["height"] - self.elevator_locations["floor-heights"][self.floor]
+                    height = self.imu_data["height"] - self.elevator_locations["floor-heights"][self.floor]
                     current_floor = self.floor
                     for i in self.elevator_locations["floor-heights"]:
                         delta = height - self.elevator_locations["floor-heights"][i]
@@ -392,11 +404,13 @@ class DoorBlast:
                     print "Dead"
                     dead = True
                     break
-            backup.append(0, self.generate_goal(0, 0, 0))
+            backup.insert(0, self.generate_goal(0, 0))
         
         if (dead):
             for i in backup:
-                self.move_to_target(backup, True, True)
+                print i
+                self.move_to_target(i, 0.0, True, True)
+            print "done"
     
     def head_image_callback(self, data):
         if (self.process_head_im):
@@ -741,12 +755,12 @@ class DoorBlast:
             if (i[1] > 0.0 and abs(i[0]) < abs(right_wall[0])):
                 right_wall = i
         
-        w = 0.10
+        w = 0.20
         
         self.cube(msg.header.frame_id, front_wall[0], 0.0, 0.0, w * 2, 0.5, 6.0, 0)
         self.cube(msg.header.frame_id, 0.0, left_wall[1], 0.0, 6.0, 0.5, w * 2, 1)
         self.cube(msg.header.frame_id, 0.0, right_wall[1], 0.0, 6.0, 0.5, w * 2, 2)
-        
+        print msg
         print front_wall[0], left_wall[1], right_wall[1]
         for i in pts:
             if (i[0] < 0.0):
