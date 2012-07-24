@@ -1,15 +1,14 @@
 #ifndef _HAPTIC_INTERACTION_TOOL_H_
 #define _HAPTIC_INTERACTION_TOOL_H_
 
-#include <Eigen/Geometry>
-#include <ros/ros.h>
 #include <haptic_sandbox/abstract_interaction_tool.h>
 
-#include <chai3d.h>
 #include <conversions/tf_chai.h>
 
+#include <Eigen/Geometry>
 
-
+#include <ros/ros.h>
+#include <chai3d.h>
 
 
 namespace something {
@@ -20,79 +19,100 @@ class HapticInteractionTool: public AbstractInteractionTool{
 public:
   // Methods only!
 
-  // Constructor
     HapticInteractionTool(const std::string &frame_id,
-             tf::TransformListener *tfl, tf::TransformBroadcaster *tfb)
-    : AbstractInteractionTool(frame_id, tfl, tfb)
+                                                 tf::TransformListener *tfl,
+                                                 tf::TransformBroadcaster *tfb)
+        : AbstractInteractionTool(frame_id, tfl, tfb),
+          chai_device_handler_(0), chai_device_(0), button_state_(0)
     {
+        // Must come first, and must be defined in the header due to library issues in CHAI3D.
+        initializeHaptics();
+
+        // Finish other intialization stuff.
         init();
+    }
+
+    ~HapticInteractionTool();
+
+    // Must be defined in the header due to library issues in CHAI3D.
+    inline void initializeHaptics()
+    {
+        if(!chai_device_handler_)
+            chai_device_handler_ = new cHapticDeviceHandler();
+        chai_device_handler_->getDevice(chai_device_, 0);
+
+        // open a connection with the Shaptic device
+        if(chai_device_->open() != 0)
+        {
+            ROS_ERROR("Error opening chai device!");
+            return;
+        }
     }
 
     void init();
 
-    virtual ~HapticInteractionTool();
-
     // Read the state of the binary switches on the tool.
-    virtual bool getToolButtonState(const unsigned int &index) const;
+    bool getToolButtonState(const unsigned int &index) const;
 
     // Get the number of buttons available on the tool.
-    virtual unsigned int getToolButtonCount() const;
+    unsigned int getToolButtonCount() const;
 
-//  // Get the name of this tool.
-//  virtual std::string getToolName() const;
 
-//  // Set the force applied to the tool
-//  virtual void setToolForce(const Vector3 &force)           { last_tool_force_ = force; }
 
-//  // Set the torque applied to the tool
-//  virtual void setToolTorque(const Vector3 &torque)         { last_tool_torque_ = torque; }
+////  // Set the force applied to the tool
+////  virtual void setToolForce(const Vector3 &force)           { last_tool_force_ = force; }
 
-//  // Set the force and torque applied to the tool
-//  virtual void setToolForceAndTorque(const Vector3 &force, const Vector3 &torque) { setToolForce(force); setToolTorque(torque); }
+////  // Set the torque applied to the tool
+////  virtual void setToolTorque(const Vector3 &torque)         { last_tool_torque_ = torque; }
 
-//  // Set the gripper force on the tool
-//  virtual void setToolGripperForce(const float &force);
+////  // Set the force and torque applied to the tool
+////  virtual void setToolForceAndTorque(const Vector3 &force, const Vector3 &torque) { setToolForce(force); setToolTorque(torque); }
 
-//  //! Device's base frame is transparent, client sees only a device with "infinite workspace"
-//  // Set tool position
-//  virtual void setToolPosition(const Vector3 &position)
-//  {
-//    cVector3d device_position;
-//    chai_device_->getPosition(device_position);
-//    base_frame_position_ = position - base_frame_quaternion_ * device_position;
-//  }
+////  // Set the gripper force on the tool
+////  virtual void setToolGripperForce(const float &force);
 
-//  // Set tool quaternion
-//  virtual void setToolQuaternion(const Quaternion &quaternion)
-//  {
-//    cMatrix3d device_matrix;
-//    chai_device_->getRotation(device_matrix);
-//    Quaternion device_quaternion(device_matrix);
-//    base_frame_quaternion_ = quaternion * device_quaternion.conjugate();
-//  }
+////  //! Device's base frame is transparent, client sees only a device with "infinite workspace"
+////  // Set tool position
+////  virtual void setToolPosition(const Vector3 &position)
+////  {
+////    cVector3d device_position;
+////    chai_device_->getPosition(device_position);
+////    base_frame_position_ = position - base_frame_quaternion_ * device_position;
+////  }
 
-//  // Set tool position
-//  virtual void setInteractionFramePosition(const Vector3 &position)
-//  {
-//    base_frame_position_ = position;
-//  }
+////  // Set tool quaternion
+////  virtual void setToolQuaternion(const Quaternion &quaternion)
+////  {
+////    cMatrix3d device_matrix;
+////    chai_device_->getRotation(device_matrix);
+////    Quaternion device_quaternion(device_matrix);
+////    base_frame_quaternion_ = quaternion * device_quaternion.conjugate();
+////  }
 
-//  // Set tool quaternion
-//  virtual void setInteractionFrameQuaternion(const Quaternion &quaternion)
-//  {
-//    base_frame_quaternion_ = quaternion;
-//  }
+////  // Set tool position
+////  virtual void setInteractionFramePosition(const Vector3 &position)
+////  {
+////    base_frame_position_ = position;
+////  }
 
-//  // Set workspace size for the tool interaction
-//  virtual void setToolWorkspaceRadius(const float &radius);
+////  // Set tool quaternion
+////  virtual void setInteractionFrameQuaternion(const Quaternion &quaternion)
+////  {
+////    base_frame_quaternion_ = quaternion;
+////  }
+
+////  // Set workspace size for the tool interaction
+////  virtual void setToolWorkspaceRadius(const float &radius);
 
 
 
 protected:
 // Methods
 
-  // Call an update?
+//  // Call an update?
   virtual void updateDevice();
+
+    void updateButtonStates();
 
 // Members
 
@@ -100,6 +120,9 @@ protected:
   cGenericHapticDevice *chai_device_;
 
   ros::Timer interaction_timer_;
+
+  std::vector<bool> button_state_;
+  unsigned int button_count_;
 
 };
 

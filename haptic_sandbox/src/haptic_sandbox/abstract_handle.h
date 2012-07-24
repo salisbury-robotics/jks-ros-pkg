@@ -1,8 +1,8 @@
 #ifndef _ABSTRACT_HANDLE_H_
 #define _ABSTRACT_HANDLE_H_
 
-#include <Eigen/Geometry>
 #include <haptic_sandbox/tf_scenegraph_object.h>
+#include <Eigen/Geometry>
 
 namespace something {
 

@@ -29,8 +29,19 @@
 
 // author: Adam Leeper
 
-#include <ros/ros.h>
+
 #include <haptic_sandbox/user_entity.h>
+#include <ros/ros.h>
+
+
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/time.h>
+
+void changemode(int);
+int  kbhit(void);
 
 int main(int argc, char** argv)
 {
@@ -40,9 +51,65 @@ int main(int argc, char** argv)
     ros::NodeHandle nh;
     tf::TransformListener tfl;
     tf::TransformBroadcaster tfb;
-    something::UserEntity user("base_link", "user1_", &tfl, &tfb);
-    user.setPosition(tf::Vector3(0,0,1));
+    something::UserEntity *user = new something::UserEntity("base_link", "user1_", &tfl, &tfb);
+    user->setPosition(tf::Vector3(0,0,1));
     ros::Duration(1.0).sleep();
 
-    ros::spin();
+    int ch;
+    changemode(1);
+
+    while(true)
+    {
+        if(kbhit())
+        {
+            ch = getchar();
+
+            //printf("\nGot %c\n", ch);
+
+            if(ch == 'q')
+            {
+                printf("\nGot shutdown request!\n");
+                break;
+            }
+        }
+        ros::spinOnce();
+    }
+    changemode(0);
+    printf("Deleting user...\n");
+    delete user;
+    printf("Done! Exiting...\n");
 }
+
+// --------------------------------------------------
+
+void changemode(int dir)
+{
+  static struct termios oldt, newt;
+
+  if ( dir == 1 )
+  {
+    tcgetattr( STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~( ICANON | ECHO );
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+  }
+  else
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+}
+
+int kbhit (void)
+{
+  struct timeval tv;
+  fd_set rdfs;
+
+  tv.tv_sec = 0;
+  tv.tv_usec = 0;
+
+  FD_ZERO(&rdfs);
+  FD_SET (STDIN_FILENO, &rdfs);
+
+  select(STDIN_FILENO+1, &rdfs, NULL, NULL, &tv);
+  return FD_ISSET(STDIN_FILENO, &rdfs);
+
+}
+

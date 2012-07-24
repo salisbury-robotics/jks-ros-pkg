@@ -1,12 +1,15 @@
 #ifndef _TF_SCENEGRAPH_OBJECT_H_
 #define _TF_SCENEGRAPH_OBJECT_H_
 
-#include <ros/ros.h>
+
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 
 #include <geometry_msgs/PoseStamped.h>
+
+#include <ros/ros.h>
+
 
 namespace tf {
 
@@ -40,6 +43,22 @@ public:
     virtual tf::Quaternion  getQuaternion() const     { return transform_.getRotation(); }
     virtual tf::Transform   getTransform() const      { return transform_; }
 
+
+    tf::SceneGraphNode* accessChild(const std::string &key)
+    {
+        tf::SceneGraphNode* node = 0;
+        if(getFrameId() == key) return this;
+
+        // Recursively add all children to the list
+        std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
+        for( ; it != children_.end(); it++)
+        {
+            node = it->second->accessChild(key);
+            if(node) return node;
+        }
+        return 0;
+    }
+
     void addChild(tf::SceneGraphNode *node)
     {
         node->setParent(this);
@@ -48,7 +67,6 @@ public:
 
     bool removeChild(tf::SceneGraphNode *node)
     {
-        // Recursively add all children to the list
         std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
         for( ; it != children_.end(); it++)
         {

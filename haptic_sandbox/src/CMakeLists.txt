@@ -1,5 +1,3 @@
-ADD_DEFINITIONS(-fPIC)
-
 
 add_subdirectory(conversions)
 add_subdirectory(haptic_sandbox)
@@ -10,6 +8,7 @@ rosbuild_add_executable(user_test
 )
 
 target_link_libraries(user_test
-chai_conversions
 haptic_sandbox
+chai_conversions
+
 )

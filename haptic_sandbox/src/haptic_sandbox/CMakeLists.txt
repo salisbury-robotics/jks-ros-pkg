@@ -1,5 +1,8 @@
 include_directories(.)
 
+ADD_DEFINITIONS(-fPIC)
+
+
 rosbuild_add_library(haptic_sandbox
 #src/geometry/GenericSampler.cpp
 #src/geometry/PointSetSampler.cpp
