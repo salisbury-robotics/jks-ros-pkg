@@ -176,21 +176,26 @@ class DoorBlast:
                     #(0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                     ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
                     #("FLOOR_WAIT",),
-                    ("HEAD", 0.0, 1.0, 2.0), (0.7, 0.0, 0.0, "WAIT"), 
-                    (0.9, 0.0, 0.0), (1.1, math.pi / 2, 0.0), (0.0, 0.0, math.pi),]
+                    ("HEAD", 0.0, 1.0, 2.0), 
+                    
+                    (-0.2, 0.0, 0.0), (0.0, 0.0, math.pi / 2), (-0.85, 0.0, 0.0),]
+                    #(0.7, 0.0, 0.0, "WAIT"), 
+                    #(0.9, 0.0, 0.0, "WAIT"), (1.1, math.pi / 2, 0.0, "WAIT"), (0.0, 0.0, math.pi),]
         right_seq = [(1.1, -math.pi / 2, 0.0, "BAIL"),
                      (1.6, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.5, 0.0, 0.0),
-                     (0.8, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
+                     (0.7, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2),
                      ("FD", 0.1, 0.0, 3.0), ("FD", 0.0, -0.1, 5.0),
                      (0.7 * math.sqrt(2), math.pi / 2 + math.pi / 4, 0.0),
                      ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]),
-                     (0.65, 0.0, 0.0), ("FD", 0.1, 0.0, 1.0), 
+                     (0.65, 0.0, 0.0), ("FD", 0.3, 0.0, 1.0), 
                      ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      #(-0.05, 0.0, 0.0), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
                      (-0.7, 0.0, 0.0), ("TUCK", False), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                     #("FLOOR_WAIT",), 
-                     ("HEAD", 0.0, 1.0, 2.0), (0.7, 0.0, 0.0, "WAIT"),
-                     (0.9, 0.0, 0.0), (1.1, math.pi / 2, 0.0), (0.0, 0.0, math.pi),]
+                    
+                     (-0.7, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.6, 0.0, 0.0),]
+
+#                     ("HEAD", 0.0, 1.0, 2.0), 
+#(0.7, 0.0, 0.0, "WAIT"), (0.9, 0.0, 0.0, "WAIT"), (1.1, -math.pi / 2, 0.0, "WAIT"), (0.0, 0.0, math.pi),]
         out_seq = [(0.4, 0.0, 0.0)]
         wrong_floor_seq = [(-0.4, 0.0, 0.0)]
         mult = {"call-button": {"up": (0.05, 0, 0.02),
@@ -389,15 +394,14 @@ class DoorBlast:
             elif (step[0] == "SQUARE_CHECK"):
                 self.imu_data = False
                 self.cmd_vel_publisher.publish(Twist())
-                rospy.sleep(3.0)
-                self.scan_msg = False
-                self.wait_for_scan()
-                if (self.check_square(self.scan_msg)):
+                rospy.sleep(0.5)
+                self.wait_for_base_scan()
+                if (self.check_square(self.base_scan_msg)):
                     print "Square"
                 else:
-                    #dead = True
+                    dead = True
                     print "Dead square"
-                    #break
+                    break
             elif (step[0] == "FLOOR_WAIT"):
                 while not rospy.is_shutdown():
                     height = -self.imu_data["height"] - self.elevator_locations["floor-heights"][self.floor]
@@ -565,6 +569,13 @@ class DoorBlast:
 
     def on_base_scan(self, msg):
         self.base_scan_msg = msg
+
+
+    def wait_for_base_scan(self, clear = True):
+        if (clear):
+            self.base_scan_msg = False
+        while not rospy.is_shutdown() and not self.base_scan_msg:
+            rospy.sleep(0.01)
 
     def wait_for_scan(self, clear = True):
         if (clear):
