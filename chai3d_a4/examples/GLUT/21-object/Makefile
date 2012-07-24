@@ -36,10 +36,10 @@ CMAKE_COMMAND = /usr/bin/cmake
 RM = /usr/bin/cmake -E remove -f
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_SOURCE_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /u/aleeper/ros/jks-ros-pkg/chai3d_a4
+CMAKE_BINARY_DIR = /home/aleeper/ros/jks-ros-pkg/chai3d_a4
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -66,14 +66,14 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /u/aleeper/ros/jks-ros-pkg/chai3d_a4/examples/GLUT/21-object/CMakeFiles/progress.marks
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /u/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles /home/aleeper/ros/jks-ros-pkg/chai3d_a4/examples/GLUT/21-object/CMakeFiles/progress.marks
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/aleeper/ros/jks-ros-pkg/chai3d_a4/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/clean
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/clean
 .PHONY : clean
 
 # The main clean target
@@ -82,22 +82,22 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/preinstall
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/preinstall
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
 # Convenience name for target.
 examples/GLUT/21-object/CMakeFiles/21-object.dir/rule:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/CMakeFiles/21-object.dir/rule
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f CMakeFiles/Makefile2 examples/GLUT/21-object/CMakeFiles/21-object.dir/rule
 .PHONY : examples/GLUT/21-object/CMakeFiles/21-object.dir/rule
 
 # Convenience name for target.
@@ -106,7 +106,7 @@ examples/GLUT/21-object/CMakeFiles/21-object.dir/rule:
 
 # fast build rule for target.
 21-object/fast:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/build
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/build
 .PHONY : 21-object/fast
 
 21-object.o: 21-object.cpp.o
@@ -114,7 +114,7 @@ examples/GLUT/21-object/CMakeFiles/21-object.dir/rule:
 
 # target to build an object file
 21-object.cpp.o:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/21-object.cpp.o
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/21-object.cpp.o
 .PHONY : 21-object.cpp.o
 
 21-object.i: 21-object.cpp.i
@@ -122,7 +122,7 @@ examples/GLUT/21-object/CMakeFiles/21-object.dir/rule:
 
 # target to preprocess a source file
 21-object.cpp.i:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/21-object.cpp.i
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/21-object.cpp.i
 .PHONY : 21-object.cpp.i
 
 21-object.s: 21-object.cpp.s
@@ -130,7 +130,7 @@ examples/GLUT/21-object/CMakeFiles/21-object.dir/rule:
 
 # target to generate assembly for a file
 21-object.cpp.s:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/21-object.cpp.s
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(MAKE) -f examples/GLUT/21-object/CMakeFiles/21-object.dir/build.make examples/GLUT/21-object/CMakeFiles/21-object.dir/21-object.cpp.s
 .PHONY : 21-object.cpp.s
 
 # Help Target
@@ -156,6 +156,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /u/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd /home/aleeper/ros/jks-ros-pkg/chai3d_a4 && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 
