@@ -326,7 +326,7 @@ class DoorBlast:
         #Turn to face the door
         self.move_to_target(self.generate_goal(0.1, -math.pi / 2), -math.pi / 2, True, True)
         self.move_to_target(self.generate_goal(0.05, 0.0), -math.pi / 4, True, True)
-        self.move_to_target(self.generate_goal(0.05, math.pi / 4), -math.pi / 8, True, True)
+        self.move_to_target(self.generate_goal(0.05, math.pi / 4), -math.pi / 8, True, True, time_limit=5.00)
         
         for step in range(0, 20):
             cmd = Twist()
@@ -686,13 +686,14 @@ class DoorBlast:
         
         return goal
 
-    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False):
+    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False, time_limit=0):
         base_frame = "/base_footprint"
         odom_frame = "/odom_combined" #FIXME param 
         
         rate = rospy.Rate(10)
         reset = False
-        while not rospy.is_shutdown(): #FIXME
+        start_time = rospy.get_rostime()
+        while not rospy.is_shutdown() and ((rospy.get_rostime() - start_time).to_sec() < time_limit or time_limit == 0): #FIXME
             try:
                 goal_transformed = self.listener.transformPose(base_frame, goal)
                 
