@@ -52,7 +52,7 @@ public:
         //addChild(left_);
 
         view_ = new something::CameraNode(prefix_ + "camera", tfl_, tfb_);
-        view_->setPosition(tf::Vector3(-1.0, 0, 0));        
+        view_->setPosition(tf::Vector3(-0.5, 0, 0));
         addChild(view_);
 
         grab_start_world_to_handle_.setIdentity();
@@ -68,6 +68,8 @@ public:
 
         ros::Time now = ros::Time::now();
         publishTransformTree(now);
+
+        publishMarkers(true);
     }
 
     void changeParentFrameId(const std::string &parent_id)
