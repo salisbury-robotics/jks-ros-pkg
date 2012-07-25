@@ -253,8 +253,8 @@ class DoorBlast:
                             },
                   }
         self.elevator_locations = {"B": single, "1": mult, "2": mult, "3": single, 
-                                   "sub-images": {"left": (280, 200, 100, 100),
-                                                  "right": (280, 200, 100, 100)},
+                                   "sub-images": {"left": (310, 170, 100, 100),
+                                                  "right": (320, 170, 100, 100)},
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
                                                             "3": "floor_3.jpg",
@@ -298,6 +298,7 @@ class DoorBlast:
             if (floor == self.floor):
                 direct = "up"
                 break
+        print "Going", direct
         elevator_info = self.elevator_locations[self.floor]
 
         #Create lights array for head perception
@@ -435,29 +436,32 @@ class DoorBlast:
                 self.point_head(step[1], step[2], step[3], True)
             elif (step[0] == "TUCK"):
                 self.tuck_arms(step[1])
+            elif (step[0] == "SLEEP"):
+                rospy.sleep(step[1])
             elif (step[0] == "FLOOR_CHECK"):
                 self.floor_signs = {}
                 for floor in self.elevator_locations["sign-images"][elevator]:
                     self.floor_signs[floor] = cv.LoadImage(
-                        self.image_dir.strip("/\\") + "/" + 
+                        self.image_dir.rstrip("/\\") + "/" + 
                         self.elevator_locations["sign-images"][elevator][floor],
                         cv.CV_LOAD_IMAGE_GRAYSCALE)
                 self.exit_floor = False
-                self.process_sign_im = True
-                while self.process_sign_im == False and not rospy.is_shutdown():
-                    rospy.sleep(0.01)
                 self.sign_sub_image = self.elevator_locations["sub-images"][elevator]
-                sign = self.process_sign_im
+                self.process_sign_im = True
+                while self.exit_floor == False and not rospy.is_shutdown():
+                    rospy.sleep(0.01)
+                sign = self.exit_floor
                 hc = 0
                 while hc < 10 and not rospy.is_shutdown():
-                    if (sign != self.process_sign_im):
-                        sign = self.process_sign_im
+                    if (sign != self.exit_floor):
+                        sign = self.exit_floor
                         hc = 0
                     else:
                         hc = hc + 1
                     rospy.sleep(0.1)
                 self.process_sign_im = False
                 
+                print sign
                 if (sign != self.goal_floor):
                     print "Wrong floor!!"
                     seq = seqs[step[1]]
@@ -526,7 +530,10 @@ class DoorBlast:
         except CvBridgeError, e:
             print e
         #Get the approximate area
-        img = cv.GetSubRect(bimg, sub_image[it]) 
+        img = cv.GetSubRect(bimg, self.sign_sub_image) 
+
+        cv.SaveImage("/tmp/background.png", bimg)
+        cv.SaveImage("/tmp/region.png", img)
 
         #Convert to grayscale
         gray = cv.CreateImage(cv.GetSize(img), 8, 1)
@@ -587,6 +594,11 @@ class DoorBlast:
                     d = (100 - x) * (100 - x) + (100 - y) * (100 - y)
                     if (d < min_right_down[0]):
                         min_right_down = (d, x, y)
+
+        print min_left_down
+        print min_left_up
+        print min_right_up
+        print min_right_down
     
         #Transform out the sign image
         transform = cv.CreateMat(3, 3, cv.CV_32F)
@@ -617,8 +629,8 @@ class DoorBlast:
             elif (winner[1] > value):
                 winner = (i, value)
         
-        print exit_floor
         self.exit_floor = winner[0]
+        print winner
 
 
         
