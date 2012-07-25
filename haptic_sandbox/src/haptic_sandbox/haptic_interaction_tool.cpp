@@ -30,7 +30,7 @@ void HapticInteractionTool::init()
     cHapticDeviceInfo info = chai_device_->getSpecifications();
     cVector3d pos = info.m_positionOffset;
     setPosition(tf::Vector3(pos.x(), pos.y(), pos.z()));
-    setQuaternion(tf::createQuaternionFromYaw(M_PI));
+    setQuaternion(tf::createQuaternionFromYaw(M_PI)*tf::createQuaternionFromRPY(0, 0.4, 0));
 
     std::string modelName = info.m_modelName;
 
@@ -38,6 +38,8 @@ void HapticInteractionTool::init()
     else if(modelName == "Falcon") button_count_ = 4;
     else if(modelName == "omega") button_count_ = 1;
     else button_count_ =  0;
+
+    workspace_radius_ = workspace_radius_ / info.m_workspaceRadius;
 
     // Get the number of buttons and initialize to false
     button_state_.resize(getToolButtonCount(), false);
@@ -88,6 +90,7 @@ void HapticInteractionTool::updateDevice()
     // read position
     cVector3d position;
     chai_device_->getPosition(position);
+    position = workspace_radius_*position;
 
     // read orientation
     cMatrix3d rotation;
@@ -100,6 +103,7 @@ void HapticInteractionTool::updateDevice()
     // read linear velocity
     cVector3d linearVelocity;
     chai_device_->getLinearVelocity(linearVelocity);
+    linearVelocity = workspace_radius_*linearVelocity;
 
     // read angular velocity
     cVector3d angularVelocity;

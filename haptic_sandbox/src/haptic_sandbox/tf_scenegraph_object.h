@@ -49,7 +49,7 @@ public:
         tf::SceneGraphNode* node = 0;
         if(getFrameId() == key) return this;
 
-        // Recursively add all children to the list
+        // Recursively check children
         std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
         for( ; it != children_.end(); it++)
         {
@@ -153,8 +153,25 @@ public:
         return transform_;
     }
 
-    virtual void publishMarkers()
+    virtual void drawSelf()
     {
+
+
+    }
+
+    virtual void publishMarkers( const bool &recursive)
+    {
+        //
+        drawSelf();
+
+        if(recursive)
+        {
+            std::map<std::string, tf::SceneGraphNode*>::iterator it = children_.begin();
+            for( ; it != children_.end(); it++)
+            {
+                it->second->publishMarkers(recursive);
+            }
+        }
       // Default implementation does nothing because I suppose we could have different geometry representations.
     }
 

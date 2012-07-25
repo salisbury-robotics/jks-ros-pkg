@@ -52,7 +52,7 @@ int main(int argc, char** argv)
     tf::TransformListener tfl;
     tf::TransformBroadcaster tfb;
     something::UserEntity *user = new something::UserEntity("base_link", "user1_", &tfl, &tfb);
-    user->setPosition(tf::Vector3(0,0,1));
+    user->setPosition(tf::Vector3(-0.2,0,0.2));
     ros::Duration(1.0).sleep();
 
     int ch;
