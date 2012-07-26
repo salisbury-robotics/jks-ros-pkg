@@ -25,8 +25,6 @@ import roslib.packages
 class ElevatorControl:
     def __init__(self):
         self.scan_msg = None
-        self.imu_data = False
-        self.imu_print = False
         self.exit_floor = False
         self.sign_sub_image = False
         self.floor_signs = False
@@ -47,7 +45,6 @@ class ElevatorControl:
             "/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
         rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
-        rospy.Subscriber("/torso_lift_imu/data", Imu, self.on_imu)
         self.ac_server = actionlib.SimpleActionServer(
             "ac_elevator", GrandSlamTransitionAction,
             execute_cb=self.do_elevator, auto_start=False)
@@ -130,50 +127,6 @@ class ElevatorControl:
         marker.color.b = 1.0
         self.visualization_publisher.publish(marker)
 
-    def on_imu(self, msg):
-        imu_data = self.imu_data
-        if (not imu_data):
-            self.imu_data = {"accel": 0.0, "velocity": 0.0, 
-                             "height": 0.0, "time": msg.header.stamp,
-                             "accel_avg": [msg.linear_acceleration.z],
-                             "limit": 0.0, "max": 0.0}
-        elif (len(imu_data["accel_avg"]) < 100):
-            imu_data["accel_avg"].append(msg.linear_acceleration.z)
-            imu_data["limit"] = 0.0
-            for i in imu_data["accel_avg"]:
-                imu_data["limit"] = imu_data["limit"] + i
-            imu_data["limit"] = imu_data["limit"] / len(imu_data["accel_avg"])
-            self.imu_data = imu_data
-        else:
-
-            #      *
-            #        \    
-            #          *
-            #      0   1
-            #       dt
-
-            dt = (msg.header.stamp - imu_data["time"]).to_sec()
-            imu_data["accel"] = msg.linear_acceleration.z - imu_data["limit"]
-
-            if (abs(imu_data["accel"]) < 0.0218838682662):
-                imu_data["accel"] = 0.0
-
-            if (abs(imu_data["accel"]) > abs(imu_data["max"])):
-                imu_data["max"] = imu_data["accel"]
-            imu_data["velocity"] = imu_data["velocity"] \
-                + (imu_data["accel"] * dt)
-            imu_data["height"] = imu_data["height"] \
-                + (imu_data["velocity"] * dt)
-            imu_data["time"] = msg.header.stamp
-            if (self.imu_data):
-                self.imu_data = imu_data
-        #print self.imu_data
-        if (imu_data):
-            if (not self.imu_print):
-                self.imu_print = msg.header.stamp
-            if ((msg.header.stamp - self.imu_print).to_sec() > 0.1):
-                self.imu_print = msg.header.stamp
-
     def mec_line_up(self, x, y):
         for i in range(0, 10):
             move = Twist()
@@ -198,11 +151,6 @@ class ElevatorControl:
             rospy.sleep(0.1)
 
     def do_elevator(self, msg):
-        self.imu_data = False
-
-
-        print "Done"
-
         self.height = 0.0
 
         self.point_head(1.0, 0.0, 2.0)
@@ -534,7 +482,6 @@ class ElevatorControl:
         seq = seqs["start"]
         backup = [self.generate_goal(0, 0), ]
         dead = False
-        self.imu_data = False
         while len(seq) != 0 and not rospy.is_shutdown():
             step = seq[0]
             seq = seq[1:]
@@ -589,7 +536,6 @@ class ElevatorControl:
             elif (step[0] == "SWITCH"):
                 seq = seqs[step[1]]
             elif (step[0] == "SQUARE_CHECK"):
-                self.imu_data = False
                 self.cmd_vel_publisher.publish(Twist())
                 rospy.sleep(0.5)
                 self.wait_for_base_scan()
@@ -599,24 +545,6 @@ class ElevatorControl:
                     dead = True
                     print "Dead square"
                     break
-            elif (step[0] == "FLOOR_WAIT"): #FIXME: delete
-                while not rospy.is_shutdown():
-                    height = -self.imu_data["height"] \
-                        - self.elevator_locations["floor-heights"][self.floor]
-                    current_floor = self.floor
-                    for i in self.elevator_locations["floor-heights"]:
-                        delta = height \
-                            - self.elevator_locations["floor-heights"][i]
-                        delta_c = height\
-                            - self.elevator_locations["floor-heights"][current_floor]
-                        if (abs(delta) < abs(delta_c)):
-                            current_floor = i
-                    print height, self.floor, self.imu_data["height"], \
-                        self.imu_data["velocity"], current_floor
-                    if (current_floor == self.goal_floor):
-                        print "HIT"
-                        #break
-                    rospy.sleep(0.1)
             elif (step[0] == "LINE_UP"):
                 self.mec_line_up(step[1], step[2])
             else:
