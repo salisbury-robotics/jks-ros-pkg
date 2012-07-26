@@ -34,6 +34,7 @@ class ElevatorControl:
         self.goal_floor = False
         self.elevator_locations = False
         self.height = 0.0
+        self.counter = 0
         self.visualization_publisher = rospy.Publisher(
             "/visualization_markers", Marker)
         self.cmd_vel_publisher = rospy.Publisher(
@@ -213,7 +214,7 @@ class ElevatorControl:
                                     ("FD", 0.0, -0.1, 5.0),
                                     (0.7 * math.sqrt(2),
                                      math.pi / 2 + math.pi / 4, 0.0),
-                                    ("ARM", [-math.pi / 2, 0.0, 0.0, 
+                                    ("ARM", [-math.pi / 2 - (math.pi * 3.0 / 180.0), 0.0, 0.0, 
                                               -3.14159 / 180.0 * 90.0, 
                                               3.14159, 0.0, 0.0]),
                                     (0.65, 0.0, 0.0),
@@ -257,8 +258,8 @@ class ElevatorControl:
                           "motion_seq": right_seq,
                           },
                 }
-        mult_block = {"call-button": {"up": (0.05, 0, 0.02),
-                                      "down": (0.05, 0, -0.5),
+        mult_block = {"call-button": {"up": (0.05, 0, -0.02),
+                                      "down": (0.05, 0, -0.06),
                                       "arm": [0.0, 0.0, 0.0, 
                                               -3.14159 / 180.0 * 50.0, 
                                               3.14159, 0.0, 0.0]
@@ -296,10 +297,10 @@ class ElevatorControl:
                                  "motion_seq": right_seq,
                                  },
                        }
-        self.elevator_locations = {"B": single_up, "1": mult_block,
+        self.elevator_locations = {"B": single_up, "1": mult,
                                    "2": mult, "3": single_down, 
-                                   "sub-images": {"left": (260, 170, 100, 100),
-                                                  "right": (320, 170, 100, 100)
+                                   "sub-images": {"left": (250, 170, 200, 100),
+                                                  "right": (260, 170, 200, 100)
                                                   },
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
@@ -349,7 +350,7 @@ class ElevatorControl:
 
         #From intent
         self.floor = "3"
-        self.goal_floor = "1"
+        self.goal_floor = "2"
         
         #Calculate direction - down or up
         direct = "down"
@@ -528,7 +529,7 @@ class ElevatorControl:
                 self.process_sign_im = False
                 
                 print sign
-                if (sign != self.goal_floor):
+                if (sign != self.goal_floor or True):
                     print "Wrong floor!!"
                     seq = seqs[step[1]]
             elif (step[0] == "SWITCH"):
@@ -590,8 +591,11 @@ class ElevatorControl:
         #Get the approximate area
         gray = cv.GetSubRect(bimg, self.sign_sub_image) 
 
-        cv.SaveImage("/tmp/background.png", bimg)
-        cv.SaveImage("/tmp/region.png", gray)
+        self.counter = self.counter + 1
+
+        print "Save", self.counter
+        cv.SaveImage("/tmp/background" + str(self.counter) + ".png", bimg)
+        #cv.SaveImage("/tmp/region.png", gray)
 
         #Strip lighting
         cv.EqualizeHist(gray, gray)
@@ -605,13 +609,13 @@ class ElevatorControl:
         for i in range(0, width):
             if (cv.Get2D(gray, 1, i)[0] < 10):
                 cv.FloodFill(gray, (i, 1), (255,))
-            if (cv.Get2D(gray, width - 2, i)[0] < 10):
-                cv.FloodFill(gray, (i, width - 2), (255,))
+            if (cv.Get2D(gray, height - 2, i)[0] < 10):
+                cv.FloodFill(gray, (i, height - 2), (255,))
         for i in range(0, height):
             if (cv.Get2D(gray, i, 1)[0] < 10):
                 cv.FloodFill(gray, (1, i), (255,))
-            if (cv.Get2D(gray, i, height - 2)[0] < 10):
-                cv.FloodFill(gray, (height - 2, i), (255,))
+            if (cv.Get2D(gray, i, width - 2)[0] < 10):
+                cv.FloodFill(gray, (width - 2, i), (255,))
 
         #Make a list of all regions of the image by size and fill seed
         backup = cv.CreateImage(cv.GetSize(gray), 8, 1)
@@ -663,10 +667,9 @@ class ElevatorControl:
                                     (min_right_down[1], min_right_down[2]),
                                     (min_right_up[1], min_right_up[2]),
                                     (min_left_up[1], min_left_up[2])),
-                                   ((0, height), (width, height),
-                                    (width, 0), (0, 0)), transform)
+                                   ((0, 100), (100, 100), (100, 0), (0, 0)), transform)
     
-        sign_gray = cv.CreateImage(cv.GetSize(gray), 8, 1)
+        sign_gray = cv.CreateImage((100, 100), 8, 1)
         cv.WarpPerspective(gray, sign_gray, transform)
         
         #sign_gray = cv.CreateImage(cv.GetSize(gray), 8, 1)
@@ -829,7 +832,7 @@ class ElevatorControl:
         laser_per.command.period = 1
         laser_per.command.amplitude = 0
         laser_per.command.offset = pos
-        self.set_laser(laser_per)
+        junk = self.set_laser(laser_per)
 
     def set_laser_and_wait(self, pos):
         self.set_laser_pos(pos)
@@ -1165,12 +1168,17 @@ class ElevatorControl:
                 
                 #print goal_transformed
                 
-                def scaleclamp(val, scale, lim):
+                def scaleclamp(val, scale, lim, min_v = 0):
                     t = val * scale
                     if (t > lim):
                         return lim
                     if (t < -lim):
                         return -lim
+                    if (t < min_v and t > -min_v):
+                        if (t < 0):
+                            t = -min_v
+                        if (t > 0):
+                            t = min_v
                     return t
                 
                 msg = Twist()
@@ -1182,7 +1190,7 @@ class ElevatorControl:
                 msg.angular.x = 0
                 msg.angular.y = 0
                 if (reset):
-                    msg.angular.z = scaleclamp(y, 1, 0.5)
+                    msg.angular.z = scaleclamp(y, 1, 0.5, 0.005)
                     if (y > -0.05 and y < 0.05 or no_y_reset):
                         break
                 else:
@@ -1207,7 +1215,11 @@ class ElevatorControl:
                     scale = 1.5
                     if (extreme_turn):
                         scale = 3.0
-                    msg.angular.z = scaleclamp(w, scale, 0.5)
+
+                    min_value = 0.05
+                    if (w < 0.01 and w > -0.01):
+                        min_value = 0
+                    msg.angular.z = scaleclamp(w, scale, 0.8, min_value)
                 
                     if (w > -0.15 and w < 0.15):
                         if (dist < 0.03): #Fixme
