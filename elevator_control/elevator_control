@@ -253,7 +253,7 @@ class DoorBlast:
                             },
                   }
         self.elevator_locations = {"B": single, "1": mult, "2": mult, "3": single, 
-                                   "sub-images": {"left": (310, 170, 100, 100),
+                                   "sub-images": {"left": (290, 170, 100, 100),
                                                   "right": (320, 170, 100, 100)},
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
