@@ -188,7 +188,7 @@ class DoorBlast:
         self.point_head(1.0, 0.0, 2.0)
         self.set_laser_and_wait(-0.4)
         self.tuck_arms()
-        while not self.line_up(self.scan_msg):
+        while not self.line_up(self.scan_msg) and not rospy.is_shutdown():
             self.wait_for_scan()
         
         self.set_depth(1.0)
@@ -416,7 +416,7 @@ class DoorBlast:
         backup = [self.generate_goal(0, 0), ]
         dead = False
         self.imu_data = False
-        while len(seq) != 0:
+        while len(seq) != 0 and not rospy.is_shutdown():
             step = seq[0]
             seq = seq[1:]
             if (step[0] == "FD"):
@@ -526,18 +526,14 @@ class DoorBlast:
 
     def process_signage(self, data):
         try:
-            bimg = self.bridge.imgmsg_to_cv(data, "bgr8")
+            bimg = self.bridge.imgmsg_to_cv(data, "mono8")
         except CvBridgeError, e:
             print e
         #Get the approximate area
-        img = cv.GetSubRect(bimg, self.sign_sub_image) 
+        gray = cv.GetSubRect(bimg, self.sign_sub_image) 
 
         cv.SaveImage("/tmp/background.png", bimg)
-        cv.SaveImage("/tmp/region.png", img)
-
-        #Convert to grayscale
-        gray = cv.CreateImage(cv.GetSize(img), 8, 1)
-        cv.CvtColor(img, gray, cv.CV_BGR2GRAY)
+        cv.SaveImage("/tmp/region.png", gray)
 
         #Strip lighting
         cv.EqualizeHist(gray, gray)
@@ -546,23 +542,26 @@ class DoorBlast:
         cv.Threshold(gray, gray, 70, 255, cv.CV_THRESH_BINARY)
 
         #Fill from the edge in to remove most bad areas
-        for i in range(0, 100):
+        width = cv.GetSize(gray)[0]
+        height = cv.GetSize(gray)[1]
+        for i in range(0, width):
             if (cv.Get2D(gray, 1, i)[0] < 10):
                 cv.FloodFill(gray, (i, 1), (255,))
-            if (cv.Get2D(gray, 98, i)[0] < 10):
-                cv.FloodFill(gray, (i, 98), (255,))
+            if (cv.Get2D(gray, width - 2, i)[0] < 10):
+                cv.FloodFill(gray, (i, width - 2), (255,))
+        for i in range(0, height):
             if (cv.Get2D(gray, i, 1)[0] < 10):
                 cv.FloodFill(gray, (1, i), (255,))
-            if (cv.Get2D(gray, i, 98)[0] < 10):
-                cv.FloodFill(gray, (98, i), (255,))
+            if (cv.Get2D(gray, i, height - 2)[0] < 10):
+                cv.FloodFill(gray, (height - 2, i), (255,))
 
         #Make a list of all regions of the image by size and fill seed
         backup = cv.CreateImage(cv.GetSize(img), 8, 1)
         cv.Copy(gray, backup)
         total = cv.Sum(backup)[0] / 255
         pts = []
-        for x in range(0, 100):
-            for y in range(0, 100):
+        for x in range(0, width):
+            for y in range(0, height):
                 if (cv.Get2D(backup, y, x)[0] < 10):
                     cv.FloodFill(backup, (x, y), (255,))
                     next = cv.Sum(backup)[0] / 255
@@ -575,23 +574,23 @@ class DoorBlast:
                 cv.FloodFill(gray, (i[0], i[1]), (255,))
 
         #Find the minimum and maximum pixels
-        min_left_up = (2 * 100 * 100,)
-        min_left_down = (2 * 100 * 100,)
-        min_right_up = (2 * 100 * 100,)
-        min_right_down = (2 * 100 * 100,)
-        for x in range(0, 100):
-            for y in range(0, 100):
+        min_left_up = (2 * width * height,)
+        min_left_down = (2 * width * height,)
+        min_right_up = (2 * width * height,)
+        min_right_down = (2 * width * height,)
+        for x in range(0, width):
+            for y in range(0, height):
                 if (cv.Get2D(gray, y, x)[0] < 10):
                     d = x * x + y * y
                     if (d < min_left_up[0]):
                         min_left_up = (d, x, y)
-                    d = x * x + (100 - y) * (100 - y)
+                    d = x * x + (height - y) * (height - y)
                     if (d < min_left_down[0]):
                         min_left_down = (d, x, y)
-                    d = (100 - x) * (100 - x) + y * y
+                    d = (width - x) * (width - x) + y * y
                     if (d < min_right_up[0]):
                         min_right_up = (d, x, y)
-                    d = (100 - x) * (100 - x) + (100 - y) * (100 - y)
+                    d = (width - x) * (width - x) + (height - y) * (height - y)
                     if (d < min_right_down[0]):
                         min_right_down = (d, x, y)
 
@@ -606,8 +605,8 @@ class DoorBlast:
                                     (min_right_down[1], min_right_down[2]),
                                     (min_right_up[1], min_right_up[2]),
                                     (min_left_up[1], min_left_up[2])),
-                                   ((0, 100), (100, 100), (100, 0), (0, 0)),
-                                   transform)
+                                   ((0, height), (width, height),
+                                    (width, 0), (0, 0)), transform)
     
         sign = cv.CreateImage(cv.GetSize(img), 8, 3)
         cv.WarpPerspective(img, sign, transform)
