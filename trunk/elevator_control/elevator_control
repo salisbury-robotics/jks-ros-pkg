@@ -22,31 +22,46 @@ from cv_bridge import CvBridge, CvBridgeError
 import roslib.packages
 
 
-class DoorBlast:
+class ElevatorControl:
     def __init__(self):
         self.scan_msg = None
         self.imu_data = False
         self.imu_print = False
         self.exit_floor = False
+        self.sign_sub_image = False
+        self.floor_signs = False
+        self.floor = False
+        self.lights = False
+        self.base_scan_msg = False
+        self.goal_floor = False
+        self.elevator_locations = False
         self.height = 0.0
-        self.visualization_publisher = rospy.Publisher("/visualization_markers", Marker)
-        self.cmd_vel_publisher = rospy.Publisher("/base_controller/command", Twist)
+        self.visualization_publisher = rospy.Publisher(
+            "/visualization_markers", Marker)
+        self.cmd_vel_publisher = rospy.Publisher(
+            "/base_controller/command", Twist)
         self.listener = tf.TransformListener()
         rospy.loginfo("Wait for laser control")
         rospy.wait_for_service("/laser_tilt_controller/set_periodic_cmd")
-        self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
+        self.set_laser = rospy.ServiceProxy(
+            "/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
         rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
         rospy.Subscriber("/torso_lift_imu/data", Imu, self.on_imu)
-        self.ac_server = actionlib.SimpleActionServer("ac_elevator", GrandSlamTransitionAction, \
-                                                          execute_cb=self.do_elevator, auto_start=False)
+        self.ac_server = actionlib.SimpleActionServer(
+            "ac_elevator", GrandSlamTransitionAction,
+            execute_cb=self.do_elevator, auto_start=False)
         rospy.loginfo("wait for IK")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik_solver_info")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik")
-        self.query_client = rospy.ServiceProxy("pr2_right_arm_kinematics/get_ik_solver_info", GetKinematicSolverInfo)
-        self.ik_client = rospy.ServiceProxy("pr2_right_arm_kinematics/get_ik", GetPositionIK)
+        self.query_client = rospy.ServiceProxy(
+            "pr2_right_arm_kinematics/get_ik_solver_info", 
+            GetKinematicSolverInfo)
+        self.ik_client = rospy.ServiceProxy(
+            "pr2_right_arm_kinematics/get_ik", GetPositionIK)
         self.arm = rospy.Publisher("r_arm_controller/command", JointTrajectory)
-        self.gripper = actionlib.SimpleActionClient("r_gripper_controller/gripper_action", Pr2GripperCommandAction)
+        self.gripper = actionlib.SimpleActionClient(
+            "r_gripper_controller/gripper_action", Pr2GripperCommandAction)
         self.ac_server.start()
         rospy.loginfo("Wait for tuck arm")
         self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
@@ -62,15 +77,17 @@ class DoorBlast:
         if (self.cv_debug):
             cv.NamedWindow("Open CV Image", 0)
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber("/r_forearm_cam/image_rect_color", Image, self.image_callback)
-        self.head_image_sub = rospy.Subscriber("/wide_stereo/right/image_rect", Image, self.head_image_callback)
+        self.image_sub = rospy.Subscriber(
+            "/r_forearm_cam/image_rect_color", Image, self.image_callback)
+        self.head_image_sub = rospy.Subscriber(
+            "/wide_stereo/right/image_rect", Image, self.head_image_callback)
         
-        self.head_client = actionlib.SimpleActionClient('/head_traj_controller/point_head_action', PointHeadAction)
+        self.head_client = actionlib.SimpleActionClient(
+            '/head_traj_controller/point_head_action', PointHeadAction)
         self.head_client.wait_for_server()
         
-        self.image_dir = roslib.packages.get_pkg_dir('elevator_control') + "/images/"
-
-
+        self.image_dir = roslib.packages.get_pkg_dir(
+            'elevator_control') + "/images/"
 
         rospy.loginfo("started")
         self.do_elevator(False)
@@ -116,8 +133,10 @@ class DoorBlast:
     def on_imu(self, msg):
         imu_data = self.imu_data
         if (not imu_data):
-            self.imu_data = {"accel": 0.0, "velocity": 0.0, "height": 0.0, "time": msg.header.stamp,
-                             "accel_avg": [msg.linear_acceleration.z], "limit": 0.0, "max": 0.0}
+            self.imu_data = {"accel": 0.0, "velocity": 0.0, 
+                             "height": 0.0, "time": msg.header.stamp,
+                             "accel_avg": [msg.linear_acceleration.z],
+                             "limit": 0.0, "max": 0.0}
         elif (len(imu_data["accel_avg"]) < 100):
             imu_data["accel_avg"].append(msg.linear_acceleration.z)
             imu_data["limit"] = 0.0
@@ -141,8 +160,10 @@ class DoorBlast:
 
             if (abs(imu_data["accel"]) > abs(imu_data["max"])):
                 imu_data["max"] = imu_data["accel"]
-            imu_data["velocity"] = imu_data["velocity"] + (imu_data["accel"] * dt)
-            imu_data["height"] = imu_data["height"] + (imu_data["velocity"] * dt)
+            imu_data["velocity"] = imu_data["velocity"] \
+                + (imu_data["accel"] * dt)
+            imu_data["height"] = imu_data["height"] \
+                + (imu_data["velocity"] * dt)
             imu_data["time"] = msg.header.stamp
             if (self.imu_data):
                 self.imu_data = imu_data
@@ -151,7 +172,6 @@ class DoorBlast:
             if (not self.imu_print):
                 self.imu_print = msg.header.stamp
             if ((msg.header.stamp - self.imu_print).to_sec() > 0.1):
-                #print imu_data["height"], imu_data["velocity"], imu_data["accel"], imu_data["max"]
                 self.imu_print = msg.header.stamp
 
     def mec_line_up(self, x, y):
@@ -197,41 +217,88 @@ class DoorBlast:
         #From intent
         #FIXME: sanity maintenance
         left_seq = {"start": [(1.1, math.pi / 2, 0.0, "BAIL"), 
-                              (1.6, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.5, 0.0, 0.0),
-                              (0.8, math.pi / 2, 0.0), (0.0, 0.0, -math.pi /2), ("SWITCH", "button_hit")],
-                    "button_hit": [("FD", -0.1, 0.0, 5.0), ("LINE_UP", -0.1, 0.0),
-                                   ("FD", 0.0, -0.1, 5.0), ("LINE_UP", 0.0, -0.1), (0.6, math.pi / 2, 0.0), 
-                                   ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]), 
-                                   ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
-                                   ("TUCK", False), (1.1, 0.0, 0.0), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                                   ("HEAD", 0.0, 1.0, 2.0), ("SWITCH", "floor_loop"),],
-                    "exit": [(0.9, 0.0, 0.0, "WAIT"), (1.1, math.pi / 2, 0.0, "WAIT"), (0.0, 0.0, math.pi),],
+                              (1.6, 0.0, 0.0, "BAIL"), 
+                              ("SQUARE_CHECK",), 
+                              (0.5, 0.0, 0.0),
+                              (0.8, math.pi / 2, 0.0), 
+                              (0.0, 0.0, -math.pi /2), 
+                              ("SWITCH", "button_hit")],
+                    "button_hit": [("FD", -0.1, 0.0, 5.0), 
+                                   ("LINE_UP", -0.1, 0.0),
+                                   ("FD", 0.0, -0.1, 5.0),
+                                   ("LINE_UP", 0.0, -0.1), 
+                                   (0.6, math.pi / 2, 0.0), 
+                                   ("ARM", [-math.pi / 2, 0.0, 0.0, 
+                                             -3.14159 / 180.0 * 90.0, 
+                                             3.14159, 0.0, 0.0]), 
+                                   ("PRESS",),
+                                   (0.1, -math.pi / 2, 0.0), 
+                                   (0.1, math.pi / 2, 0.0),
+                                   ("TUCK", False), 
+                                   (1.1, 0.0, 0.0), 
+                                   (0.0, 0.0, -math.pi / 2),
+                                   (0.7, 0.0, 0.0),
+                                   ("HEAD", 0.0, 1.0, 2.0), 
+                                   ("SWITCH", "floor_loop"),],
+                    "exit": [(0.9, 0.0, 0.0, "WAIT"), 
+                             (1.1, math.pi / 2, 0.0, "WAIT"), 
+                             (0.0, 0.0, math.pi),],
                     "floor_loop": [(0.7, 0.0, 0.0, "WAIT-TL", 30.0, "stuck"), 
-                                   ("FLOOR_CHECK", "wrong_floor",), ("SWITCH", "exit"),],
-                    "wrong_floor": [(-0.7, 0.0, 0.0), ("SLEEP", 15.0), ("SWITCH", "floor_loop"),],
-                    "stuck": [(-0.4, 0.0, 0.0), (0.0, 0.0, math.pi / 2), (-0.85, 0.0, 0.0), ("SWITCH", "button_hit")]}
+                                   ("FLOOR_CHECK", "wrong_floor",), 
+                                   ("SWITCH", "exit"),],
+                    "wrong_floor": [(-0.7, 0.0, 0.0),
+                                    ("SLEEP", 15.0), 
+                                    ("SWITCH", "floor_loop"),],
+                    "stuck": [(-0.4, 0.0, 0.0), 
+                              (0.0, 0.0, math.pi / 2), 
+                              (-0.85, 0.0, 0.0),
+                              ("SWITCH", "button_hit")]}
         right_seq = {"start": [(1.1, -math.pi / 2, 0.0, "BAIL"),
-                               (1.6, 0.0, 0.0, "BAIL"), ("SQUARE_CHECK",), (0.5, 0.0, 0.0),
-                               (0.7, -math.pi / 2, 0.0), (0.0, 0.0, -math.pi / 2), ("SWITCH", "button_hit")],
-                     "button_hit": [("FD", 0.1, 0.0, 3.0), ("LINE_UP", 0.1, 0.0),
+                               (1.6, 0.0, 0.0, "BAIL"), 
+                               ("SQUARE_CHECK",),
+                               (0.5, 0.0, 0.0),
+                               (0.7, -math.pi / 2, 0.0),
+                               (0.0, 0.0, -math.pi / 2), 
+                               ("SWITCH", "button_hit")],
+                     "button_hit": [("FD", 0.1, 0.0, 3.0),
+                                    ("LINE_UP", 0.1, 0.0),
                                     ("FD", 0.0, -0.1, 5.0),
-                                    (0.7 * math.sqrt(2), math.pi / 2 + math.pi / 4, 0.0),
-                                    ("ARM", [-math.pi / 2, 0.0, 0.0, -3.14159 / 180.0 * 90.0, 3.14159, 0.0, 0.0]),
-                                    (0.65, 0.0, 0.0), ("FD", 0.3, 0.0, 1.0), ("LINE_UP", 0.1, 0.0), 
-                                    ("PRESS",), (0.1, -math.pi / 2, 0.0), (0.1, math.pi / 2, 0.0),
-                                    (-0.7, 0.0, 0.0), ("TUCK", False), (0.0, 0.0, -math.pi / 2), (0.7, 0.0, 0.0),
-                                    ("HEAD", 0.0, 1.0, 2.0), ("SWITCH", "floor_loop"),],
+                                    (0.7 * math.sqrt(2),
+                                     math.pi / 2 + math.pi / 4, 0.0),
+                                    ("ARM", [-math.pi / 2, 0.0, 0.0, 
+                                              -3.14159 / 180.0 * 90.0, 
+                                              3.14159, 0.0, 0.0]),
+                                    (0.65, 0.0, 0.0),
+                                    ("FD", 0.3, 0.0, 1.0),
+                                    ("LINE_UP", 0.1, 0.0), 
+                                    ("PRESS",), 
+                                    (0.1, -math.pi / 2, 0.0), 
+                                    (0.1, math.pi / 2, 0.0),
+                                    (-0.7, 0.0, 0.0), 
+                                    ("TUCK", False), 
+                                    (0.0, 0.0, -math.pi / 2), 
+                                    (0.7, 0.0, 0.0),
+                                    ("HEAD", 0.0, 1.0, 2.0),
+                                    ("SWITCH", "floor_loop"),],
                      "floor_loop": [(0.7, 0.0, 0.0, "WAIT-TL", 30.0, "stuck"), 
-                                    ("FLOOR_CHECK", "wrong_floor"), ("SWITCH", "exit"),],
-                     "wrong_floor": [(-0.7, 0.0, 0.0), ("SLEEP", 15.0), ("SWITCH", "floor_loop"),],
-                     "exit": [(0.9, 0.0, 0.0, "WAIT"), (1.1, -math.pi / 2, 0.0, "WAIT"), (0.0, 0.0, math.pi),],
-                     "stuck": [(-0.7, 0.0, 0.0), (0.0, 0.0, math.pi / 2), (0.6, 0.0, 0.0), ("SWITCH", "button_hit")],}
+                                    ("FLOOR_CHECK", "wrong_floor"), 
+                                    ("SWITCH", "exit"),],
+                     "wrong_floor": [(-0.7, 0.0, 0.0), 
+                                     ("SLEEP", 15.0),
+                                     ("SWITCH", "floor_loop"),],
+                     "exit": [(0.9, 0.0, 0.0, "WAIT"), 
+                              (1.1, -math.pi / 2, 0.0, "WAIT"), 
+                              (0.0, 0.0, math.pi),],
+                     "stuck": [(-0.7, 0.0, 0.0), 
+                               (0.0, 0.0, math.pi / 2), 
+                               (0.6, 0.0, 0.0), 
+                               ("SWITCH", "button_hit")],}
 
-        out_seq = [(0.4, 0.0, 0.0)]
-        wrong_floor_seq = [(-0.4, 0.0, 0.0)]
         mult = {"call-button": {"up": (0.05, 0, 0.02),
                                 "down": (0.05, 0, -0.12),
-                                "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+                                "arm": [0.0, 0.0, 0.0, 
+                                        -3.14159 / 180.0 * 50.0,
+                                        3.14159, 0.0, 0.0]
                                 },
                 "left": {"lights": {"up": (185.0, 138.0),
                                     "down": (185.0, 180.0)},
@@ -244,7 +311,9 @@ class DoorBlast:
                 }
         mult_block = {"call-button": {"up": (0.05, 0, 0.02),
                                       "down": (0.05, 0, -0.5),
-                                      "arm": [0.0, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+                                      "arm": [0.0, 0.0, 0.0, 
+                                              -3.14159 / 180.0 * 50.0, 
+                                              3.14159, 0.0, 0.0]
                                       },
                       "left": {"lights": {"up": (185.0, 138.0),
                                           "down": (185.0, 180.0)},
@@ -257,7 +326,8 @@ class DoorBlast:
                       }
         single_up = {"call-button": {"up": (0.1, 0, -0.1),
                                      "arm": [0.0, -3.14159 / 180.0 * 10.0, 0.0, 
-                                             -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]},
+                                             -3.14159 / 180.0 * 50.0, 
+                                             3.14159, 0.0, 0.0]},
                      "left": {"lights": {"up": (195.0, (138.0 + 180.0) / 2.0)},
                               "motion_seq": left_seq,
                               },
@@ -266,18 +336,23 @@ class DoorBlast:
                                },
                      }
         single_down = {"call-button": {"down": (0.1, 0, -0.1),
-                                       "arm": [0.0, -3.14159 / 180.0 * 10.0, 0.0, 
-                                               -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]},
-                       "left": {"lights": {"down": (195.0, (138.0 + 180.0) / 2.0)},
+                                       "arm": [0.0, -3.14159 / 180.0 * 10.0,
+                                               0.0, -3.14159 / 180.0 * 50.0, 
+                                               3.14159, 0.0, 0.0]},
+                       "left": {"lights": {"down": (195.0, 
+                                                    (138.0 + 180.0) / 2.0)},
                                 "motion_seq": left_seq,
                                 },
-                       "right": {"lights": {"down": (385.0, (130.0 + 174.0) / 2.0)},
+                       "right": {"lights": {"down": (385.0, 
+                                                     (130.0 + 174.0) / 2.0)},
                                  "motion_seq": right_seq,
                                  },
                        }
-        self.elevator_locations = {"B": single_up, "1": mult_block, "2": mult, "3": single_down, 
+        self.elevator_locations = {"B": single_up, "1": mult_block,
+                                   "2": mult, "3": single_down, 
                                    "sub-images": {"left": (290, 170, 100, 100),
-                                                  "right": (320, 170, 100, 100)},
+                                                  "right": (320, 170, 100, 100)
+                                                  },
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
                                                             "3": "floor_3.jpg",
@@ -287,24 +362,42 @@ class DoorBlast:
                                                              "3": "floor_3.jpg",
                                                              "B": "floor_B.jpg"}},
                                    "floor-order": ["B", "1", "2", "3"],
-                                   "floor-heights": {"B": -6.0, "1": 0.0, "2": 6.0, "3": 12.0}, 
-                                   "floor-buttons": {"left": {"3": [-1.5675391915428039, -0.1615763031295083, -0.016156285133952952, -1.4376911415880722, 
-                                                                     -15.743258254855892, -1.5125801804718826, -0.0040836229237051214],
-                                                              "2": [-1.5855299275092696, -0.043481790475689695, -0.016637349613062513, -1.5616148705323718, 
-                                                                     -15.679337223775521, -1.5005282096042947, 0.010578883149858331],
-                                                              "1": [-1.5921624568978283, 0.074358937408815759, -0.02064622027230989, -1.6765628153708929,
-                                                                     -15.679221529601621, -1.5099696452659073, -0.0043446764443024755],
-                                                              "B": [-1.5948154686532519, 0.21097973822251009, -0.026739703674365511, -1.7834036003719365, 
-                                                                     -15.679221529601621, -1.4737702237430448, -0.00564994404728969]},
-                                                     "right": {"3": [-1.1480317077164559, -0.20497349868209358, 0.049749548504070207, -1.0210410342262792,
-                                                                      -16.234784952674804, -1.0803190592824126, 0.17025661991536989],
-                                                               "2": [-1.1212528703101494, -0.10295202141812133, 0.057446580169824957, -1.0906757464017562,
-                                                                      -16.304490692450234, -1.1135163653184033, 0.24557056060776805],
-                                                               "1": [-1.1489436805073825, 0.040097993551511606, 0.060332967044482544, -1.2752584034157539,
-                                                                      -16.148939875640174, -1.1484975370784769, 0.14036599180694864],
-                                                               "B": [-1.1249007614738566, 0.1375513449678433, 0.063219353919140575, -1.3661744101646094,
-                                                                      -16.232760304631533, -1.1854801191631319, 0.16107623777435554]}
-                                                     }}
+                                   "floor-heights": {"B": -6.0, "1": 0.0, 
+                                                     "2": 6.0, "3": 12.0}, 
+                                   "floor-buttons": {
+                "left": {"3": [-1.5675391915428039, -0.1615763031295083, 
+                                -0.016156285133952952, -1.4376911415880722, 
+                                -15.743258254855892, -1.5125801804718826, 
+                                -0.0040836229237051214],
+                         "2": [-1.5855299275092696, -0.043481790475689695, 
+                                -0.016637349613062513, -1.5616148705323718, 
+                                -15.679337223775521, -1.5005282096042947, 
+                                0.010578883149858331],
+                         "1": [-1.5921624568978283, 0.074358937408815759, 
+                                -0.02064622027230989, -1.6765628153708929,
+                                -15.679221529601621, -1.5099696452659073,
+                                -0.0043446764443024755],
+                         "B": [-1.5948154686532519, 0.21097973822251009, 
+                                -0.026739703674365511, -1.7834036003719365, 
+                                -15.679221529601621, -1.4737702237430448, 
+                                -0.00564994404728969]},
+                "right": {"3": [-1.1480317077164559, -0.20497349868209358,
+                                 0.049749548504070207, -1.0210410342262792,
+                                 -16.234784952674804, -1.0803190592824126,
+                                 0.17025661991536989],
+                          "2": [-1.1212528703101494, -0.10295202141812133,
+                                 0.057446580169824957, -1.0906757464017562,
+                                 -16.304490692450234, -1.1135163653184033,
+                                 0.24557056060776805],
+                          "1": [-1.1489436805073825, 0.040097993551511606,
+                                 0.060332967044482544, -1.2752584034157539,
+                                 -16.148939875640174, -1.1484975370784769, 
+                                 0.14036599180694864],
+                          "B": [-1.1249007614738566, 0.1375513449678433,
+                                 0.063219353919140575, -1.3661744101646094,
+                                 -16.232760304631533, -1.1854801191631319, 
+                                 0.16107623777435554]}
+                }}
 
         #From intent
 
@@ -342,7 +435,6 @@ class DoorBlast:
         while not rospy.is_shutdown() and hc < 4:
             print self.location
             msg = Twist()
-            stop = False
             if (self.location == False):
                 hc = 0
                 msg.linear.y = 0.03
@@ -368,7 +460,6 @@ class DoorBlast:
         while not rospy.is_shutdown() and hc < 4:
             print self.location
             msg = Twist()
-            stop = False
 
             if (self.location < -0.02):
                 pos = pos + 0.003
@@ -381,8 +472,11 @@ class DoorBlast:
 
             goal = JointTrajectory()
             goal.header.stamp = rospy.get_rostime()
-            goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint", "r_upper_arm_roll_joint",
-                                "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
+            goal.joint_names = ["r_shoulder_pan_joint", 
+                                "r_shoulder_lift_joint", 
+                                "r_upper_arm_roll_joint",
+                                "r_elbow_flex_joint", "r_forearm_roll_joint", 
+                                "r_wrist_flex_joint", "r_wrist_roll_joint"]
             goal.points = [JointTrajectoryPoint()]
             goal.points[0].positions = [pos]
             for i in elevator_info["call-button"]["arm"][1:]:
@@ -403,8 +497,10 @@ class DoorBlast:
         self.set_gripper(0.02)
 
         offset = elevator_info["call-button"][direct]
-        self.arm_move(pos[0] + offset[0] - 0.05, pos[1] + offset[1], pos[2] + offset[2], 1)
-        self.arm_move(pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2], 1)
+        self.arm_move(pos[0] + offset[0] - 0.05, pos[1] + offset[1], 
+                      pos[2] + offset[2], 1)
+        self.arm_move(pos[0] + offset[0], pos[1] + offset[1], 
+                      pos[2] + offset[2], 1)
         
         self.tuck_arms(False)
 
@@ -453,7 +549,8 @@ class DoorBlast:
             elif (step[0] == "ARM"):
                 self.extend_arm(0.0, step[1])
             elif (step[0] == "PRESS"):
-                pos = self.elevator_locations["floor-buttons"][elevator][self.goal_floor]
+                g = self.goal_floor
+                pos = self.elevator_locations["floor-buttons"][elevator][g]
                 self.extend_arm(0.0, pos)
             elif (step[0] == "HEAD"):
                 self.point_head(step[1], step[2], step[3], True)
@@ -469,7 +566,8 @@ class DoorBlast:
                         self.elevator_locations["sign-images"][elevator][floor],
                         cv.CV_LOAD_IMAGE_GRAYSCALE)
                 self.exit_floor = False
-                self.sign_sub_image = self.elevator_locations["sub-images"][elevator]
+                self.sign_sub_image \
+                    = self.elevator_locations["sub-images"][elevator]
                 self.process_sign_im = True
                 while self.exit_floor == False and not rospy.is_shutdown():
                     rospy.sleep(0.01)
@@ -503,14 +601,18 @@ class DoorBlast:
                     break
             elif (step[0] == "FLOOR_WAIT"): #FIXME: delete
                 while not rospy.is_shutdown():
-                    height = -self.imu_data["height"] - self.elevator_locations["floor-heights"][self.floor]
+                    height = -self.imu_data["height"] \
+                        - self.elevator_locations["floor-heights"][self.floor]
                     current_floor = self.floor
                     for i in self.elevator_locations["floor-heights"]:
-                        delta = height - self.elevator_locations["floor-heights"][i]
-                        delta_c = height - self.elevator_locations["floor-heights"][current_floor]
+                        delta = height \
+                            - self.elevator_locations["floor-heights"][i]
+                        delta_c = height\
+                            - self.elevator_locations["floor-heights"][current_floor]
                         if (abs(delta) < abs(delta_c)):
                             current_floor = i
-                    print height, self.floor, self.imu_data["height"], self.imu_data["velocity"], current_floor
+                    print height, self.floor, self.imu_data["height"], \
+                        self.imu_data["velocity"], current_floor
                     if (current_floor == self.goal_floor):
                         print "HIT"
                         #break
@@ -523,12 +625,19 @@ class DoorBlast:
                     state = step[3]
                 if (state == "WAIT-TL"):
                     start = rospy.get_rostime()
-                    while not self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True, watch_scans="BAIL") and not rospy.is_shutdown():
+                    while not self.move_to_target(self.generate_goal(step[0],
+                                                                     step[1]),
+                                                  step[2], True, True,
+                                                  watch_scans="BAIL") \
+                                                  and not rospy.is_shutdown():
                         if ((rospy.get_rostime() - start).to_sec() > step[4]):
                             seq = seqs[step[5]]
                             break
                 else:
-                    if (not self.move_to_target(self.generate_goal(step[0], step[1]), step[2], True, True, watch_scans=state)):
+                    if (not self.move_to_target(self.generate_goal(step[0], 
+                                                                   step[1]),
+                                                step[2], True, True,
+                                                watch_scans=state)):
                         print "Dead"
                         dead = True
                         break
@@ -579,7 +688,7 @@ class DoorBlast:
                 cv.FloodFill(gray, (height - 2, i), (255,))
 
         #Make a list of all regions of the image by size and fill seed
-        backup = cv.CreateImage(cv.GetSize(img), 8, 1)
+        backup = cv.CreateImage(cv.GetSize(gray), 8, 1)
         cv.Copy(gray, backup)
         total = cv.Sum(backup)[0] / 255
         pts = []
@@ -631,17 +740,17 @@ class DoorBlast:
                                    ((0, height), (width, height),
                                     (width, 0), (0, 0)), transform)
     
-        sign = cv.CreateImage(cv.GetSize(img), 8, 3)
-        cv.WarpPerspective(img, sign, transform)
+        sign = cv.CreateImage(cv.GetSize(gray), 8, 3)
+        cv.WarpPerspective(gray, sign, transform)
         
-        sign_gray = cv.CreateImage(cv.GetSize(img), 8, 1)
+        sign_gray = cv.CreateImage(cv.GetSize(gray), 8, 1)
         cv.CvtColor(sign, sign_gray, cv.CV_BGR2GRAY)
         cv.EqualizeHist(sign_gray, sign_gray)
         cv.Threshold(sign_gray, sign_gray, 220, 255, cv.CV_THRESH_BINARY)
 
         winner = None
         for i in self.floor_signs:
-            delta = cv.CreateImage(cv.GetSize(img), 8, 1)
+            delta = cv.CreateImage(cv.GetSize(gray), 8, 1)
             cv.Copy(sign_gray, delta)
             cv.Sub(delta, self.floor_signs[i], delta)
 
@@ -736,13 +845,17 @@ class DoorBlast:
     def extend_arm(self, root = 0.0, force = None):
         goal = JointTrajectory()
         goal.header.stamp = rospy.get_rostime()
-        goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint", "r_upper_arm_roll_joint",
-                            "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
+        goal.joint_names = ["r_shoulder_pan_joint", "r_shoulder_lift_joint",
+                            "r_upper_arm_roll_joint",
+                            "r_elbow_flex_joint", "r_forearm_roll_joint",
+                            "r_wrist_flex_joint", "r_wrist_roll_joint"]
         goal.points = [JointTrajectoryPoint()]
         if (force):
             goal.points[0].positions = force
         else:
-            goal.points[0].positions = [root, 0.0, 0.0, -3.14159 / 180.0 * 50.0, 3.14159, 0.0, 0.0]
+            goal.points[0].positions = [root, 0.0, 0.0,
+                                        -3.14159 / 180.0 * 50.0,
+                                        3.14159, 0.0, 0.0]
         goal.points[0].velocities = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         goal.points[0].time_from_start = rospy.Duration.from_sec(3.0)
 
@@ -789,7 +902,7 @@ class DoorBlast:
         laser_per.command.period = 1
         laser_per.command.amplitude = 0
         laser_per.command.offset = pos
-        resp1 = self.set_laser(laser_per)
+        self.set_laser(laser_per)
 
     def set_laser_and_wait(self, pos):
         self.set_laser_pos(pos)
@@ -822,8 +935,12 @@ class DoorBlast:
 
         
     def get_end_effector_pos(self):
-        self.listener.waitForTransform("/r_wrist_roll_link", "/base_link", rospy.Time(), rospy.Duration(30))
-        target, rot = self.listener.lookupTransform("/base_link", "/r_wrist_roll_link", rospy.Time())
+        self.listener.waitForTransform("/r_wrist_roll_link", "/base_link",
+                                       rospy.Time(), rospy.Duration(30))
+        target, rot = self.listener.lookupTransform("/base_link",
+                                                    "/r_wrist_roll_link", 
+                                                    rospy.Time())
+        rot = False
         return target
 
 
@@ -834,7 +951,7 @@ class DoorBlast:
             return False
         
         kin = GetPositionIKRequest()
-        kin.timeout = rospy.Duration(5.0);
+        kin.timeout = rospy.Duration(5.0)
         kin.ik_request.ik_link_name = "r_wrist_roll_link"
         kin.ik_request.pose_stamped.header.frame_id = "base_link"
         kin.ik_request.pose_stamped.pose.position.x = x
@@ -844,13 +961,15 @@ class DoorBlast:
         kin.ik_request.pose_stamped.pose.orientation.y = 0.0
         kin.ik_request.pose_stamped.pose.orientation.z = 0.0
         kin.ik_request.pose_stamped.pose.orientation.w = 1.0
-        kin.ik_request.ik_seed_state.joint_state.name = response.kinematic_solver_info.joint_names;
+        kin.ik_request.ik_seed_state.joint_state.name \
+            = response.kinematic_solver_info.joint_names
         for i in range(0, len(response.kinematic_solver_info.joint_names)):
             minp = response.kinematic_solver_info.limits[i].min_position 
             maxp = response.kinematic_solver_info.limits[i].max_position
             while (len(kin.ik_request.ik_seed_state.joint_state.position) <= i):
                 kin.ik_request.ik_seed_state.joint_state.position += [0.0]
-            kin.ik_request.ik_seed_state.joint_state.position[i] = (minp + maxp) / 2.0
+            kin.ik_request.ik_seed_state.joint_state.position[i] \
+                = (minp + maxp) / 2.0
         
         resp = self.ik_client(kin)
         if (not resp):
@@ -858,7 +977,8 @@ class DoorBlast:
             print "Failed - no response:", x, y, z
             return False
 
-        if (len(resp.solution.joint_state.position) != len(kin.ik_request.ik_seed_state.joint_state.name)):
+        if (len(resp.solution.joint_state.position) 
+            != len(kin.ik_request.ik_seed_state.joint_state.name)):
             print "Failed - no data:", x, y, z
             return False
         
@@ -867,7 +987,8 @@ class DoorBlast:
         goal.joint_names = kin.ik_request.ik_seed_state.joint_state.name
         goal.points = [JointTrajectoryPoint()]
         goal.points[0].positions = resp.solution.joint_state.position
-        goal.points[0].velocities = map(lambda (x): 0.0, resp.solution.joint_state.position)
+        goal.points[0].velocities = map(lambda (x): 0.0, \
+                                            resp.solution.joint_state.position)
         goal.points[0].time_from_start = rospy.Duration.from_sec(duration)
 
         self.arm.publish(goal)
@@ -889,7 +1010,7 @@ class DoorBlast:
         marker = Marker()
         marker.header.frame_id = msg.header.frame_id
         marker.header.stamp = rospy.get_rostime()
-        marker.ns = "door_blast"
+        marker.ns = "elevator_control"
         marker.type = Marker.CUBE
         marker.action = Marker.MODIFY
         marker.id = 0
@@ -930,7 +1051,6 @@ class DoorBlast:
             residual = residual + (y - a * x - b)**2
         RR = 1 - residual/meanerror
         ss = residual / (n-2)
-        Var_a, Var_b = ss * n / det, ss * Sxx / det
         print a, b, RR
         
         #a = a - 0.12 #FIXME: param for offset
@@ -984,9 +1104,12 @@ class DoorBlast:
         
         w = 0.20
         
-        self.cube(msg.header.frame_id, front_wall[0], 0.0, 0.0, w * 2, 0.5, 6.0, 0)
-        self.cube(msg.header.frame_id, 0.0, left_wall[1], 0.0, 6.0, 0.5, w * 2, 1)
-        self.cube(msg.header.frame_id, 0.0, right_wall[1], 0.0, 6.0, 0.5, w * 2, 2)
+        self.cube(msg.header.frame_id, front_wall[0], 
+                  0.0, 0.0, w * 2, 0.5, 6.0, 0)
+        self.cube(msg.header.frame_id, 0.0, left_wall[1], 
+                  0.0, 6.0, 0.5, w * 2, 1)
+        self.cube(msg.header.frame_id, 0.0, right_wall[1], 
+                  0.0, 6.0, 0.5, w * 2, 2)
         print msg
         print front_wall[0], left_wall[1], right_wall[1]
         for i in pts:
@@ -1005,7 +1128,7 @@ class DoorBlast:
         marker = Marker()
         marker.header.frame_id = msg.header.frame_id
         marker.header.stamp = rospy.get_rostime()
-        marker.ns = "door_blast"
+        marker.ns = "elevator_control"
         marker.type = Marker.CYLINDER
         marker.action = Marker.MODIFY
         marker.id = 0
@@ -1037,7 +1160,7 @@ class DoorBlast:
         marker = Marker()
         marker.header.frame_id = msg.header.frame_id
         marker.header.stamp = rospy.get_rostime()
-        marker.ns = "door_blast"
+        marker.ns = "elevator_control"
         marker.type = Marker.CUBE
         marker.action = Marker.MODIFY
         marker.id = 1
@@ -1071,7 +1194,7 @@ class DoorBlast:
             marker = Marker()
             marker.header.frame_id = frame_id
             marker.header.stamp = rospy.get_rostime()
-            marker.ns = "door_blast"
+            marker.ns = "elevator_control"
             marker.type = Marker.CYLINDER
             marker.action = Marker.DELETE
             marker.id = n
@@ -1083,7 +1206,8 @@ class DoorBlast:
         
         while not rospy.is_shutdown(): #FIXME
             try:
-                self.listener.waitForTransform(base_frame, odom_frame, rospy.Time(), rospy.Duration(30))
+                self.listener.waitForTransform(base_frame, odom_frame,
+                                               rospy.Time(), rospy.Duration(30))
                 
                 goal = PoseStamped()
                 goal.header.frame_id = base_frame
@@ -1096,14 +1220,15 @@ class DoorBlast:
                 goal = self.listener.transformPose(odom_frame, goal)
                 #print goal
                 break
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+            except (tf.LookupException, tf.ConnectivityException,
+                    tf.ExtrapolationException) as ex:
                 rospy.logwarn("TF error") #FIXME: warning
         
         return goal
 
-    def move_to_target(self, goal, angle_offset, no_y_reset=False, extreme_turn=False, watch_scans=False):
-        base_frame = "/base_footprint"
-        odom_frame = "/odom_combined" #FIXME param 
+    def move_to_target(self, goal, angle_offset, no_y_reset=False, 
+                       extreme_turn=False, watch_scans=False):
+        base_frame = "/base_footprint" #FIXME: param
         
         rate = rospy.Rate(10)
         reset = False
@@ -1122,10 +1247,11 @@ class DoorBlast:
                     return t
                 
                 msg = Twist()
-                p, r, y = tf.transformations.euler_from_quaternion((goal_transformed.pose.orientation.x,
-                                                                    goal_transformed.pose.orientation.y,
-                                                                    goal_transformed.pose.orientation.z,
-                                                                    goal_transformed.pose.orientation.w))
+                p, r, y = tf.transformations.euler_from_quaternion(
+                    (goal_transformed.pose.orientation.x,
+                     goal_transformed.pose.orientation.y,
+                     goal_transformed.pose.orientation.z,
+                     goal_transformed.pose.orientation.w))
                 msg.angular.x = 0
                 msg.angular.y = 0
                 if (reset):
@@ -1136,8 +1262,10 @@ class DoorBlast:
                     w = y + angle_offset
                     print y, angle_offset, w
 
-                    dist = goal_transformed.pose.position.y * goal_transformed.pose.position.y
-                    dist = dist + goal_transformed.pose.position.x * goal_transformed.pose.position.x
+                    dist = goal_transformed.pose.position.y \
+                        * goal_transformed.pose.position.y
+                    dist = dist + goal_transformed.pose.position.x \
+                        * goal_transformed.pose.position.x
                     dist = math.sqrt(dist)
                     #print dist
 
@@ -1160,7 +1288,8 @@ class DoorBlast:
                                 reset = True
 
                         dist = scaleclamp(dist, 1.0, 1.0)
-                        ang = math.atan2(goal_transformed.pose.position.y, goal_transformed.pose.position.x)
+                        ang = math.atan2(goal_transformed.pose.position.y,
+                                         goal_transformed.pose.position.x)
                         msg.linear.x = dist * math.cos(ang)
                         msg.linear.y = dist * math.sin(ang)
                     
@@ -1170,15 +1299,18 @@ class DoorBlast:
                         blocked = False
                         if (msg.linear.y < -0.03):
                             for i in pts:
-                                if (i[0] < 0.00 and i[0] > -0.50 and i[1] > -0.80 and i[1] < -0.30):
+                                if (i[0] < 0.00 and i[0] > -0.50 \
+                                        and i[1] > -0.80 and i[1] < -0.30):
                                     blocked = True
                         if (msg.linear.y > 0.03):
                             for i in pts:
-                                if (i[0] < 0.00 and i[0] > -0.50 and i[1] < 0.80 and i[1] > 0.30):
+                                if (i[0] < 0.00 and i[0] > -0.50 \
+                                        and i[1] < 0.80 and i[1] > 0.30):
                                     blocked = True
                         if (msg.linear.x > 0.03):
                             for i in pts:
-                                if (i[0] < 0.50 and i[0] > 0.00 and i[1] < 0.25 and i[1] > -0.25):
+                                if (i[0] < 0.50 and i[0] > 0.00 \
+                                        and i[1] < 0.25 and i[1] > -0.25):
                                     blocked = True
 
                         if (blocked):
@@ -1199,13 +1331,14 @@ class DoorBlast:
                 self.cmd_vel_publisher.publish(msg)
                 
                 rate.sleep()
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+            except (tf.LookupException, tf.ConnectivityException,
+                    tf.ExtrapolationException) as ex:
                 rospy.logwarn("TF error") #FIXME
         return True
                 
 
 if __name__ == '__main__':
-    rospy.init_node("door_blast")
-    blast = DoorBlast()
+    rospy.init_node("elevator_control")
+    blast = ElevatorControl()
     rospy.spin()
     
