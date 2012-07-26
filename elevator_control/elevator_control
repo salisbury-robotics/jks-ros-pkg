@@ -299,8 +299,8 @@ class ElevatorControl:
                        }
         self.elevator_locations = {"B": single_up, "1": mult,
                                    "2": mult, "3": single_down, 
-                                   "sub-images": {"left": (250, 170, 200, 100),
-                                                  "right": (260, 170, 200, 100)
+                                   "sub-images": {"left": (290, 200, 200, 100),
+                                                  "right": (340, 210, 200, 60)
                                                   },
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
