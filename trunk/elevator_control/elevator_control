@@ -299,8 +299,8 @@ class ElevatorControl:
                        }
         self.elevator_locations = {"B": single_up, "1": mult,
                                    "2": mult, "3": single_down, 
-                                   "sub-images": {"left": (290, 200, 200, 100),
-                                                  "right": (320, 210, 200, 60)
+                                   "sub-images": {"left": (80, 210, 150, 60),
+                                                  "right": (80, 210, 150, 60)
                                                   },
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
@@ -588,8 +588,40 @@ class ElevatorControl:
             bimg = self.bridge.imgmsg_to_cv(data, "mono8")
         except CvBridgeError, e:
             print e
+        
+
+        #Create temp image
+        gray = cv.CreateImage(cv.GetSize(bimg), 8, 1)
+        cv.Copy(bimg, gray)
+        #Strip lighting
+        cv.EqualizeHist(gray, gray)
+        cv.Threshold(gray, gray, 30, 255, cv.CV_THRESH_BINARY_INV)
+
+        #Binary search for line
+        white_pixels = 0
+        split_width = cv.GetSize(gray)[0] / 2
+        split = cv.GetSize(gray)[0] / 2
+        while True:
+            testimg = cv.GetSubRect(gray, (split, self.sign_sub_image[1] + self.sign_sub_image[3], 
+                                           cv.GetSize(gray)[0] - split, self.sign_sub_image[3]))
+            white_pixels = cv.Sum(testimg)[0] / 255
+            #print split, white_pixels
+            split_width = split_width / 2
+            if (white_pixels < 20):
+                split = split - split_width
+            elif (white_pixels > 100):
+                split = split + split_width
+            else:
+                break
+        
+
+
+        subrect = (split + self.sign_sub_image[0], self.sign_sub_image[1],
+                   self.sign_sub_image[2], self.sign_sub_image[3])
+
         #Get the approximate area
-        gray = cv.GetSubRect(bimg, self.sign_sub_image) 
+        gray = cv.GetSubRect(bimg, subrect) 
+        
 
         self.counter = self.counter + 1
 
@@ -660,6 +692,12 @@ class ElevatorControl:
         print min_left_up
         print min_right_up
         print min_right_down
+
+        if (len(min_left_down) != 3 or len(min_left_up) != 3
+            or len(min_right_up) != 3 or len(min_right_down) != 3):
+            print "Hosed floor"
+            self.exit_floor = False
+            return
     
         #Transform out the sign image
         transform = cv.CreateMat(3, 3, cv.CV_32F)
