@@ -300,7 +300,7 @@ class ElevatorControl:
         self.elevator_locations = {"B": single_up, "1": mult,
                                    "2": mult, "3": single_down, 
                                    "sub-images": {"left": (290, 200, 200, 100),
-                                                  "right": (340, 210, 200, 60)
+                                                  "right": (320, 210, 200, 60)
                                                   },
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
@@ -350,7 +350,7 @@ class ElevatorControl:
 
         #From intent
         self.floor = "3"
-        self.goal_floor = "2"
+        self.goal_floor = "1"
         
         #Calculate direction - down or up
         direct = "down"
