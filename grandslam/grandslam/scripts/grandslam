@@ -36,7 +36,7 @@ class GrandslamDataManager(object):
         self.visualization_publisher = rospy.Publisher('visualization_marker', Marker)
 
         self.transition_action_clients = {"normal": None}
-        for client in ["door_blast"]:
+        for client in ["door_blast", "elevator_blast"]:
             rospy.loginfo("Waiting for " + client)
             cli = actionlib.SimpleActionClient(client, GrandSlamTransitionAction)
             cli.wait_for_server()
@@ -254,7 +254,7 @@ class GrandslamDataManager(object):
                 return False
             if (not i["type"] in self.transition_action_clients):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole of type " + i["type"]
-                             + " valid types are: " + str(valid_types))
+                             + " valid types are: " + str(self.transition_action_clients.keys()))
                 return False
             for loc in i["locations"]:
                 if (not "map" in loc):
