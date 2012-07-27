@@ -175,7 +175,6 @@ class ElevatorControl:
                     "button_hit": [("FD", -0.1, 0.0, 5.0), 
                                    ("LINE_UP", -0.1, 0.0),
                                    ("FD", 0.0, -0.1, 5.0),
-                                   ("LINE_UP", 0.0, -0.1), 
                                    (0.6, math.pi / 2, 0.0), 
                                    ("ARM", [-math.pi / 2, 0.0, 0.0, 
                                              -3.14159 / 180.0 * 90.0, 
@@ -299,8 +298,8 @@ class ElevatorControl:
                        }
         self.elevator_locations = {"B": single_up, "1": mult,
                                    "2": mult, "3": single_down, 
-                                   "sub-images": {"left": (80, 210, 150, 60),
-                                                  "right": (80, 210, 150, 60)
+                                   "sub-images": {"left": (80, 180, 150, 100),
+                                                  "right": (80, 180, 150, 100)
                                                   },
                                    "sign-images": {"left": {"1": "floor_1.jpg",
                                                             "2": "floor_2.jpg",
@@ -529,7 +528,7 @@ class ElevatorControl:
                 self.process_sign_im = False
                 
                 print sign
-                if (sign != self.goal_floor or True):
+                if (sign != self.goal_floor):
                     print "Wrong floor!!"
                     seq = seqs[step[1]]
             elif (step[0] == "SWITCH"):
@@ -550,24 +549,26 @@ class ElevatorControl:
                 state = False
                 if (len(step) > 3):
                     state = step[3]
+                timeout = 5.0
+                start = rospy.get_rostime()
                 if (state == "WAIT-TL"):
-                    start = rospy.get_rostime()
-                    while not self.move_to_target(self.generate_goal(step[0],
-                                                                     step[1]),
-                                                  step[2], True, True,
-                                                  watch_scans="BAIL") \
-                                                  and not rospy.is_shutdown():
-                        if ((rospy.get_rostime() - start).to_sec() > step[4]):
+                    timeout = step[4]
+                    state = "BAIL"
+                while not self.move_to_target(self.generate_goal(step[0],
+                                                                 step[1]),
+                                              step[2], True, True,
+                                              watch_scans=state) \
+                                              and not rospy.is_shutdown():
+                    if ((rospy.get_rostime() - start).to_sec() > timeout):
+                        if (state == "WAIT-TL"):
                             seq = seqs[step[5]]
                             break
-                else:
-                    if (not self.move_to_target(self.generate_goal(step[0], 
-                                                                   step[1]),
-                                                step[2], True, True,
-                                                watch_scans=state)):
-                        print "Dead"
-                        dead = True
-                        break
+                        else:
+                            print "Dead"
+                            dead = True
+                            break
+                if (dead):
+                    break
             backup.insert(0, self.generate_goal(0, 0))
         
         if (dead):
@@ -634,6 +635,15 @@ class ElevatorControl:
 
         #Convert to binary
         cv.Threshold(gray, gray, 70, 255, cv.CV_THRESH_BINARY)
+
+        #Hunt for vertical lines 
+        min_line = 0
+        for i in range(0, cv.GetSize(gray)[0] - 20):
+            val = cv.Sum(cv.GetSubRect(gray, (i, 0, 1, cv.GetSize(gray)[1])))[0] / 255
+            if (val < 10):
+                min_line = i + 10
+
+        gray = cv.GetSubRect(gray, (min_line, 0, cv.GetSize(gray)[0] - min_line, cv.GetSize(gray)[1]))
 
         #Fill from the edge in to remove most bad areas
         width = cv.GetSize(gray)[0]
