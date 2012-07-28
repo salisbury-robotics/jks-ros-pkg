@@ -15,6 +15,7 @@ import yaml
 from grandslam.msg import *
 from grandslam.srv import *
 from move_base_msgs.msg import *
+from actionlib_msgs.msg import GoalStatus
 import math
 import tf
 
@@ -36,13 +37,15 @@ class GrandslamDataManager(object):
         self.visualization_publisher = rospy.Publisher('visualization_marker', Marker)
 
         self.transition_action_clients = {"normal": None}
-        for client in ["door_blast", "elevator_blast"]:
+        for client in ["door_blast", "elevator_blast", "door_drag"]:
             rospy.loginfo("Waiting for " + client)
             cli = actionlib.SimpleActionClient(client, GrandSlamTransitionAction)
             cli.wait_for_server()
             self.transition_action_clients[client] = cli
         
         self.n_markers = 0
+
+        rospy.loginfo("loading map")
 
         self.create_map_db()
 
@@ -471,14 +474,21 @@ class GrandslamNavigator():
                 
                 print msg
                 #print "Wait for move base"
-                self.move_base.send_goal(msg)
-                if (radius != None):
+                bad = True
+                while not rospy.is_shutdown() and bad:
+                    self.move_base.send_goal(msg)
+                    if (radius != None):
                     #print "with radius", pos
-                    while (calc_distance(pos, self.manager.get_robot_position()) > radius 
-                           and not rospy.is_shutdown()):
-                        rospy.sleep(0.1)
-                    self.move_base.cancel_goal()
-                self.move_base.wait_for_result()
+                        while (calc_distance(pos, self.manager.get_robot_position()) > radius 
+                               and not rospy.is_shutdown()):
+                            rospy.sleep(0.1)
+                        self.move_base.cancel_goal()
+                    self.move_base.wait_for_result()
+                    if (self.move_base.get_state() == GoalStatus.SUCCEEDED):
+                        bad = False
+                    else:
+                        rospy.sleep(1.0)
+
 
 
                 offset = self.manager.get_robot_position()
@@ -504,11 +514,17 @@ class GrandslamNavigator():
         
 
         #Get to the end point
-        msg = MoveBaseGoal()
-        msg.target_pose = goal.target_pose
-        print msg
-        self.move_base.send_goal(msg)
-        self.move_base.wait_for_result()
+        bad = True
+        while not rospy.is_shutdown() and bad:
+            msg = MoveBaseGoal()
+            msg.target_pose = goal.target_pose
+            print msg
+            self.move_base.send_goal(msg)
+            self.move_base.wait_for_result()
+            if (self.move_base.get_state() == GoalStatus.SUCCEEDED):
+                bad = False
+            else:
+                rospy.sleep(1.0)
         
         self.action_server.set_succeeded(GrandSlamResult())
 
