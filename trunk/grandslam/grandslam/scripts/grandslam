@@ -289,7 +289,11 @@ class GrandslamDataManager(object):
 class GrandslamNavigator():
     def __init__(self, manager):
         self.manager = manager
-        self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+
+        move_base_name = "move_base"
+        if rospy.has_param('~move_base_action'):
+            move_base_name = rospy.get_param("~move_base_action")
+        self.move_base = actionlib.SimpleActionClient(move_base_name, MoveBaseAction)
         self.move_base.wait_for_server()
         self.action_server = actionlib.SimpleActionServer("grandslam/move", GrandSlamAction,
                                                           execute_cb=self.execute_cb, auto_start=False)
