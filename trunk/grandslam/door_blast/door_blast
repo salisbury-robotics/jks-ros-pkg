@@ -181,7 +181,30 @@ class DoorBlast:
             dist = dist + (delta * delta)
         dist = math.sqrt(dist)
         return dist
-
+    
+    def mec_line_up(self, x, y):
+        for i in range(0, 10):
+            move = Twist()
+            move.linear.x = x
+            move.linear.y = y
+            move.angular.z = -0.5
+            self.cmd_vel_publisher.publish(move)
+            rospy.sleep(0.1)
+        for i in range(0, 10):
+            move = Twist()
+            move.linear.x = x
+            move.linear.y = y
+            move.angular.z = 0.5
+            self.cmd_vel_publisher.publish(move)
+            rospy.sleep(0.1)
+        for i in range(0, 3):
+            move = Twist()
+            move.linear.x = x
+            move.linear.y = y
+            move.angular.z = -0.5
+            self.cmd_vel_publisher.publish(move)
+            rospy.sleep(0.1)
+        
     def drag(self, msg):
         #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
@@ -241,42 +264,17 @@ class DoorBlast:
         self.set_gripper(0.0)
         rospy.sleep(1.0)
 
-        #Feel door depth at the right
-        xpos1 = xpos
-        ypos1 = -0.7
-        zpos1 = zpos
-        self.arm_move(xpos1, ypos1, zpos1, 1.0)
-        while (xpos1 < 0.6 and not rospy.is_shutdown()):
-            self.arm_move(xpos1, ypos1, zpos1, 0.3)
-            if (self.hand_dist((xpos1, ypos1, zpos1)) > 0.01):
-                break
-            xpos1 = xpos1 + 0.01
-        
-        rospy.sleep(1.0)
-        (xpos1, ypos1, zpos1) = self.get_end_effector_pos()
+        move = Twist()
+        move.linear.x = 0.2
+        move.linear.y = 0.0
+        for i in range(0, 10):
+            self.cmd_vel_publisher.publish(move)
+            rospy.sleep(0.1)
 
-        xpos2 = xpos
-        ypos2 = -0.5
-        zpos2 = zpos
-        self.arm_move(xpos, ypos1, zpos1, 1.0) #Move hand back
-        self.arm_move(xpos, ypos2, zpos2, 1.0) #Move to other target
-        while (xpos2 < 0.6 and not rospy.is_shutdown()):
-            self.arm_move(xpos2, ypos2, zpos2, 0.3)
-            if (self.hand_dist((xpos2, ypos2, zpos2)) > 0.01):
-                break
-            xpos2 = xpos2 + 0.01
-        rospy.sleep(1.0)
-        (xpos2, ypos2, zpos2) = self.get_end_effector_pos()
+        self.mec_line_up(0.1, 0.0)
 
-        print (xpos1, ypos1, zpos1)
-        print (xpos2, ypos2, zpos2)
-        angle = math.atan2(xpos2 - xpos1, ypos2 - ypos1)
-        print angle
-        
-        self.arm_move(xpos2 - 0.2, ypos2, zpos2, 1.0)
-        
-        self.move_to_target(self.generate_goal(0, 0), angle, True, False)
-        
+        self.move_to_target(self.generate_goal(-0.2, 0), 0, True, True)
+
         self.arm_move(xpos, ypos, zpos, 2.0)
         while (xpos < 0.5 and not rospy.is_shutdown()):
             self.arm_move(xpos, ypos, zpos, 0.3)
@@ -324,7 +322,7 @@ class DoorBlast:
         self.move_to_target(self.generate_goal(xpos - target_pos[0], 0), 0)
 
         #Turn to face the door
-        self.move_to_target(self.generate_goal(0.1, -math.pi / 2), -math.pi / 2, True, True)
+        self.move_to_target(self.generate_goal(0.05, -math.pi / 2), -math.pi / 2, True, True)
         self.move_to_target(self.generate_goal(0.05, 0.0), -math.pi / 4, True, True)
         self.move_to_target(self.generate_goal(0.05, math.pi / 4), -math.pi / 8, True, True, time_limit=5.00)
         
