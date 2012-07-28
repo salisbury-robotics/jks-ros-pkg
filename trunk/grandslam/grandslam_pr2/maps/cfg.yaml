@@ -6,6 +6,12 @@ maps:
        north_angle: 0
      - name: clarkcenterfirstfloor
        north_angle: 0
+     - name: clarkcenterfirstfloorelevator
+       north_angle: 0
+     - name: clarkcenterthirdflooroutside
+       north_angle: 0
+     - name: clarkcenterpeetscoffee
+       north_angle: 0
 wormholes:
      - name: first_floor_exit
        type: door_blast
@@ -29,16 +35,51 @@ wormholes:
              position: [45.427, 49.668]
              angle: -1.735
              direction: exit
+     - name: first_floor_elevator_entrance
+       type: door_drag
+       locations:
+           - map: clarkcenterfirstflooroutside
+             position: [95.835, 62.473]
+             angle: 2.473
+             direction: entrance
+           - map: clarkcenterfirstfloorelevator
+             position: [49.634, 13.764]
+             angle: 2.637
+             direction: exit
+     - name: third_floor_elevator_exit
+       type: door_blast
+       locations:
+           - map: clarkcenterthirdfloorelevator
+             position: [50.628, 12.448]
+             angle: -0.435
+             direction: entrance
+           - map: clarkcenterthirdflooroutside
+             position: [53.089, 26.795]
+             angle: 0.269
+             direction: exit
+     - name: peets_entrance
+       type: door_drag
+       locations:
+           - map: clarkcenterthirdflooroutside
+             position: [64.438, 33.763]
+             angle: 1.343
+             direction: entrance
+           - map: clarkcenterpeetscoffee
+             position: [56.199, 14.316]
+             angle: -0.225
+             direction: exit
+
      - name: clark_elevator
        type: elevator_blast
        locations:
            - map: clarkcenterfirstfloorelevator
-             position: [0.0, 0.0]
-             angle: 0.0
+             position: [49.137, 19.578]
+             angle: -3.094
              floor: 1
              floor_type: mult_button
            - map: clarkcenterthirdfloorelevator
-             position: [0.0, 0.0]
-             angle: 0.0
+             position: [48.709, 17.785]
+             angle: -2.879
              floor: 3
              floor_type: single_down
+
