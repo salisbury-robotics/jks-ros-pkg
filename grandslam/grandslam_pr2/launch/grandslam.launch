@@ -2,7 +2,10 @@
   <include file="$(find pr2_machine)/$(env ROBOT).machine" />
   <include file="$(find grandslam)/launch/map_store.launch" />
   <node pkg="grandslam" type="grandslam" name="grandslam" output="screen" >
-  	<param name="definition_file" value="$(find grandslam_pr2)/maps/cfg.yaml" />
+       <param name="definition_file" value="$(find grandslam_pr2)/maps/cfg.yaml" />
+       <param name="move_base_action" value="pr2_move_base" />
   </node>
+<!--  <node pkg="grandslam" type="grandslam_test" name="grandslam_test" output="screen"
+        args="23.372 26.703 clarkcenterfirstfloordoor" />-->
 </launch>
 
