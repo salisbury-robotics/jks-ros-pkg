@@ -714,6 +714,10 @@ class DoorBlast:
                 msg.angular.y = 0
                 if (reset):
                     msg.angular.z = scaleclamp(y, 1, 0.5)
+                    while (y > math.pi):
+                        y = y - math.pi * 2.0
+                    while (y < -math.pi):
+                        y = y + math.pi * 2.0
                     if (y > -0.05 and y < 0.05 or no_y_reset):
                         break
                 else:
