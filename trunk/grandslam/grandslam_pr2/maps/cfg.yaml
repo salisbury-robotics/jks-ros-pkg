@@ -15,6 +15,28 @@ maps:
      - name: clarkcenterpeetscoffee
        north_angle: 0
 wormholes:
+     - name: first_floor_door_entrance
+       type: door_drag
+       locations:
+           - map: clarkcenterfirstfloordoor
+             position: [21.280, 26.643]
+             angle: 0.334
+             direction: exit
+           - map: clarkcenterfirstflooroutside
+             position: [45.255, 49.637]
+             angle: 1.494
+             direction: entrance
+     - name: first_floor_entrance
+       type: door_drag
+       locations:
+           - map: clarkcenterfirstfloordoor
+             position: [21.280, 26.643]
+             angle: 0.334
+             direction: entrance
+           - map: clarkcenterfirstfloor
+             position: [20.656, 18.456]
+             angle: 0.350
+             direction: exit
      - name: first_floor_exit
        type: door_blast
        locations:
