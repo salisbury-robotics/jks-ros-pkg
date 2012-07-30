@@ -86,13 +86,24 @@ wormholes:
        type: door_drag
        locations:
            - map: clarkcenterthirdflooroutside
-             position: [64.438, 33.763]
-             angle: 1.343
+             position: [64.375, 33.672]
+             angle: 1.275
              direction: entrance
            - map: clarkcenterpeetscoffee
-             position: [56.199, 14.316]
-             angle: -0.225
+             position: [55.840, 14.504]
+             angle: -0.331
              direction: exit
+     - name: peets_exit
+       type: door_blast
+       locations:
+           - map: clarkcenterthirdflooroutside
+             position: [64.258, 33.537]
+             angle: -1.990
+             direction: exit
+           - map: clarkcenterpeetscoffee
+             position: [56.507, 14.267]
+             angle: 2.941
+             direction: entrance
      - name: clark_elevator
        type: elevator_blast
        locations:
@@ -106,4 +117,3 @@ wormholes:
              angle: -2.926
              floor: 3
              floor_type: single_down
-
