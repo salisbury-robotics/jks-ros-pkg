@@ -5,6 +5,7 @@ roslib.load_manifest('elevator_control')
 import rospy
 import math
 import tf
+import yaml
 from sensor_msgs.msg import *
 from visualization_msgs.msg import *
 from geometry_msgs.msg import *
@@ -88,7 +89,6 @@ class ElevatorControl:
             'elevator_control') + "/images/"
 
         rospy.loginfo("started")
-        self.do_elevator(False)
 
 
     def point_head(self, x, y, z, wait=True):
@@ -152,6 +152,9 @@ class ElevatorControl:
             rospy.sleep(0.1)
 
     def do_elevator(self, msg):
+        elevator_yaml = yaml.load(msg.wormhole)
+        
+
         self.height = 0.0
 
         self.point_head(1.0, 0.0, 2.0)
@@ -348,8 +351,9 @@ class ElevatorControl:
                 }}
 
         #From intent
-        self.floor = "1"
-        self.goal_floor = "3"
+        self.floor = elevator_yaml[msg.start]["floor"]
+        self.goal_floor = elevator_yaml[msg.end]["floor"]
+        print "From", self.floor, "to", self.goal_floor
         
         #Calculate direction - down or up
         direct = "down"
