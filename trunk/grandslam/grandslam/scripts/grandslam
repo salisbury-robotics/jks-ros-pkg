@@ -149,6 +149,7 @@ class GrandslamDataManager(object):
         return response
 
     def select_map(self, name):
+        rospy.loginfo("Select map: " + name)
         self.current_map = name
         self.select_map_proxy(self.map_db[name])
         self.current_map_data = self.dynamic_map_proxy().map
@@ -245,10 +246,15 @@ class GrandslamDataManager(object):
         
         self.wormholes = data["wormholes"]
         n = 0
+        wh_names = []
         for i in self.wormholes:
             if (not "name" in i):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing a name")
                 return False
+            if (i["name"] in wh_names):
+                rospy.logerr("Duplicate wormholes: " + i["name"])
+                return False
+            wh_names.append(i["name"])
             if (not "locations" in i):
                 rospy.logerr("YAML file: " + filename + " contains an invalid wormhole which is missing locations")
                 return False
