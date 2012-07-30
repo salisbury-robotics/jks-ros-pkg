@@ -1,0 +1,166 @@
+#!/usr/bin/python
+
+import roslib
+roslib.load_manifest('coffee_grab')
+import rospy
+import actionlib
+import math
+import sys, os
+
+from geometry_msgs.msg import *
+import tf
+from sensor_msgs.msg import *
+#from robotpass.msg import *
+
+class CoffeeGrab(object):
+    def __init__(self):
+        self.base_scan_msg = False
+        self.listener = tf.TransformListener(True, rospy.Duration(100))
+        self.cmd_vel_publisher = rospy.Publisher('/base_controller/command', Twist)
+        #self.cmd_vel_publisher = rospy.Publisher('/cmd_vel', Twist)
+        rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
+
+    def on_base_scan(self, msg):
+        self.base_scan_msg = msg
+
+    def scan_to_points(self, msg):
+        xy = []
+        angle = msg.angle_min
+        for r in range(0, len(msg.ranges)):
+            dist = msg.ranges[r]
+            xy.append([dist * math.cos(angle), dist * math.sin(angle)])
+            angle = angle + msg.angle_increment
+        return xy
+    
+    def start(self):
+        #Go to target - grandslam
+        
+
+        #In the coffee shop - drive a course
+        
+        while not rospy.is_shutdown():
+            self.move_to_target(12.132, 11.936, 1.761, "WAIT")
+            self.move_to_target(12.058, 6.992, -1.503, "WAIT")
+            
+
+    def move_to_target(self, g_x, g_y, g_a, watch_scans=False):
+        base_frame = "/base_footprint" #FIXME: param
+        map_frame = "/map"
+        
+        while not rospy.is_shutdown():
+            try:
+                self.listener.waitForTransform(base_frame, map_frame,
+                                               rospy.Time(), rospy.Duration(30))
+                
+                goal = PoseStamped()
+                goal.header.frame_id = map_frame
+                goal.pose.position.x = g_x
+                goal.pose.position.y = g_y
+                quat = tf.transformations.quaternion_from_euler(0, 0, g_a)
+                goal.pose.orientation.x = quat[0]
+                goal.pose.orientation.y = quat[1]
+                goal.pose.orientation.z = quat[2]
+                goal.pose.orientation.w = quat[3]
+                goal = self.listener.transformPose(map_frame, goal)
+                print goal
+                break
+            except (tf.LookupException, tf.ConnectivityException,
+                    tf.ExtrapolationException) as ex:
+                rospy.logwarn("TF error") #FIXME: warning
+        
+
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            try:
+                goal_transformed = self.listener.transformPose(base_frame, goal)
+                
+                #print goal_transformed
+                
+                def scaleclamp(val, scale, lim, min_v = 0):
+                    t = val * scale
+                    if (t > lim):
+                        return lim
+                    if (t < -lim):
+                        return -lim
+                    if (t < min_v and t > -min_v):
+                        if (t < 0):
+                            t = -min_v
+                        if (t > 0):
+                            t = min_v
+                    return t
+                
+                msg = Twist()
+                p, r, y = tf.transformations.euler_from_quaternion(
+                    (goal_transformed.pose.orientation.x,
+                     goal_transformed.pose.orientation.y,
+                     goal_transformed.pose.orientation.z,
+                     goal_transformed.pose.orientation.w))
+                msg.angular.x = 0
+                msg.angular.y = 0
+                msg.linear.x = 0
+                msg.linear.y = 0
+                if (y < -0.01 or y > 0.01):
+                    msg.angular.z = scaleclamp(y, 1, 0.5, 0.005)
+                if (y > -0.1 and y < 0.1):
+                    dist = goal_transformed.pose.position.y \
+                        * goal_transformed.pose.position.y
+                    dist = dist + goal_transformed.pose.position.x \
+                        * goal_transformed.pose.position.x
+                    dist = math.sqrt(dist)
+
+                
+                    if (dist < 0.03 and msg.angular.z == 0.0):
+                        break
+
+                    dist = scaleclamp(dist, 1.0, 0.3)
+                    ang = math.atan2(goal_transformed.pose.position.y,
+                                     goal_transformed.pose.position.x)
+                    msg.linear.x = dist * math.cos(ang)
+                    msg.linear.y = dist * math.sin(ang)
+                    
+                    if (watch_scans != False):
+                        pts = self.scan_to_points(self.base_scan_msg)
+                        blocked = False
+                        if (msg.linear.y < -0.03):
+                            for i in pts:
+                                if (i[0] < 0.00 and i[0] > -0.50 \
+                                        and i[1] > -0.80 and i[1] < -0.30):
+                                    blocked = True
+                        if (msg.linear.y > 0.03):
+                            for i in pts:
+                                if (i[0] < 0.00 and i[0] > -0.50 \
+                                        and i[1] < 0.80 and i[1] > 0.30):
+                                    blocked = True
+                        if (msg.linear.x > 0.03):
+                            for i in pts:
+                                if (i[0] < 0.50 and i[0] > 0.00 \
+                                        and i[1] < 0.25 and i[1] > -0.25):
+                                    blocked = True
+
+                        if (blocked):
+                            msg.linear.x = 0
+                            msg.linear.y = 0
+
+                self.cmd_vel_publisher.publish(msg)
+                
+                rate.sleep()
+            except (tf.LookupException, tf.ConnectivityException,
+                    tf.ExtrapolationException) as ex:
+                rospy.logwarn("TF error") #FIXME
+        return True
+        
+
+##################
+if __name__ == '__main__':
+    rospy.init_node('coffee_grabber')
+    server = CoffeeGrab()
+    server.start()
+    rospy.spin()
+
+
+
+
+
+
+
+
