@@ -348,8 +348,8 @@ class ElevatorControl:
                 }}
 
         #From intent
-        self.floor = "3"
-        self.goal_floor = "1"
+        self.floor = "1"
+        self.goal_floor = "3"
         
         #Calculate direction - down or up
         direct = "down"
