@@ -96,12 +96,12 @@ wormholes:
        type: door_blast
        locations:
            - map: clarkcenterthirdflooroutside
-             position: [50.452, 12.200]
-             angle: -0.125
+             position: [53.317, 26.607]
+             angle: -3.016
              direction: entrance
            - map: clarkcenterthirdfloorelevator
-             position: [53.561, 26.425]
-             angle: 0.101
+             position: [50.452, 12.200]
+             angle: 3.014
              direction: exit
 
      - name: peets_entrance
@@ -130,7 +130,7 @@ wormholes:
        type: elevator_blast
        locations:
            - map: clarkcenterfirstfloorelevator
-             position: [49.101, 19.583]
+             position: [49.547, 19.328]
              angle: -3.126
              floor: 1
              floor_type: mult_button
