@@ -1,6 +1,8 @@
 #goal
 int8 TAKE_OBJECT = 0 #Takes an object away from a person
 int8 GIVE_OBJECT = 1 #Gives an object to a person
+int8 STASH_OBJECT = 2 #Stashes an object
+int8 UNSTASH_OBJECT = 3 #Unstashes an object
 int8 LEFT_ARM = 0
 int8 RIGHT_ARM = 1
 int8 LOW = 0 #Low arm position
