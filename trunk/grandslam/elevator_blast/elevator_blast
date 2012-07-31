@@ -153,7 +153,7 @@ class ElevatorControl:
 
     def do_elevator(self, msg):
         elevator_yaml = yaml.load(msg.wormhole)
-        
+        print elevator_yaml
 
         self.height = 0.0
 
@@ -351,8 +351,8 @@ class ElevatorControl:
                 }}
 
         #From intent
-        self.floor = elevator_yaml[msg.start]["floor"]
-        self.goal_floor = elevator_yaml[msg.end]["floor"]
+        self.floor = str(elevator_yaml["locations"][msg.start]["floor"])
+        self.goal_floor = str(elevator_yaml["locations"][msg.end]["floor"])
         print "From", self.floor, "to", self.goal_floor
         
         #Calculate direction - down or up
