@@ -93,7 +93,7 @@ wormholes:
              angle: 0.101
              direction: exit
      - name: third_floor_elevator_entrance
-       type: door_blast
+       type: door_drag
        locations:
            - map: clarkcenterthirdflooroutside
              position: [53.317, 26.607]
