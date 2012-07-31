@@ -54,7 +54,17 @@ else:
     secondary = rospy.Subscriber("map", OccupancyGrid, mapCb)
     pose_out = rospy.Publisher("amclinitialpose", PoseWithCovarianceStamped)
     sub = rospy.Subscriber("initialpose", PoseWithCovarianceStamped, poseCb)
-    rospy.spin()
+    listener = tf.TransformListener(True, rospy.Duration(100))
+    while not rospy.is_shutdown():
+        try:
+            (trans,rot) = listener.lookupTransform('/map', '/base_link', rospy.Time())
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+            rospy.logwarn("Failed to get robot transform. Resetting pose")
+            pose = cached_pose
+            if (pose):
+                rospy.logwarn("Had to re-publish pose")
+                pose_out.publish(pose)
+            rospy.sleep(3.0)
     if (not shutdown):
         shutdown = True
         proc.terminate()
