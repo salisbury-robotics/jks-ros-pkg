@@ -12,6 +12,8 @@
   <depend package="visualization_msgs"/>
   <depend package="move_base_msgs"/>
   <depend package="nav_msgs"/>
+  <depend package="robotpass" />
+  <depend package="pr2_common_action_msgs" />
   
   <rosdep name="python-yaml"/>
 </package>
