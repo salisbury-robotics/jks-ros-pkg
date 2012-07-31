@@ -486,6 +486,7 @@ class GrandslamNavigator():
                 #print "Wait for move base"
                 bad = True
                 while not rospy.is_shutdown() and bad:
+                    rospy.loginfo("Send move base goal")
                     self.move_base.send_goal(msg)
                     if (radius != None):
                     #print "with radius", pos
@@ -505,7 +506,7 @@ class GrandslamNavigator():
                 offset[0] = offset[0] - pos[0]
                 offset[1] = offset[1] - pos[1]
             else:
-                print "Skipped move base for a case"
+                print "Skipped move base because the goal location is the current location"
 
             if (wormhole_type != "normal" and wormhole_goal != None):
                 print "Transition: ", wormhole_type
