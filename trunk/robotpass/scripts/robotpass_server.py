@@ -28,7 +28,10 @@ class RobotPass(object):
         self.position_low = [[0.0, 0.900, 0.0, -0.825, 3.14159, 0, 0.0],
                              [0.0, 1.200, 0.0, -1.225, 3.14159, 0, 0.0]]
         self.position_db = {0: self.position_low, 1: self.position_medium, 2: self.position_high}
-        
+
+        self.stash_low = {0: [2.1353666138207998, 0.00067675938483565269, -0.37591126534041885, -2.1214432114524739, 11.96566993572344, -0.82512183933025285, 0.056984254216083663], }
+        self.stash_high = {0: [2.1255836329726749, -0.3337269716470736, -0.24746704941813968, -1.8277034380552961, 11.906203130338264, -0.97553217611455001, 0.12960064186230591], }
+        self.stash_back = {0: [2.0678806272922126, 0.051856687863030673, -0.29605456180821554, -1.9498899184629934, -0.47689138482042087, -1.1624609998357744, -0.13265248181800637], }
         self.action_name = name
         self.action_server = actionlib.SimpleActionServer(self.action_name, PassObjectAction, execute_cb=self.execute_cb, auto_start=False)
         wait_for = []
@@ -118,6 +121,27 @@ class RobotPass(object):
         if (hand == 1):
             return self.r_gripper_pos
         return 0
+
+    def stash_object(self, object_name, hand):
+        arm, arm_names, gripper, sensor = self.get_items(hand)
+        self.move_arm(arm, arm_names, self.stash_high[hand], 5)
+        arm.wait_for_result()
+        self.move_arm(arm, arm_names, self.stash_low[hand], 3)
+        arm.wait_for_result()
+        self.gripper_release(gripper)
+        self.move_arm(arm, arm_names, self.stash_back[hand], 2)
+    
+    def unstash_object(self, object_name, hand):
+        arm, arm_names, gripper, sensor = self.get_items(hand)
+        self.gripper_release(gripper)
+        self.move_arm(arm, arm_names, self.stash_back[hand], 5)
+        arm.wait_for_result()
+        self.move_arm(arm, arm_names, self.stash_low[hand], 2)
+        arm.wait_for_result()
+        self.gripper_close(gripper)
+        gripper.wait_for_result()
+        self.move_arm(arm, arm_names, self.stash_high[hand], 3)
+        arm.wait_for_result()
     
     def take_object(self, object_name, position, hand):
         arm, arm_names, gripper, sensor = self.get_items(hand)
@@ -184,6 +208,10 @@ class RobotPass(object):
             self.take_object(goal.object_name, goal.arm_position, goal.arm)
         if (goal.direction == PassObjectGoal.GIVE_OBJECT):
             self.give_object(goal.object_name, goal.arm_position, goal.arm)
+        if (goal.direction == PassObjectGoal.STASH_OBJECT):
+            self.stash_object(goal.object_name, goal.arm)
+        if (goal.direction == PassObjectGoal.UNSTASH_OBJECT):
+            self.unstash_object(goal.object_name, goal.arm)
         self.action_server.set_succeeded(self.result)
 
 
@@ -214,6 +242,25 @@ if __name__ == '__main__':
             test_client.send_goal(take_goal)
             test_client.wait_for_result()
             print "Done take"
+
+            print "Try stash"
+            stash_goal = PassObjectGoal()
+            stash_goal.arm = hand
+            stash_goal.direction = PassObjectGoal.STASH_OBJECT
+            stash_goal.object_name = "test object"
+            test_client.send_goal(stash_goal)
+            test_client.wait_for_result()
+            print "Done stash"
+
+            print "Try unstash"
+            stash_goal = PassObjectGoal()
+            stash_goal.arm = hand
+            stash_goal.direction = PassObjectGoal.UNSTASH_OBJECT
+            stash_goal.object_name = "test object"
+            test_client.send_goal(stash_goal)
+            test_client.wait_for_result()
+            print "Done stash"
+
             print "Try give"
             give_goal = PassObjectGoal()
             give_goal.arm = hand
