@@ -1,0 +1,18 @@
+<package>
+  <description brief="sixense_razer_hydra">
+
+     sixense_razer_hydra
+
+  </description>
+  <author>aleeper</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/sixense_razer_hydra</url>
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
+  <depend package="tf"/>
+  <depend package="common_rosdeps"/>
+  <depend package="rosconsole"/>
+</package>
+
+
