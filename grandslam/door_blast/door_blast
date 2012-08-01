@@ -35,13 +35,24 @@ class DoorBlast:
         self.ik_client = rospy.ServiceProxy("pr2_right_arm_kinematics/get_ik", GetPositionIK)
         self.arm = rospy.Publisher("r_arm_controller/command", JointTrajectory)
         self.gripper = actionlib.SimpleActionClient("r_gripper_controller/gripper_action", Pr2GripperCommandAction)
-        self.blast_server.start()
-        self.drag_server.start()
         rospy.loginfo("Wait for tuck arm")
         self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
         self.tuck.wait_for_server()
+        self.torso_pub = rospy.Publisher('torso_controller/command', JointTrajectory)
         rospy.loginfo("started")
+        self.blast_server.start()
+        self.drag_server.start()
 
+
+    def set_torso(self, pos):
+        traj = JointTrajectory()
+        traj.header.stamp = rospy.get_rostime()
+        traj.joint_names.append("torso_lift_joint");
+        traj.points.append(JointTrajectoryPoint())
+        traj.points[0].positions.append(pos)
+        traj.points[0].velocities.append(0.0)
+        traj.points[0].time_from_start = rospy.Duration(2.0)
+        self.torso_pub.publish(traj)
     
     def on_scan_msg(self, msg):
         self.scan_msg = msg
@@ -206,6 +217,7 @@ class DoorBlast:
             rospy.sleep(0.1)
         
     def drag(self, msg):
+        self.set_torso(0.2)
         #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
         min_depth = 0.0
@@ -251,7 +263,7 @@ class DoorBlast:
     
         xpos = 0.2
         ypos = -0.5
-        zpos = 1.1
+        zpos = 1.1 + 0.2
         
         self.arm_move(xpos - 0.1, -0.7, zpos, 4.0)
 
