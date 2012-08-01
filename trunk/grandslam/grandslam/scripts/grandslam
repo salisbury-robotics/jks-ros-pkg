@@ -335,7 +335,7 @@ class GrandslamNavigator():
                         if ("direction" in w["locations"][j]):
                             direction = w["locations"][j]["direction"]
                         if (direction == "exit" or direction == "double"):
-                            traverse[str(j) + "_" + w["name"]] = 0
+                            traverse[str(j) + "_" + w["name"]] = 100.0
                 graph[str(l) + "_" + w["name"]] = traverse
 
         robot_pos = self.manager.get_robot_position()
@@ -449,6 +449,14 @@ class GrandslamNavigator():
                 msg.pose.pose.orientation.y = quat[1]
                 msg.pose.pose.orientation.z = quat[2]
                 msg.pose.pose.orientation.w = quat[3]
+
+                msg.pose.covariance = [0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                       0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                       0.0, 0.0, 0.0, 0.0, 0.0, 
+                                       0.06853891945200942]
 
                 #print msg
                 self.pose_pub.publish(msg)
