@@ -75,7 +75,7 @@ class RobotPass(object):
         self.grip(gripper, 0.09, -1.0)
     
     def gripper_close(self, gripper):
-        self.grip(gripper, 0.00002, 20)
+        self.grip(gripper, 0.0, 20)
     
     def start_wait_for_hit(self, sensor, mag = 4.5):
         if (not self.hit_started):
@@ -160,9 +160,10 @@ class RobotPass(object):
 
                 self.gripper_close(gripper)
                 gripper.wait_for_result()
-                rospy.sleep(0.5)
+                rospy.sleep(2.0)
 
-                if (self.get_gripper_pos(hand) > 0.01):
+                print self.get_gripper_pos(hand)
+                if (self.get_gripper_pos(hand) > 0.00115):
                     grasped = True
                 else:
                     self.tts("I don't think I got the %s. Let's try again." % object_name)
@@ -172,7 +173,7 @@ class RobotPass(object):
                     
             self.move_arm(arm, arm_names, position[1], 1)
             arm.wait_for_result()
-            if (self.get_gripper_pos(hand) > 0.01):
+            if (self.get_gripper_pos(hand) > 0.00115):
                 grasped = True
                 self.tts("Thank you!")
             else:
