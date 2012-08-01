@@ -18,6 +18,7 @@ class CoffeeGrab(object):
         self.base_scan_msg = False
         self.listener = tf.TransformListener(True, rospy.Duration(100))
         self.cmd_vel_publisher = rospy.Publisher('/base_controller/command', Twist)
+        rospy.loginfo("Wait for object pass")
         self.robotpass = actionlib.SimpleActionClient("pass_object", PassObjectAction)
         self.robotpass.wait_for_server()
         rospy.loginfo("Wait for tuck arm")
@@ -37,53 +38,68 @@ class CoffeeGrab(object):
             xy.append([dist * math.cos(angle), dist * math.sin(angle)])
             angle = angle + msg.angle_increment
         return xy
+
+    def tuck_arms(self, left, right):
+        tuck_goal = TuckArmsGoal()
+        tuck_goal.tuck_left = left
+        tuck_goal.tuck_right = right
+        self.tuck.send_goal(tuck_goal)
+        self.tuck.wait_for_result()
+
+    def passobject(self, direction, position, obj):
+        take_goal = PassObjectGoal()
+        take_goal.arm = PassObjectGoal.LEFT_ARM
+        take_goal.direction = direction
+        take_goal.arm_position = position
+        take_goal.object_name = obj
+        self.robotpass.send_goal(take_goal)
+        self.robotpass.wait_for_result()
     
     def start(self):
-        #Go to target - grandslam
+        #Start out with the money bag
+        self.tuck_arms(False, True)
+        self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "empty bag")
+        self.tuck_arms(True, True)
+
+        #Go to Ken's office - grandslam
+        print "GRANDSLAM: ken's office"
+        self.tuck_arms(False, True)
+        self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "empty bag")
+        self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
+        self.tuck_arms(True, True)
+
         
+
+
+        #Go to target - grandslam
+        print "GRANDSLAM: coffee shop"
 
         #In the coffee shop - drive a course to wait in line
+        print "Coffee course"
         
-        #Untuck
-        tuck_goal = TuckArmsGoal()
-        tuck_goal.tuck_left = False
-        tuck_goal.tuck_right = True
-        self.tuck.send_goal(tuck_goal)
-        self.tuck.wait_for_result()
-        
-        #Robot pass
-        take_goal = PassObjectGoal()
-        take_goal.arm = PassObjectGoal.LEFT_ARM
-        take_goal.direction = PassObjectGoal.TAKE_OBJECT
-        take_goal.arm_position = PassObjectGoal.HIGH
-        take_goal.object_name = "cup"
-        self.robotpass.send_goal(take_goal)
-        self.robotpass.wait_for_result()
-        
-        #Tuck
-        tuck_goal = TuckArmsGoal()
-        tuck_goal.tuck_left = True
-        tuck_goal.tuck_right = True
-        self.tuck.send_goal(tuck_goal)
-        self.tuck.wait_for_result()
+        self.tuck_arms(False, True)
+        self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
+        self.tuck_arms(False, True)
 
+        #Move to target
+        print "Move to target"
+
+        #Untuck
+        self.tuck_arms(False, True)
+        self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "cup")
+        self.passobject(PassObjectGoal.STASH_OBJECT, PassObjectGoal.HIGH, "cup")
+        self.tuck_arms(True, True)
+        
         #Return to ken's office
+        print "GRANDSLAM: ken's office"
 
         #Untuck
-        tuck_goal = TuckArmsGoal()
-        tuck_goal.tuck_left = True
-        tuck_goal.tuck_right = True
-        self.tuck.send_goal(tuck_goal)
-        self.tuck.wait_for_result()
+        self.tuck_arms(False, True)
+        self.passobject(PassObjectGoal.UNSTASH_OBJECT, PassObjectGoal.HIGH, "cup")
+        self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "cup")
+        self.tuck_arms(True, True)
 
-        #Give out the object
-        take_goal = PassObjectGoal()
-        take_goal.arm = PassObjectGoal.LEFT_ARM
-        take_goal.direction = PassObjectGoal.RELEASE_OBJECT
-        take_goal.arm_position = PassObjectGoal.HIGH
-        take_goal.object_name = "cup"
-        self.robotpass.send_goal(take_goal)
-        self.robotpass.wait_for_result()
+        print "GRANDSLAM: base"
 
 
     def move_to_target(self, g_x, g_y, g_a, watch_scans=False):
