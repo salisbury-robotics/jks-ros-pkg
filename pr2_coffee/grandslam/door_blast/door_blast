@@ -38,21 +38,22 @@ class DoorBlast:
         rospy.loginfo("Wait for tuck arm")
         self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
         self.tuck.wait_for_server()
-        self.torso_pub = rospy.Publisher('torso_controller/command', JointTrajectory)
+        rospy.loginfo("Wait for torso")
+        self.torso = actionlib.SimpleActionClient("/torso_controller/position_joint_action", SingleJointPositionAction)
+        self.torso.wait_for_server()
         rospy.loginfo("started")
         self.blast_server.start()
         self.drag_server.start()
 
 
-    def set_torso(self, pos):
-        traj = JointTrajectory()
-        traj.header.stamp = rospy.get_rostime()
-        traj.joint_names.append("torso_lift_joint");
-        traj.points.append(JointTrajectoryPoint())
-        traj.points[0].positions.append(pos)
-        traj.points[0].velocities.append(0.0)
-        traj.points[0].time_from_start = rospy.Duration(2.0)
-        self.torso_pub.publish(traj)
+    def set_torso(self, pos, wait):
+        traj = SingleJointPositionGoal()
+        traj.position = pos
+        traj.min_duration = rospy.Duration(1.0)
+        traj.max_velocity = 0
+        self.torso.send_goal(traj)
+        if (wait):
+            self.torso.wait_for_result()
     
     def on_scan_msg(self, msg):
         self.scan_msg = msg
@@ -143,6 +144,7 @@ class DoorBlast:
 
 
     def blast(self, msg):
+        self.set_torso(0.2, True)
         #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
         min_depth = 0.0
@@ -217,7 +219,7 @@ class DoorBlast:
             rospy.sleep(0.1)
         
     def drag(self, msg):
-        self.set_torso(0.2)
+        self.set_torso(0.2, True)
         #Move to the right position away from the wall
         self.set_laser_and_wait(-0.3)
         min_depth = 0.0
