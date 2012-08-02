@@ -63,8 +63,8 @@ wormholes:
        type: door_drag
        locations:
            - map: clarkcenterfirstflooroutside
-             position: [96.096, 62.244]
-             angle: 2.604
+             position: [95.682, 62.549]
+             angle: 2.640
              direction: entrance
            - map: clarkcenterfirstfloorelevator
              position: [49.733, 13.540]
@@ -130,7 +130,7 @@ wormholes:
        type: elevator_blast
        locations:
            - map: clarkcenterfirstfloorelevator
-             position: [49.547, 19.328]
+             position: [49.218, 19.462]
              angle: -3.126
              floor: 1
              floor_type: mult_button
