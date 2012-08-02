@@ -4,7 +4,7 @@ import roslib
 roslib.load_manifest('robotpass')
 import rospy
 import actionlib
-import sys, os
+import sys, os, math
 
 from pr2_controllers_msgs.msg import *
 from pr2_gripper_sensor_msgs.msg import *
@@ -29,7 +29,7 @@ class RobotPass(object):
                              [0.0, 1.200, 0.0, -1.225, 3.14159, 0, 0.0]]
         self.position_db = {0: self.position_low, 1: self.position_medium, 2: self.position_high}
 
-        self.stash_low = {0: [2.1353666138207998, 0.00067675938483565269, -0.37591126534041885, -2.1214432114524739, 11.96566993572344, -0.82512183933025285, 0.056984254216083663], }
+        self.stash_low = {0: [2.1339572013257304, -0.091108732183497729, -0.32299417263835628, -2.1179687143792689, 18.241037622294144 - math.pi * 2, -0.89756419129607556, 0.13109237626572012], }
         self.stash_high = {0: [2.1255836329726749, -0.3337269716470736, -0.24746704941813968, -1.8277034380552961, 11.906203130338264, -0.97553217611455001, 0.12960064186230591], }
         self.stash_back = {0: [2.0678806272922126, 0.051856687863030673, -0.29605456180821554, -1.9498899184629934, -0.47689138482042087, -1.1624609998357744, -0.13265248181800637], }
         self.action_name = name
