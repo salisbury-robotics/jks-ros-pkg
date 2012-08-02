@@ -28,8 +28,7 @@
  */
 
 // author: Adam Leeper
-#include <stdexcept>
-#include <sixense_razer_hydra/sixense.h>
+//#include <sixense_razer_hydra/sixense.h>
 #include <tf/transform_broadcaster.h>
 #include <ros/ros.h>
 
@@ -39,20 +38,28 @@
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "sixsense_razer_hydra_node");
+    ros::init(argc, argv, "sixense_razer_hydra_node");
+    //ros::Time::init();
+    ROS_INFO("Initializing!");
+    ros::NodeHandle nh;
+    ros::Publisher pub = nh.advertise<std_msgs::Header>("header",10);
 
-  ros::Duration(1.0).sleep();
 
-  sixenseInit();
-  sixenseExit();
+//    sixenseInit();
 
-//  int numBases = sixenseGetMaxBases();
-//  ROS_INFO("Max supported bases: %d", numBases);
 
-//  while(ros::ok())
-//  {
-//    ros::spinOnce();
-//    ros::Duration(0.01).sleep();
-//  }
 
+//    int numBases = sixenseGetMaxBases();
+//    ROS_INFO("Max supported bases: %d", numBases);
+
+    ros::Rate loop_rate(100);
+    while(ros::ok())
+    {
+        // Do stuff
+
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
+
+//    sixenseExit();
 }

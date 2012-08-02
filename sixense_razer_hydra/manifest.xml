@@ -9,6 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/sixense_razer_hydra</url>
   <depend package="roscpp"/>
+  <depend package="std_msgs"/>
   <depend package="geometry_msgs"/>
   <depend package="tf"/>
   <depend package="common_rosdeps"/>

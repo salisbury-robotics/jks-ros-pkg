@@ -44,6 +44,11 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
   rosbuild_add_executable(sixense_test
                           src/sixense_test.cpp
                           manifest.xml)
+  rosbuild_add_executable(node
+                          src/node.cpp
+                          )
   
   target_link_libraries(sixense_test
+                        ${SIXENSE_LINK})
+  target_link_libraries(node
                         ${SIXENSE_LINK})
