@@ -1,7 +1,8 @@
 <launch>
+  <arg name="device" default="/dev/hidraw0" />
 
   <node pkg="hydra" type="driver" name="razer_hydra_driver" output="screen" >
-    <param name="device" value="/dev/hidraw4" />
+    <param name="device" type="string" value="$(arg device)" />
   </node>
 
 </launch>
