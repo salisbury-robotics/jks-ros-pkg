@@ -26,8 +26,8 @@ class RobotPass(object):
         self.hit_started = False
 
         #Positions database for arms
-        self.position_high = [[0.0, -0.600, 0.0, -1.225, 3.14159, -1.65, 0.0],
-                              [0.0, -0.600, 0.0, -1.625, 3.14159, -1.65, 0.0]]
+        self.position_high = [[0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0],
+                              [0.0, -0.350, 0.0, -1.625, 3.14159, -1.65, 0.0]]
         self.position_medium = [[0.0, 0.640, 0.0, -1.925, 3.14159, -1.25, 0.0],
                                 [0.0, 0.640, 0.0, -2.325, 3.14159, -1.25, 0.0]]
         self.position_low = [[0.0, 0.900, 0.0, -0.825, 3.14159, 0, 0.0],
@@ -51,6 +51,7 @@ class RobotPass(object):
         self.r_arm = False
         self.l_arm_pos = False
         self.r_arm_pos = False
+        self.arm_goal = False
         if (left):
             self.l_arm = actionlib.SimpleActionClient("l_arm_controller/joint_trajectory_action", JointTrajectoryAction)
             self.l_arm_names = ["l_shoulder_pan_joint", "l_shoulder_lift_joint", "l_upper_arm_roll_joint",
@@ -133,6 +134,7 @@ class RobotPass(object):
 
 
     def move_arm(self, arm, arm_names, angles, duration=2):
+        self.arm_goal = angles
         goal = JointTrajectoryGoal()
         goal.trajectory.header.stamp = rospy.get_rostime()
         goal.trajectory.joint_names = arm_names
@@ -167,7 +169,7 @@ class RobotPass(object):
             rospy.logerr("Hit already started")
         self.hit_started = True
 
-    def wait_for_hit(self, sensor, hand=None):
+    def wait_for_hit(self, sensor, hand=None, arm=None):
         if (not self.hit_started):
             self.start_wait_for_hit(sensor, hand=hand)
         vision_hc = 0
@@ -179,6 +181,9 @@ class RobotPass(object):
                     break
             else:
                 vision_hc = 0
+            if (arm != None):
+                if (self.get_deflection(arm)):
+                    break
             if (sensor.wait_for_result(rospy.Duration(0.1))):
                 break
         self.stop_object_vision()
@@ -192,6 +197,7 @@ class RobotPass(object):
         os.system("text2wave -o /tmp/tts_buf.wav /tmp/tts_buf && aplay /tmp/tts_buf.wav ; rm /tmp/tts_buf /tmp/tts_buf.wav")
     
     def joint_state_callback(self, msg):
+        self.arm_pos_callback(msg)
         for i in zip(msg.name, msg.position):
             if (i[0] == "l_gripper_joint"):
                 self.l_gripper_pos = i[1]
@@ -228,6 +234,25 @@ class RobotPass(object):
                 arr.append(pos[p])
             self.r_arm_pos = arr
 
+    def get_deflection(self, hand):
+        pos = self.r_arm_pos
+        if (hand == 0):
+            pos = self.l_arm_pos
+        sum = 0
+        for i in zip(self.l_arm_pos, self.arm_goal):
+            delta = i[0] - i[1]
+            while (delta > math.pi):
+                delta = delta - math.pi * 2
+            while (delta < -math.pi):
+                delta = delta + math.pi * 2
+            if (delta < 0):
+                delta = delta * -1
+            sum = sum + delta
+        if (0.005 > sum):
+            return False
+        return True
+
+
 
     def stash_object(self, object_name, hand):
         arm, arm_names, gripper, sensor = self.get_items(hand)
@@ -263,7 +288,7 @@ class RobotPass(object):
             while grasped == False:
                 self.start_wait_for_hit(sensor, hand)
                 self.tts("Please pass me the %s." % object_name)
-                self.wait_for_hit(sensor, hand)
+                self.wait_for_hit(sensor, hand, hand)
 
                 self.gripper_close(gripper)
                 gripper.wait_for_result()
@@ -302,7 +327,7 @@ class RobotPass(object):
 
         self.start_wait_for_hit(sensor, None, 4.0)
         self.tts("Please take the %s." % object_name)
-        self.wait_for_hit(sensor)
+        self.wait_for_hit(sensor, arm=hand)
         
         self.gripper_release(gripper)
         gripper.wait_for_result()
