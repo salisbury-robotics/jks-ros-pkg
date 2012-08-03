@@ -12,6 +12,11 @@ from pr2_controllers_msgs.msg import *
 from trajectory_msgs.msg import *
 from sensor_msgs.msg import *
 from robotpass.msg import *
+import cv
+from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
+
 
 class RobotPass(object):
     def __init__(self, name, left, right):
@@ -34,13 +39,25 @@ class RobotPass(object):
         self.stash_back = {0: [2.0678806272922126, 0.051856687863030673, -0.29605456180821554, -1.9498899184629934, -0.47689138482042087, -1.1624609998357744, -0.13265248181800637], }
         self.action_name = name
         self.action_server = actionlib.SimpleActionServer(self.action_name, PassObjectAction, execute_cb=self.execute_cb, auto_start=False)
+        self.bridge = CvBridge()
+        self.process_gripper_right = False
+        self.process_gripper_left = False
+        self.gripper_image_right = False
+        self.gripper_image_left = False
+        self.gripper_object_right = False
+        self.gripper_object_left = False
         wait_for = []
+        self.l_arm = False
+        self.r_arm = False
+        self.l_arm_pos = False
+        self.r_arm_pos = False
         if (left):
             self.l_arm = actionlib.SimpleActionClient("l_arm_controller/joint_trajectory_action", JointTrajectoryAction)
             self.l_arm_names = ["l_shoulder_pan_joint", "l_shoulder_lift_joint", "l_upper_arm_roll_joint",
                               "l_elbow_flex_joint", "l_forearm_roll_joint", "l_wrist_flex_joint", "l_wrist_roll_joint"]
             self.l_gripper = actionlib.SimpleActionClient("l_gripper_sensor_controller/gripper_action", Pr2GripperCommandAction)
             self.l_sensor = actionlib.SimpleActionClient("l_gripper_sensor_controller/event_detector", PR2GripperEventDetectorAction)
+            self.l_camera = rospy.Subscriber("/l_forearm_cam/image_rect_color", Image, self.process_image_left)
             wait_for += [self.l_arm, self.l_gripper, self.l_sensor]
         if (right):
             self.r_arm = actionlib.SimpleActionClient("r_arm_controller/joint_trajectory_action", JointTrajectoryAction)
@@ -48,13 +65,73 @@ class RobotPass(object):
                          "r_elbow_flex_joint", "r_forearm_roll_joint", "r_wrist_flex_joint", "r_wrist_roll_joint"]
             self.r_gripper = actionlib.SimpleActionClient("r_gripper_sensor_controller/gripper_action", Pr2GripperCommandAction)
             self.r_sensor = actionlib.SimpleActionClient("r_gripper_sensor_controller/event_detector", PR2GripperEventDetectorAction)
-            wait_for +=[self.r_arm, self.r_gripper, self.r_sensor]
+            self.r_camera = rospy.Subscriber("/r_forearm_cam/image_rect_color", Image, self.process_image_right)
+            wait_for += [self.r_arm, self.r_gripper, self.r_sensor]
         rospy.Subscriber("joint_states", JointState, self.joint_state_callback)
         for actionclient in wait_for:
             rospy.loginfo("Wait for item")
             actionclient.wait_for_server()
         self.action_server.start()
     
+    def process_image_right(self, data):
+        if (self.process_gripper_right):
+            self.gripper_object_right, self.gripper_image_right = self.process_gripper_image(data, self.gripper_image_right, (0, 0, 100, 100))
+
+    def process_image_left(self, data):
+        if (self.process_gripper_left):
+            self.gripper_object_left, self.gripper_image_left = self.process_gripper_image(data, self.gripper_image_left, (244, 160, 160, 180))
+        
+    def process_gripper_image(self, data, current_image, sub_rect):
+        try:
+            bimg = self.bridge.imgmsg_to_cv(data, "bgr8")
+        except CvBridgeError, e:
+            print e
+
+        sub_data = cv.GetSubRect(bimg, sub_rect)
+        
+        if (current_image == False):
+            print "No current image"
+            return (False, sub_data)
+        else:
+            cv.AbsDiff(sub_data, current_image, sub_data)
+            delta = cv.Sum(sub_data)
+            total = 0
+            for i in delta:
+                total = total + i
+            if (total > 1000000.0):
+                result = True
+            else:
+                result = False
+            print result, delta
+
+            return (result, current_image)
+
+    def start_object_vision(self, hand):
+        if (hand == 0):
+            self.gripper_object_left = False
+            self.gripper_image_left = False
+            self.process_gripper_left = True
+        else:
+            self.gripper_object_right = False
+            self.gripper_image_right = False
+            self.process_gripper_right = True
+
+    def stop_object_vision(self):
+        self.gripper_object_left = False
+        self.gripper_image_left = False
+        self.process_gripper_left = False
+        self.gripper_object_right = False
+        self.gripper_image_right = False
+        self.process_gripper_right = False
+        
+    def check_object_vision(self, hand):
+        print self.gripper_object_left, self.gripper_object_right
+        if (hand == 0):
+            return self.gripper_object_left
+        else:
+            return self.gripper_object_right
+
+
     def move_arm(self, arm, arm_names, angles, duration=2):
         goal = JointTrajectoryGoal()
         goal.trajectory.header.stamp = rospy.get_rostime()
@@ -77,7 +154,9 @@ class RobotPass(object):
     def gripper_close(self, gripper):
         self.grip(gripper, 0.0, 20)
     
-    def start_wait_for_hit(self, sensor, mag = 4.5):
+    def start_wait_for_hit(self, sensor, hand=None, mag = 4.5):
+        if (hand != None):
+            self.start_object_vision(hand)
         if (not self.hit_started):
             place_goal = PR2GripperEventDetectorGoal()
             place_goal.command.trigger_conditions = 4 # use just acceleration as our contact signal
@@ -88,12 +167,23 @@ class RobotPass(object):
             rospy.logerr("Hit already started")
         self.hit_started = True
 
-    def wait_for_hit(self, sensor):
+    def wait_for_hit(self, sensor, hand=None):
         if (not self.hit_started):
-            start_wait_for_hit()
-        sensor.wait_for_result()
+            self.start_wait_for_hit(sensor, hand=hand)
+        vision_hc = 0
+        while not rospy.is_shutdown():
+            print "Wait"
+            if (hand != None and self.check_object_vision(hand)):
+                vision_hc = vision_hc + 1
+                if (vision_hc > 5):
+                    break
+            else:
+                vision_hc = 0
+            if (sensor.wait_for_result(rospy.Duration(0.1))):
+                break
+        self.stop_object_vision()
         self.hit_started = False
-
+    
     def tts(self, text):
         #FIXME: Should use sound_play once we fix it.
         out = open("/tmp/tts_buf", "w")
@@ -121,6 +211,23 @@ class RobotPass(object):
         if (hand == 1):
             return self.r_gripper_pos
         return 0
+
+
+    def arm_pos_callback(self, msg):
+        pos = {}
+        for i in zip(msg.name, msg.position):
+            pos[i[0]] = i[1]
+        if (self.l_arm):
+            arr = []
+            for p in self.l_arm_names:
+                arr.append(pos[p])
+            self.l_arm_pos = arr
+        if (self.r_arm):
+            arr = []
+            for p in self.r_arm_names:
+                arr.append(pos[p])
+            self.r_arm_pos = arr
+
 
     def stash_object(self, object_name, hand):
         arm, arm_names, gripper, sensor = self.get_items(hand)
@@ -154,16 +261,16 @@ class RobotPass(object):
         grasped = False
         while grasped == False:
             while grasped == False:
-                self.start_wait_for_hit(sensor)
+                self.start_wait_for_hit(sensor, hand)
                 self.tts("Please pass me the %s." % object_name)
-                self.wait_for_hit(sensor)
+                self.wait_for_hit(sensor, hand)
 
                 self.gripper_close(gripper)
                 gripper.wait_for_result()
                 rospy.sleep(2.0)
 
                 print self.get_gripper_pos(hand)
-                if (self.get_gripper_pos(hand) > 0.00115):
+                if (self.get_gripper_pos(hand) > 0.002):
                     grasped = True
                 else:
                     self.tts("I don't think I got the %s. Let's try again." % object_name)
@@ -173,7 +280,7 @@ class RobotPass(object):
                     
             self.move_arm(arm, arm_names, position[1], 1)
             arm.wait_for_result()
-            if (self.get_gripper_pos(hand) > 0.00115):
+            if (self.get_gripper_pos(hand) > 0.002):
                 grasped = True
                 self.tts("Thank you!")
             else:
@@ -193,7 +300,7 @@ class RobotPass(object):
         self.gripper_close(gripper)
         gripper.wait_for_result()
 
-        self.start_wait_for_hit(sensor, 4.0)
+        self.start_wait_for_hit(sensor, None, 4.0)
         self.tts("Please take the %s." % object_name)
         self.wait_for_hit(sensor)
         
