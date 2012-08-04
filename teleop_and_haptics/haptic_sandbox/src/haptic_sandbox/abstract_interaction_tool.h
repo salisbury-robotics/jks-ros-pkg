@@ -22,7 +22,7 @@ public:
     // Constructor
       AbstractInteractionTool(const std::string &frame_id,
                  tf::TransformListener *tfl, tf::TransformBroadcaster *tfb)
-        : SceneGraphNode(frame_id, tfl, tfb)
+          : SceneGraphNode(frame_id, tfl, tfb)
     {
         init();
     }
@@ -46,10 +46,17 @@ public:
 
 
     // Read the state of the binary switches on the tool.
-    virtual bool getToolButtonState(const unsigned int &index) const  { return false; }
+    bool getToolButtonState(const unsigned int &index) const
+    {
+        if(index >= getToolButtonCount()) return false;
+        return button_state_[index];
+    }
 
     // Get the number of buttons available on the tool.
-    virtual unsigned int getToolButtonCount() const                   { return 0; }
+    unsigned int getToolButtonCount() const
+    {
+        return (unsigned int)button_state_.size();
+    }
 
     // Set the force applied to the tool
     virtual void setToolForce(const Vector3 &force)           { last_tool_force_ = force; }
@@ -63,15 +70,24 @@ public:
 //    // Set the gripper force on the tool
 //    virtual void setToolGripperForce(const float &force);
 
-//    virtual void update()
-//    {
-//        transform_.setOrigin(tf::Vector3(0,0,0));
-//        transform_.setRotation(tf::Quaternion::getIdentity());
-//    }
-
 
 protected: 
 // Methods
+
+    void setToolButtonCount(const unsigned int &count)
+    {
+        button_state_.resize(count, false);
+    }
+
+    void setToolButtonState(const size_t &index, const bool &state)
+    {
+        if(index >= button_state_.size())
+        {
+            ROS_ERROR("Can't set button %zd state, max size is %zd", index, button_state_.size());
+            return;
+        }
+        button_state_[index] = state;
+    }
 
 //    virtual void updateDevice()
 //    {
@@ -89,6 +105,8 @@ protected:
 
   Vector3 last_tool_force_;
   Vector3 last_tool_torque_;
+
+  std::vector<bool> button_state_;
 
 };
 

@@ -34,15 +34,13 @@ void HapticInteractionTool::init()
 
     std::string modelName = info.m_modelName;
 
-    if(modelName == "PHANTOM Omni") button_count_ = 2;
-    else if(modelName == "Falcon") button_count_ = 4;
-    else if(modelName == "omega") button_count_ = 1;
-    else button_count_ =  0;
+    int button_count = 0;
+    if(modelName == "PHANTOM Omni") button_count = 2;
+    else if(modelName == "Falcon") button_count = 4;
+    else if(modelName == "omega") button_count = 1;
+    setToolButtonCount(button_count);
 
     workspace_radius_ = workspace_radius_ / info.m_workspaceRadius;
-
-    // Get the number of buttons and initialize to false
-    button_state_.resize(getToolButtonCount(), false);
 
     // TODO this should be a chai thread...!
     ros::NodeHandle nh;
@@ -50,19 +48,6 @@ void HapticInteractionTool::init()
     interaction_timer_ = nh.createTimer(ros::Duration(update_period), boost::bind( &HapticInteractionTool::updateDevice, this ) );
 }
 
-
-// Read the state of the binary switches on the tool.
-bool HapticInteractionTool::getToolButtonState(const unsigned int &index) const
-{
-    if(index >= getToolButtonCount()) return false;
-    return button_state_[index];
-}
-
-// Get the number of buttons available on the tool.
-unsigned int HapticInteractionTool::getToolButtonCount() const
-{
-    return button_count_;
-}
 
 /////////////////////////////////////////////////////////////////////
 // PROTECTED FUNCTIONS LIVE UNDER HERE
@@ -74,7 +59,7 @@ void HapticInteractionTool::updateButtonStates()
     {
         bool state = false;
         chai_device_->getUserSwitch(i, state );
-        button_state_[i] = state;
+        setToolButtonState(i, state);
     }
 }
 

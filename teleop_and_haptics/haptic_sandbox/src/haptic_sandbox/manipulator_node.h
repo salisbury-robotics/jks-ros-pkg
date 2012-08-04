@@ -4,6 +4,7 @@
 
 #include <haptic_sandbox/abstract_interaction_tool.h>
 #include <haptic_sandbox/haptic_interaction_tool.h>
+#include <haptic_sandbox/hydra_interaction_tool.h>
 #include <haptic_sandbox/tf_scenegraph_object.h>
 
 #include <Eigen/Geometry>
@@ -34,14 +35,7 @@ public:
         if(tool_) delete tool_;
     }
 
-    void init()
-    {
-        tool_ = new something::HapticInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
-        //device_ = new something::AbstractInteractionTool(transform_.child_frame_id_ + "_device", tfl_, tfb_);
-        addChild(tool_);
-
-        button_name_map_["grab"] = 0;
-    }
+    void init();
 
     // Get button stuff should go here, so user can query it?
 
