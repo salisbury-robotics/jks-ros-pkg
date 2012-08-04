@@ -23,7 +23,7 @@ public:
                                                  tf::TransformListener *tfl,
                                                  tf::TransformBroadcaster *tfb)
         : AbstractInteractionTool(frame_id, tfl, tfb),
-          chai_device_handler_(0), chai_device_(0), button_state_(0), workspace_radius_(0.5)
+          chai_device_handler_(0), chai_device_(0), workspace_radius_(0.5)
     {
         // Must come first, and must be defined in the header due to library issues in CHAI3D.
         initializeHaptics();
@@ -32,7 +32,7 @@ public:
         init();
     }
 
-    ~HapticInteractionTool();
+    virtual ~HapticInteractionTool();
 
     // Must be defined in the header due to library issues in CHAI3D.
     inline void initializeHaptics()
@@ -50,12 +50,6 @@ public:
     }
 
     void init();
-
-    // Read the state of the binary switches on the tool.
-    bool getToolButtonState(const unsigned int &index) const;
-
-    // Get the number of buttons available on the tool.
-    unsigned int getToolButtonCount() const;
 
 
 
@@ -120,9 +114,6 @@ protected:
   cGenericHapticDevice *chai_device_;
 
   ros::Timer interaction_timer_;
-
-  std::vector<bool> button_state_;
-  unsigned int button_count_;
 
   float workspace_radius_;
 

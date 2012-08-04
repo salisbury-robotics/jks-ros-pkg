@@ -58,6 +58,7 @@ public:
         grab_start_world_to_handle_.setIdentity();
 
         //printChildren(true);
+        ROS_INFO("Done! Here we go...");
     }
 
     void attachCoupling();
@@ -91,14 +92,6 @@ public:
         if (!grabbing_ && getGrabState())
         {
             grabbing_ = true;
-            //grab_start_transform_ = workspace_to_handle;
-            // tf::SceneGraphNode handle = right_->accessChild("user1_right_workspace_device_handle");
-//            if(handle)
-//            {
-//                grab_start_position_ = handle.getPosition();
-//                grab_start_quaternion_ = handle.getQuaternion();
-//            }
-            //tf::StampedTransform st;
             tfl_->lookupTransform(getParentFrameId(), "user1_right_workspace_device_handle", ros::Time(0), grab_start_world_to_handle_);
         }
         // detect a falling edge on the clutch button

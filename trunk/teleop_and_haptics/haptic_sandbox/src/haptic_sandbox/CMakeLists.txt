@@ -19,6 +19,7 @@ manipulator_node.cpp
 user_entity.cpp
 abstract_interaction_tool.cpp
 haptic_interaction_tool.cpp
+hydra_interaction_tool.cpp
 
 #tool_entity.cpp
 #abstract_coupling.cpp

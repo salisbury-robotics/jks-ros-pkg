@@ -72,6 +72,7 @@ int main(int argc, char** argv)
                 break;
             }
         }
+        if(!ros::ok()) break;
         ros::spinOnce();
     }
     changemode(0);
