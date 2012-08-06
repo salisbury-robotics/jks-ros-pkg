@@ -578,7 +578,8 @@ class ElevatorControl:
         if (dead):
             for i in backup:
                 print i
-                self.move_to_target(i, 0.0, True, True, watch_scans="WAIT")
+                self.move_to_target(i, math.pi, True, True, watch_scans="WAIT")
+            self.move_to_target(self.generate_goal(0, 0), math.pi, True, True, watch_scans="WAIT")
             print "Stuck!"
             return self.do_elevator(msg)
     
