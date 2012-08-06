@@ -14,7 +14,7 @@
   <depend package="nav_msgs"/>
   <depend package="robotpass" />
   <depend package="pr2_common_action_msgs" />
-  
+  <depend package="grandslam" />
   <rosdep name="python-yaml"/>
 </package>
 
