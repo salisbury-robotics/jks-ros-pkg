@@ -11,6 +11,7 @@ from geometry_msgs.msg import *
 import tf
 from sensor_msgs.msg import *
 from robotpass.msg import *
+from grandslam.msg import *
 from pr2_common_action_msgs.msg import *
 
 class CoffeeGrab(object):
@@ -71,7 +72,7 @@ class CoffeeGrab(object):
         self.grandslam_ac.wait_for_result()
 
     
-    def start(self):
+    def temstart(self):
         #Start out with the money bag
         self.tuck_arms(False, True)
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "empty bag")
@@ -85,10 +86,12 @@ class CoffeeGrab(object):
         self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "empty bag")
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
         self.tuck_arms(True, True)
+
+    def start(self):
         
         #Go to target - grandslam
         print "GRANDSLAM: coffee shop"
-        self.grandslam(56.869 14.529 2.511, "clarkcenterpeetscoffee")
+        self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
         
         #In the coffee shop - drive a course to wait in line
         print "Coffee course"
@@ -97,20 +100,21 @@ class CoffeeGrab(object):
         self.move_to_target(57.840, 14.623, 2.497, True)
         self.move_to_target(57.667, 15.643, 1.731, True)
         self.move_to_target(57.476, 16.429, 1.731, True)
-        self.move_to_target(58.839, 18.067, 0.906, True)
-        self.move_to_target(58.839, 18.067, -0.687, False)
+        self.move_to_target(59.489, 19.104, 0.906, True)
+        self.move_to_target(59.489, 19.104, -0.687, False)
 
         #Give item to checker
-        self.tuck_arms(False, True)
-        self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
-        self.tuck_arms(False, True)
+        #self.tuck_arms(False, True)
+        #self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
+        #self.tuck_arms(False, True)
 
         #Move to target
         print "Move to target"
-        self.move_to_target(59.406, 18.594, -0.687, False)
+        #self.move_to_target(59.730, 19.019, -0.687, False)
 
         #Untuck
         self.tuck_arms(False, True)
+        self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "cup")
         self.passobject(PassObjectGoal.STASH_OBJECT, PassObjectGoal.HIGH, "cup")
         self.tuck_arms(True, True)
@@ -210,17 +214,17 @@ class CoffeeGrab(object):
                             return False
                         pts = self.scan_to_points(self.base_scan_msg)
                         blocked = False
-                        if (msg.linear.y < -0.05):
+                        if (msg.linear.y < -0.2):
                             for i in pts:
                                 if (i[0] < 0.00 and i[0] > -0.50 \
                                         and i[1] > -0.80 and i[1] < -0.30):
                                     blocked = True
-                        if (msg.linear.y > 0.05):
+                        if (msg.linear.y > 0.2):
                             for i in pts:
                                 if (i[0] < 0.00 and i[0] > -0.50 \
                                         and i[1] < 0.80 and i[1] > 0.30):
                                     blocked = True
-                        if (msg.linear.x > 0.03):
+                        if (msg.linear.x > 0.1):
                             for i in pts:
                                 if (i[0] < 0.50 and i[0] > 0.00 \
                                         and i[1] < 0.25 and i[1] > -0.25):
