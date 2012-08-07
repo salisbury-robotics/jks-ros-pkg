@@ -11,8 +11,11 @@ from geometry_msgs.msg import *
 import tf
 from sensor_msgs.msg import *
 from robotpass.msg import *
+from visualization_msgs.msg import *
 from grandslam.msg import *
 from pr2_common_action_msgs.msg import *
+from geometry_msgs.msg import *
+from pr2_controllers_msgs.msg import *
 
 class CoffeeGrab(object):
     def __init__(self):
@@ -29,6 +32,24 @@ class CoffeeGrab(object):
         self.grandslam_ac = actionlib.SimpleActionClient("grandslam/move", GrandSlamAction)
         self.grandslam_ac.wait_for_server()
         rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
+        self.visualization_publisher = rospy.Publisher("/visualization_markers", Marker)
+        rospy.loginfo("Wait for head control")
+        self.head_client = actionlib.SimpleActionClient(
+            '/head_traj_controller/point_head_action', PointHeadAction)
+        self.head_client.wait_for_server()
+        rospy.loginfo("Wait for torso")
+        self.torso = actionlib.SimpleActionClient("/torso_controller/position_joint_action", SingleJointPositionAction)
+        self.torso.wait_for_server()
+        rospy.loginfo("Done starting")
+
+    def set_torso(self, pos, wait):
+        traj = SingleJointPositionGoal()
+        traj.position = pos
+        traj.min_duration = rospy.Duration(1.0)
+        traj.max_velocity = 0
+        self.torso.send_goal(traj)
+        if (wait):
+            self.torso.wait_for_result()
 
     def on_base_scan(self, msg):
         self.base_scan_msg = msg
@@ -71,7 +92,43 @@ class CoffeeGrab(object):
         self.grandslam_ac.send_goal(goal)
         self.grandslam_ac.wait_for_result()
 
-    
+    def cube(self, f, x, y, z, sx, sy, sz, i):
+        marker = Marker()
+        marker.header.frame_id = f
+        marker.header.stamp = rospy.get_rostime()
+        marker.ns = "coffee_grab"
+        marker.type = Marker.CUBE
+        marker.action = Marker.ADD
+        marker.id = i
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = z
+        marker.pose.orientation.x = 1.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = sx
+        marker.scale.y = sy
+        marker.scale.z = sz
+        marker.color.a = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+        self.visualization_publisher.publish(marker)
+        
+    def point_head(self, x, y, z, wait=True):
+        g = PointHeadGoal()
+        g.target.header.frame_id = 'base_link'
+        g.target.point.x = x
+        g.target.point.y = y
+        g.target.point.z = z
+        g.min_duration = rospy.Duration(1.0)
+        self.head_client.send_goal(g)
+        #self.head_client.wait_for_result()
+        if (wait):
+            rospy.sleep(1.0)
+
+        
     def temstart(self):
         #Start out with the money bag
         self.tuck_arms(False, True)
@@ -91,8 +148,11 @@ class CoffeeGrab(object):
         
         #Go to target - grandslam
         print "GRANDSLAM: coffee shop"
-        self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
+        #self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
         
+        #Raise the torso
+        self.set_torso(0.3, True)
+
         #In the coffee shop - drive a course to wait in line
         print "Coffee course"
         self.move_to_target(58.834, 13.630, -0.697, True)
@@ -118,7 +178,8 @@ class CoffeeGrab(object):
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "cup")
         self.passobject(PassObjectGoal.STASH_OBJECT, PassObjectGoal.HIGH, "cup")
         self.tuck_arms(True, True)
-        
+
+    def blocmk():
         #Return to ken's office
         print "GRANDSLAM: ken's office"
         self.grandslam(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
@@ -189,7 +250,7 @@ class CoffeeGrab(object):
                 msg.linear.x = 0
                 msg.linear.y = 0
                 if (y < -0.01 or y > 0.01):
-                    msg.angular.z = scaleclamp(y, 1, 0.5, 0.005)
+                    msg.angular.z = scaleclamp(y, 3, 0.5, 0.005)
                 if (y > -0.1 and y < 0.1):
                     dist = goal_transformed.pose.position.y \
                         * goal_transformed.pose.position.y
@@ -201,9 +262,11 @@ class CoffeeGrab(object):
                     if (dist < 0.03 and msg.angular.z == 0.0):
                         break
 
-                    dist = scaleclamp(dist, 1.0, 0.3)
                     ang = math.atan2(goal_transformed.pose.position.y,
                                      goal_transformed.pose.position.x)
+                    x_dist = dist * math.cos(ang)
+                    y_dist = dist * math.sin(ang)
+                    dist = scaleclamp(dist, 1.0, 0.3)
                     msg.linear.x = dist * math.cos(ang)
                     msg.linear.y = dist * math.sin(ang)
                     
@@ -214,25 +277,71 @@ class CoffeeGrab(object):
                             return False
                         pts = self.scan_to_points(self.base_scan_msg)
                         blocked = False
-                        if (msg.linear.y < -0.2):
+                        if (msg.linear.x > 0.1 and len(pts) > 0):
+                            right_wall = False
+                            left_wall = False
                             for i in pts:
-                                if (i[0] < 0.00 and i[0] > -0.50 \
-                                        and i[1] > -0.80 and i[1] < -0.30):
-                                    blocked = True
-                        if (msg.linear.y > 0.2):
+                                if (i[1] > 0.0):
+                                    if (not right_wall):
+                                        right_wall = i
+                                    elif (abs(right_wall[0]) > abs(i[0])):
+                                        right_wall = i
+                                if (i[1] < 0.0):
+                                    if (not left_wall):
+                                        left_wall = i
+                                    elif (abs(left_wall[0]) > abs(i[0])):
+                                        left_wall = i
+
+                            if (left_wall):
+                                self.cube(self.base_scan_msg.header.frame_id, 
+                                          left_wall[0], left_wall[1], 0, 0.2, 0.2, 0.2, 0)
+                            if (right_wall):
+                                self.cube(self.base_scan_msg.header.frame_id,
+                                          right_wall[0], right_wall[1], 0, 0.2, 0.2, 0.2, 1)
+
+
+                            wall_max_width = 0.4
+                            if (left_wall):
+                                if (abs(left_wall[1]) < wall_max_width):
+                                    left_wall = abs(left_wall[1]) - 0.1
+                                else:
+                                    left_wall = wall_max_width
+                            else:
+                                left_wall = wall_max_width
+                            if (right_wall):
+                                if (abs(right_wall[1]) < wall_max_width):
+                                    right_wall = abs(right_wall[1]) - 0.1
+                                else:
+                                    right_wall = wall_max_width
+                            else:
+                                right_wall = wall_max_width
+                            #print right_wall, left_wall
+
+                            x_lim = 0.5
+                            offset_x = -0.2
+                            if (x_dist - offset_x < x_lim):
+                                x_lim = x_dist - offset_x
+
+
+                            self.cube(self.base_scan_msg.header.frame_id, x_lim / 2.0, 
+                                      right_wall - (right_wall + left_wall) / 2.0, 0,
+                                      x_lim, 0.2, right_wall + left_wall, 2)
+
                             for i in pts:
-                                if (i[0] < 0.00 and i[0] > -0.50 \
-                                        and i[1] < 0.80 and i[1] > 0.30):
-                                    blocked = True
-                        if (msg.linear.x > 0.1):
-                            for i in pts:
-                                if (i[0] < 0.50 and i[0] > 0.00 \
-                                        and i[1] < 0.25 and i[1] > -0.25):
+                                if (i[0] < x_lim and i[0] > 0.00 \
+                                        and i[1] < right_wall and i[1] > -left_wall):
                                     blocked = True
 
                         if (blocked):
                             msg.linear.x = 0
                             msg.linear.y = 0
+                            self.point_head(1.0, 0, 0.0, False)
+                        else:
+                            self.point_head(1.0, 0, 2.0, False)
+                    else:
+                        self.point_head(1.0, 0, 2.0, False)
+                else:
+                    self.point_head(1.0, 0, 2.0, False)
 
                 self.cmd_vel_publisher.publish(msg)
                 
