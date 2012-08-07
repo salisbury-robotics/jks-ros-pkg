@@ -576,6 +576,7 @@ class ElevatorControl:
             backup.insert(0, self.generate_goal(0, 0))
         
         if (dead):
+            self.point_head(1.0, 0.0, 0.0)
             for i in backup:
                 print i
                 self.move_to_target(i, math.pi, True, True, watch_scans="WAIT")
