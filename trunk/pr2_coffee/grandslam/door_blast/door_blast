@@ -276,15 +276,13 @@ class DoorBlast:
         goal = self.generate_goal(min_depth - 0.4, 0.8, True)
         self.move_to_target(goal, 0)
 
-        door_center_goal = self.generate_goal(0.05 - 0.9, math.pi / 2)
-
         self.set_gripper(0.0)
         rospy.sleep(1.0)
 
         move = Twist()
         move.linear.x = 0.2
         move.linear.y = 0.0
-        for i in range(0, 10):
+        for i in range(0, 20):
             self.cmd_vel_publisher.publish(move)
             rospy.sleep(0.1)
 
@@ -337,6 +335,8 @@ class DoorBlast:
 
         #Cancel out forward and backwards offset
         self.move_to_target(self.generate_goal(xpos - target_pos[0], 0), 0)
+
+        door_center_goal = self.generate_goal(0.05 - 0.9, math.pi / 2)
 
         #Turn to face the door
         self.move_to_target(self.generate_goal(0.05, -math.pi / 2), -math.pi / 2, True, True)
