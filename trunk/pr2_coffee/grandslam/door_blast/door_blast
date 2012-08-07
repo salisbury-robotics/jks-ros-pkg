@@ -250,13 +250,16 @@ class DoorBlast:
             angle = self.line_up(self.scan_msg)
             if (angle):
                 break
-        
+
+        goal = self.generate_goal(0, 0.2, True)
+        self.move_to_target(goal, 0)
+
         #Line up side to side
         self.set_laser_and_wait(-0.3)
         hits = 0
         while True:
             self.wait_for_scan()
-            if (self.horizontal_align(self.scan_msg, min_depth)):
+            if (self.horizontal_align(self.scan_msg, min_depth, 0.0)):
                 hits = hits + 1
                 if (hits > 10):
                     break
@@ -270,7 +273,7 @@ class DoorBlast:
         self.arm_move(xpos - 0.1, -0.7, zpos, 4.0)
 
         #Move up to the door
-        goal = self.generate_goal(min_depth - 0.4, 0.9, True)
+        goal = self.generate_goal(min_depth - 0.4, 0.8, True)
         self.move_to_target(goal, 0)
 
         door_center_goal = self.generate_goal(0.05 - 0.9, math.pi / 2)
@@ -338,7 +341,7 @@ class DoorBlast:
         #Turn to face the door
         self.move_to_target(self.generate_goal(0.05, -math.pi / 2), -math.pi / 2, True, True)
         self.move_to_target(self.generate_goal(0.05, 0.0), -math.pi / 4, True, True)
-        self.move_to_target(self.generate_goal(0.05, math.pi / 4), -math.pi / 8, True, True, time_limit=5.00)
+        self.move_to_target(self.generate_goal(0.05, math.pi / 4), -math.pi / 7, True, True, time_limit=5.00)
         
         for step in range(0, 20):
             cmd = Twist()
@@ -561,7 +564,7 @@ class DoorBlast:
         #Find the distance to the wall
         min_door = False
         for pt in xy:
-            if (pt[1] < 0.75 and pt[1] > -0.75 and pt[0] > 0.01):
+            if (pt[1] < 0.5 and pt[1] > -0.5 and pt[0] > 0.01):
                 if (min_door == False or min_door > pt[0]):
                     min_door = pt[0]
                 
@@ -597,7 +600,7 @@ class DoorBlast:
         #print goal
         return goal.pose.position.x
 
-    def horizontal_align(self, msg, min_door):
+    def horizontal_align(self, msg, min_door, offset = -0.1):
         xy = self.scan_to_points(msg)
         
         y_pos = []
@@ -621,7 +624,7 @@ class DoorBlast:
             last_pos = i
 
         gaps = sorted(gaps, key=lambda gap: gap[0], reverse=True)
-        best = (gaps[0][2] + gaps[0][3]) / 2 - 0.1
+        best = (gaps[0][2] + gaps[0][3]) / 2 + offset
         
         marker = Marker()
         marker.header.frame_id = msg.header.frame_id
