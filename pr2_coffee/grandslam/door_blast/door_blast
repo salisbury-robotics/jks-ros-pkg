@@ -358,16 +358,16 @@ class DoorBlast:
         self.cmd_vel_publisher.publish(Twist())
         
         self.set_gripper(0.086)
-        self.move_to_target(door_center_goal, -math.pi * 6 / 5, True, True)
-        self.move_to_target(door_center_goal, -math.pi, True, True)
+        self.move_to_target(door_center_goal, -math.pi * 6 / 5, True, True, time_limit=4.0)
 
         #Tuck
         self.tuck_arms()
 
         self.set_gripper(0.0)
 
-        self.move_to_target(self.generate_goal(1.5, math.pi), 0, True, True)
-        self.move_to_target(self.generate_goal(0, 0), math.pi, True, True)
+        self.move_to_target(door_center_goal, math.pi / 2, True, True)
+        self.move_to_target(self.generate_goal(1.5, -math.pi / 2), 0, True, True)
+        self.move_to_target(self.generate_goal(0, 0), math.pi / 2, True, True)
 
         print "done"
         
