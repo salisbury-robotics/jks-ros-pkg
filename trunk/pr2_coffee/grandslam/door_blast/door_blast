@@ -367,7 +367,7 @@ class DoorBlast:
 
         self.move_to_target(door_center_goal, math.pi / 2, True, True)
         self.move_to_target(self.generate_goal(1.5, -math.pi / 2), 0, True, True)
-        self.move_to_target(self.generate_goal(0, 0), math.pi / 2, True, True)
+        self.move_to_target(self.generate_goal(0, 0), -math.pi / 2, True, True)
 
         print "done"
         
