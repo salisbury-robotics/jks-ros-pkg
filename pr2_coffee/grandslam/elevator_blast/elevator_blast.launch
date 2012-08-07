@@ -1,17 +1,17 @@
 <launch>
-  <node pkg="elevator_blast" type="elevator_blast" name="elevator_blast" output="screen" />
+  <node pkg="elevator_blast" type="elevator_blast" name="elevator_blast" />
 
-  <node pkg ="pr2_arm_kinematics" type="pr2_arm_kinematics_node" name="pr2_left_arm_kinematics" output="screen">
+  <node pkg ="pr2_arm_kinematics" type="pr2_arm_kinematics_node" name="pr2_left_arm_kinematics">
    <param name="tip_name" value="l_wrist_roll_link" />
    <param name="root_name" value="torso_lift_link" />
   </node>
 
-  <node pkg="pr2_arm_kinematics" type="pr2_arm_kinematics_node" name="pr2_right_arm_kinematics" output="screen">    
+  <node pkg="pr2_arm_kinematics" type="pr2_arm_kinematics_node" name="pr2_right_arm_kinematics" >    
    <param name="tip_name" value="r_wrist_roll_link" />     
    <param name="root_name" value="torso_lift_link" />  
   </node>
 
-  <node pkg="pr2_tuck_arms_action" type="tuck_arms.py" name="tuck_arms_action" output="screen">
+  <node pkg="pr2_tuck_arms_action" type="tuck_arms.py" name="tuck_arms_action" >
         <param name="controller_name" type="string" value="arm_controller"/>
   </node>
 </launch>
