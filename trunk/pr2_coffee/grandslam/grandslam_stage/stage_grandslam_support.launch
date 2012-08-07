@@ -4,7 +4,7 @@
   <param name="/amcl/initial_pose_y" value="10.993" />
   <param name="/amcl/initial_pose_a" value="1.546" />
   
-  <node name="stage" type="stageros" pkg="stage" output="log"
+  <node name="stage" type="stageros" pkg="stage"
   	  args="$(find stage)/world/willow-erratic.world">
   </node>
   
