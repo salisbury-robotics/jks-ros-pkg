@@ -1,0 +1,12 @@
+<package>
+  <description brief="blast_interface">
+    HTML5 interface for blast
+  </description>
+  <author>Tony Pratkanis</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/grandslam</url>
+  <depend package="rospy"/>
+</package>
+
+
