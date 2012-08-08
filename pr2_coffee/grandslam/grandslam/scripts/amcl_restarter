@@ -24,6 +24,7 @@ def poseCb(msg):
     
 
 def mapCb(msg):
+    msg = False #Not used, clear to reduce possible bugs
     global proc
     global shutdown
     global cached_pose
@@ -55,15 +56,22 @@ else:
     pose_out = rospy.Publisher("amclinitialpose", PoseWithCovarianceStamped)
     sub = rospy.Subscriber("initialpose", PoseWithCovarianceStamped, poseCb)
     listener = tf.TransformListener(True, rospy.Duration(100))
+    bad_counter = 0
     while not rospy.is_shutdown():
         try:
             (trans,rot) = listener.lookupTransform('/map', '/base_link', rospy.Time())
+            bad_counter = 0
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
+            bad_counter = bad_counter + 1
             rospy.logwarn("Failed to get robot transform. Resetting pose")
             pose = cached_pose
             if (pose):
                 rospy.logwarn("Had to re-publish pose")
                 pose_out.publish(pose)
+            if (bad_counter > 4):
+                rospy.logwarn("AMCL seems to have died - restarting")
+                mapCb(False)
+                    
             rospy.sleep(3.0)
     if (not shutdown):
         shutdown = True
