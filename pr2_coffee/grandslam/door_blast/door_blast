@@ -229,6 +229,37 @@ class DoorBlast:
             min_depth = self.get_vertical_depth(self.scan_msg)
             print min_depth
             msg = Twist()
+            if (min_depth < 0.3):
+                msg.linear.x = -0.2
+                hits = 0
+            elif (min_depth > 0.4):
+                msg.linear.x = 0.2
+                hits = 0
+            else:
+                hits = hits + 1
+            print msg
+            self.cmd_vel_publisher.publish(msg)
+        self.cmd_vel_publisher.publish(Twist())
+
+        
+        #LIne up along the door
+        for i in range(0, 20):
+            move = Twist()
+            move.linear.x = 0.1
+            move.linear.y = 0
+            move.angular.z = 0.0
+            self.cmd_vel_publisher.publish(move)
+            rospy.sleep(0.1)
+        self.mec_line_up(0.1, 0.0)
+        
+        #Move back
+        min_depth = 0.0
+        hits = 0
+        while not rospy.is_shutdown() and hits < 20:
+            self.wait_for_scan()
+            min_depth = self.get_vertical_depth(self.scan_msg)
+            print min_depth
+            msg = Twist()
             if (min_depth < 1.5):
                 msg.linear.x = -0.2
                 hits = 0
@@ -240,19 +271,6 @@ class DoorBlast:
             print msg
             self.cmd_vel_publisher.publish(msg)
         self.cmd_vel_publisher.publish(Twist())
-
-        #Line up straight along the wall
-        print "Depth", min_depth
-        self.get_scan_point(min_depth, 0, 0.3)
-        angle = None
-        while True:
-            self.wait_for_scan()
-            angle = self.line_up(self.scan_msg)
-            if (angle):
-                break
-
-        goal = self.generate_goal(0, 0.2, True)
-        self.move_to_target(goal, 0)
 
         #Line up side to side
         self.set_laser_and_wait(0.3)
