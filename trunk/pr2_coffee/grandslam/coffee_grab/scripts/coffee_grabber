@@ -16,6 +16,7 @@ from grandslam.msg import *
 from pr2_common_action_msgs.msg import *
 from geometry_msgs.msg import *
 from pr2_controllers_msgs.msg import *
+from trajectory_msgs.msg import *
 
 class CoffeeGrab(object):
     def __init__(self):
@@ -38,6 +39,7 @@ class CoffeeGrab(object):
             '/head_traj_controller/point_head_action', PointHeadAction)
         self.head_client.wait_for_server()
         rospy.loginfo("Wait for torso")
+        self.arm = rospy.Publisher("l_arm_controller/command", JointTrajectory)
         self.torso = actionlib.SimpleActionClient("/torso_controller/position_joint_action", SingleJointPositionAction)
         self.torso.wait_for_server()
         rospy.loginfo("Done starting")
@@ -128,8 +130,7 @@ class CoffeeGrab(object):
         if (wait):
             rospy.sleep(1.0)
 
-        
-    def temstart(self):
+    def start(self):
         #Start out with the money bag
         self.tuck_arms(False, True)
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "empty bag")
@@ -139,18 +140,18 @@ class CoffeeGrab(object):
         print "GRANDSLAM: ken's office"
         self.grandslam(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
+        print "Grab bag"
         self.tuck_arms(False, True)
         self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "empty bag")
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
         self.tuck_arms(True, True)
-
-    def start(self):
         
         #Go to target - grandslam
         print "GRANDSLAM: coffee shop"
-        #self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
+        self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
         
         #Raise the torso
+        print "Rise torso"
         self.set_torso(0.3, True)
 
         #In the coffee shop - drive a course to wait in line
@@ -162,29 +163,48 @@ class CoffeeGrab(object):
         self.move_to_target(57.476, 16.429, 1.731, True)
         self.move_to_target(59.489, 19.104, 0.906, True)
         self.move_to_target(59.489, 19.104, -0.687, False)
+        
+        #Raise the torso
+        print "Do course"
+        self.set_torso(0.3, True)
 
-        #Give item to checker
-        #self.tuck_arms(False, True)
-        #self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
-        #self.tuck_arms(False, True)
-
-        #Move to target
-        print "Move to target"
-        #self.move_to_target(59.730, 19.019, -0.687, False)
-
-        #Untuck
+        #Get arm
+        print "Get arm control"
         self.tuck_arms(False, True)
+        self.extend_arm([0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0])
+
+        #Drive up to the booth
+        print "Drive up to the booth"
+        for i in range(0, 30):
+            t = Twist()
+            t.linear.x = 0.1
+            self.cmd_vel_publisher.publish(t)
+            rospy.sleep(0.1)
+        self.cmd_vel_publisher.publish(Twist())
+
+        #Grab the cup
+        print "Grab the coffee"
         self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "cup")
         self.passobject(PassObjectGoal.STASH_OBJECT, PassObjectGoal.HIGH, "cup")
+
+        #Scary, but there are no other alternatives
+        print "Back up"
+        for i in range(0, 15):
+            t = Twist()
+            t.linear.x = -0.3
+            self.cmd_vel_publisher.publish(t)
+            rospy.sleep(0.1)
+        self.cmd_vel_publisher.publish(Twist())
+
         self.tuck_arms(True, True)
 
-    def blocmk():
         #Return to ken's office
         print "GRANDSLAM: ken's office"
         self.grandslam(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
         #Untuck
+        print "Done"
         self.tuck_arms(False, True)
         self.passobject(PassObjectGoal.UNSTASH_OBJECT, PassObjectGoal.HIGH, "cup")
         self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "cup")
@@ -192,6 +212,19 @@ class CoffeeGrab(object):
 
         print "GRANDSLAM: base"
 
+    def extend_arm(self, force):
+        goal = JointTrajectory()
+        goal.header.stamp = rospy.get_rostime()
+        goal.joint_names = ["l_shoulder_pan_joint", "l_shoulder_lift_joint",
+                            "l_upper_arm_roll_joint",
+                            "l_elbow_flex_joint", "l_forearm_roll_joint",
+                            "l_wrist_flex_joint", "l_wrist_roll_joint"]
+        goal.points = [JointTrajectoryPoint()]
+        goal.points[0].positions = force
+        goal.points[0].velocities = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        goal.points[0].time_from_start = rospy.Duration.from_sec(3.0)
+        self.arm.publish(goal)
+        rospy.sleep(3.0)
 
     def move_to_target(self, g_x, g_y, g_a, watch_scans=False):
         base_frame = "/base_footprint" #FIXME: param
@@ -357,7 +390,7 @@ if __name__ == '__main__':
     rospy.init_node('coffee_grabber')
     server = CoffeeGrab()
     server.start()
-    rospy.spin()
+    #rospy.spin()
 
 
 
