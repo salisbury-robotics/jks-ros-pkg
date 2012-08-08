@@ -252,61 +252,19 @@ class DoorBlast:
             rospy.sleep(0.1)
         self.mec_line_up(0.1, 0.0)
         
-        #Move back
-        min_depth = 0.0
-        hits = 0
-        while not rospy.is_shutdown() and hits < 20:
-            self.wait_for_scan()
-            min_depth = self.get_vertical_depth(self.scan_msg)
-            print min_depth
-            msg = Twist()
-            if (min_depth < 1.5):
-                msg.linear.x = -0.2
-                hits = 0
-            elif (min_depth > 1.6):
-                msg.linear.x = 0.2
-                hits = 0
-            else:
-                hits = hits + 1
-            print msg
-            self.cmd_vel_publisher.publish(msg)
-        self.cmd_vel_publisher.publish(Twist())
-
-        #Line up side to side
-        self.set_laser_and_wait(0.3)
-        hits = 0
-        while True:
-            self.wait_for_scan()
-            if (self.horizontal_align(self.scan_msg, min_depth, 0.0)):
-                hits = hits + 1
-                if (hits > 10):
-                    break
-            else:
-                hits = 0
+        self.move_to_target(self.generate_goal(-0.4, 0.0, True), 0)
     
         xpos = 0.2
-        ypos = -0.5
+        ypos = -0.6
         zpos = 1.1 + 0.2
         
         self.arm_move(xpos - 0.1, -0.7, zpos, 4.0)
 
-        #Move up to the door
-        goal = self.generate_goal(min_depth - 0.4, 0.8, True)
-        self.move_to_target(goal, 0)
-
         self.set_gripper(0.0)
-        rospy.sleep(1.0)
 
-        move = Twist()
-        move.linear.x = 0.2
-        move.linear.y = 0.0
-        for i in range(0, 20):
-            self.cmd_vel_publisher.publish(move)
-            rospy.sleep(0.1)
+        self.move_to_target(self.generate_goal(0.2, 0.8, True), 0)
 
-        self.mec_line_up(0.1, 0.0)
 
-        self.move_to_target(self.generate_goal(-0.2, 0), 0, True, True)
 
         self.arm_move(xpos, ypos, zpos, 2.0)
         while (xpos < 0.5 and not rospy.is_shutdown()):
@@ -318,7 +276,7 @@ class DoorBlast:
 
         ypos = -0.5
         self.arm_move(xpos, ypos, zpos, 1.0)
-        while (ypos < 0.0 and not rospy.is_shutdown()):
+        while (ypos < 0.4 and not rospy.is_shutdown()):
             self.arm_move(xpos, ypos, zpos, 0.3)
             if (self.hand_dist((xpos, ypos, zpos)) > 0.01):
                 break
@@ -349,7 +307,6 @@ class DoorBlast:
         self.arm_move(xpos, -0.46, zpos, 5.0, False) 
         goal = self.generate_goal(0.46 + target_pos[1], math.pi / 2)
         self.move_to_target(goal, 0.0)
-        rospy.sleep(5.0)
 
         #Cancel out forward and backwards offset
         self.move_to_target(self.generate_goal(xpos - target_pos[0], 0), 0)
