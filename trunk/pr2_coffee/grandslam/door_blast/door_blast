@@ -161,7 +161,7 @@ class DoorBlast:
             
         #Line up straight along the wall
         print "Depth", min_depth
-        self.get_scan_point(min_depth, 0, 0.3)
+        self.get_scan_point(min_depth, 0, 0.25)
         angle = None
         while True:
             self.wait_for_scan()
