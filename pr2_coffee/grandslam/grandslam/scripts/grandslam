@@ -368,6 +368,12 @@ class GrandslamNavigator():
                     dist = calc_distance(robot_pos, ll["position"])
                     graph[str(l) + "_" + w["name"]]["start"] = dist
                     graph["start"][str(l) + "_" + w["name"]] = dist
+
+        if (goal.goal_map == self.manager.current_map):
+            dist = calc_distance([goal.target_pose.pose.position.x,
+                                  goal.target_pose.pose.position.y], robot_pos)
+            graph["start"]["end"] = dist
+            graph["end"]["start"] = dist
         
         print graph
         path = self.shortest_path(graph, "start", "end")[1:] #skip "start"
