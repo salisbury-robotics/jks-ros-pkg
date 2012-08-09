@@ -335,6 +335,8 @@ class DoorBlast:
         rospy.sleep(0.1)
         self.cmd_vel_publisher.publish(Twist())
         
+        self.arm_move(xpos, 0, zpos, 3.0, False)
+
         self.set_gripper(0.086)
         self.move_to_target(door_center_goal, -math.pi * 6 / 5, True, True, time_limit=4.0)
 
