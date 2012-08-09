@@ -71,7 +71,8 @@ else:
             if (bad_counter > 4):
                 rospy.logwarn("AMCL seems to have died - restarting")
                 mapCb(False)
-                    
+                bad_counter = 0
+            
             rospy.sleep(3.0)
     if (not shutdown):
         shutdown = True
