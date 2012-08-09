@@ -242,7 +242,7 @@ class DoorBlast:
         self.cmd_vel_publisher.publish(Twist())
 
         
-        #LIne up along the door
+        #Line up along the door
         for i in range(0, 20):
             move = Twist()
             move.linear.x = 0.1
@@ -252,7 +252,7 @@ class DoorBlast:
             rospy.sleep(0.1)
         self.mec_line_up(0.1, 0.0)
         
-        self.move_to_target(self.generate_goal(-0.4, 0.0, True), 0)
+        self.move_to_target(self.generate_goal(-0.4, 0.6, True), 0)
     
         xpos = 0.2
         ypos = -0.6
@@ -262,7 +262,7 @@ class DoorBlast:
 
         self.set_gripper(0.0)
 
-        self.move_to_target(self.generate_goal(0.2, 0.6, True), 0)
+        self.move_to_target(self.generate_goal(0.2, 0.0, True), 0)
 
 
 
@@ -289,14 +289,17 @@ class DoorBlast:
 
         target_pos = self.get_end_effector_pos()
         self.arm_move(xpos - 0.1, target_pos[1] - 0.20, zpos, 3.0)
-        self.arm_move(xpos - 0.1, target_pos[1] + 0.03, zpos, 3.0)
+        self.arm_move(xpos - 0.1, -0.46, zpos, 3.0)
+
+        goal = self.generate_goal(0.46 + 0.05 + target_pos[1], math.pi / 2)
+        self.move_to_target(goal, 0.0)
 
         self.set_gripper(0.086)
 
         rospy.sleep(1.0)
 
         print target_pos
-        self.arm_move(xpos + 0.1, target_pos[1] + 0.03, zpos)
+        self.arm_move(xpos + 0.1, -0.46, zpos)
 
         rospy.sleep(1.0)
         
