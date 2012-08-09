@@ -262,7 +262,7 @@ class DoorBlast:
 
         self.set_gripper(0.0)
 
-        self.move_to_target(self.generate_goal(0.2, 0.8, True), 0)
+        self.move_to_target(self.generate_goal(0.2, 0.6, True), 0)
 
 
 
@@ -274,7 +274,7 @@ class DoorBlast:
             xpos = xpos + 0.01
         xpos = xpos - 0.04
 
-        ypos = -0.5
+        ypos = -0.7
         self.arm_move(xpos, ypos, zpos, 1.0)
         while (ypos < 0.4 and not rospy.is_shutdown()):
             self.arm_move(xpos, ypos, zpos, 0.3)
@@ -282,7 +282,7 @@ class DoorBlast:
                 break
             ypos = ypos + 0.01
         
-        if (ypos >= 0):
+        if (ypos >= 0.4):
             self.tuck_arms()
             #self.move_to_target(self.generate_goal(-0.9, math.pi / 2))
             self.drag(msg)
