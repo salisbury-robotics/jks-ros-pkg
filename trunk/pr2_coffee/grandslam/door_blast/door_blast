@@ -229,10 +229,7 @@ class DoorBlast:
             min_depth = self.get_vertical_depth(self.scan_msg)
             print min_depth
             msg = Twist()
-            if (min_depth < 0.3):
-                msg.linear.x = -0.2
-                hits = 0
-            elif (min_depth > 0.4):
+            if (min_depth > 0.4):
                 msg.linear.x = 0.2
                 hits = 0
             else:
