@@ -18,6 +18,7 @@ from move_base_msgs.msg import *
 from actionlib_msgs.msg import GoalStatus
 import math
 import tf
+import random
 
 def calc_distance(l1, l2):
     dx = l1[0] - l2[0]
@@ -477,7 +478,6 @@ class GrandslamNavigator():
                 offset[1] = offset[1] - pos[1]
 
                 rospy.loginfo("Wait for movebase")
-                rospy.sleep(5)
                 self.move_base.wait_for_server()
                 rospy.loginfo("Done")
 
@@ -504,12 +504,12 @@ class GrandslamNavigator():
                 offset[0] = offset[0] - pos[0]
                 offset[1] = offset[1] - pos[1]
             else:
-                print "Skipped move base because the goal location is the current location"
+                rospy.loginfo("Skipped move base because the goal location is the current location")
 
             if (wormhole_type != "normal" and wormhole_goal != None):
-                print "Transition: ", wormhole_type
+                rospy.loginfo("Transition: " + str(wormhole_type))
                 cli = self.manager.transition_action_clients[wormhole_type]
-                print wormhole_goal
+                #print wormhole_goal
                 cli.send_goal(wormhole_goal)
                 cli.wait_for_result()
             
@@ -541,23 +541,43 @@ class GrandslamNavigator():
                            self.move_base.get_state() == GoalStatus.ACTIVE) and \
                            not rospy.is_shutdown():
                     rospy.sleep(0.1)
-                    print self.move_base.get_state()
                     if calc_distance((msg.target_pose.pose.position.x,
                                       msg.target_pose.pose.position.y),
                                      self.manager.get_robot_position()) < radius:
                         bad = False
                         break
                 self.move_base.cancel_goal()
-            else:
-                self.move_base.wait_for_result()
+            self.move_base.wait_for_result()
             if (self.move_base.get_state() == GoalStatus.SUCCEEDED or bad == False):
                 bad = False
             else:
                 rospy.sleep(1.0)
             if bad:
                 bad_count = bad_count + 1
-                if (bad_count > 3):
-                    rospy.logerr("Movebase is going strange")
+                if (bad_count > 4):
+                    bad_count = 0
+                    rospy.logerr("Movebase is not responding. Try rotating to random positions")
+                    bad = True
+                    while not rospy.is_shutdown() and bad:
+                        pos = self.manager.get_robot_position()
+                        angle = random.uniform(-math.pi, math.pi)
+
+                        spin = MoveBaseGoal()
+                        spin.target_pose.header.stamp = rospy.get_rostime()
+                        spin.target_pose.header.frame_id = "map"
+                        spin.target_pose.pose.position.x = pos[0]
+                        spin.target_pose.pose.position.y = pos[1]
+                        spin.target_pose.pose.position.z = 0
+                        quat = tf.transformations.quaternion_from_euler(0, 0, angle)
+                        spin.target_pose.pose.orientation.x = quat[0]
+                        spin.target_pose.pose.orientation.y = quat[1]
+                        spin.target_pose.pose.orientation.z = quat[2]
+                        spin.target_pose.pose.orientation.w = quat[3]
+                        self.move_base.send_goal(spin)
+                        self.move_base.wait_for_result()
+                        if (self.move_base.get_state() == GoalStatus.SUCCEEDED):
+                            bad = False
+                    
 
     def shortest_path(self, graph, start, end):
         distances = {}
