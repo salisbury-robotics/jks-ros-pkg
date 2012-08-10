@@ -4,6 +4,8 @@
   <param name="/amcl/initial_pose_y" value="10.993" />
   <param name="/amcl/initial_pose_a" value="1.546" />
   
+  <include file="$(find grandslam_stage)/move_base.xml"/>
+
   <node name="stage" type="stageros" pkg="stage"
   	  args="$(find stage)/world/willow-erratic.world">
   </node>
