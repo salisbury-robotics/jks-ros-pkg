@@ -6,7 +6,7 @@
   <node pkg="amcl" type="amcl" name="amcl" respawn="true">
     <remap from="scan" to="base_scan"/>
     <remap from="initialpose" to="amclinitialpose"/>
-    <param name="use_map_topic" value="true"/>
+    <param name="use_map_topic" value="false"/>
     <!-- Publish scans from best pose at a max of 10 Hz -->
     <param name="odom_model_type" value="omni"/>
     <param name="odom_alpha5" value="0.1"/>
