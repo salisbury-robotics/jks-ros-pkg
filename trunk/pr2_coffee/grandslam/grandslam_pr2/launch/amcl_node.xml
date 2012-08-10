@@ -3,7 +3,7 @@
   <node pkg="amcl" type="amcl" name="amcl" machine="c2">
     <remap from="scan" to="base_scan" />
     
-    <param name="use_map_topic" value="true"/>
+    <param name="use_map_topic" value="false"/>
     
     <!-- Publish scans from best pose at a max of 10 Hz -->
     <param name="base_frame_id" value="base_footprint"/>
