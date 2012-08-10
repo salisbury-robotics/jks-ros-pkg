@@ -65,6 +65,7 @@ class GrandslamDataManager(object):
         self.map_publisher = rospy.Publisher("map", OccupancyGrid, latch=True)
         self.select_map(self.start_map)
         self.dynamic_map_service = rospy.Service('dynamic_map', GetMap, self.dynamic_map)
+        self.static_map_service = rospy.Service('static_map', GetMap, self.dynamic_map)
         self.seconday_map_service = rospy.Service('secondary_map', GetMap, self.secondary_map)
 
         rospy.loginfo("Waiting for position")
@@ -80,7 +81,7 @@ class GrandslamDataManager(object):
     def get_robot_position(self):
         while not rospy.is_shutdown():
             try:
-                self.listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(10))
+                self.listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(100))
                 (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.Time())
                 return [trans[0], trans[1]]
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
@@ -91,7 +92,7 @@ class GrandslamDataManager(object):
     def get_robot_rotation(self):
         while not rospy.is_shutdown():
             try:
-                self.listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(10))
+                self.listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(100))
                 (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.Time())
                 return rot
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as ex:
@@ -554,7 +555,7 @@ class GrandslamNavigator():
                 rospy.sleep(1.0)
             if bad:
                 bad_count = bad_count + 1
-                if (bad_count > 4):
+                if (bad_count > 1):
                     bad_count = 0
                     rospy.logerr("Movebase is not responding. Try rotating to random positions")
                     bad = True
@@ -577,7 +578,7 @@ class GrandslamNavigator():
                         self.move_base.wait_for_result()
                         if (self.move_base.get_state() == GoalStatus.SUCCEEDED):
                             bad = False
-                    
+                    bad = True #Make sure we are still bad for actual motion
 
     def shortest_path(self, graph, start, end):
         distances = {}
