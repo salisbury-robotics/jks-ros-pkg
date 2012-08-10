@@ -13,6 +13,9 @@
   <include file="$(find grandslam)/launch/map_store.launch"/>
 
   <node name="door_blast" pkg="grandslam" type="vacuous_transition" args="door_blast" />
+  <node name="door_drag" pkg="grandslam" type="vacuous_transition" args="door_drag" />
+  <node name="elevator_blast" pkg="grandslam" type="vacuous_transition" args="elevator_blast" />
+
 
   <!--<node name="map_server" pkg="map_server" type="map_server" args="$(find stage)/world/willow-full.pgm 0.1" respawn="false" />-->
 
