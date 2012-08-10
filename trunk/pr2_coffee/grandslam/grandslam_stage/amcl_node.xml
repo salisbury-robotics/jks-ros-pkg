@@ -3,7 +3,6 @@
  
      Example amcl configuration. Descriptions of parameters, as well as a full list of all amcl parameters, can be found at http://www.ros.org/wiki/amcl.
     -->
-  <include file="$(find grandslam_stage)/move_base.xml"/>
   <node pkg="amcl" type="amcl" name="amcl" respawn="true">
     <remap from="scan" to="base_scan"/>
     <remap from="initialpose" to="amclinitialpose"/>
