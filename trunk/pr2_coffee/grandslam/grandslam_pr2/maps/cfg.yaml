@@ -123,8 +123,8 @@ wormholes:
              angle: -1.990
              direction: exit
            - map: clarkcenterpeetscoffee
-             position: [56.507, 14.267]
-             angle: 2.941
+             position: [56.659, 14.061]
+             angle: 3.100
              direction: entrance
      - name: clark_elevator
        type: elevator_blast
