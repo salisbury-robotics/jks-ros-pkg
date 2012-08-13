@@ -91,7 +91,7 @@ class RobotPass(object):
         sub_data = cv.GetSubRect(bimg, sub_rect)
         
         if (current_image == False):
-            print "No current image"
+            #print "No current image"
             return (False, sub_data)
         else:
             cv.AbsDiff(sub_data, current_image, sub_data)
@@ -103,7 +103,7 @@ class RobotPass(object):
                 result = True
             else:
                 result = False
-            print result, delta
+            #print result, delta
 
             return (result, current_image)
 
@@ -126,7 +126,7 @@ class RobotPass(object):
         self.process_gripper_right = False
         
     def check_object_vision(self, hand):
-        print self.gripper_object_left, self.gripper_object_right
+        #print self.gripper_object_left, self.gripper_object_right
         if (hand == 0):
             return self.gripper_object_left
         else:
@@ -261,6 +261,7 @@ class RobotPass(object):
         self.move_arm(arm, arm_names, self.stash_low[hand], 3)
         arm.wait_for_result()
         self.gripper_release(gripper)
+        gripper.wait_for_result()
         self.move_arm(arm, arm_names, self.stash_back[hand], 2)
     
     def unstash_object(self, object_name, hand):
@@ -284,6 +285,7 @@ class RobotPass(object):
         gripper.wait_for_result()
         
         grasped = False
+        width = 0.002
         while grasped == False:
             while grasped == False:
                 self.start_wait_for_hit(sensor, hand)
@@ -295,7 +297,7 @@ class RobotPass(object):
                 rospy.sleep(2.0)
 
                 print self.get_gripper_pos(hand)
-                if (self.get_gripper_pos(hand) > 0.002):
+                if (self.get_gripper_pos(hand) > width):
                     grasped = True
                 else:
                     self.tts("I don't think I got the %s. Let's try again." % object_name)
@@ -305,7 +307,7 @@ class RobotPass(object):
                     
             self.move_arm(arm, arm_names, position[1], 1)
             arm.wait_for_result()
-            if (self.get_gripper_pos(hand) > 0.002):
+            if (self.get_gripper_pos(hand) > width):
                 grasped = True
                 self.tts("Thank you!")
             else:
