@@ -307,6 +307,18 @@ class RobotPass(object):
                     
             self.move_arm(arm, arm_names, position[1], 1)
             arm.wait_for_result()
+            last = self.get_gripper_pos(hand)
+            hc = 0
+            while not rospy.is_shutdown() and hc < 5:
+                current = self.get_gripper_pos(hand)
+                delta = last - current
+                if (delta < 0.0001):
+                    hc = hc + 1
+                else:
+                    hc = 0
+                print current, delta
+                last = current
+                rospy.sleep(0.1)
             if (self.get_gripper_pos(hand) > width):
                 grasped = True
                 self.tts("Thank you!")
