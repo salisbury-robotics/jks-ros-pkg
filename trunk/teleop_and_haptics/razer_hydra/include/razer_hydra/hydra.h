@@ -40,14 +40,14 @@
 #include <linux/hidraw.h>
 #include <usb.h>
 
-namespace hydra
+namespace razer_hydra
 {
 
-class Hydra
+class RazerHydra
 {
 public:
-  Hydra();
-  ~Hydra();
+  RazerHydra();
+  ~RazerHydra();
   //usb_dev_handle *hid_dev;
   //int hid_dev_iface;
   //int hid_dev_ep_in;
