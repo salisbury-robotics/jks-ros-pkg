@@ -1,12 +1,11 @@
 #include <string>
 #include <ros/ros.h>
-#include "hydra.h"
+#include "hydra/hydra.h"
 #include "hydra/Raw.h"
 #include "hydra/Calib.h"
 #include "tf/tf.h"
 
 // Visualization
-#include <visualization_msgs/MarkerArray.h>
 #include <tf/transform_broadcaster.h>
 
 using namespace hydra;
