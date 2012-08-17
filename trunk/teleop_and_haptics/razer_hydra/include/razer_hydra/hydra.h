@@ -26,46 +26,48 @@
 * For more information, please refer to <http://unlicense.org/>
 * 
 **********************************************************************/
-#include <cstdio>
-#include <signal.h>
-#include "razer_hydra/hydra.h"
-using namespace hydra;
 
-static bool g_done = false;
-void sigint_handler(int signal)
+#ifndef HYDRA_H
+#define HYDRA_H
+
+#include <tf/tf.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <linux/hidraw.h>
+#include <usb.h>
+
+namespace hydra
 {
-    g_done = true;
+
+class Hydra
+{
+public:
+  Hydra();
+  ~Hydra();
+  //usb_dev_handle *hid_dev;
+  //int hid_dev_iface;
+  //int hid_dev_ep_in;
+  //uint16_t raw[NUM_SENSORS];
+  int hidraw_fd;
+
+  bool init(const char *device);
+  bool poll(uint32_t ms_to_wait);
+
+  int16_t raw_pos[6], raw_quat[8];
+  uint8_t raw_buttons[2];
+  int16_t raw_analog[6];
+
+  tf::Vector3 pos[2];
+  tf::Quaternion quat[2];
+  float analog[6];
+  uint8_t buttons[14];
+};
+
 }
 
-int main(int argc, char **argv)
-{
-  if (argc != 3)
-  {
-    printf("usage: print DEVICE FILENAME\n");
-    return 1;
-  }
-  signal(SIGINT, sigint_handler);
-  Hydra h;
-  if (!h.init(argv[1]))
-    return 1;
-  FILE *f = fopen(argv[2], "w");
-  static int print_count = 0;
-  while (!g_done)
-  {
-    if (h.poll(10))
-    {
-      char buf[1000];
-      snprintf(buf, sizeof(buf),
-               "%.3f %.3f %.3f %.3f %.3f %.3f %.3f",
-               h.pos[1].x(), h.pos[1].y(), h.pos[1].z(),
-               h.quat[1].x(), h.quat[1].y(),
-               h.quat[1].z(), h.quat[1].w());
-      fprintf(f, "%s\n", buf);
-      if (print_count++ % 100 == 0)
-        printf("%s\n", buf);
-    }
-  }
-  fclose(f);
-  return 0;
-}
+#endif
 
