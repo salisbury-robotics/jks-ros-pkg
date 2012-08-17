@@ -78,8 +78,8 @@ bool Hydra::init(const char *device)
     memset(&info, 0x0, sizeof(info));
     memset(buf, 0x0, sizeof(buf));
 
-    /* Get Report Descriptor Size */
-
+    /*
+    // Get Report Descriptor Size
     ROS_DEBUG("Getting Report Descriptor Size");
     res = ioctl(hidraw_fd, HIDIOCGRDESCSIZE, &desc_size);
     if (res < 0)
@@ -87,7 +87,7 @@ bool Hydra::init(const char *device)
     else
         printf("Report Descriptor Size: %d\n", desc_size);
 
-    /* Get Report Descriptor */
+    // Get Report Descriptor
     ROS_DEBUG("Getting Report Descriptor");
     rpt_desc.size = desc_size;
     res = ioctl(hidraw_fd, HIDIOCGRDESC, &rpt_desc);
@@ -99,6 +99,7 @@ bool Hydra::init(const char *device)
         printf("%hhx ", rpt_desc.value[i]);
         puts("\n");
     }
+    */
 
     /* Get Raw Name */
     ROS_DEBUG("Getting Raw Name");
@@ -142,8 +143,6 @@ bool Hydra::poll(uint32_t ms_to_wait)
     return false;
   }
   ros::Time t_start(ros::Time::now());
-  //if (ms_to_wait < 4)
-  //  ms_to_wait = 4;
 
   uint8_t buf[64];
   while (ros::Time::now() < t_start + ros::Duration(0.001 * ms_to_wait))
@@ -152,16 +151,6 @@ bool Hydra::poll(uint32_t ms_to_wait)
     //ROS_INFO("read %d bytes", (int)nread);
     if (nread > 0)
     {
-      //ROS_INFO("read %d bytes", (int)nread);
-      /*
-      double x0 = *((int16_t *)(buf+8));
-      double y0 = *((int16_t *)(buf+10));
-      double z0 = *((int16_t *)(buf+12));
-      double x1 = *((int16_t *)(buf+30));
-      double y1 = *((int16_t *)(buf+32));
-      double z1 = *((int16_t *)(buf+34));
-      ROS_INFO("%.4f %.4f %.4f   %.4f %.4f %.4f", x0, y0, z0, x1, y1, z1);
-      */
       raw_pos[0] = *((int16_t *)(buf+8));
       raw_pos[1] = *((int16_t *)(buf+10));
       raw_pos[2] = *((int16_t *)(buf+12));
@@ -187,51 +176,26 @@ bool Hydra::poll(uint32_t ms_to_wait)
       raw_analog[5] = buf[49];
 
       // mangle the reported pose into the ROS frame conventions
-//      pos[0].setX(-raw_pos[1] * 0.001);
-//      pos[0].setY(-raw_pos[0] * 0.001);
-//      pos[0].setZ(-raw_pos[2] * 0.001);
-
-//      pos[1].setX(-raw_pos[4] * 0.001);
-//      pos[1].setY(-raw_pos[3] * 0.001);
-//      pos[1].setZ(-raw_pos[5] * 0.001);
-
-      tf::Matrix3x3 ros_to_razer(  0,  -1,  0,
-                                   -1, 0,  0,
-                                   0,  0, -1);
-
-      pos[0].setX(raw_pos[0] * 0.001);
-      pos[0].setY(raw_pos[1] * 0.001);
-      pos[0].setZ(raw_pos[2] * 0.001);
-
-      pos[1].setX(raw_pos[3] * 0.001);
-      pos[1].setY(raw_pos[4] * 0.001);
-      pos[1].setZ(raw_pos[5] * 0.001);
-
-      // mangle the quaternion into the ROS frame convention
-      // this is absolutely terrible. i'm sure this is a much better way.
+      tf::Matrix3x3 ros_to_razer(  0, -1,  0,
+                                  -1,  0,  0,
+                                   0,  0, -1 );
       for (int i = 0; i < 2; i++)
       {
+        pos[i].setX(raw_pos[3*i+0] * 0.001);
+        pos[i].setY(raw_pos[3*i+1] * 0.001);
+        pos[i].setZ(raw_pos[3*i+2] * 0.001);
+        pos[i] = ros_to_razer*pos[i];
+        
         tf::Quaternion q(raw_quat[i*4+1] / 32768.0,
                          raw_quat[i*4+2] / 32768.0,
                          raw_quat[i*4+3] / 32768.0,
                          raw_quat[i*4+0] / 32768.0);
+        
         tf::Matrix3x3 mat(q);
         mat = ros_to_razer*mat*tf::Matrix3x3(tf::createQuaternionFromRPY(0, 0, M_PI_2));
-        mat.getRotation(q);
-//        quat[i] = q*tf::createQuaternionFromRPY(0, M_PI, 0);
-
-        quat[i] = q;
-        pos[i] = ros_to_razer*pos[i];
+        mat.getRotation(quat[i]);
       }
 
-//      for (int i = 0; i < 2; i++)
-//      {
-//          tf::Matrix3x3 ros_to_razer(  0,  -1,  0,
-//                                       -1, 0,  0,
-//                                       0,  0, -1);
-//          quat[i] = quat[i]*ros_to_razer;
-
-//      }
 
       analog[0] = raw_analog[0] / 32768.0;
       analog[1] = raw_analog[1] / 32768.0;
@@ -261,36 +225,5 @@ bool Hydra::poll(uint32_t ms_to_wait)
   }
   //ROS_INFO("Ran out of time, returning!");
   return false;
-#if 0
-  {
-    int r = usb_interrupt_read(hid_dev, hid_dev_ep_in,
-                               (char *)buf, sizeof(buf), ms_to_wait);
-    if (r > 0)
-    {
-      ROS_INFO("read %d bytes", r);
-#if 0
-      for (uint32_t i = 0; i < NUM_SENSORS; i++)
-        raw[i] = ((uint16_t)buf[2*i] << 8) + buf[2*i+1]; // << 8); //*((uint16_t *)(buf+2*i));
-#endif
-      return true;
-    }
-    else if (r == -110)
-    {
-      //ROS_INFO("timeout");
-      // timeout
-    }
-    else
-    {
-      ROS_ERROR("USB HID read error");
-      return false;
-      //continue;
-    }
-      /*
-      return false;
-    else
-      */
-  }
-  return false;
-#endif
 }
 
