@@ -30,7 +30,7 @@
 #include <signal.h>
 #include "razer_hydra/hydra.h"
 
-using namespace hydra;
+using namespace razer_hydra;
 
 static bool g_done = false;
 void sigint_handler(int signal)
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     return 1;
   }
   signal(SIGINT, sigint_handler);
-  Hydra h;
+  RazerHydra h;
   if (!h.init(argv[1]))
     return 1;
 

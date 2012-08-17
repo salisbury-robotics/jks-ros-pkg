@@ -39,8 +39,6 @@
 #include <linux/hidraw.h>
 #include <cstring>
 
-using namespace hydra;
-
 // loosely adapted from the following 
 // https://github.com/rpavlik/vrpn/blob/razer-hydra/vrpn_Tracker_RazerHydra.C
 
@@ -61,13 +59,16 @@ using namespace hydra;
 // eventually crawl hidraw file system using this:
 // http://www.signal11.us/oss/udev/
 
-Hydra::Hydra()
+
+namespace razer_hydra {
+
+RazerHydra::RazerHydra()
 : hidraw_fd(0)
 {
   ros::Time::init();  
 }
 
-Hydra::~Hydra()
+RazerHydra::~RazerHydra()
 {
   if (hidraw_fd >= 0)
   {
@@ -89,9 +90,9 @@ Hydra::~Hydra()
   }
 }
 
-bool Hydra::init(const char *device)
+bool RazerHydra::init(const char *device)
 {
-    int res, desc_size = 0;
+    int res;
     uint8_t buf[256];
     struct hidraw_report_descriptor rpt_desc;
     struct hidraw_devinfo info;
@@ -165,7 +166,7 @@ bool Hydra::init(const char *device)
     return attempt < 60;
 }
 
-bool Hydra::poll(uint32_t ms_to_wait)
+bool RazerHydra::poll(uint32_t ms_to_wait)
 {
   if (hidraw_fd < 0)
   {
@@ -257,3 +258,4 @@ bool Hydra::poll(uint32_t ms_to_wait)
   return false;
 }
 
+} //namespace
