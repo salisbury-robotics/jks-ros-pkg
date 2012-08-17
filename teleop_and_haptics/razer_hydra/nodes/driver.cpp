@@ -30,7 +30,7 @@
 #include <ros/ros.h>
 #include "razer_hydra/hydra.h"
 #include "razer_hydra/Raw.h"
-#include "razer_hydra/Calib.h"
+#include "razer_hydra/Hydra.h"
 #include "tf/tf.h"
 
 // Visualization
