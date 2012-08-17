@@ -1,6 +1,6 @@
 #include <cstdio>
 #include <signal.h>
-#include "hydra.h"
+#include "hydra/hydra.h"
 using namespace hydra;
 
 static bool g_done = false;
