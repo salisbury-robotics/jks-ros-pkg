@@ -25,7 +25,7 @@ int PointSampler::computeNeighborIndices( const PointT &position, float radius,
                                               std::vector< std::vector <float> >  &k_sqr_distances)
 {
   int NN = 0;
-  std::list< pcl::KdTree<PointT>::Ptr >::iterator          it_tree;
+  std::list< pcl::search::KdTree<PointT>::Ptr >::iterator  it_tree;
   std::list< pcl::PointCloud<PointT>::Ptr >::iterator      it_points;
   std::list< pcl::PointCloud<pcl::Normal>::Ptr >::iterator it_normals;
   int index = 0;
@@ -72,7 +72,7 @@ bool PointSampler::sampleCloud(const vectorT &p, float &intensity, vectorT &grad
   vectorT a_x(0,0,0);
   vectorT n_x(0,0,0);
 
-  std::list< pcl::KdTree<PointT>::Ptr >::iterator          it_tree;
+  std::list< pcl::search::KdTree<PointT>::Ptr >::iterator          it_tree;
   std::list< pcl::PointCloud<PointT>::Ptr >::iterator      it_points;
   std::list< pcl::PointCloud<pcl::Normal>::Ptr >::iterator it_normals;
 
@@ -272,7 +272,7 @@ bool PointSampler::createFromCloud(const pcl::PointCloud<PointT> &cloud)
   *last_points = cloud;
 
   ROS_INFO_NAMED("haptics", "Building kdtree...");
-  last_tree.reset(new pcl::KdTreeFLANN<PointT> ());
+  last_tree.reset(new pcl::search::KdTree<PointT> ());
   last_tree->setInputCloud (last_points);
   //tree->addPointsFromInputCloud();
 
@@ -288,7 +288,7 @@ bool PointSampler::createFromCloud(const pcl::PointCloud<PointT> &cloud)
 
     // Set parameters
     ne_omp.setInputCloud (last_points);
-    ne_omp.setSearchMethod (last_tree);
+    ne_omp.setSearchMethod(last_tree);
     ne_omp.setKSearch(9);
     // Reconstruct
     ROS_INFO_NAMED("haptics", "computing...");
