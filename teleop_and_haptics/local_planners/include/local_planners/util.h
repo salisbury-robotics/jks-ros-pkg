@@ -22,6 +22,8 @@ namespace local_planners {
     return angle;
   }
 
+
+
   inline void printCollisionInfo(const planning_scene::PlanningScene& ps, const planning_models::KinematicState& ks )
   {
 
@@ -57,10 +59,11 @@ namespace local_planners {
   }
 
   inline void createKinematicStatePoint(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                 planning_models::KinematicState &start_state, planning_models::KinematicState &goal_state,
-                                 std::map<std::string, double> &name_map,
-                                 double step_size,
-                                 planning_models::KinematicStatePtr &point)
+                                        planning_models::KinematicState &start_state,
+                                        planning_models::KinematicState &goal_state,
+                                        std::map<std::string, double> &name_map,
+                                        double step_size,
+                                        planning_models::KinematicStatePtr &point)
   {
     for (std::map<std::string, double>::const_iterator it = name_map.begin() ; it != name_map.end() ; ++it)
     {
@@ -74,10 +77,11 @@ namespace local_planners {
       sv = normalizeAngle(sv);
       // Handle wrap around
       double delta = gv - sv;
+      step_size = std::min(step_size, fabs(delta));
       if( delta >= M_PI || delta <= -M_PI )
-        u = sv - step_size;
+        u = sv - copysign(step_size, delta);
       else
-        u = sv + step_size;
+        u = sv + copysign(step_size, delta);
 
       point->getJointState(it->first)->setVariableValues(&u);
     }
