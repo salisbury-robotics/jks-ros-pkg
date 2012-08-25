@@ -18,9 +18,9 @@ inline tf::Vector3 cmlVectorToTF(const cml::vector3d &v)
   return vtf;
 }
 
-inline btMatrix3x3 cmlMatrixToTF(const cml::matrix33d &rot)
+inline tf::Matrix3x3 cmlMatrixToTF(const cml::matrix33d &rot)
 {
-  return btMatrix3x3( rot.data()[0], rot.data()[1], rot.data()[2],
+  return tf::Matrix3x3( rot.data()[0], rot.data()[1], rot.data()[2],
                       rot.data()[3], rot.data()[4], rot.data()[5],
                       rot.data()[6], rot.data()[7], rot.data()[8] );
 }
@@ -38,7 +38,7 @@ inline cml::vector3d vectorMsgToCML(const geometry_msgs::Point &p)
   return cml::vector3d(p.x, p.y, p.z);
 }
 
-inline btQuaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
+inline tf::Quaternion cmlMatrixToTFQuaternion(const cml::matrix33d &m)
 {
   tf::Quaternion q;
   cmlMatrixToTF(m).getRotation(q);
@@ -59,7 +59,7 @@ inline geometry_msgs::PoseStamped getPoseStamped(const cml::vector3d &pos, const
 
 } // namespace cml_tools
 
-inline void setBTMatrixColumns(btMatrix3x3 &mat, const tf::Vector3 &X, const tf::Vector3 &Y, const tf::Vector3 &Z )
+inline void setTFMatrixColumns(tf::Matrix3x3 &mat, const tf::Vector3 &X, const tf::Vector3 &Y, const tf::Vector3 &Z )
 {
   mat.setValue(X.x(), Y.x(), Z.x(),
                X.y(), Y.y(), Z.y(),

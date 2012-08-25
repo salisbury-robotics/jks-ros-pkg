@@ -157,8 +157,8 @@ void GhostedGripperActionServer::setSeed(const geometry_msgs::PoseStampedConstPt
     tf::Pose pose;
     tf::poseMsgToTF(ps.pose, pose);
     tf::Quaternion q = pose.getRotation();
-    btMatrix3x3 rot(q);
-    btMatrix3x3 perm(  0, 0, 1,
+    tf::Matrix3x3 rot(q);
+    tf::Matrix3x3 perm(  0, 0, 1,
                        0, 1, 0,
                       -1, 0, 0);
     (rot*perm).getRotation(q);
@@ -206,8 +206,8 @@ void GhostedGripperActionServer::setSelectedPose(const geometry_msgs::PoseStampe
   tf::Pose pose;
   tf::poseMsgToTF(ps.pose, pose);
   tf::Quaternion q = pose.getRotation();
-  btMatrix3x3 rot(q);
-  btMatrix3x3 perm( -1, 0, 0,
+  tf::Matrix3x3 rot(q);
+  tf::Matrix3x3 perm( -1, 0, 0,
                      0,-1, 0,
                      0, 0, 1);
   (rot*perm).getRotation(q);
@@ -239,8 +239,8 @@ void GhostedGripperActionServer::setProxyPose(const geometry_msgs::PoseStampedCo
     tf::Pose pose;
     tf::poseMsgToTF(ps.pose, pose);
     tf::Quaternion q = pose.getRotation();
-    btMatrix3x3 rot(q);
-    btMatrix3x3 perm( -1, 0, 0,
+    tf::Matrix3x3 rot(q);
+    tf::Matrix3x3 perm( -1, 0, 0,
                        0,-1, 0,
                        0, 0, 1);
     (rot*perm).getRotation(q);
