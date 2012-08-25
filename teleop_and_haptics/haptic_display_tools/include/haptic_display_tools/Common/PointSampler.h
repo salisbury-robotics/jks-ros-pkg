@@ -6,7 +6,9 @@
 #include "pcl/point_types.h"
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
-#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/search/kdtree.h>
+//#include <pcl/kdtree/kdtree_flann.h>
+//#include <pcl/kdtree/kdtree.h>
 #include <boost/thread/recursive_mutex.hpp>
 
 #include <list>
@@ -46,7 +48,7 @@ protected:
   //std::list< pcl::octree::OctreePointCloud<PointT>::Ptr > trees;
 
   //! A list of search objects.
-  std::list< pcl::KdTree<PointT>::Ptr >           trees;
+  std::list< pcl::search::KdTree<PointT>::Ptr >           trees;
 
   //! A list of clouds containing points.
   std::list< pcl::PointCloud<PointT>::Ptr >       m_cloud_points;
@@ -55,7 +57,7 @@ protected:
   std::list< pcl::PointCloud<pcl::Normal>::Ptr >  m_cloud_normals;
 
   //! A search object waiting to be added to the internal list.
-  pcl::KdTree<PointT>::Ptr            last_tree;
+  pcl::search::KdTree<PointT>::Ptr            last_tree;
 
   //! A cloud of points waiting to be added to the internal list.
   pcl::PointCloud<PointT>::Ptr        last_points;

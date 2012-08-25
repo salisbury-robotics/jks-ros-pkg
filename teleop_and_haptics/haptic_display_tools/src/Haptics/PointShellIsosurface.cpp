@@ -1,7 +1,10 @@
 #include "PointShellIsosurface.h"
 #include "WilhelmsenProjection.h"
 #include <cml/cml.h>
+
+#include <ros/ros.h>
 #include <iostream>
+
 
 using namespace cml;
 
@@ -28,7 +31,9 @@ class IsosurfaceOracle : public CollisionOracle
 public:
     IsosurfaceOracle(PointShellIsosurface *psi, const vector3d &t, const matrix33d &r)
         : m_isosurface(psi), m_rotation(r), m_translation(t)
-    { }
+    {
+      ros::Time::init();
+    }
 
     virtual bool inside(const cml::vector3d &p) const
     {
@@ -104,6 +109,8 @@ void PointShellIsosurface::processCut(HapticDisplay *display, const vector3d &p,
 
 void PointShellIsosurface::update(HapticDisplay *display)
 {
+    ros::Time start_update = ros::Time::now();
+
     // bail out if we run out of states
     if (display->identifier() >= k_maxStates) return;
 
@@ -181,7 +188,11 @@ void PointShellIsosurface::update(HapticDisplay *display)
     // between the proxy and device against the constraints (in the proxy frame)
     vector3d ac = a, alphac = alpha;
     if (!m_contactNormals.empty())
-        constrainedAcceleration(a, alpha, ac, alphac);
+    {
+      ros::Time start_constrain = ros::Time::now();
+      constrainedAcceleration(a, alpha, ac, alphac);
+      ROS_INFO("Constraint solver took: %ld us", (ros::Time::now() - start_constrain).toNSec()/1000 );
+    }
 
     // limit the constrained acceleration to a maximum displacement for a
     // single time step
@@ -216,6 +227,8 @@ void PointShellIsosurface::update(HapticDisplay *display)
     // mill away part of the mask if the first buttong on the device is down
     if (display->buttonState(0))
         processCut(display, display->proxyPosition(), display->toolPosition());
+
+    ROS_INFO("Entire update took: %ld us", (ros::Time::now() - start_update).toNSec()/1000 );
 }
 
 // --------------------------------------------------------------------------
