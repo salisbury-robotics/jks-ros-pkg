@@ -43,6 +43,11 @@ include/local_planners/linear_joint_stepper.h
 src/convex_constraint_solver.cpp
 include/local_planners/convex_constraint_solver.h
 
+src/cvxgen/solver.c
+src/cvxgen/matrix_support.c
+src/cvxgen/ldl.c
+src/cvxgen/util.c
+
 include/local_planners/util.h
 
   )
