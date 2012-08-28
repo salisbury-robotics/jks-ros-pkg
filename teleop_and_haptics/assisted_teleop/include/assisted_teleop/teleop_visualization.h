@@ -101,6 +101,9 @@ public:
   void addStateChangedCallback(const boost::function<void(const std::string&,
                                                           const planning_models::KinematicState&)>& callback);
 
+  void setAllStartInteractionModes(bool interaction_enabled);
+  void setAllStartVisibility(bool visible);
+
   /* ael
   void setTeleopExecutionFunction(const TeleopExecutionFunction function)
   {

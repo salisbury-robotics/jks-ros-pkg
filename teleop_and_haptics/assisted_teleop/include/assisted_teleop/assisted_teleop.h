@@ -34,16 +34,22 @@
 #include <moveit_visualization_ros/interactive_object_visualization_qt_wrapper.h>
 #include <moveit_visualization_ros/interactive_object_visualization_widget.h>
 #include <moveit_visualization_ros/planning_group_selection_menu.h>
+#include <moveit_visualization_ros/planner_selection_menu.h>
 #include <moveit_visualization_ros/planning_scene_file_menu.h>
 #include <assisted_teleop/teleop_visualization_qt_wrapper.h>
 #include <moveit_visualization_ros/attach_object_addition_dialog.h>
 #include <planning_scene_monitor_tools/kinematic_state_joint_state_publisher.h>
-#include <trajectory_execution_ros/trajectory_execution_monitor_ros.h>
+#include <trajectory_execution_manager/trajectory_execution_manager.h>
 
-#include <OGRE/OgreLogManager.h>
-#include <rviz/visualization_panel.h>
-#include <rviz/visualization_manager.h>
 #include <QMenu>
+
+// Forward declarations
+namespace rviz
+{
+    class GridDisplay;
+    class RenderPanel;
+    class VisualizationManager;
+}
 
 namespace assisted_teleop {
 
@@ -55,11 +61,14 @@ public:
 
   ~AssistedTeleop();
 
+  /// Helper function for loading the rviz components for the groovy version of Rviz -DTC
+  QWidget* loadRviz();
+
   virtual void updatePlanningScene(planning_scene::PlanningSceneConstPtr planning_scene);
 
   void updateToCurrentState();
 
-  bool doneWithExecution(const trajectory_execution::TrajectoryExecutionDataVector& tedv);
+  bool doneWithExecution(const moveit_controller_manager::ExecutionStatus& ex_status);
 
   void executeLastTrajectory();
 
@@ -82,12 +91,18 @@ protected:
   ros::Publisher vis_marker_array_publisher_;
   ros::Publisher vis_marker_publisher_;
 
-  rviz::VisualizationPanel* rviz_frame_;
+  // - - - -  Rviz Panel - - - -
+  QWidget* rviz_frame_;
+  rviz::RenderPanel* rviz_render_panel_;
+  rviz::VisualizationManager* rviz_manager_;
+
   QWidget* main_window_;
   moveit_visualization_ros::PlanningGroupSelectionMenu* planning_group_selection_menu_;
+  moveit_visualization_ros::PlannerSelectionMenu* planner_selection_menu_;
   QMenu* coll_object_menu_;
   moveit_visualization_ros::AttachObjectAdditionDialog* attach_object_addition_dialog_;
   boost::shared_ptr<tf::TransformListener> transformer_;
+  // - - - - - - - - - - - - - -
 
   bool allow_trajectory_execution_;
 
@@ -96,10 +111,12 @@ protected:
   boost::shared_ptr<interactive_markers::InteractiveMarkerServer> interactive_marker_server_;
   boost::shared_ptr<KinematicStateJointStatePublisher> joint_state_publisher_;
   boost::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> planning_scene_monitor_;
-  boost::shared_ptr<moveit_visualization_ros::TeleopVisualizationQtWrapper> tv_;
   boost::shared_ptr<moveit_visualization_ros::InteractiveObjectVisualizationQtWrapper> iov_;
-  boost::shared_ptr<trajectory_execution::TrajectoryExecutionMonitor> trajectory_execution_monitor_;
+  boost::shared_ptr<trajectory_execution_manager::TrajectoryExecutionManager> trajectory_execution_manager_;
   boost::shared_ptr<planning_models_loader::KinematicModelLoader> kinematic_model_loader_;
+
+  boost::shared_ptr<moveit_visualization_ros::TeleopVisualizationQtWrapper> tv_;
+
 
   bool execution_succeeded_;
   boost::shared_ptr<boost::thread> cycle_thread_;

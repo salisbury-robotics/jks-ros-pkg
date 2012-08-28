@@ -37,10 +37,14 @@
 #include <moveit_visualization_ros/primitive_object_addition_dialog.h>
 #include <moveit_visualization_ros/mesh_object_addition_dialog.h>
 
+// Rviz
+#include <rviz/render_panel.h>
+#include <rviz/visualization_manager.h>
+#include <rviz/view_manager.h>
+#include <rviz/tool_manager.h>
+#include <rviz/default_plugin/view_controllers/orbit_view_controller.h>
 #include <rviz/default_plugin/marker_display.h>
 #include <rviz/default_plugin/interactive_marker_display.h>
-#include <rviz/display_wrapper.h>
-#include <rviz/view_controllers/orbit_view_controller.h>
 
 static const std::string VIS_TOPIC_NAME = "assisted_teleop_visualization";
 
@@ -84,7 +88,7 @@ AssistedTeleop::AssistedTeleop() :
     if(allow_trajectory_execution_) {
       bool manage_controllers= false;
       loc_nh.param("manage_controllers", manage_controllers, true);
-      trajectory_execution_monitor_.reset(new trajectory_execution_ros::TrajectoryExecutionMonitorRos(planning_scene_monitor_->getPlanningScene()->getKinematicModel(), manage_controllers));
+      trajectory_execution_manager_.reset(new trajectory_execution_manager::TrajectoryExecutionManager(planning_scene_monitor_->getPlanningScene()->getKinematicModel(), manage_controllers));
     }
   }
 
@@ -130,49 +134,34 @@ AssistedTeleop::AssistedTeleop() :
 //      //tv_.setExecutionFunction( boost::bind(&AssistedTeleop::executeTeleopUpdate, this, _1, _2) );
 //    }
 //  }
-  tv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
-  tv_->setAllStartChainModes(false);
-  tv_->setAllStartControlModes(false);
+  //tv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
+  //tv_->setAllStartChainModes(false);
+  //tv_->setAllStartControlModes(false);
+  tv_->setAllStartVisibility(true);
+  tv_->setAllStartInteractionModes(false);
   tv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
   tv_->hideAllGroups();
 
-  //EGJ: no longer necessary as of visualization 1.8.3 but kept as reference
-  //Ogre::LogManager* log_manager = new Ogre::LogManager();
-  //log_manager->createLog( "Ogre.log", false, false, false );
-  rviz_frame_ = new rviz::VisualizationPanel;
+  // ======== Load Rviz ========
+  QWidget* rviz_frame_ = loadRviz();
 
-  //kind of hacky way to do this - this just turns on interactive move
-  //given the way that the vis manager is creating tools
-  rviz_frame_->getManager()->setCurrentTool(rviz_frame_->getManager()->getTool(1));
-
-  QList<int> sizes;
-  sizes.push_back(0);
-  sizes.push_back(1000);
-
-  rviz_frame_->setSizes(sizes);
-
-  //programmatic control of rviz to add display types and set viewpoint
-  rviz_frame_->getManager()->setFixedFrame(planning_scene_monitor_->getPlanningScene()->getPlanningFrame());
-  rviz_frame_->getManager()->createDisplay("rviz/RobotModel", "Robot Model", true);
-  rviz::DisplayWrapper* marker_display = rviz_frame_->getManager()->createDisplay("rviz/Marker", "Markers", true);
-  rviz::MarkerDisplay* md = dynamic_cast<rviz::MarkerDisplay*>(marker_display->getDisplay());
-  md->setMarkerTopic(VIS_TOPIC_NAME);
-  rviz::DisplayWrapper* interactive_marker_display = rviz_frame_->getManager()->createDisplay("rviz/InteractiveMarker", "Interactive Markers", true);
-  rviz::InteractiveMarkerDisplay* imd = dynamic_cast<rviz::InteractiveMarkerDisplay*>(interactive_marker_display->getDisplay());
-  imd->setMarkerUpdateTopic("interactive_kinematics_visualization/update");
-//  std::string display_config_name = ros::package::getPath("assisted_teleop")+"/config/pr2_assisted_teleop_display.config";
-//  rviz_frame_->loadDisplayConfig(display_config_name);
-//  rviz_frame_->getManager()->setFixedFrame(planning_scene_monitor_->getPlanningScene()->getPlanningFrame());
   main_window_ = new QWidget;
   main_window_->resize(1500,1000);
+  main_window_->setWindowTitle("MoveIt Visualizer"); // set window title
+
   //InteractiveObjectVisualizationWidget* iov_widget = new InteractiveObjectVisualizationWidget(main_window_);
 
   PrimitiveObjectAdditionDialog* primitive_object_dialog = new PrimitiveObjectAdditionDialog(main_window_);
   MeshObjectAdditionDialog* mesh_object_dialog = new MeshObjectAdditionDialog(main_window_);
   attach_object_addition_dialog_ = new AttachObjectAdditionDialog(main_window_,
                                                                   planning_scene_monitor_->getPlanningScene()->getKinematicModel());
+
   QHBoxLayout* main_layout = new QHBoxLayout;
+
+  // Create Menu Bar
   QMenuBar* menu_bar = new QMenuBar(main_window_);
+
+  // File Menu
   PlanningSceneFileMenu* planning_scene_file_menu = new PlanningSceneFileMenu(menu_bar);
   QObject::connect(iov_.get(),
                    SIGNAL(updatePlanningSceneSignal(planning_scene::PlanningSceneConstPtr)),
@@ -182,22 +171,43 @@ AssistedTeleop::AssistedTeleop() :
                    SIGNAL(planningSceneLoaded(moveit_msgs::PlanningScenePtr)),
                    iov_.get(),
                    SLOT(loadPlanningSceneSignalled(moveit_msgs::PlanningScenePtr)));
-  menu_bar->addMenu(planning_scene_file_menu);
 
+  // Planner menu
+  planner_selection_menu_ = new PlannerSelectionMenu(menu_bar);
+  QObject::connect(planner_selection_menu_,
+                   SIGNAL(plannerSelected(const QString&)),
+                   tv_.get(),
+                   SLOT(newPlannerSelected(const QString&)));
+
+  // Planning Group Menu
   planning_group_selection_menu_ = new PlanningGroupSelectionMenu(menu_bar);
+  // Connect group selection to main program
   QObject::connect(planning_group_selection_menu_,
                    SIGNAL(groupSelected(const QString&)),
                    tv_.get(),
                    SLOT(newGroupSelected(const QString&)));
+  // Connect group selection to planner selection
+  QObject::connect(planning_group_selection_menu_,
+                   SIGNAL(groupSelected(const QString&)),
+                   planner_selection_menu_,
+                   SLOT(newGroupSelected(const QString&)));
   planning_group_selection_menu_->init(planning_scene_monitor_->getPlanningScene()->getSrdfModel());
+
+  // Initialize planner menu after planning group menu so that we know what planning group to inialize to
+  planner_selection_menu_->init(planning_scene_monitor_->getPlanningScene(), tv_->getCurrentGroup());
+
+  // Add menus in order
+  menu_bar->addMenu(planning_scene_file_menu);
   menu_bar->addMenu(planning_group_selection_menu_);
+  menu_bar->addMenu(planner_selection_menu_);
 
+  // Collision Object Menu
   coll_object_menu_ = menu_bar->addMenu("Collision Objects");
-
   QAction* show_primitive_objects_dialog = coll_object_menu_->addAction("Add Primitive Collision Object");
   QObject::connect(show_primitive_objects_dialog, SIGNAL(triggered()), primitive_object_dialog, SLOT(show()));
   QAction* show_mesh_objects_dialog = coll_object_menu_->addAction("Add Mesh Collision Object");
   QObject::connect(show_mesh_objects_dialog, SIGNAL(triggered()), mesh_object_dialog, SLOT(show()));
+
 
   main_layout->setMenuBar(menu_bar);
 
@@ -229,28 +239,129 @@ AssistedTeleop::AssistedTeleop() :
                                                        const std::vector<std::string>&)));
   main_window_->show();
 
-  rviz::OrbitViewController* orb = dynamic_cast<rviz::OrbitViewController*>(rviz_frame_->getManager()->getCurrentViewController());
-  if(orb == NULL) {
-    ROS_WARN_STREAM("Current view controller not orbit");
-  } else {
-    orb->zoom(15.0);
-    //orb->move(10.0, 0, .5);
-    //Ogre::Vector3 p(0,0,.5);
-    //orb->lookAt(p);
-  }
-
   planning_scene_monitor_->setUpdateCallback(boost::bind(&AssistedTeleop::updateSceneCallback, this));
+
+
+//  // - - - -
+
+//  planning_group_selection_menu_ = new PlanningGroupSelectionMenu(menu_bar);
+//  QObject::connect(planning_group_selection_menu_,
+//                   SIGNAL(groupSelected(const QString&)),
+//                   tv_.get(),
+//                   SLOT(newGroupSelected(const QString&)));
+//  planning_group_selection_menu_->init(planning_scene_monitor_->getPlanningScene()->getSrdfModel());
+//  menu_bar->addMenu(planning_group_selection_menu_);
+
+//  coll_object_menu_ = menu_bar->addMenu("Collision Objects");
+
+//  QAction* show_primitive_objects_dialog = coll_object_menu_->addAction("Add Primitive Collision Object");
+//  QObject::connect(show_primitive_objects_dialog, SIGNAL(triggered()), primitive_object_dialog, SLOT(show()));
+//  QAction* show_mesh_objects_dialog = coll_object_menu_->addAction("Add Mesh Collision Object");
+//  QObject::connect(show_mesh_objects_dialog, SIGNAL(triggered()), mesh_object_dialog, SLOT(show()));
+
+//  main_layout->setMenuBar(menu_bar);
+
+//  //main_layout->addWidget(iov_widget);
+//  main_layout->addWidget(rviz_frame_);
+
+//  main_window_->setLayout(main_layout);
+
+//  //QObject::connect(iov_widget, SIGNAL(addCubeRequested()), iov_.get(), SLOT(addCubeSignalled()));
+//  QObject::connect(primitive_object_dialog,
+//                   SIGNAL(addCollisionObjectRequested(const moveit_msgs::CollisionObject&, const QColor&)),
+//                   iov_.get(),
+//                   SLOT(addCollisionObjectSignalled(const moveit_msgs::CollisionObject&, const QColor&)));
+
+//  QObject::connect(mesh_object_dialog,
+//                   SIGNAL(addCollisionObjectRequested(const moveit_msgs::CollisionObject&, const QColor&)),
+//                   iov_.get(),
+//                   SLOT(addCollisionObjectSignalled(const moveit_msgs::CollisionObject&, const QColor&)));
+//  //stuff for handling attached objects
+//  iov_->addMenuEntry("Attach object",
+//                     boost::bind(&AssistedTeleop::attachObject, this, _1));
+//  QObject::connect(attach_object_addition_dialog_,
+//                   SIGNAL(attachCollisionObjectRequested(const std::string&,
+//                                                         const std::string&,
+//                                                         const std::vector<std::string>&)),
+//                   iov_.get(),
+//                   SLOT(attachCollisionObjectSignalled(const std::string&,
+//                                                       const std::string&,
+//                                                       const std::vector<std::string>&)));
+//  main_window_->show();
+
+//  rviz::OrbitViewController* orb = dynamic_cast<rviz::OrbitViewController*>(rviz_frame_->getManager()->getCurrentViewController());
+//  if(orb == NULL) {
+//    ROS_WARN_STREAM("Current view controller not orbit");
+//  } else {
+//    orb->zoom(15.0);
+//    //orb->move(10.0, 0, .5);
+//    //Ogre::Vector3 p(0,0,.5);
+//    //orb->lookAt(p);
+//  }
+
+//  planning_scene_monitor_->setUpdateCallback(boost::bind(&AssistedTeleop::updateSceneCallback, this));
 }
 
 AssistedTeleop::~AssistedTeleop() {
   iov_.reset();
   tv_.reset();
-  if(trajectory_execution_monitor_) {
-    trajectory_execution_monitor_->restoreOriginalControllers();
-    trajectory_execution_monitor_.reset();
+  if(trajectory_execution_manager_) {
+      // TODO: not sure if i need to restore controllers here -binney
+      trajectory_execution_manager_.reset();
   }
   planning_scene_monitor_.reset();
-  delete rviz_frame_;
+  //delete rviz_frame_;
+}
+
+QWidget* AssistedTeleop::loadRviz()
+{
+    // Create rviz frame
+    rviz_render_panel_ = new rviz::RenderPanel();
+    //  rviz_render_panel_->setMinimumWidth( 200 );
+    rviz_render_panel_->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Preferred );
+
+    rviz_manager_ = new rviz::VisualizationManager( rviz_render_panel_ );
+    rviz_render_panel_->initialize( rviz_manager_->getSceneManager(), rviz_manager_ );
+    rviz_manager_->initialize();
+    rviz_manager_->startUpdate();
+
+    // Turn on interactive mode
+    /*
+      me:  is there a better way than referring to the "Interact" tool by index 1?
+      is that guaranteed to be in that order?
+      Dave:  it is there by default but depends if you load config from a file
+      me:  what is the better way?
+      Dave:  you can loop over them and ask them their name
+      Dave:  or you might be able to... setCurrentTool( new InteractionTool()) not sure if that works or not
+      you'd prolly need to call initialize( context_ ) on the tool
+    */
+    rviz_manager_->getToolManager()->setCurrentTool( rviz_manager_->getToolManager()->getTool(1) );
+
+    // Set the fixed and target frame
+    rviz_manager_->setFixedFrame( QString::fromStdString( planning_scene_monitor_->getPlanningScene()->getPlanningFrame() ) );
+
+    // Add the robot model
+    rviz_manager_->createDisplay("rviz/RobotModel", "Robot Model", true);
+
+    // Add a marker display
+    rviz::MarkerDisplay* marker_display = new rviz::MarkerDisplay();
+    marker_display->setName( "Markers" );
+    marker_display->subProp( "Marker Topic" )->setValue(QString::fromStdString(VIS_TOPIC_NAME));
+    //  marker_display->setMarkerTopic(VIS_TOPIC_NAME);
+    rviz_manager_->addDisplay(marker_display, true);
+
+    // Add interactive marker display
+    rviz::InteractiveMarkerDisplay* interactive_marker_display = new rviz::InteractiveMarkerDisplay();
+    interactive_marker_display->setName( "Interactive Markers" );
+    //  interactive_marker_display->setMarkerUpdateTopic("interactive_kinematics_visualization/update");
+    rviz_manager_->addDisplay(interactive_marker_display, true);
+    interactive_marker_display->subProp( "Update Topic" )->setValue("interactive_kinematics_visualization/update");
+
+    // Zoom into robot
+    rviz::ViewController* view = rviz_manager_->getViewManager()->getCurrent();
+    view->subProp( "Distance" )->setValue( 4.0f );
+
+    return rviz_render_panel_;
 }
 
 void AssistedTeleop::publisherFunction(bool joint_states) {
@@ -282,11 +393,19 @@ void AssistedTeleop::updateSceneCallback() {
   }
 }
 
-bool AssistedTeleop::doneWithExecution(const trajectory_execution::TrajectoryExecutionDataVector& tedv) {
-  ROS_INFO_STREAM("Done with trajectory execution.");
-  //ROS_INFO_STREAM("^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
-  return true;
+bool AssistedTeleop::doneWithExecution(const moveit_controller_manager::ExecutionStatus& ex_status) {
+    ROS_INFO_STREAM("Done with trajectory execution.");
+    boost::lock_guard<boost::mutex> lock(trajectory_execution_mutex_);
+    execution_succeeded_ = (bool)ex_status;
+    trajectory_execution_finished_.notify_all();
+    return true;
 }
+
+//bool AssistedTeleop::doneWithExecution(const trajectory_execution::TrajectoryExecutionDataVector& tedv) {
+//  ROS_INFO_STREAM("Done with trajectory execution.");
+//  //ROS_INFO_STREAM("^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
+//  return true;
+//}
 
 
 
@@ -296,17 +415,8 @@ void AssistedTeleop::executeLastTrajectory() {
   std::string group_name;
   trajectory_msgs::JointTrajectory traj;
   if(tv_->getLastTrajectory(group_name, traj)) {
-    trajectory_execution::TrajectoryExecutionRequest ter;
-    ter.group_name_ = group_name;
-
-    ter.trajectory_ = traj;
-    ROS_DEBUG_STREAM("Attempting to execute trajectory for group name " << group_name);
-
-    std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
-    ter_reqs.push_back(ter);
-
-    trajectory_execution_monitor_->executeTrajectories(ter_reqs);
-                                                       //boost::bind(&AssistedTeleop::doneWithExecution, this));
+      trajectory_execution_manager_->push(traj);
+      trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
   }
 }
 
@@ -323,36 +433,58 @@ void AssistedTeleop::startCycle() {
 }
 
 void AssistedTeleop::cycleLastTrajectory() {
-  std::string group_name;
-  trajectory_msgs::JointTrajectory traj;
-  if(tv_->getLastTrajectory(group_name, traj)) {
-    while(ros::ok()) {
-      trajectory_execution::TrajectoryExecutionRequest ter;
-      ter.group_name_ = group_name;
+    std::string group_name;
+    trajectory_msgs::JointTrajectory traj;
+    if(tv_->getLastTrajectory(group_name, traj)) {
+        while(ros::ok()) {
+            trajectory_execution_manager_->push(traj);
+            trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
 
-      ter.trajectory_ = traj;
-      ter.trajectory_.header.stamp = ros::Time::now();
-      ter.failure_time_factor_ = 10000.0;
-      ROS_DEBUG_STREAM("Attempting to execute trajectory for group name " << group_name);
-
-      std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
-      ter_reqs.push_back(ter);
-
-      trajectory_execution_monitor_->executeTrajectories(ter_reqs,
-                                                         boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
-      boost::unique_lock<boost::mutex> lock(trajectory_execution_mutex_);
-      trajectory_execution_finished_.wait(lock);
-      if(!execution_succeeded_) {
-        ROS_WARN_STREAM("Stopping cycle due to failure");
-        break;
-      } else if(stop_cycle_requested_) {
-        stop_cycle_requested_ = false;
-        ROS_WARN_STREAM("Stopping cycle due to request");
-        break;
-      }
+            boost::unique_lock<boost::mutex> lock(trajectory_execution_mutex_);
+            trajectory_execution_finished_.wait(lock);
+            if(!execution_succeeded_) {
+                ROS_WARN_STREAM("Stopping cycle due to failure");
+                break;
+            } else if(stop_cycle_requested_) {
+                stop_cycle_requested_ = false;
+                ROS_WARN_STREAM("Stopping cycle due to request");
+                break;
+            }
+        }
     }
-  }
 }
+
+//void AssistedTeleop::cycleLastTrajectory() {
+//  std::string group_name;
+//  trajectory_msgs::JointTrajectory traj;
+//  if(tv_->getLastTrajectory(group_name, traj)) {
+//    while(ros::ok()) {
+//      trajectory_execution::TrajectoryExecutionRequest ter;
+//      ter.group_name_ = group_name;
+
+//      ter.trajectory_ = traj;
+//      ter.trajectory_.header.stamp = ros::Time::now();
+//      ter.failure_time_factor_ = 10000.0;
+//      ROS_DEBUG_STREAM("Attempting to execute trajectory for group name " << group_name);
+
+//      std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
+//      ter_reqs.push_back(ter);
+
+//      trajectory_execution_monitor_->executeTrajectories(ter_reqs,
+//                                                         boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
+//      boost::unique_lock<boost::mutex> lock(trajectory_execution_mutex_);
+//      trajectory_execution_finished_.wait(lock);
+//      if(!execution_succeeded_) {
+//        ROS_WARN_STREAM("Stopping cycle due to failure");
+//        break;
+//      } else if(stop_cycle_requested_) {
+//        stop_cycle_requested_ = false;
+//        ROS_WARN_STREAM("Stopping cycle due to request");
+//        break;
+//      }
+//    }
+//  }
+//}
 
 
 void AssistedTeleop::stopCycle() {
