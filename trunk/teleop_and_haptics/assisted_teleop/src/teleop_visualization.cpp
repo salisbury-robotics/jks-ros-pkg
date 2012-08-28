@@ -166,19 +166,19 @@ void TeleopVisualization::setAllStartChainModes(bool chain) {
   }
 }
 
-void TeleopVisualization::setAllStartControlModes(bool enable) {
+void TeleopVisualization::setAllStartInteractionModes(bool interaction_enabled) {
   for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
       it != group_visualization_map_.end();
       it++) {
-    it->second->setStartControlMode(enable);
+    it->second->setStartInteractionEnabled(interaction_enabled);
   }
 }
 
-void TeleopVisualization::setAllGoalControlModes(bool enable) {
+void TeleopVisualization::setAllStartVisibility(bool visible) {
   for(std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> >::iterator it = group_visualization_map_.begin();
       it != group_visualization_map_.end();
       it++) {
-    it->second->setGoalControlMode(enable);
+    it->second->setStartVisible(visible);
   }
 }
 
