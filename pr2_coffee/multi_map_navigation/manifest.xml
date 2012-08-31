@@ -1,11 +1,12 @@
 <package>
-  <description brief="robotpass">
-    Grandslam multi-map manager technology
+  <description brief="multi_map_navigation">
+    Link many 2D maps together through various transitions to create a larger,
+    possibly 3D, map.
   </description>
   <author>Tony Pratkanis</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/grandslam</url>
+  <url>http://ros.org/wiki/multi_map_navigation</url>
   <depend package="rospy"/>
   <depend package="actionlib"/>
   <depend package="map_store"/>
