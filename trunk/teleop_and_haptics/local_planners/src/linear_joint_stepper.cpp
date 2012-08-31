@@ -11,6 +11,8 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
                    const moveit_msgs::GetMotionPlan::Request &req,
                    moveit_msgs::GetMotionPlan::Response &res) const
 {
+  ROS_WARN("Solving using LinearJointStepper!");
+
   planning_models::KinematicState start_state = planning_scene->getCurrentState();
   planning_models::robotStateToKinematicState(*(planning_scene->getTransforms()), req.motion_plan_request.start_state, start_state);
 
