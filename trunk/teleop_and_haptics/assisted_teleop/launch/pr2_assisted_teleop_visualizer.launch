@@ -1,52 +1,44 @@
 <launch>
+  <!-- This will help avoid namespace mis-matches with all the parameters we load! -->
+  <arg name="visualizer_node_name" default="assisted_teleop_visualizer" />
+
   <arg name="robot" default="false"/>
   <arg name="monitor_robot_state" default="$(arg robot)"/>
   <arg name="allow_trajectory_execution" default="$(arg robot)"/>
   
-  <arg name="constraint_aware" default="true"/>
-  <arg name="teleop_period" default="0.03333"/>
-  
   <arg name="debug" default="false" />
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
   <arg     if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
+
+  <arg name="constraint_aware" default="true"/>
+  <arg name="teleop_period" default="0.03333"/> 
 
   <include file="$(find pr2_moveit_config)/launch/planning_context.launch" />
 
   <node unless="$(arg monitor_robot_state)" pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" />
   <node unless="$(arg monitor_robot_state)" pkg="moveit_visualization_ros" name="wall_clock_server" type="fake_time.py" />
 
-  <include ns="moveit_visualizer" file="$(find assisted_teleop)/launch/planning_pipeline.launch">
-    <!-- (The original lives in pr2_moveit_config) -->
-    <arg name="pipeline" value="linear" />
+  <!--
+  <include ns="$(arg visualizer_node_name)" file="$(find pr2_moveit_config)/launch/planning_pipeline.launch">
+    <arg name="pipeline" value="ompl" />
+  </include>
+  -->
+
+  <include ns="$(arg visualizer_node_name)" file="$(find assisted_teleop)/launch/planning_pipeline.launch">
+    <arg name="pipeline" value="local" />
   </include>
 
-  <include ns="moveit_visualizer" file="$(find pr2_moveit_config)/launch/trajectory_execution.launch">
+  <include ns="$(arg visualizer_node_name)" file="$(find pr2_moveit_config)/launch/trajectory_execution.launch">
     <arg name="moveit_controller_manager" value="pr2" />
     <arg name="moveit_manage_controllers" value="true" />
   </include>
 
-<!--
-  <param unless="$(arg monitor_robot_state)" name="robot_description" textfile="$(find planning_models)/test/urdf/robot.xml" />
-  <param name="robot_description_semantic" textfile="$(find planning_models)/test/srdf/robot.xml" />
-  <rosparam if="$(arg allow_trajectory_execution)" command="load" file="$(find pr2_moveit_config)/config/pr2_both_arms_controllers.yaml" />
--->
-
-  <node pkg="assisted_teleop" type="assisted_teleop_node" name="assisted_teleop_node" output="screen" launch-prefix="$(arg launch_prefix)">
- 
-    <!--
-    <param name="planning_plugin" value="$(arg planning_plugin)" />
-    <param name="request_adapters" value="$(arg planning_adapters)" />
-    <rosparam command="load" file="$(find pr2_moveit_config)/config/ompl_planning.yaml"/>
-    <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
-    <rosparam if="$(arg allow_trajectory_execution)" file="$(find pr2_moveit_config)/config/pr2_execution_controllers.yaml"/>
+  <node pkg="assisted_teleop" type="assisted_teleop_node" name="$(arg visualizer_node_name)" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="monitor_robot_state" value="$(arg monitor_robot_state)"/>
-    -->
-
     <param name="allow_trajectory_execution" value="$(arg allow_trajectory_execution)"/>
 
     <param name="constraint_aware" type="bool" value="$(arg constraint_aware)" />
     <param name="teleop_period" type="double" value="$(arg teleop_period)" />
-
   </node>
 
 </launch>

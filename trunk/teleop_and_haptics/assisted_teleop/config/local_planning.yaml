@@ -1,0 +1,41 @@
+## the planner configurations; each config must have a type, which specifies
+## the planner to be used; other parameters can be specified as well, depending 
+## on the planner
+
+
+right_arm:
+  planner_configs:
+    - LinearJointStepper
+  projection_evaluator: joints(r_shoulder_pan_joint,r_shoulder_lift_joint)
+  longest_valid_segment_fraction: 0.05
+
+left_arm: 
+  planner_configs:
+    - LinearJointStepper
+  projection_evaluator: link(l_wrist_roll_link)
+  longest_valid_segment_fraction: 0.05
+
+arms:
+  planner_configs:
+    - LinearJointStepper
+  longest_valid_segment_fraction: 0.05
+  projection_evaluator: joints(r_shoulder_pan_joint,l_shoulder_pan_joint)
+
+whole_body:
+  planner_configs:
+    - msRRTConnectkConfigDefault
+
+planner_configs:
+
+  SBLkConfigDefault:
+    type: geometric::SBL
+
+
+  msRRTConnectkConfigDefault:
+    type: geometric::msRRTConnect
+    subspaces: right_arm left_arm base
+
+
+#constraint_approximations_path: /home/isucan/c
+
+#constraint_samplers: plugin_names_of_sampler1 plugin_names_of_sampler2

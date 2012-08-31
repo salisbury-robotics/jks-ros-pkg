@@ -10,6 +10,7 @@
   <param name="start_state_max_bounds_error" value="0.1" />
 
   <rosparam command="load" file="$(find pr2_moveit_config)/config/kinematics.yaml"/>
-  <rosparam command="load" file="$(find pr2_moveit_config)/config/ompl_planning.yaml"/>
+  <!-- <rosparam command="load" file="$(find pr2_moveit_config)/config/ompl_planning.yaml"/> -->
+  <rosparam command="load" file="$(find assisted_teleop)/config/local_planning.yaml"/>
 
 </launch>

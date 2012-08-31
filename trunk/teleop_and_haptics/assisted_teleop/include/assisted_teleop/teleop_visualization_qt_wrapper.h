@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: Adapted from planning_visualization_qt_wrapper.h by Adam Leeper
+// Author: Adam Leeper
 
 #ifndef _TELEOP_VISUALIZATION_QT_WRAPPER_H_
 #define _TELEOP_VISUALIZATION_QT_WRAPPER_H_
@@ -35,6 +35,7 @@
 #include <QObject>
 #include <QString>
 
+//#include <moveit_visualization_ros/planning_visualization_qt_wrapper.h>
 #include <assisted_teleop/teleop_visualization.h>
  
 namespace moveit_visualization_ros
@@ -51,12 +52,15 @@ public:
                                boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematic_model_loader,
                                ros::Publisher& marker_publisher);
 
-  ~TeleopVisualizationQtWrapper() {
+  ~TeleopVisualizationQtWrapper()
+  {
   }
 
 public Q_SLOTS: 
 
   void newGroupSelected(const QString&);
+
+  void newPlannerSelected(const QString&);
 
   void generatePlanRequested(bool);
 
