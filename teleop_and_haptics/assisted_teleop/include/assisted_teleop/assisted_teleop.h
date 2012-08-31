@@ -115,7 +115,7 @@ protected:
   boost::shared_ptr<trajectory_execution_manager::TrajectoryExecutionManager> trajectory_execution_manager_;
   boost::shared_ptr<planning_models_loader::KinematicModelLoader> kinematic_model_loader_;
 
-  boost::shared_ptr<moveit_visualization_ros::TeleopVisualizationQtWrapper> tv_;
+  boost::shared_ptr<moveit_visualization_ros::TeleopVisualizationQtWrapper> pv_;
 
 
   bool execution_succeeded_;

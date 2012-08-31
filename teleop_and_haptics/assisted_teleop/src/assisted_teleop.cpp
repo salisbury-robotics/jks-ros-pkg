@@ -36,7 +36,8 @@
 #include <assisted_teleop/assisted_teleop.h>
 #include <moveit_visualization_ros/primitive_object_addition_dialog.h>
 #include <moveit_visualization_ros/mesh_object_addition_dialog.h>
-
+#include <collision_distance_field_ros/hybrid_collision_robot_ros.h>
+#include <collision_distance_field/hybrid_collision_world.h>
 // Rviz
 #include <rviz/render_panel.h>
 #include <rviz/visualization_manager.h>
@@ -48,99 +49,101 @@
 
 static const std::string VIS_TOPIC_NAME = "assisted_teleop_visualization";
 
+
+
 namespace assisted_teleop {
+
   using namespace moveit_visualization_ros;
 
-
 AssistedTeleop::AssistedTeleop() :
-  first_update_(false),
-  allow_trajectory_execution_(false)
+  first_update_(true),
+  allow_trajectory_execution_(false),
+  execution_succeeded_(false),
+  stop_cycle_requested_(false)
 {
+    ros::NodeHandle nh;
+    ros::NodeHandle loc_nh("~");
 
-  ros::NodeHandle nh;
-  ros::NodeHandle loc_nh("~");
+    bool monitor_robot_state = false;
+    loc_nh.param("monitor_robot_state", monitor_robot_state, false);
 
-  bool monitor_robot_state = false;
-  loc_nh.param("monitor_robot_state", monitor_robot_state, false);
+    interactive_marker_server_.reset(new interactive_markers::InteractiveMarkerServer("interactive_kinematics_visualization", "", false));
+    kinematic_model_loader_.reset(new planning_models_loader::KinematicModelLoader("robot_description"));
 
-  interactive_marker_server_.reset(new interactive_markers::InteractiveMarkerServer("interactive_kinematics_visualization", "", false));
-  kinematic_model_loader_.reset(new planning_models_loader::KinematicModelLoader("robot_description"));
-
-  if(!monitor_robot_state) {
-    ROS_INFO_STREAM("Starting publisher thread");
-    joint_state_publisher_.reset(new KinematicStateJointStatePublisher());
-    planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
-    boost::thread publisher_thread(boost::bind(&AssistedTeleop::publisherFunction, this, true));
-  } else {
-    transformer_.reset(new tf::TransformListener());
-    planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor(kinematic_model_loader_, transformer_));
-    joint_state_publisher_.reset(new KinematicStateJointStatePublisher());
-    bool publish_root_transform = false;
-    loc_nh.param("publish_root_transform", publish_root_transform, false);
-    if(publish_root_transform) {
-      boost::thread publisher_thread(boost::bind(&AssistedTeleop::publisherFunction, this, false));
+    if(!monitor_robot_state) {
+        ROS_INFO_STREAM("Starting publisher thread");
+        joint_state_publisher_.reset(new KinematicStateJointStatePublisher());
+        planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor(kinematic_model_loader_));
+        boost::thread publisher_thread(boost::bind(&AssistedTeleop::publisherFunction, this, true));
+    } else {
+        transformer_.reset(new tf::TransformListener());
+        planning_scene_monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor(kinematic_model_loader_, transformer_));
+        joint_state_publisher_.reset(new KinematicStateJointStatePublisher());
+        bool publish_root_transform = false;
+        loc_nh.param("publish_root_transform", publish_root_transform, false);
+        if(publish_root_transform) {
+            boost::thread publisher_thread(boost::bind(&AssistedTeleop::publisherFunction, this, false));
+        }
+        planning_scene_monitor_->startStateMonitor();
     }
-    planning_scene_monitor_->startStateMonitor();
-  }
 
-   if(monitor_robot_state) {
-    loc_nh.param("allow_trajectory_execution", allow_trajectory_execution_, false);
-    if(allow_trajectory_execution_) {
-      bool manage_controllers= false;
-      loc_nh.param("manage_controllers", manage_controllers, true);
-      trajectory_execution_manager_.reset(new trajectory_execution_manager::TrajectoryExecutionManager(planning_scene_monitor_->getPlanningScene()->getKinematicModel(), manage_controllers));
+    if(monitor_robot_state) {
+        loc_nh.param("allow_trajectory_execution", allow_trajectory_execution_, false);
+        if(allow_trajectory_execution_) {
+            bool manage_controllers= false;
+            loc_nh.param("manage_controllers", manage_controllers, true);
+            trajectory_execution_manager_.reset(new trajectory_execution_manager::TrajectoryExecutionManager(planning_scene_monitor_->getPlanningScene()->getKinematicModel(), manage_controllers));
+        }
     }
-  }
 
-  vis_marker_publisher_ = nh.advertise<visualization_msgs::Marker> (VIS_TOPIC_NAME, 128);
-  vis_marker_array_publisher_ = nh.advertise<visualization_msgs::MarkerArray> (VIS_TOPIC_NAME + "_array", 128);
+    vis_marker_publisher_ = nh.advertise<visualization_msgs::Marker> (VIS_TOPIC_NAME, 128);
+    vis_marker_array_publisher_ = nh.advertise<visualization_msgs::MarkerArray> (VIS_TOPIC_NAME + "_array", 128);
 
-  std_msgs::ColorRGBA col;
-  col.r = col.g = col.b = .5;
-  col.a = 1.0;
+    std_msgs::ColorRGBA col;
+    col.r = col.g = col.b = .5;
+    col.a = 1.0;
 
-  std_msgs::ColorRGBA good_color;
-  good_color.a = 1.0;
-  good_color.g = 1.0;
+    std_msgs::ColorRGBA good_color;
+    good_color.a = 1.0;
+    good_color.g = 1.0;
 
-  std_msgs::ColorRGBA bad_color;
-  bad_color.a = 1.0;
-  bad_color.r = 1.0;
-  //kinematics_plugin_loader_.reset(new kinematics_plugin_loader::KinematicsPluginLoader());
-  boost::shared_ptr<planning_pipeline::PlanningPipeline> move_group_pipeline(new planning_pipeline::PlanningPipeline(planning_scene_monitor_->getPlanningScene()->getKinematicModel()));
-  move_group_pipeline->displayComputedMotionPlans(false);
-  move_group_pipeline->publishReceivedRequests(false);
+    std_msgs::ColorRGBA bad_color;
+    bad_color.a = 1.0;
+    bad_color.r = 1.0;
 
-  tv_.reset(new TeleopVisualizationQtWrapper(planning_scene_monitor_->getPlanningScene(),
-                                             move_group_pipeline,
-                                             interactive_marker_server_,
-                                             kinematic_model_loader_,
-                                             vis_marker_array_publisher_));
+    boost::shared_ptr<planning_pipeline::PlanningPipeline> move_group_pipeline(new planning_pipeline::PlanningPipeline(planning_scene_monitor_->getPlanningScene()->getKinematicModel()));
+    move_group_pipeline->displayComputedMotionPlans(false);
+    move_group_pipeline->publishReceivedRequests(false);
 
-  iov_.reset(new InteractiveObjectVisualizationQtWrapper(planning_scene_monitor_->getPlanningScene(),
-                                                         interactive_marker_server_,
-                                                         col));
+  pv_.reset(new TeleopVisualizationQtWrapper(planning_scene_monitor_->getPlanningScene(),
+                                                 move_group_pipeline,
+                                                 interactive_marker_server_,
+                                                 kinematic_model_loader_,
+                                                 vis_marker_array_publisher_));
+
+    iov_.reset(new InteractiveObjectVisualizationQtWrapper(planning_scene_monitor_->getPlanningScene(),
+                                                           interactive_marker_server_,
+                                                           col));
 
   iov_->setUpdateCallback(boost::bind(&AssistedTeleop::updatePlanningScene, this, _1));
 
-//  if(monitor_robot_state) {
+    if(monitor_robot_state) {
+        pv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
+        if(allow_trajectory_execution_) {
+            pv_->setAllStartChainModes(true);
+            pv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
+            pv_->addMenuEntry("Cycle last trajectory", boost::bind(&AssistedTeleop::startCycle, this));
+            pv_->addMenuEntry("Stop cycle", boost::bind(&AssistedTeleop::stopCycle, this));
+        }
+    }
+    //pv_->setAllStartVisibility(true);
+    //pv_->setAllStartInteractionModes(false);
+    pv_->hideAllGroups();
+    pv_->setAllStartVisibility(true);
+    pv_->setAllStartInteractionModes(false);
+    pv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
+    pv_->hideAllGroups();
 
-//    if(allow_trajectory_execution_) {
-
-//      /* ael */
-//      //tv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
-//      //tv_->addMenuEntry("Start Following",  boost::bind(&AssistedTeleop::startFollowing, this));
-//      //tv_->addMenuEntry("Stop Following",   boost::bind(&AssistedTeleop::stopFollowing, this));
-//      //tv_.setExecutionFunction( boost::bind(&AssistedTeleop::executeTeleopUpdate, this, _1, _2) );
-//    }
-//  }
-  //tv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
-  //tv_->setAllStartChainModes(false);
-  //tv_->setAllStartControlModes(false);
-  tv_->setAllStartVisibility(true);
-  tv_->setAllStartInteractionModes(false);
-  tv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
-  tv_->hideAllGroups();
 
   // ======== Load Rviz ========
   QWidget* rviz_frame_ = loadRviz();
@@ -150,6 +153,7 @@ AssistedTeleop::AssistedTeleop() :
   main_window_->setWindowTitle("MoveIt Visualizer"); // set window title
 
   //InteractiveObjectVisualizationWidget* iov_widget = new InteractiveObjectVisualizationWidget(main_window_);
+
 
   PrimitiveObjectAdditionDialog* primitive_object_dialog = new PrimitiveObjectAdditionDialog(main_window_);
   MeshObjectAdditionDialog* mesh_object_dialog = new MeshObjectAdditionDialog(main_window_);
@@ -176,7 +180,7 @@ AssistedTeleop::AssistedTeleop() :
   planner_selection_menu_ = new PlannerSelectionMenu(menu_bar);
   QObject::connect(planner_selection_menu_,
                    SIGNAL(plannerSelected(const QString&)),
-                   tv_.get(),
+                   pv_.get(),
                    SLOT(newPlannerSelected(const QString&)));
 
   // Planning Group Menu
@@ -184,7 +188,7 @@ AssistedTeleop::AssistedTeleop() :
   // Connect group selection to main program
   QObject::connect(planning_group_selection_menu_,
                    SIGNAL(groupSelected(const QString&)),
-                   tv_.get(),
+                   pv_.get(),
                    SLOT(newGroupSelected(const QString&)));
   // Connect group selection to planner selection
   QObject::connect(planning_group_selection_menu_,
@@ -194,7 +198,7 @@ AssistedTeleop::AssistedTeleop() :
   planning_group_selection_menu_->init(planning_scene_monitor_->getPlanningScene()->getSrdfModel());
 
   // Initialize planner menu after planning group menu so that we know what planning group to inialize to
-  planner_selection_menu_->init(planning_scene_monitor_->getPlanningScene(), tv_->getCurrentGroup());
+  planner_selection_menu_->init(planning_scene_monitor_->getPlanningScene(), pv_->getCurrentGroup());
 
   // Add menus in order
   menu_bar->addMenu(planning_scene_file_menu);
@@ -239,72 +243,13 @@ AssistedTeleop::AssistedTeleop() :
                                                        const std::vector<std::string>&)));
   main_window_->show();
 
-  planning_scene_monitor_->setUpdateCallback(boost::bind(&AssistedTeleop::updateSceneCallback, this));
+  planning_scene_monitor_->addUpdateCallback(boost::bind(&AssistedTeleop::updateSceneCallback, this));
 
-
-//  // - - - -
-
-//  planning_group_selection_menu_ = new PlanningGroupSelectionMenu(menu_bar);
-//  QObject::connect(planning_group_selection_menu_,
-//                   SIGNAL(groupSelected(const QString&)),
-//                   tv_.get(),
-//                   SLOT(newGroupSelected(const QString&)));
-//  planning_group_selection_menu_->init(planning_scene_monitor_->getPlanningScene()->getSrdfModel());
-//  menu_bar->addMenu(planning_group_selection_menu_);
-
-//  coll_object_menu_ = menu_bar->addMenu("Collision Objects");
-
-//  QAction* show_primitive_objects_dialog = coll_object_menu_->addAction("Add Primitive Collision Object");
-//  QObject::connect(show_primitive_objects_dialog, SIGNAL(triggered()), primitive_object_dialog, SLOT(show()));
-//  QAction* show_mesh_objects_dialog = coll_object_menu_->addAction("Add Mesh Collision Object");
-//  QObject::connect(show_mesh_objects_dialog, SIGNAL(triggered()), mesh_object_dialog, SLOT(show()));
-
-//  main_layout->setMenuBar(menu_bar);
-
-//  //main_layout->addWidget(iov_widget);
-//  main_layout->addWidget(rviz_frame_);
-
-//  main_window_->setLayout(main_layout);
-
-//  //QObject::connect(iov_widget, SIGNAL(addCubeRequested()), iov_.get(), SLOT(addCubeSignalled()));
-//  QObject::connect(primitive_object_dialog,
-//                   SIGNAL(addCollisionObjectRequested(const moveit_msgs::CollisionObject&, const QColor&)),
-//                   iov_.get(),
-//                   SLOT(addCollisionObjectSignalled(const moveit_msgs::CollisionObject&, const QColor&)));
-
-//  QObject::connect(mesh_object_dialog,
-//                   SIGNAL(addCollisionObjectRequested(const moveit_msgs::CollisionObject&, const QColor&)),
-//                   iov_.get(),
-//                   SLOT(addCollisionObjectSignalled(const moveit_msgs::CollisionObject&, const QColor&)));
-//  //stuff for handling attached objects
-//  iov_->addMenuEntry("Attach object",
-//                     boost::bind(&AssistedTeleop::attachObject, this, _1));
-//  QObject::connect(attach_object_addition_dialog_,
-//                   SIGNAL(attachCollisionObjectRequested(const std::string&,
-//                                                         const std::string&,
-//                                                         const std::vector<std::string>&)),
-//                   iov_.get(),
-//                   SLOT(attachCollisionObjectSignalled(const std::string&,
-//                                                       const std::string&,
-//                                                       const std::vector<std::string>&)));
-//  main_window_->show();
-
-//  rviz::OrbitViewController* orb = dynamic_cast<rviz::OrbitViewController*>(rviz_frame_->getManager()->getCurrentViewController());
-//  if(orb == NULL) {
-//    ROS_WARN_STREAM("Current view controller not orbit");
-//  } else {
-//    orb->zoom(15.0);
-//    //orb->move(10.0, 0, .5);
-//    //Ogre::Vector3 p(0,0,.5);
-//    //orb->lookAt(p);
-//  }
-
-//  planning_scene_monitor_->setUpdateCallback(boost::bind(&AssistedTeleop::updateSceneCallback, this));
 }
 
 AssistedTeleop::~AssistedTeleop() {
   iov_.reset();
-  tv_.reset();
+  pv_.reset();
   if(trajectory_execution_manager_) {
       // TODO: not sure if i need to restore controllers here -binney
       trajectory_execution_manager_.reset();
@@ -365,77 +310,66 @@ QWidget* AssistedTeleop::loadRviz()
 }
 
 void AssistedTeleop::publisherFunction(bool joint_states) {
-  ros::WallRate r(10.0);
+    ros::WallRate r(10.0);
 
-  while(ros::ok())
-  {
-    joint_state_publisher_->broadcastRootTransform(planning_scene_monitor_->getPlanningScene()->getCurrentState());
-    if(joint_states) {
-      joint_state_publisher_->publishKinematicState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
+    while(ros::ok())
+    {
+        joint_state_publisher_->broadcastRootTransform(planning_scene_monitor_->getPlanningScene()->getCurrentState());
+        if(joint_states) {
+            joint_state_publisher_->publishKinematicState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
+        }
+        r.sleep();
     }
-    r.sleep();
-  }
 }
 
 void AssistedTeleop::updatePlanningScene(planning_scene::PlanningSceneConstPtr planning_scene) {
-  current_diff_ = planning_scene;
-  tv_->updatePlanningScene(planning_scene);
+    current_diff_ = planning_scene;
+    pv_->updatePlanningScene(planning_scene);
 }
 
 void AssistedTeleop::updateSceneCallback() {
-  return;
-  if(first_update_) {
-    tv_->resetAllStartAndGoalStates();
-    first_update_ = false;
-  }
-  if(allow_trajectory_execution_) {
-    updateToCurrentState();
-  }
+    if(first_update_) {
+        pv_->resetAllStartAndGoalStates();
+        first_update_ = false;
+    }
+    if(allow_trajectory_execution_) {
+        updateToCurrentState();
+    }
 }
 
 bool AssistedTeleop::doneWithExecution(const moveit_controller_manager::ExecutionStatus& ex_status) {
-    ROS_INFO_STREAM("Done with trajectory execution.");
+    ROS_INFO_STREAM("Done");
     boost::lock_guard<boost::mutex> lock(trajectory_execution_mutex_);
     execution_succeeded_ = (bool)ex_status;
     trajectory_execution_finished_.notify_all();
     return true;
 }
-
-//bool AssistedTeleop::doneWithExecution(const trajectory_execution::TrajectoryExecutionDataVector& tedv) {
-//  ROS_INFO_STREAM("Done with trajectory execution.");
-//  //ROS_INFO_STREAM("^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
-//  return true;
-//}
-
-
-
 void AssistedTeleop::executeLastTrajectory() {
-  if(!allow_trajectory_execution_) return;
-
-  std::string group_name;
-  trajectory_msgs::JointTrajectory traj;
-  if(tv_->getLastTrajectory(group_name, traj)) {
-      trajectory_execution_manager_->push(traj);
-      trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
-  }
+    std::string group_name;
+    trajectory_msgs::JointTrajectory traj;
+    if(pv_->getLastTrajectory(group_name, traj)) {
+      if(trajectory_execution_manager_->getLastExecutionStatus() != moveit_controller_manager::ExecutionStatus::RUNNING)
+        if(trajectory_execution_manager_->push(traj))
+          trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
+    }
 }
 
 void AssistedTeleop::startCycle() {
-  std::string group_name;
-  trajectory_msgs::JointTrajectory traj;
-  if(tv_->getLastTrajectory(group_name, traj) &&
-     tv_->cycleOk()) {
-    ROS_INFO_STREAM("Just before cycle");
-    cycle_thread_.reset(new boost::thread(boost::bind(&AssistedTeleop::cycleLastTrajectory, this)));
-    ROS_INFO_STREAM("Just after cycle");
-  }
-  ROS_INFO_STREAM("Starting cycle");
+    std::string group_name;
+    trajectory_msgs::JointTrajectory traj;
+    if(pv_->getLastTrajectory(group_name, traj) &&
+       pv_->cycleOk()) {
+        ROS_INFO_STREAM("Just before cycle");
+        cycle_thread_.reset(new boost::thread(boost::bind(&AssistedTeleop::cycleLastTrajectory, this)));
+        ROS_INFO_STREAM("Just after cycle");
+    }
+    ROS_INFO_STREAM("Starting cycle");
 }
 
 void AssistedTeleop::cycleLastTrajectory() {
     std::string group_name;
     trajectory_msgs::JointTrajectory traj;
-    if(tv_->getLastTrajectory(group_name, traj)) {
+    if(pv_->getLastTrajectory(group_name, traj)) {
         while(ros::ok()) {
             trajectory_execution_manager_->push(traj);
             trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
@@ -454,51 +388,18 @@ void AssistedTeleop::cycleLastTrajectory() {
     }
 }
 
-//void AssistedTeleop::cycleLastTrajectory() {
-//  std::string group_name;
-//  trajectory_msgs::JointTrajectory traj;
-//  if(tv_->getLastTrajectory(group_name, traj)) {
-//    while(ros::ok()) {
-//      trajectory_execution::TrajectoryExecutionRequest ter;
-//      ter.group_name_ = group_name;
-
-//      ter.trajectory_ = traj;
-//      ter.trajectory_.header.stamp = ros::Time::now();
-//      ter.failure_time_factor_ = 10000.0;
-//      ROS_DEBUG_STREAM("Attempting to execute trajectory for group name " << group_name);
-
-//      std::vector<trajectory_execution::TrajectoryExecutionRequest> ter_reqs;
-//      ter_reqs.push_back(ter);
-
-//      trajectory_execution_monitor_->executeTrajectories(ter_reqs,
-//                                                         boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
-//      boost::unique_lock<boost::mutex> lock(trajectory_execution_mutex_);
-//      trajectory_execution_finished_.wait(lock);
-//      if(!execution_succeeded_) {
-//        ROS_WARN_STREAM("Stopping cycle due to failure");
-//        break;
-//      } else if(stop_cycle_requested_) {
-//        stop_cycle_requested_ = false;
-//        ROS_WARN_STREAM("Stopping cycle due to request");
-//        break;
-//      }
-//    }
-//  }
-//}
-
 
 void AssistedTeleop::stopCycle() {
-  stop_cycle_requested_ = true;
+    stop_cycle_requested_ = true;
 }
 
 void AssistedTeleop::attachObject(const std::string& name) {
-  attach_object_addition_dialog_->attachObject(name);
+    attach_object_addition_dialog_->attachObject(name);
 }
 
 void AssistedTeleop::updateToCurrentState() {
-  ROS_WARN("Updating to current state.");
-  iov_->updateCurrentState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
-  tv_->resetAllStartStates();
+    iov_->updateCurrentState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
+    pv_->resetAllStartStates();
 }
 
 }

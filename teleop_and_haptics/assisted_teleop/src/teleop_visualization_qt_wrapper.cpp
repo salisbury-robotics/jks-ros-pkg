@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: Adapted from planning_visualization_qt_wrapper.cpp by Adam Leeper
+// Author: Adam Leeper
 
 #include <assisted_teleop/teleop_visualization_qt_wrapper.h>
 
@@ -56,6 +56,12 @@ void TeleopVisualizationQtWrapper::newGroupSelected(const QString& new_group) {
   selectGroup(new_group.toStdString());
 }
 
+void TeleopVisualizationQtWrapper::newPlannerSelected(const QString& new_planner) {
+
+  ROS_INFO_STREAM("new planner: " << new_planner.toStdString());
+  selectPlanner(new_planner.toStdString());
+}
+
 void TeleopVisualizationQtWrapper::generatePlanRequested(bool play) {
   generatePlan(current_group_, play);
   if(last_trajectory_ok_) {
@@ -68,18 +74,16 @@ void TeleopVisualizationQtWrapper::generatePlanRequested(bool play) {
 }
 
 void TeleopVisualizationQtWrapper::generatePlanDiffSceneRequested(const std::string& group,
-                                                                  const planning_scene::PlanningSceneConstPtr& scene,
-                                                                  const planning_models::KinematicState* goal_state)
+                                                                    const planning_scene::PlanningSceneConstPtr& scene,
+                                                                    const planning_models::KinematicState* goal_state)
 {
   trajectory_msgs::JointTrajectory traj;
-  moveit_msgs::RobotTrajectory robot_traj;
   moveit_msgs::MoveItErrorCodes error_code;
   if(generatePlanForScene(scene,
                           group,
                           &scene->getCurrentState(),
                           goal_state,
                           traj,
-                          robot_traj,
                           error_code)) {
     planGenerated(group,
                   traj);
@@ -90,18 +94,51 @@ void TeleopVisualizationQtWrapper::generatePlanDiffSceneRequested(const std::str
 
 
 void TeleopVisualizationQtWrapper::setStartStateRequested(const std::string& group_name,
-                                                          const planning_models::KinematicState* state)
+                                                            const planning_models::KinematicState* state)
 {
   setStartState(group_name,
                 *state);
 }
 
-void TeleopVisualizationQtWrapper::setGoalStateRequested( const std::string& group_name,
-                                                          const planning_models::KinematicState* state)
+void TeleopVisualizationQtWrapper::setGoalStateRequested(const std::string& group_name,
+                                                           const planning_models::KinematicState* state)
 {
   setGoalState(group_name,
                *state);
 }
+
+
+//void TeleopVisualizationQtWrapper::generatePlanRequested(bool play) {
+//  generatePlan(current_group_, play);
+//  if(last_trajectory_ok_) {
+//    planGenerated(current_group_,
+//                  last_trajectory_);
+//  } else {
+//    moveit_msgs::MoveItErrorCodes failed_message;
+//    planFailed(failed_message);
+//  }
+//}
+
+//void TeleopVisualizationQtWrapper::generatePlanDiffSceneRequested(const std::string& group,
+//                                                                  const planning_scene::PlanningSceneConstPtr& scene,
+//                                                                  const planning_models::KinematicState* goal_state)
+//{
+//  trajectory_msgs::JointTrajectory traj;
+//  moveit_msgs::RobotTrajectory robot_traj;
+//  moveit_msgs::MoveItErrorCodes error_code;
+//  if(generatePlanForScene(scene,
+//                          group,
+//                          &scene->getCurrentState(),
+//                          goal_state,
+//                          traj,
+//                          robot_traj,
+//                          error_code)) {
+//    planGenerated(group,
+//                  traj);
+//  } else {
+//    planFailed(error_code);
+//  }
+//}
 
 }
 

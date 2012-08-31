@@ -27,28 +27,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: Adapted from planning_visualization.h by Adam Leeper
+// Author: Adam Leeper
 
 #ifndef _TELEOP_VISUALIZATION_H_
 #define _TELEOP_VISUALIZATION_H_
 
-#include <ros/ros.h>
+#include <local_planners/linear_joint_stepper.h>
+
+#include <moveit_visualization_ros/planning_visualization.h>
+
 #include <moveit_visualization_ros/kinematics_start_goal_visualization.h>
 #include <moveit_visualization_ros/joint_trajectory_visualization.h>
-#include <boost/function.hpp>
+#include <moveit_visualization_ros/collision_visualization.h>
+
 #include <planning_models_loader/kinematic_model_loader.h>
 #include <planning_pipeline/planning_pipeline.h>
 
-#include <moveit_visualization_ros/collision_visualization.h>
-
-#include <local_planners/linear_joint_stepper.h>
+#include <ros/ros.h>
+#include <boost/function.hpp>
 
 namespace moveit_visualization_ros
 {
-  //typedef boost::function<void(const std::string&, const trajectory_msgs::JointTrajectory&)> TeleopExecutionFunction;
   typedef boost::function<void(void)> TrajectoryExecutionFunction;
 
-class TeleopVisualization
+class TeleopVisualization : public PlanningVisualization
 {
   
 public:
@@ -56,59 +58,10 @@ public:
   TeleopVisualization(const planning_scene::PlanningSceneConstPtr& planning_scene,
                       const boost::shared_ptr<planning_pipeline::PlanningPipeline>& move_group_pipeline,
                       boost::shared_ptr<interactive_markers::InteractiveMarkerServer>& interactive_marker_server,
-                      boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematics_plugin_loader,
+                      boost::shared_ptr<planning_models_loader::KinematicModelLoader>& kinematic_model_loader,
                       ros::Publisher& marker_publisher);
   
-  void updatePlanningScene(const planning_scene::PlanningSceneConstPtr& planning_scene);
 
-  void resetAllStartStates();
-  void resetAllStartAndGoalStates();
-
-  void addMenuEntry(const std::string& name, 
-                    const boost::function<void(const std::string&)>& callback);
-  
-  void selectGroup(const std::string& name);
-
-  void hideAllGroups();
-
-  bool getLastTrajectory(std::string& group_name,
-                         trajectory_msgs::JointTrajectory& traj) const
-  {
-    if(!last_trajectory_ok_) return false;
-    group_name = last_group_name_;
-    traj = last_trajectory_;
-    return true;
-  }
-
-  bool cycleOk() const {
-    return cycle_ok_;
-  }
-
-  void setAllStartChainModes(bool chain);
-  void setAllStartControlModes(bool enable);
-  void setAllGoalControlModes(bool enable);
-
-  std::string getCurrentGroup() const {
-    return current_group_;
-  }
-
-  void setGoalState(const std::string& group_name,
-                    const planning_models::KinematicState& state);
-
-  void setStartState(const std::string& group_name,
-                     const planning_models::KinematicState& state);
-
-  void addStateChangedCallback(const boost::function<void(const std::string&,
-                                                          const planning_models::KinematicState&)>& callback);
-
-  void setAllStartInteractionModes(bool interaction_enabled);
-  void setAllStartVisibility(bool visible);
-
-  /* ael
-  void setTeleopExecutionFunction(const TeleopExecutionFunction function)
-  {
-    teleop_execution_fn_.reset(function);
-  }*/
 
   void setTrajectoryExecutionFunction(TrajectoryExecutionFunction function)
   {
@@ -120,48 +73,30 @@ public:
 
 protected:
 
-  void generatePlan(const std::string& name, bool play=true);
-  bool generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
-                            const std::string& arm_name,
-                            const planning_models::KinematicState* start_state,
-                            const planning_models::KinematicState* goal_state,
-                            trajectory_msgs::JointTrajectory& traj,
-                            moveit_msgs::RobotTrajectory& robot_traj,
-                            moveit_msgs::MoveItErrorCodes& error_code) const;
-
-  void generateRandomStartEnd(const std::string& name);
-  void resetStartGoal(const std::string& name);
-  void playLastTrajectory();
+//  /** Subclass-specific initialization. This version loads some parameters and sets member variables. */
+//  virtual void onInitialize();
 
   /** @brief Callback for commanding robot to move. */
   void teleopTimerCallback();
 
-  planning_scene::PlanningSceneConstPtr planning_scene_;
-  boost::shared_ptr<planning_pipeline::PlanningPipeline> move_group_pipeline_;
-
   //ompl_interface_ros::OMPLInterfaceROS ompl_interface_;
-  local_planners::LinearJointStepper my_planner_;
+  //local_planners::LinearJointStepper my_planner_;
 
-  //boost::shared_ptr<trajectory_processing::TrajectorySmoother> trajectory_smoother_;
-  //boost::shared_ptr<trajectory_processing::TrajectoryShortcutter> unnormalize_shortcutter_;
-
-  std::string current_group_;
-  std::map<std::string, boost::shared_ptr<KinematicsStartGoalVisualization> > group_visualization_map_;
-  boost::shared_ptr<JointTrajectoryVisualization> joint_trajectory_visualization_;
   boost::shared_ptr<moveit_visualization_ros::CollisionVisualization> collision_visualization_;
-  ros::Publisher display_traj_publisher_;
-  
-  std::string last_group_name_;
-  moveit_msgs::RobotTrajectory last_robot_trajectory_;
-  trajectory_msgs::JointTrajectory last_trajectory_;
-  planning_models::KinematicState last_start_state_;
-  bool last_trajectory_ok_;
-  bool cycle_ok_;
 
-  /* ael */
-  double teleop_period_;
-  bool constraint_aware_;
+  /** Used to store the last valid proxy state */
+  moveit_msgs::RobotTrajectory last_robot_trajectory_;
+
+  /** Timer for teleop callback */
   ros::Timer teleop_timer_;
+
+  /** Timer period for teleop callback */
+  double teleop_period_;
+
+  /** Parameter for trying out different settings... */
+  bool constraint_aware_;
+
+  // TODO do I still need this?
   TrajectoryExecutionFunction trajectory_execution_fn_;
 };
 
