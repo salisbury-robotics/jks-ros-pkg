@@ -1,11 +1,11 @@
 <package>
-  <description brief="robotpass">
-    Grandslam multi-map manager technology
+  <description brief="stage_multi_map_navigation">
+    multi_map_navigation stage test
   </description>
   <author>Tony Pratkanis</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/grandslam</url>
+  <url>http://ros.org/wiki/stage_multi_map_navigation</url>
   <depend package="rospy"/>
   <depend package="actionlib"/>
   <depend package="map_store"/>
