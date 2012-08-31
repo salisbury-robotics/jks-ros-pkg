@@ -6,11 +6,11 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/stage_multi_map_navigation</url>
-  <depend package="rospy"/>
-  <depend package="actionlib"/>
-  <depend package="map_store"/>
-  <depend package="visualization_msgs"/>
-  
+  <depend package="multi_map_navigation"/>
+  <depend package="amcl"/>
+  <depend package="stage"/>
+  <depend package="move_base"/>
+
   <rosdep name="python-yaml"/>
 </package>
 
