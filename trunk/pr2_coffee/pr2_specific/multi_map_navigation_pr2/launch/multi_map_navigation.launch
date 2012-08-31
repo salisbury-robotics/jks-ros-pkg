@@ -1,0 +1,11 @@
+<launch>
+  <include file="$(find pr2_machine)/$(env ROBOT).machine" />
+  <include file="$(find multi_map_navigation)/launch/map_store.launch" />
+  <node pkg="multi_map_navigation" type="multi_map_navigation" name="multi_map_navigation">
+       <param name="definition_file" value="$(find multi_map_navigation_pr2)/maps/cfg.yaml" />
+       <param name="move_base_action" value="pr2_move_base" />
+  </node>
+<!--  <node pkg="multi_map_navigation" type="multi_map_navigation_test" name="multi_map_navigation_test"
+        args="23.372 26.703 clarkcenterfirstfloordoor" />-->
+</launch>
+

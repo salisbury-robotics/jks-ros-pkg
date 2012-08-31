@@ -1,7 +1,7 @@
 <launch>
   <include file="$(find pr2_machine)/$(env ROBOT).machine" />
-  <include file="$(find grandslam_pr2)/launch/pr2_2dnav.launch" />
-  <include file="$(find grandslam_pr2)/launch/grandslam.launch" />
+  <include file="$(find multi_map_navigation_pr2)/launch/pr2_2dnav.launch" />
+  <include file="$(find multi_map_navigation_pr2)/launch/multi_map_navigation.launch" />
   <include file="$(find pr2_gripper_sensor_action)/launch/pr2_gripper_sensor_actions.launch" />
   <node name="robotpass" pkg="robotpass" type="robotpass_server.py" />
 </launch>

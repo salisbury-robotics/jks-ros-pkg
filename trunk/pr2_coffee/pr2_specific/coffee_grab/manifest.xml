@@ -1,11 +1,11 @@
 <package>
-  <description brief="robotpass">
-    Grandslam multi-map manager technology
+  <description brief="coffee_grab">
+    The coffee grabbing executive
   </description>
   <author>Tony Pratkanis</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/grandslam</url>
+  <url>http://ros.org/wiki/coffee_grab</url>
   <depend package="rospy"/>
   <depend package="actionlib"/>
   <depend package="map_store"/>
@@ -14,7 +14,7 @@
   <depend package="nav_msgs"/>
   <depend package="robotpass" />
   <depend package="pr2_common_action_msgs" />
-  <depend package="grandslam" />
+  <depend package="multi_map_navigation" />
   <rosdep name="python-yaml"/>
 </package>
 
