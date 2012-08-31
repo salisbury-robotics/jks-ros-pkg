@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import roslib
-roslib.load_manifest('grandslam')
+roslib.load_manifest('multi_map_navigation')
 import rospy
 import actionlib
 import sys, os
@@ -12,8 +12,8 @@ from nav_msgs.srv import *
 from geometry_msgs.msg import *
 from visualization_msgs.msg import *
 import yaml
-from grandslam.msg import *
-from grandslam.srv import *
+from multi_map_navigation.msg import *
+from multi_map_navigation.srv import *
 from move_base_msgs.msg import *
 from actionlib_msgs.msg import GoalStatus
 import math
@@ -25,7 +25,7 @@ def calc_distance(l1, l2):
     dy = l1[1] - l2[1]
     return math.sqrt(dx * dx + dy * dy)
 
-class GrandslamDataManager(object):
+class MultiMapNavigationDataManager(object):
     def __init__(self):
         self.ready = False
         self.listener = tf.TransformListener(True, rospy.Duration(100))
@@ -45,7 +45,7 @@ class GrandslamDataManager(object):
         self.transition_action_clients = {"normal": None}
         for client in ["door_blast", "elevator_blast", "door_drag"]:
             rospy.loginfo("Waiting for " + client)
-            cli = actionlib.SimpleActionClient(client, GrandSlamTransitionAction)
+            cli = actionlib.SimpleActionClient(client, MultiMapNavigationTransitionAction)
             cli.wait_for_server()
             self.transition_action_clients[client] = cli
         
@@ -184,7 +184,7 @@ class GrandslamDataManager(object):
                 marker = Marker()
                 marker.header.frame_id = "/map"
                 marker.header.stamp = rospy.get_rostime()
-                marker.ns = "grandslam"
+                marker.ns = "multimna"
                 marker.type = Marker.CYLINDER
                 marker.action = Marker.MODIFY
                 marker.id = n_markers
@@ -299,7 +299,7 @@ class GrandslamDataManager(object):
 
 
 
-class GrandslamNavigator():
+class MultiMapNavigationNavigator():
     def __init__(self, manager):
         self.manager = manager
 
@@ -308,7 +308,7 @@ class GrandslamNavigator():
             move_base_name = rospy.get_param("~move_base_action")
         self.move_base = actionlib.SimpleActionClient(move_base_name, MoveBaseAction)
         self.move_base.wait_for_server()
-        self.action_server = actionlib.SimpleActionServer("grandslam/move", GrandSlamAction,
+        self.action_server = actionlib.SimpleActionServer("multi_map_navigation/move", MultiMapNavigationAction,
                                                           execute_cb=self.execute_cb, auto_start=False)
         self.pose_pub = rospy.Publisher("initialpose", PoseWithCovarianceStamped)
         while not self.manager.ready:
@@ -408,7 +408,7 @@ class GrandslamNavigator():
             if (len(path) > 1):
                 if (path[0][path[0].find("_") + 1:] == path[1][path[0].find("_") + 1:]):
                     wormhole_type = wormhole["type"]
-                    wormhole_goal = GrandSlamTransitionGoal()
+                    wormhole_goal = MultiMapNavigationTransitionGoal()
                     wormhole_goal.wormhole = yaml.dump(wormhole)
                     wormhole_goal.start = int(path[0].split("_")[0])
                     wormhole_goal.end = int(path[1].split("_")[0])
@@ -527,7 +527,7 @@ class GrandslamNavigator():
         msg = MoveBaseGoal()
         msg.target_pose = goal.target_pose
         self.go_to_goal(msg, None)
-        self.action_server.set_succeeded(GrandSlamResult())
+        self.action_server.set_succeeded(MultiMapNavigationResult())
 
     def go_to_goal(self, msg, radius=None):
         print msg
@@ -619,9 +619,9 @@ class GrandslamNavigator():
 
 
 if (__name__ == "__main__"):
-    rospy.init_node('grandslam')
-    manager = GrandslamDataManager()
-    navigator = GrandslamNavigator(manager)
+    rospy.init_node('multi_map_navigation')
+    manager = MultiMapNavigationDataManager()
+    navigator = MultiMapNavigationNavigator(manager)
     while not rospy.is_shutdown():
         manager.publish_markers()
         rospy.sleep(1.0)

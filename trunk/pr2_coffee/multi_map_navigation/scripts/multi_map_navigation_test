@@ -1,19 +1,19 @@
 #!/usr/bin/python
 
 import roslib
-roslib.load_manifest('grandslam')
+roslib.load_manifest('multi_map_navigation')
 import rospy
 import actionlib
 import sys
-from grandslam.msg import *
-from grandslam.srv import *
+from multi_map_navigation.msg import *
+from multi_map_navigation.srv import *
 
 
 class TestClient():
     def __init__(self, xp, yp, map):
-        self.action_client = actionlib.SimpleActionClient("grandslam/move", GrandSlamAction)
+        self.action_client = actionlib.SimpleActionClient("multi_map_navigation/move", MultiMapNavigationAction)
         self.action_client.wait_for_server()
-        goal = GrandSlamGoal()
+        goal = MultiMapNavigationGoal()
         goal.target_pose.header.stamp = rospy.get_rostime()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.pose.position.x = xp
@@ -25,7 +25,7 @@ class TestClient():
 
 
 if (__name__ == "__main__"):
-   rospy.init_node("grandslam_test")
+   rospy.init_node("multi_map_navigation_test")
    xp = float(sys.argv[1])
    yp = float(sys.argv[2])
    map = sys.argv[3] 

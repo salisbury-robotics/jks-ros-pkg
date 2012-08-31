@@ -1,25 +1,25 @@
 #!/usr/bin/python
 
 import roslib
-roslib.load_manifest('grandslam')
+roslib.load_manifest('multi_map_navigation')
 import rospy
 import actionlib
 import sys
-from grandslam.msg import *
-from grandslam.srv import *
+from multi_map_navigation.msg import *
+from multi_map_navigation.srv import *
 
 
 class TestClient():
     def __init__(self, name):
-        self.action_client = actionlib.SimpleActionClient(name, GrandSlamTransitionAction)
+        self.action_client = actionlib.SimpleActionClient(name, MultiMapNavigationTransitionAction)
         self.action_client.wait_for_server()
-        goal = GrandSlamTransitionGoal()
+        goal = MultiMapNavigationTransitionGoal()
         self.action_client.send_goal(goal)
         self.action_client.wait_for_result()
 
 
 if (__name__ == "__main__"):
-   rospy.init_node("grandslam_test")
+   rospy.init_node("multi_map_navigation")
    name = sys.argv[1]
    test = TestClient(name)
 
