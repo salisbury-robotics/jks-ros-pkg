@@ -1,11 +1,11 @@
 <package>
-  <description brief="robotpass">
-    Grandslam multi-map manager technology
+  <description brief="door_blast">
+    Door_blast door opener.
   </description>
   <author>Tony Pratkanis</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/grandslam</url>
+  <url>http://ros.org/wiki/door_blast</url>
   <depend package="rospy"/>
   <depend package="pr2_tuck_arms_action" />
   <depend package="actionlib"/>
@@ -14,7 +14,7 @@
   <depend package="move_base_msgs"/>
   <depend package="nav_msgs"/>
   <depend package="pr2_msgs"/>
-  <depend package="grandslam"/>
+  <depend package="multi_map_navigation"/>
   <depend package="kinematics_msgs"/>  
   <depend package="pr2_controllers_msgs"/>
   <depend package="pr2_common_action_msgs"/>

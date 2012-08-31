@@ -1,11 +1,11 @@
 <package>
-  <description brief="robotpass">
-    Grandslam multi-map manager technology
+  <description brief="multi-map navigation">
+    Multi-map navigation in the clark center
   </description>
   <author>Tony Pratkanis</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/grandslam</url>
+  <url>http://ros.org/wiki/multi_map_navigation</url>
   <depend package="rospy"/>
   <depend package="actionlib"/>
   <depend package="map_store"/>

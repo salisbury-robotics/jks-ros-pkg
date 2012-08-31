@@ -12,7 +12,7 @@ import tf
 from sensor_msgs.msg import *
 from robotpass.msg import *
 from visualization_msgs.msg import *
-from grandslam.msg import *
+from multi_map_navigation.msg import *
 from pr2_common_action_msgs.msg import *
 from geometry_msgs.msg import *
 from pr2_controllers_msgs.msg import *
@@ -29,9 +29,9 @@ class CoffeeGrab(object):
         rospy.loginfo("Wait for tuck arm")
         self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
         self.tuck.wait_for_server()
-        rospy.loginfo("Wait for grandslam")
-        self.grandslam_ac = actionlib.SimpleActionClient("grandslam/move", GrandSlamAction)
-        self.grandslam_ac.wait_for_server()
+        rospy.loginfo("Wait for multi_map_navigation")
+        self.multi_map_navigation_ac = actionlib.SimpleActionClient("multi_map_navigation/move", MultiMapNavigationAction)
+        self.multi_map_navigation_ac.wait_for_server()
         rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
         self.visualization_publisher = rospy.Publisher("/visualization_markers", Marker)
         rospy.loginfo("Wait for head control")
@@ -81,8 +81,8 @@ class CoffeeGrab(object):
         self.robotpass.send_goal(take_goal)
         self.robotpass.wait_for_result()
 
-    def grandslam(self, x, y, a, name):
-        goal = GrandSlamGoal()
+    def multi_map_navigation(self, x, y, a, name):
+        goal = MultiMapNavigationGoal()
         goal.target_pose.header.stamp = rospy.get_rostime()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.pose.position.x = x
@@ -91,8 +91,8 @@ class CoffeeGrab(object):
         #FIXME
         goal.target_pose.pose.orientation.w = 1.0
         goal.goal_map = name
-        self.grandslam_ac.send_goal(goal)
-        self.grandslam_ac.wait_for_result()
+        self.multi_map_navigation_ac.send_goal(goal)
+        self.multi_map_navigation_ac.wait_for_result()
 
     def cube(self, f, x, y, z, sx, sy, sz, i):
         marker = Marker()
@@ -136,9 +136,9 @@ class CoffeeGrab(object):
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "empty bag")
         self.tuck_arms(True, True)
 
-        #Go to Ken's office - grandslam
-        print "GRANDSLAM: ken's office"
-        self.grandslam(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
+        #Go to Ken's office - multi_map_navigation
+        print "multi_map_navigation: ken's office"
+        self.multi_map_navigation(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
         print "Grab bag"
         self.tuck_arms(False, True)
@@ -146,9 +146,9 @@ class CoffeeGrab(object):
         self.passobject(PassObjectGoal.TAKE_OBJECT, PassObjectGoal.HIGH, "money and paper instructions")
         self.tuck_arms(True, True)
     
-        #Go to target - grandslam
-        print "GRANDSLAM: coffee shop"
-        self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
+        #Go to target - multi_map_navigation
+        print "multi_map_navigation: coffee shop"
+        self.multi_map_navigation(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")
         
         #Raise the torso
         print "Rise torso"
@@ -201,10 +201,10 @@ class CoffeeGrab(object):
         self.tuck_arms(True, True)
 
         #Return to ken's office
-        print "GRANDSLAM: ken's office"
-        self.grandslam(17.460, 38.323, -2.330, "clarkcenterfirstfloor") #Actual office location
-        #self.grandslam(56.869, 14.529, 2.511, "clarkcenterpeetscoffee") #Test in Peets for debuging
-        #self.grandslam(95.647, 62.677, 0, "clarkcenterfirstflooroutside") #Test location at the base of th elevator
+        print "multi_map_navigation: ken's office"
+        self.multi_map_navigation(17.460, 38.323, -2.330, "clarkcenterfirstfloor") #Actual office location
+        #self.multi_map_navigation(56.869, 14.529, 2.511, "clarkcenterpeetscoffee") #Test in Peets for debuging
+        #self.multi_map_navigation(95.647, 62.677, 0, "clarkcenterfirstflooroutside") #Test location at the base of th elevator
 
         #Untuck
         print "Done"
@@ -213,7 +213,7 @@ class CoffeeGrab(object):
         self.passobject(PassObjectGoal.GIVE_OBJECT, PassObjectGoal.HIGH, "cup")
         self.tuck_arms(True, True)
 
-        print "GRANDSLAM: base"
+        print "multi_map_navigation: base"
 
     def extend_arm(self, force):
         goal = JointTrajectory()

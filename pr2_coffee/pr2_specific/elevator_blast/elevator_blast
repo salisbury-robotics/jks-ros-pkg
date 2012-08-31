@@ -10,7 +10,7 @@ from sensor_msgs.msg import *
 from visualization_msgs.msg import *
 from geometry_msgs.msg import *
 from pr2_msgs.srv import *
-from grandslam.msg import *
+from multli_map_navigation.msg import *
 from kinematics_msgs.srv import *
 from pr2_controllers_msgs.msg import *
 from pr2_common_action_msgs.msg import *
@@ -48,7 +48,7 @@ class ElevatorControl:
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
         rospy.Subscriber("/base_scan", LaserScan, self.on_base_scan)
         self.ac_server = actionlib.SimpleActionServer(
-            "elevator_blast", GrandSlamTransitionAction,
+            "elevator_blast", MultiMapNavigationTransitionAction,
             execute_cb=self.do_elevator, auto_start=False)
         rospy.loginfo("wait for IK")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik_solver_info")

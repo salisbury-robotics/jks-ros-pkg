@@ -9,7 +9,7 @@ from sensor_msgs.msg import *
 from visualization_msgs.msg import *
 from geometry_msgs.msg import *
 from pr2_msgs.srv import *
-from grandslam.msg import *
+from multi_map_navigation.msg import *
 from kinematics_msgs.srv import *
 from pr2_controllers_msgs.msg import *
 from pr2_common_action_msgs.msg import *
@@ -26,8 +26,8 @@ class DoorBlast:
         rospy.wait_for_service("/laser_tilt_controller/set_periodic_cmd")
         self.set_laser = rospy.ServiceProxy("/laser_tilt_controller/set_periodic_cmd", SetPeriodicCmd)
         rospy.Subscriber("/tilt_scan", LaserScan, self.on_scan_msg)
-        self.blast_server = actionlib.SimpleActionServer("door_blast", GrandSlamTransitionAction, execute_cb=self.blast, auto_start=False)
-        self.drag_server = actionlib.SimpleActionServer("door_drag", GrandSlamTransitionAction, execute_cb=self.drag, auto_start=False)
+        self.blast_server = actionlib.SimpleActionServer("door_blast", MultiMapNavigationTransitionAction, execute_cb=self.blast, auto_start=False)
+        self.drag_server = actionlib.SimpleActionServer("door_drag", MultiMapNavigationTransitionAction, execute_cb=self.drag, auto_start=False)
         rospy.loginfo("wait for IK")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik_solver_info")
         rospy.wait_for_service("pr2_right_arm_kinematics/get_ik")
@@ -185,7 +185,7 @@ class DoorBlast:
         goal = self.generate_goal(min_depth + 1.5, 0.0)
         self.move_to_target(goal, math.pi + math.pi/12.0)
 
-        self.blast_server.set_succeeded(GrandSlamTransitionResult())
+        self.blast_server.set_succeeded(MultiMapNavigationTransitionResult())
 
     def hand_dist(self, pos1):
         dist = 0.0
@@ -348,7 +348,7 @@ class DoorBlast:
 
         print "done"
         
-        self.drag_server.set_succeeded(GrandSlamTransitionResult())        
+        self.drag_server.set_succeeded(MultiMapNavigationTransitionResult())        
         return True
 
     def set_gripper(self, pos):
