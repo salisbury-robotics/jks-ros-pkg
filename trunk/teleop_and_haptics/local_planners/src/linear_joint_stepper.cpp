@@ -25,6 +25,8 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
   }
   goal_state.setStateValues(update);
   unsigned int steps = 1  + (start_state.distance(goal_state) / 0.03);
+//  steps = std::min<unsigned int>(steps, 6);
+  unsigned int MAX_STEPS = 6;
 
   std::vector<planning_models::KinematicStatePtr> path;
   if(planning_scene->isStateValid(start_state))
@@ -33,7 +35,7 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
   {
     ROS_ERROR("Can't plan, start state is not valid.");
 
-    printCollisionInfo(*planning_scene, start_state);
+    //printCollisionInfo(*planning_scene, start_state);
 
     return false;
   }
@@ -48,7 +50,7 @@ bool LinearJointStepper::solve(const planning_scene::PlanningSceneConstPtr& plan
   }
   else
   {
-    for (size_t s = 1 ; s <= steps ; ++s)
+    for (size_t s = 1 ; s <= MAX_STEPS ; ++s)
     {
       planning_models::KinematicStatePtr point = planning_models::KinematicStatePtr(new planning_models::KinematicState(start_state));
       createKinematicStatePoint(planning_scene, start_state, goal_state, update, s, steps, point);
