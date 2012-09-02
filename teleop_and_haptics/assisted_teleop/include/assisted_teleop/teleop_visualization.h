@@ -73,8 +73,13 @@ public:
 
 protected:
 
-//  /** Subclass-specific initialization. This version loads some parameters and sets member variables. */
-//  virtual void onInitialize();
+  virtual bool generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
+                           const std::string& arm_name,
+                           const planning_models::KinematicState* start_state,
+                           const planning_models::KinematicState* goal_state,
+                           trajectory_msgs::JointTrajectory& traj,
+                           moveit_msgs::MoveItErrorCodes& error_code) const;
+
 
   /** @brief Callback for commanding robot to move. */
   void teleopTimerCallback();

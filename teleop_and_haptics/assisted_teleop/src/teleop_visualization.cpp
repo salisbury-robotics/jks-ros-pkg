@@ -57,98 +57,81 @@ bool TeleopVisualization::getProxyState(planning_models::KinematicState &kin_sta
 {
 
   if(!last_trajectory_ok_){
-    ROS_WARN("Last trajectory was invalid, can't get proxy state");
+    ROS_WARN("Last trajectory was invalid, can't get proxy state.");
     return false;
   }
 
   trajectory_msgs::JointTrajectory traj;
   getLastTrajectory(current_group_, traj);
+  if(traj.points.size() == 0)
+  {
+    ROS_ERROR("For some reason there are no points in a supposedly valid trajectory.");
+    return false;
+  }
 
-  moveit_msgs::RobotState robot_state;
+  std::map<std::string, double> update;
+  for (std::size_t i = 0 ; i < traj.joint_names.size() ; ++i)
+  {
+    update[traj.joint_names[i]] = traj.points[0].positions[i];
+  }
+  kin_state.setStateValues(update);
 
-  planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
-  planning_models::robotStateToKinematicState(robot_state, kin_state);
+//  moveit_msgs::RobotState robot_state;
+
+//  last_trajectory_;
+//  planning_models::jointStateToKinematicState();
+//  //planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
+//  planning_models::robotStateToKinematicState(robot_state, kin_state);
 
   ROS_INFO("Returning with Proxy state!");
   return true;
 }
 
-//void TeleopVisualization::generatePlan(const std::string& name, bool play) {
-//  bool print = true;
-//  ROS_INFO_STREAM_COND(print, "Planning for " << name);
-//  if(group_visualization_map_.find(name) == group_visualization_map_.end()) {
-//    ROS_INFO_STREAM_COND(print, "No group " << name << " so can't plan");
-//  }
+bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
+                                               const std::string& group_name,
+                                               const planning_models::KinematicState* start_state,
+                                               const planning_models::KinematicState* goal_state,
+                                               trajectory_msgs::JointTrajectory& ret_traj,
+                                               moveit_msgs::MoveItErrorCodes& error_code) const
+{
+  moveit_msgs::GetMotionPlan::Request req;
+  moveit_msgs::GetMotionPlan::Response res;
 
-//  const planning_models::KinematicState& start_state = group_visualization_map_[name]->getStartState();
-//  const planning_models::KinematicState& goal_state = group_visualization_map_[name]->getGoalState();
+  req.motion_plan_request.group_name = group_name;
+  planning_models::kinematicStateToRobotState(*start_state,req.motion_plan_request.start_state);
+  req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(goal_state->getJointStateGroup(group_name),
+                                                                                                     .001, .001));
 
-//  moveit_msgs::MoveItErrorCodes error_code;
-//  trajectory_msgs::JointTrajectory traj;
-//  moveit_msgs::RobotTrajectory robot_traj;
-//  if(generatePlanForScene(planning_scene_,
-//                  name,
-//                  &start_state,
-//                  &goal_state,
-//                  traj,
-//                  robot_traj,
-//                  error_code)) {
-//    last_start_state_ = start_state;
-//    last_trajectory_ = traj;
-//    last_robot_trajectory_ = robot_traj;
-//    last_group_name_ = name;
-//    last_trajectory_ok_ = true;
-//    cycle_ok_ = true;
-//    if(play) {
-//      playLastTrajectory();
-//    }
-//  } else {
-//    last_trajectory_ok_ = false;
-//    ROS_INFO_STREAM("Planning failed");
-//  }
-//}
+  req.motion_plan_request.num_planning_attempts = 1;
+  req.motion_plan_request.allowed_planning_time = ros::Duration(0.45);
 
-//bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
-//                                               const std::string& group_name,
-//                                               const planning_models::KinematicState* start_state,
-//                                               const planning_models::KinematicState* goal_state,
-//                                               trajectory_msgs::JointTrajectory& ret_traj,
-//                                               moveit_msgs::RobotTrajectory& robot_traj,
-//                                               moveit_msgs::MoveItErrorCodes& error_code) const
-//{
-//  moveit_msgs::GetMotionPlan::Request req;
-//  moveit_msgs::GetMotionPlan::Response res;
+  // Manually define what planner to use - DTC
+  req.motion_plan_request.planner_id = getCurrentPlanner();
 
-//  req.motion_plan_request.group_name = group_name;
-//  planning_models::kinematicStateToRobotState(*start_state,req.motion_plan_request.start_state);
-//  req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(goal_state->getJointStateGroup(group_name),
-//                                                                                                     .001, .001));
+  ROS_INFO_STREAM("USING MENU PLANNER " << getCurrentPlanner());
 
-//  req.motion_plan_request.num_planning_attempts = 1;
-//  req.motion_plan_request.allowed_planning_time = ros::Duration(0.45);
-
-//  if(!move_group_pipeline_->generatePlan(scene, req, res)) {
-//    ROS_WARN_STREAM("Response traj " << res.trajectory.joint_trajectory);
-//    return false;
-//  }
-//  ret_traj = res.trajectory.joint_trajectory;
-//  return true;
-//}
+  if(!move_group_pipeline_->generatePlan(scene, req, res)) {
+    ROS_WARN_STREAM("Response traj " << res.trajectory.joint_trajectory);
+    return false;
+  }
+  ret_traj = res.trajectory.joint_trajectory;
+  return true;
+}
 
 
 void TeleopVisualization::teleopTimerCallback() {
 
   static ros::Duration average_duration = ros::Duration(0);
   ros::Time start_time = ros::Time::now();
-  ROS_INFO_STREAM("v v v v v v v v v v v v v v v v v v v v v v v");
+  ROS_INFO_STREAM("teleopTimerCallback: v v v v v v v v v v v v v v v v v v v v v v v");
   //ROS_INFO_STREAM("Teleop timer update! Moving group...");
 
   if(current_group_.empty()) {
-    ROS_WARN("No group is active, returning...");
+    ROS_WARN("teleopTimerCallback: No group is active, returning...");
     return;
   }
   if(group_visualization_map_.find(current_group_) == group_visualization_map_.end()) {
-    ROS_WARN_STREAM("No group name " << current_group_);
+    ROS_WARN_STREAM("teleopTimerCallback: No group name " << current_group_);
     return;
   }
 
@@ -158,19 +141,34 @@ void TeleopVisualization::teleopTimerCallback() {
   {
     generatePlan(current_group_, false);
 
-    ksgv->setStartState(planning_scene_->getCurrentState());
+    // TODO need to figure out the right way to maintain the proxy...
+    // because this is NOT hat we want
+    //ksgv->setStartState(planning_scene_->getCurrentState());
 
-    collision_detection::CollisionRequest req;
-    req.max_contacts = 50;
-    req.contacts = true;
-    req.distance = false;
-    req.verbose = false;
-    collision_detection::CollisionResult res;
-    planning_scene_->checkCollision(req, res, ksgv->getGoalState());
-    collision_visualization_->drawCollisions(res, planning_scene_->getPlanningFrame());
+    // Set start state to the last computed proxy state:
+    planning_models::KinematicState proxy(ksgv->getStartState());
+    if( getProxyState(proxy) )
+      ksgv->setStartState(proxy);
+
+    bool show_collisions = false;
+    if(show_collisions) // it's a bummer to have to recompute this result
+    {
+      collision_detection::CollisionRequest req;
+      req.max_contacts = 50;
+      req.contacts = true;
+      req.distance = false;
+      req.verbose = false;
+      collision_detection::CollisionResult res;
+      planning_scene_->checkCollision(req, res, ksgv->getGoalState());
+      collision_visualization_->drawCollisions(res, planning_scene_->getPlanningFrame());
+    }
   }
   else
   {
+    // Just use the goal state pose which was compute using constrained IK.
+    // This should be wrapped in such a way that the user is *not allowed* to
+    // go through an invalid pose to a valid pose. While this may be super annoying, it prevents
+    // the user from flying through obstacles when IK is suddenly valid on the other side...
     sensor_msgs::JointState js;
     planning_models::kinematicStateToJointState( ksgv->getGoalState(),js);
     trajectory_msgs::JointTrajectoryPoint pt;
@@ -185,7 +183,8 @@ void TeleopVisualization::teleopTimerCallback() {
       pt.positions.push_back(js.position[i]);
       if(!js.velocity.empty()) pt.velocities.push_back(js.velocity[i]);
     }
-    pt.time_from_start = ros::Duration(0.1);
+    // TODO This is totally a magic number...
+    pt.time_from_start = ros::Duration(teleop_period_);
     traj.points.push_back(pt);
     traj.header.stamp = ros::Time::now();
     traj.header.frame_id = "odom_combined";
@@ -197,13 +196,14 @@ void TeleopVisualization::teleopTimerCallback() {
 
 
   // Send command for next posture
+  ROS_INFO("teleopTimerCallback: Calling trajectory execution function!");
   trajectory_execution_fn_();
 
   ros::Duration elapsed = ros::Time::now() - start_time;
   float lambda = 0.1;
   average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
-  ROS_INFO("Teleop update took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
-  ROS_INFO_STREAM("^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
+  ROS_INFO("teleopTimerCallback: Teleop update took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
+  ROS_INFO_STREAM("teleopTimerCallback: ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
 }
 
 
