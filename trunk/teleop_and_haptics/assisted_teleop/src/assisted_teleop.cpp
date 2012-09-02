@@ -93,6 +93,27 @@ AssistedTeleop::AssistedTeleop() :
             bool manage_controllers= false;
             loc_nh.param("manage_controllers", manage_controllers, true);
             trajectory_execution_manager_.reset(new trajectory_execution_manager::TrajectoryExecutionManager(planning_scene_monitor_->getPlanningScene()->getKinematicModel(), manage_controllers));
+            moveit_controller_manager::MoveItControllerManagerPtr cmanager = trajectory_execution_manager_->getControllerManager();
+
+            std::vector<std::string> controller_names;
+
+//            controller_names.clear();
+//            cmanager->getLoadedControllers(controller_names);
+//            ROS_INFO("Loaded controllers:");
+//            for( size_t i = 0; i < controller_names.size(); i++)
+//              ROS_INFO("    %s", controller_names[i].c_str());
+
+            controller_names.clear();
+            cmanager->getActiveControllers(controller_names);
+            ROS_INFO("Active controllers:");
+            for( size_t i = 0; i < controller_names.size(); i++)
+              ROS_INFO("    %s", controller_names[i].c_str());
+
+//            controller_names.clear();
+//            cmanager->getControllersList(controller_names);
+//            ROS_INFO("Controllers list:");
+//            for( size_t i = 0; i < controller_names.size(); i++)
+//              ROS_INFO("    %s", controller_names[i].c_str());
         }
     }
 
@@ -338,7 +359,7 @@ void AssistedTeleop::updateSceneCallback() {
 }
 
 bool AssistedTeleop::doneWithExecution(const moveit_controller_manager::ExecutionStatus& ex_status) {
-    ROS_INFO_STREAM("Done");
+    ROS_INFO_STREAM("Assisted Teleop: Done with execution.");
     boost::lock_guard<boost::mutex> lock(trajectory_execution_mutex_);
     execution_succeeded_ = (bool)ex_status;
     trajectory_execution_finished_.notify_all();
@@ -347,10 +368,15 @@ bool AssistedTeleop::doneWithExecution(const moveit_controller_manager::Executio
 void AssistedTeleop::executeLastTrajectory() {
     std::string group_name;
     trajectory_msgs::JointTrajectory traj;
+
     if(pv_->getLastTrajectory(group_name, traj)) {
       if(trajectory_execution_manager_->getLastExecutionStatus() != moveit_controller_manager::ExecutionStatus::RUNNING)
+      {
+        trajectory_execution_manager_->stopExecution(true);
+        trajectory_execution_manager_->clear();
         if(trajectory_execution_manager_->push(traj))
           trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
+      }
     }
 }
 
