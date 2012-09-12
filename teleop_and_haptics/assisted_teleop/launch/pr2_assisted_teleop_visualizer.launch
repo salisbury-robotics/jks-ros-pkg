@@ -10,7 +10,10 @@
   <arg unless="$(arg debug)" name="launch_prefix" value="" />
   <arg     if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
 
-  <arg name="constraint_aware" default="true"/>
+  <!-- <arg name="constraint_aware" default="true"/> -->
+  <arg name="planner_type" default="IK"/>
+  <arg name="planner_plugin" default="linear"/>
+  <arg name="execute_trajectory" default="true"/>
   <arg name="teleop_period" default="0.03333"/> 
 
   <include file="$(find pr2_moveit_config)/launch/planning_context.launch" />
@@ -25,7 +28,7 @@
   -->
 
   <include ns="$(arg visualizer_node_name)" file="$(find assisted_teleop)/launch/planning_pipeline.launch">
-    <arg name="pipeline" value="local" />
+    <arg name="pipeline" value="$(arg planner_plugin)" />
   </include>
 
   <include ns="$(arg visualizer_node_name)" file="$(find pr2_moveit_config)/launch/trajectory_execution.launch">
@@ -37,7 +40,9 @@
     <param name="monitor_robot_state" value="$(arg monitor_robot_state)"/>
     <param name="allow_trajectory_execution" value="$(arg allow_trajectory_execution)"/>
 
-    <param name="constraint_aware" type="bool" value="$(arg constraint_aware)" />
+    <!-- <param name="constraint_aware" type="bool" value="$(arg constraint_aware)" /> -->
+    <param name="planner_type" type="string" value="$(arg planner_type)" />
+    <param name="execute_trajectory" type="bool" value="$(arg execute_trajectory)" />
     <param name="teleop_period" type="double" value="$(arg teleop_period)" />
   </node>
 

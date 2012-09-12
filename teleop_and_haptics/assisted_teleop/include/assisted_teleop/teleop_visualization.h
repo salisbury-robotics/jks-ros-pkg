@@ -70,9 +70,29 @@ public:
 
  bool getProxyState(planning_models::KinematicState &kin_state);
 
+// virtual bool getLastJointState(std::string& group_name,
+//                        trajectory_msgs::JointTrajectory& traj) const
+// {
+//   if(!last_trajectory_ok_) return false;
+//   group_name = last_group_name_;
+//   traj = last_trajectory_;
+//   return true;
+// }
+
 
 protected:
 
+  //! This is the top-level planning call
+  virtual void generateTeleopPlan(const std::string& name);
+
+  //! This calls planners that expect *pose* constraints.
+  virtual void createTeleopStep(const std::string& name);
+
+  //! Just puts the IK state into a trajectory point.
+  virtual void createIKStep(const std::string& name);
+
+  //! Call "regular" planners.
+  //virtual void generatePlan(const std::string& name, bool play=true);
   virtual bool generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
                            const std::string& arm_name,
                            const planning_models::KinematicState* start_state,
@@ -98,8 +118,11 @@ protected:
   /** Timer period for teleop callback */
   double teleop_period_;
 
-  /** Parameter for trying out different settings... */
-  bool constraint_aware_;
+  /** Parameter for trying out different planner types... */
+  std::string planner_type_;
+
+  /** Parameter for bypassing trajectory execution... */
+  bool execute_trajectory_;
 
   // TODO do I still need this?
   TrajectoryExecutionFunction trajectory_execution_fn_;

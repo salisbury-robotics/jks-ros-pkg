@@ -6,6 +6,7 @@
 right_arm:
   planner_configs:
     - LinearJointStepper
+    - ConvexConstraintSolver
     - SBLkConfigDefault
     - LBKPIECEkConfigDefault
     - RRTkConfigDefault
@@ -20,6 +21,7 @@ right_arm:
 left_arm: 
   planner_configs:
     - LinearJointStepper
+    - ConvexConstraintSolver
     - SBLkConfigDefault
     - LBKPIECEkConfigDefault
     - RRTkConfigDefault
@@ -34,6 +36,7 @@ left_arm:
 arms:
   planner_configs:
     - LinearJointStepper
+    - ConvexConstraintSolver
   longest_valid_segment_fraction: 0.05
   projection_evaluator: joints(r_shoulder_pan_joint,l_shoulder_pan_joint)
 
@@ -46,6 +49,9 @@ planner_configs:
   LinearJointStepper:
     type: geometric::SBL
 
+  ConvexConstraintSolver:
+    type: geometric::SBL
+  
   SBLkConfigDefault:
     type: geometric::SBL
 
