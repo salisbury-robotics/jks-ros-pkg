@@ -3,5 +3,9 @@
     <description>
     </description>
   </class>
+  <class name="local_planners/ConvexConstraintSolver" type="local_planners::ConvexConstraintSolver" base_class_type="planning_interface::Planner">
+    <description>
+    </description>
+  </class>
 </library>
 

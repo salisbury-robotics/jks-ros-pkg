@@ -5,6 +5,8 @@
 #include <planning_models/kinematic_state.h>
 //#include <planning_models/kinematic_state/joint_state_group-inc.h>
 #include <local_planners/util.h>
+#include <tf/transform_datatypes.h>
+#include <tf_conversions/tf_eigen.h>
 
 #define HAVE_CVX
 
@@ -36,6 +38,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
                    const moveit_msgs::GetMotionPlan::Request &req,
                    moveit_msgs::GetMotionPlan::Response &res) const
 {
+  ROS_WARN("Solving for group [%s] using ConvexConstraintSolver!", req.motion_plan_request.group_name.c_str());
 
   // Need to add in joint limit constraints
   // Get the position constraints from the collision detector
@@ -70,11 +73,6 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   // constrained_goal_state is the optimization output before interval stepping, proxy_state will be used as we step around.
   planning_models::KinematicState proxy_state = start_state;
   planning_models::KinematicState constrained_goal_state = start_state;
-
-
-
-
-
 
 
   // ======== Extract all contact points and normals from previous collision state, get associated Jacobians ========
@@ -119,7 +117,6 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
   const moveit_msgs::Constraints &c = req.motion_plan_request.goal_constraints[0];
 
-
   // Position and Orientation
   if(c.position_constraints.size() != 1 || c.orientation_constraints.size() != 1)
   {
@@ -143,7 +140,6 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     ROS_ERROR("Need exactly one 'pose' for the end-effector goal region. Aborting...");
   }
 
-
   std::string planning_frame = planning_scene->getPlanningFrame();
   if(pc.header.frame_id != planning_frame)
     ROS_WARN("The position goal header [%s] and planning_frame [%s] don't match, things are probably all wrong!",
@@ -153,14 +149,16 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
              oc.header.frame_id.c_str(), planning_frame.c_str() );
 
   Eigen::Vector3d goal_point;
-  Eigen::Quaterniond goal_orientation;
+  Eigen::Quaterniond goal_quaternion_e;
   { // scoped so we don't pollute function scope with these message temps
     geometry_msgs::Point msg_goal_point = pc.constraint_region.primitive_poses[0].position;
     geometry_msgs::Quaternion msg_goal_orientation = oc.orientation;
     goal_point = Eigen::Vector3d(msg_goal_point.x, msg_goal_point.y, msg_goal_point.z);
-    goal_orientation = Eigen::Quaterniond(msg_goal_orientation.w, msg_goal_orientation.x, msg_goal_orientation.y, msg_goal_orientation.z);
+    goal_quaternion_e = Eigen::Quaterniond(msg_goal_orientation.w, msg_goal_orientation.x, msg_goal_orientation.y, msg_goal_orientation.z);
   }
 
+
+  ROS_INFO("Computing position and orientation error...");
   planning_models::KinematicState::LinkState *link_state = start_state.getLinkState(pc.link_name);
   Eigen::Affine3d planning_T_link = link_state->getGlobalLinkTransform();
 
@@ -169,15 +167,30 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
   // TODO need to make sure these are expressed in the same frame.
   Eigen::Vector3d x_error = goal_point - ee_point_in_planning_frame;
-  //Eigen::Quaterniond
 
+  // = = = = Rotations are gross = = = =
+  Eigen::Quaterniond link_quaternion_e = Eigen::Quaterniond(planning_T_link.rotation());
+  tf::Quaternion link_quaternion_tf, goal_quaternion_tf;
+  tf::RotationEigenToTF( link_quaternion_e, link_quaternion_tf );
+  tf::RotationEigenToTF( goal_quaternion_e, goal_quaternion_tf );
+  tf::Matrix3x3 goal_matrix, link_matrix;
+  goal_matrix.setRotation(goal_quaternion_tf);
+  link_matrix.setRotation(link_quaternion_tf);
 
+  double link_euler[3], goal_euler[3];
+  link_matrix.getRPY(link_euler[0], link_euler[1], link_euler[2]);
+  goal_matrix.getRPY(goal_euler[0], goal_euler[1], goal_euler[2]);
+
+  // - - - This is what we use for orientation error
+  Eigen::Vector3d rot_error = Eigen::Vector3d(goal_euler[0] - link_euler[0], goal_euler[1] - link_euler[1], goal_euler[2] - link_euler[2]);
+
+  ROS_INFO("Getting end-effector Jacobian...");
   // Get end-effector Jacobian
-  std::string ee_link = "r_wrist_roll_link";
-  if(jmg->isChain())
+  std::string ee_link = "r_gripper_led_frame";
+  if(false && jmg->isChain())
     ee_link = planning_scene->getKinematicModel()->getJointModelGroup(jmg->getAttachedEndEffectorGroupName())->getEndEffectorParentGroup().second;
   else
-    ROS_WARN("Uising r_wrist_roll_link as HARD_CODED value.");
+    ROS_WARN("Using r_gripper_led_frame as HARD_CODED value.");
   if(ee_link != pc.link_name)
     ROS_WARN("ee_link [%s] and position_goal link [%s] aren't the same, this could be bad!", ee_link.c_str(), pc.link_name.c_str());
 
@@ -191,6 +204,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
 // ======== Pack into solver data structure, run solver. ========
 
+  ROS_INFO("Packing data into the cvx solver...");
 //  Vars vars;
 //  Params params;
 //  Workspace work;
@@ -206,7 +220,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   // end-effector Jacobian
   // TODO magic numbers (though I suppose the CVX solver is already hard-coded)
   for(unsigned int index = 0; index < 6*7; index++ )
-    params.J_goal[index] = ee_jacobian(index%7, index/7);
+    params.J_goal[index] = ee_jacobian(index/7, index%7);
 
   // set up constraints from contact set
   unsigned constraint_count = std::min<size_t>(50, contact_normals.size());
@@ -216,7 +230,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     {
       //printf("has constraint\n");
       for (int j = 0; j < 6*7; j++) {
-        params.Jac[constraint][j] = contact_jacobians[constraint](j%7, j/7);
+        params.Jac[constraint][j] = contact_jacobians[constraint](j/7, j%7);
       }
       for (int j = 0; j < 3; j++) {
         params.normal[constraint][j] = contact_normals[constraint][j];
@@ -233,74 +247,59 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     }
   }
 
+  for(unsigned int index = 0; index < 6; index++ )
+  {
+    params.q[index] = 0; // should get these from the start_state.
+    params.q_min[index] = -10;
+    params.q_max[index] = 10;
+  }
 
-
-
-
-//  // Set mass, inertia, acceleration, and angular acceleration params
-//  for(int i = 0; i < 3; i++)
-//  {
-//    //printf("params index: %02d", i);
-//    params.M[i] = m_mass[i];
-//    params.I[3*i+i] = m_moment[i];
-//    params.a_u[i] = a[i];
-//    params.alpha_u[i] = alpha[i];
-//  }
-//  // set up constraints from contact set
-//  for(int i = 0; i < 11; i++)
-//  {
-//    //printf("constraint index %02d: \n", i);
-//    if(i < m_contactNormals.size())
-//    {
-//      //printf("has constraint\n");
-//      vector3d &n = m_contactNormals[i];
-//      vector3d rxn = cml::cross(m_contactPoints[i], n);
-//      for (int j = 0; j < 3; j++) {
-//        params.n[i][j] = n[j];
-//        params.rxn[i][j] = rxn[j];
-//      }
-//    }
-//    else{
-//      //printf("setting to zero\n");
-//      for (int j = 0; j < 3; j++) {
-//        params.n[i][j] = 0;
-//        params.rxn[i][j] = 0;
-//      }
-//    }
-//  }
+  // TODO shoudl these be clipped down at all? :)
+  params.xdd[0] = x_error(0);
+  params.xdd[1] = x_error(1);
+  params.xdd[2] = x_error(2);
+  params.xdd[3] = rot_error(0);
+  params.xdd[4] = rot_error(1);
+  params.xdd[5] = rot_error(2);
 
   // - - - - - - - Solve our problem at high speed! - - - - - - - //
-//  long num_iters = solve();
-//  if(work.converged == 1)
-//  {
-//    for(int i = 0; i < 3; i++)
-//    {
-//      ac[i] = vars.a[i];
-//      alphac[i] = vars.alpha[i];
-//    }
-//  }
-//  else
-//  {
-//    printf("solving failed to converge in %d iterations.\n", num_iters);
-//    ac.zero();
-//    alphac.zero();
-//  }
-
-
+  long num_iters = 0;
+  //num_iters = cvx_solve();
+  if(!work.converged)
+  {
+    printf("solving failed to converge in %d iterations.\n", num_iters);
+    return false;
+  }
 
 // ======== Unpack solver result into constrained goal state. ========
+
+
+  ROS_INFO("Finished solving, unpacking data...");
   std::map<std::string, double> goal_update;
-  // TODO populate with results...
+  {
+    const moveit_msgs::Constraints &c = req.motion_plan_request.goal_constraints[1];
+    for (std::size_t i = 0 ; i < c.joint_constraints.size() ; ++i)
+    {
+      goal_update[c.joint_constraints[i].joint_name] = vars.qdd_c[i] + start_state.getJointState(c.joint_constraints[i].joint_name)->getVariableValues()[0];
+    }
+  }
+  //planning_models::KinematicState::JointState* ksjs;
+  //ksjs->
+
+  //goal_update[vars.qdd_c[index] + ]
   constrained_goal_state.setStateValues(goal_update);
 
 
 // ======== Step toward constrained goal, checking for new collisions along the way ========
+
   double proxy_goal_tolerance = 0.1;
   double interpolation_progress = 0.0;
   double interpolation_step = 0.1;
   while(interpolation_progress <= 1.0)
   {
     interpolation_progress += interpolation_step;
+    ROS_INFO("Doing interpolation, with progress %.2f ", interpolation_progress);
+
 //    if(proxy_state.distance(constrained_goal_state) < proxy_goal_tolerance)
 //    {
 //      ROS_INFO("Reached constrained goal state without any collisions!");
@@ -337,6 +336,8 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   }
 
 // ======== Convert proxy state to a "trajectory" ========
+  ROS_INFO("Converting proxy to a trajectory, and returning...");
+
   moveit_msgs::RobotTrajectory rt;
   trajectory_msgs::JointTrajectory traj;
   trajectory_msgs::JointTrajectoryPoint pt;
