@@ -142,11 +142,17 @@ AssistedTeleop::AssistedTeleop() :
                                                  kinematic_model_loader_,
                                                  vis_marker_array_publisher_));
 
-    iov_.reset(new InteractiveObjectVisualizationQtWrapper(planning_scene_monitor_->getPlanningScene(),
-                                                           interactive_marker_server_,
-                                                           col));
-
+  iov_.reset(new InteractiveObjectVisualizationQtWrapper(planning_scene_monitor_->getPlanningScene(),
+                                                         interactive_marker_server_,
+                                                         col));
   iov_->setUpdateCallback(boost::bind(&AssistedTeleop::updatePlanningScene, this, _1));
+
+  //iov_->addCube("default_cube_1");
+  //iov_->addSphere("default_sphere_1");
+  //iov_->addObject();
+
+        //addObject(const moveit_msgs::CollisionObject& coll,
+        //                                         const std_msgs::ColorRGBA& col) {
 
     if(monitor_robot_state) {
         pv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
@@ -369,14 +375,9 @@ void AssistedTeleop::executeLastTrajectory() {
     std::string group_name;
     trajectory_msgs::JointTrajectory traj;
 
-    if(pv_->getLastTrajectory(group_name, traj)) {
-      if(trajectory_execution_manager_->getLastExecutionStatus() != moveit_controller_manager::ExecutionStatus::RUNNING)
-      {
-        trajectory_execution_manager_->stopExecution(true);
-        trajectory_execution_manager_->clear();
-        if(trajectory_execution_manager_->push(traj))
-          trajectory_execution_manager_->execute(boost::bind(&AssistedTeleop::doneWithExecution, this, _1));
-      }
+    if(pv_->getLastTrajectory(group_name, traj))
+    {
+      trajectory_execution_manager_->pushAndExecute(traj);
     }
 }
 

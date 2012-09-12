@@ -44,13 +44,13 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
                                          ros::Publisher& marker_publisher)
   : PlanningVisualization(planning_scene, move_group_pipeline, interactive_marker_server, kinematic_model_loader, marker_publisher)
 {
-
   collision_visualization_.reset(new CollisionVisualization(marker_publisher));
 
   pnh_.param("teleop_period", teleop_period_, 0.0333);
   teleop_timer_ =  nh_.createTimer(ros::Duration(teleop_period_), boost::bind( &TeleopVisualization::teleopTimerCallback, this ) );
-  pnh_.param("constraint_aware", constraint_aware_, false);
-
+  //pnh_.param("constraint_aware", constraint_aware_, false);
+  pnh_.param("planner_type", planner_type_, std::string("IK"));
+  pnh_.param("execute_trajectory", execute_trajectory_, true);
 }
 
 bool TeleopVisualization::getProxyState(planning_models::KinematicState &kin_state)
@@ -76,15 +76,143 @@ bool TeleopVisualization::getProxyState(planning_models::KinematicState &kin_sta
   }
   kin_state.setStateValues(update);
 
-//  moveit_msgs::RobotState robot_state;
-
-//  last_trajectory_;
-//  planning_models::jointStateToKinematicState();
-//  //planning_models::robotTrajectoryPointToRobotState(last_robot_trajectory_, last_robot_trajectory_.joint_trajectory.points.size()-1, robot_state);
-//  planning_models::robotStateToKinematicState(robot_state, kin_state);
-
-  ROS_INFO("Returning with Proxy state!");
+  //ROS_INFO("Returning with Proxy state!");
   return true;
+}
+
+void TeleopVisualization::generateTeleopPlan(const std::string& name) {
+
+  KinematicsStartGoalVisualization* ksgv = group_visualization_map_[current_group_].get();
+
+  if(planner_type_ == "local")  // TODO change how these are selected!
+  {
+    createTeleopStep(name); // In this mode we use local "gradients" to move the end effector closer to the goal.
+  }
+  else if( planner_type_ == "global")
+  {
+    generatePlan(name, false);  // In this mode we use full motion planners to get to the goal.
+  }
+  else if( planner_type_ == "IK")
+  {
+    createIKStep(name);  // This is a basic mode that just stores the current IK solution as a trajectory point.
+  }
+  else
+  {
+    ROS_ERROR("No planner type specified!");
+  }
+
+  // = = = = = Store the last trajectory solution as the new proxy state... = = = = = =
+
+  // This is the WRONG thing to do. The robot can end up in collision, and then you are hosed.
+  //ksgv->setStartState(planning_scene_->getCurrentState());
+
+  // Instead, we set the start state to the last computed proxy state. Since, ideally, the
+  // last proxy state is "always valid", we won't run into the dreaded "can't plan" problem.
+  // (Though, if the planning scene updates such that the proxy is now in collision we are
+  // still screwed. Need to figure out the right way to deal with that case...
+  planning_models::KinematicState proxy(ksgv->getStartState());
+  if( getProxyState(proxy) )
+    ksgv->setStartState(proxy);
+}
+
+
+void TeleopVisualization::createIKStep(const std::string& name) {
+
+  KinematicsStartGoalVisualization* ksgv = group_visualization_map_[current_group_].get();
+
+  // Just use the goal state pose which was compute using constrained IK.
+  // This should be wrapped in such a way that the user is *not allowed* to
+  // go through an invalid pose to a valid pose. While this may be super annoying, it prevents
+  // the user from flying through obstacles when IK is suddenly valid on the other side...
+  sensor_msgs::JointState js;
+  planning_models::kinematicStateToJointState( ksgv->getGoalState(),js);
+  trajectory_msgs::JointTrajectoryPoint pt;
+  trajectory_msgs::JointTrajectory traj;
+
+  const planning_models::KinematicModel::JointModelGroup *jmg = planning_scene_->getKinematicModel()->getJointModelGroup(current_group_);
+
+  for(size_t i = 0 ; i < js.name.size(); i++)
+  {
+    if( !jmg->hasJointModel(js.name[i]) ) continue;
+    traj.joint_names.push_back(js.name[i]);
+    pt.positions.push_back(js.position[i]);
+    if(!js.velocity.empty()) pt.velocities.push_back(js.velocity[i]);
+  }
+  // TODO This is totally a magic number...
+  pt.time_from_start = ros::Duration(teleop_period_*1.5);
+  traj.points.push_back(pt);
+  traj.header.stamp = ros::Time::now();
+  traj.header.frame_id = "odom_combined";
+
+  last_trajectory_ = traj;
+  last_group_name_ = current_group_;
+  last_trajectory_ok_ = true;
+}
+
+
+void TeleopVisualization::createTeleopStep(const std::string& name) {
+  ROS_INFO_STREAM("Planning for " << name);
+  if(group_visualization_map_.find(name) == group_visualization_map_.end()) {
+    ROS_INFO_STREAM("No group " << name << " so can't plan");
+    return;
+  }
+
+  KinematicsStartGoalVisualization* ksgv = group_visualization_map_[name].get();
+
+  const planning_models::KinematicState& start_state = ksgv->getStartState();
+  const planning_models::KinematicState& goal_state = ksgv->getGoalState();
+
+  // TODO this function is probably broken; ask Ioan?
+  geometry_msgs::PoseStamped goal_pose = ksgv->getGoalInteractiveMarkerPose();
+
+  moveit_msgs::MoveItErrorCodes error_code;
+  trajectory_msgs::JointTrajectory traj;
+
+  bool success = false;
+
+  {
+    moveit_msgs::GetMotionPlan::Request req;
+    moveit_msgs::GetMotionPlan::Response res;
+
+    req.motion_plan_request.group_name = name;
+    planning_models::kinematicStateToRobotState(start_state, req.motion_plan_request.start_state);
+
+
+    req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints("r_gripper_led_frame", ksgv->getGoalInteractiveMarkerPose()));
+    req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(goal_state.getJointStateGroup(name),
+                                                                                                       .001, .001));
+
+    req.motion_plan_request.num_planning_attempts = 1;
+    req.motion_plan_request.allowed_planning_time = ros::Duration(0.1);
+
+    // Manually define what planner to use - DTC
+    req.motion_plan_request.planner_id = getCurrentPlanner();
+
+    ROS_INFO_STREAM("USING MENU PLANNER " << getCurrentPlanner());
+
+    if(!move_group_pipeline_->generatePlan(planning_scene_, req, res)) {
+      ROS_WARN_STREAM("Response traj " << res.trajectory.joint_trajectory);
+      success = false;
+    }
+    else
+    {
+      traj = res.trajectory.joint_trajectory;
+      success = true;
+    }
+  }
+
+  if(success)
+  {
+    last_start_state_ = start_state;
+    last_trajectory_ = traj;
+    last_group_name_ = name;
+    last_trajectory_ok_ = true;
+    cycle_ok_ = true;
+  } else {
+    last_trajectory_ok_ = false;
+    ROS_INFO_STREAM("Teleop planning failed");
+  }
+
 }
 
 bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSceneConstPtr& scene,
@@ -122,9 +250,11 @@ bool TeleopVisualization::generatePlanForScene(const planning_scene::PlanningSce
 void TeleopVisualization::teleopTimerCallback() {
 
   static ros::Duration average_duration = ros::Duration(0);
+  static ros::Duration average_cycle = ros::Duration(0);
+  static ros::Time last_end_time = ros::Time::now();
   ros::Time start_time = ros::Time::now();
+
   ROS_INFO_STREAM("teleopTimerCallback: v v v v v v v v v v v v v v v v v v v v v v v");
-  //ROS_INFO_STREAM("Teleop timer update! Moving group...");
 
   if(current_group_.empty()) {
     ROS_WARN("teleopTimerCallback: No group is active, returning...");
@@ -135,76 +265,45 @@ void TeleopVisualization::teleopTimerCallback() {
     return;
   }
 
-  KinematicsStartGoalVisualization* ksgv = group_visualization_map_[current_group_].get();
-
-  if(constraint_aware_)
-  {
-    generatePlan(current_group_, false);
-
-    // TODO need to figure out the right way to maintain the proxy...
-    // because this is NOT hat we want
-    //ksgv->setStartState(planning_scene_->getCurrentState());
-
-    // Set start state to the last computed proxy state:
-    planning_models::KinematicState proxy(ksgv->getStartState());
-    if( getProxyState(proxy) )
-      ksgv->setStartState(proxy);
-
-    bool show_collisions = false;
-    if(show_collisions) // it's a bummer to have to recompute this result
-    {
-      collision_detection::CollisionRequest req;
-      req.max_contacts = 50;
-      req.contacts = true;
-      req.distance = false;
-      req.verbose = false;
-      collision_detection::CollisionResult res;
-      planning_scene_->checkCollision(req, res, ksgv->getGoalState());
-      collision_visualization_->drawCollisions(res, planning_scene_->getPlanningFrame());
-    }
-  }
-  else
-  {
-    // Just use the goal state pose which was compute using constrained IK.
-    // This should be wrapped in such a way that the user is *not allowed* to
-    // go through an invalid pose to a valid pose. While this may be super annoying, it prevents
-    // the user from flying through obstacles when IK is suddenly valid on the other side...
-    sensor_msgs::JointState js;
-    planning_models::kinematicStateToJointState( ksgv->getGoalState(),js);
-    trajectory_msgs::JointTrajectoryPoint pt;
-    trajectory_msgs::JointTrajectory traj;
-
-    const planning_models::KinematicModel::JointModelGroup *jmg = planning_scene_->getKinematicModel()->getJointModelGroup(current_group_);
-
-    for(size_t i = 0 ; i < js.name.size(); i++)
-    {
-      if( !jmg->hasJointModel(js.name[i]) ) continue;
-      traj.joint_names.push_back(js.name[i]);
-      pt.positions.push_back(js.position[i]);
-      if(!js.velocity.empty()) pt.velocities.push_back(js.velocity[i]);
-    }
-    // TODO This is totally a magic number...
-    pt.time_from_start = ros::Duration(teleop_period_);
-    traj.points.push_back(pt);
-    traj.header.stamp = ros::Time::now();
-    traj.header.frame_id = "odom_combined";
-
-    last_trajectory_ = traj;
-    last_group_name_ = current_group_;
-    last_trajectory_ok_ = true;
-  }
-
+  // Generate a trajectory through various means:
+  generateTeleopPlan(current_group_);
 
   // Send command for next posture
-  ROS_INFO("teleopTimerCallback: Calling trajectory execution function!");
-  trajectory_execution_fn_();
+  if(execute_trajectory_)
+  {
+    //ROS_INFO("teleopTimerCallback: Calling trajectory execution function!");
+    trajectory_execution_fn_();
+  }
 
-  ros::Duration elapsed = ros::Time::now() - start_time;
+  ros::Time end_time = ros::Time::now();
+  ros::Duration elapsed = end_time - start_time;
+  ros::Duration last_cycle = end_time - last_end_time;
+  last_end_time = end_time;
   float lambda = 0.1;
   average_duration = ros::Duration(lambda*elapsed.toSec() + (1-lambda)*average_duration.toSec());
-  ROS_INFO("teleopTimerCallback: Teleop update took %.1f ms, filtered average is %.1f ms!", elapsed.toSec()*1000, average_duration.toSec()*1000);
-  ROS_INFO_STREAM("teleopTimerCallback: ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
+  average_cycle = ros::Duration(lambda*last_cycle.toSec() + (1-lambda)*average_cycle.toSec());
+  ROS_INFO("teleopTimerCallback: ran in %.1f ms, average %.1f ms, cycle average %.1f ms ^ ^ ^ ^ ^ ^ ^",
+           elapsed.toSec()*1000,
+           average_duration.toSec()*1000,
+           average_cycle.toSec()*1000);
+  //ROS_INFO_STREAM("teleopTimerCallback: ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^");
 }
 
 
 } // namespace moveit_visualization_ros
+
+
+// GRAVEYARD code snippets
+
+//bool show_collisions = false;
+//if(show_collisions) // it's a bummer to have to recompute this result
+//{
+//  collision_detection::CollisionRequest req;
+//  req.max_contacts = 50;
+//  req.contacts = true;
+//  req.distance = false;
+//  req.verbose = false;
+//  collision_detection::CollisionResult res;
+//  planning_scene_->checkCollision(req, res, ksgv->getGoalState());
+//  collision_visualization_->drawCollisions(res, planning_scene_->getPlanningFrame());
+//}
