@@ -7,8 +7,8 @@
 /* Filename: solver.h. */
 /* Description: Header file with relevant definitions. */
 
-#ifndef SOLVER_H
-#define SOLVER_H
+#ifndef SOLVER_SOLVER1_H
+#define SOLVER_SOLVER1_H
 
 /* Uncomment the next line to remove all library dependencies. */
 /*#define ZERO_LIBRARY_MODE */
@@ -33,6 +33,8 @@
 #define pm(A, m, n) printmatrix(#A, A, m, n, 1)
 #endif
 
+class CVX_Solver1 {
+public:
 typedef struct Params_t {
   double xdd[6];
   double J_goal[42];
@@ -207,10 +209,10 @@ typedef struct Settings_t {
   double kkt_reg;
 } Settings;
 
-extern Vars vars;
-extern Params params;
-extern Workspace work;
-extern Settings settings;
+Vars vars;
+Params params;
+Workspace work;
+Settings settings;
 
 /* Function definitions in /home/jem/olsr/releases/20110330074202/lib/olsr.extra/qp_solver/solver.c: */
 double eval_gap(void);
@@ -246,19 +248,8 @@ void matrix_multiply(double *result, double *source);
 double check_residual(double *target, double *multiplicand);
 void fill_KKT(void);
 
-/* Function definitions in /home/jem/olsr/releases/20110330074202/lib/olsr.extra/qp_solver/util.c: */
-void tic(void);
-float toc(void);
-float tocq(void);
-void printmatrix(char *name, double *A, int m, int n, int sparse);
-double unif(double lower, double upper);
-float ran1(long*idum, int reset);
-float randn_internal(long *idum, int reset);
-double randn(void);
-void reset_rand(void);
-
-/* Function definitions in /home/jem/olsr/releases/20110330074202/lib/olsr.extra/qp_solver/testsolver.c: */
-int main(int argc, char **argv);
-void load_default_data(void);
-
+double eval_objv(void);
+void setup_indexed_params(void);
+void setup_indexed_optvars(void);
+};
 #endif

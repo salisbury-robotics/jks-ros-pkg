@@ -10,7 +10,7 @@
 #include "solver.h"
 
 /* Be sure to place ldl_solve first, so storage schemes are defined by it. */
-void ldl_solve(double *target, double *var) {
+void CVX_Solver1::ldl_solve(double *target, double *var) {
   int i;
   /* Find var = (L*diag(work.d)*L') \ target, then unpermute. */
   /* Answer goes into var. */
@@ -476,7 +476,7 @@ void ldl_solve(double *target, double *var) {
 #endif
 }
 
-void ldl_factor(void) {
+void CVX_Solver1::ldl_factor(void) {
   work.d[0] = work.KKT[0];
   if (work.d[0] < 0)
     work.d[0] = settings.kkt_reg;
@@ -2905,7 +2905,7 @@ void ldl_factor(void) {
 #endif
 }
 
-double check_factorization(void) {
+double CVX_Solver1::check_factorization(void) {
   /* Returns the squared Frobenius norm of A - L*D*L'. */
   double temp, residual;
 
@@ -4774,7 +4774,7 @@ double check_factorization(void) {
   return residual;
 }
 
-void matrix_multiply(double *result, double *source) {
+void CVX_Solver1::matrix_multiply(double *result, double *source) {
   /* Finds result = A*source. */
 
   result[0] = work.KKT[171]*source[78]+work.KKT[179]*source[79]+work.KKT[187]*source[80]+work.KKT[195]*source[81]+work.KKT[203]*source[82]+work.KKT[211]*source[83]+work.KKT[219]*source[84]+work.KKT[227]*source[85]+work.KKT[235]*source[86]+work.KKT[243]*source[87]+work.KKT[251]*source[88]+work.KKT[259]*source[89]+work.KKT[267]*source[90]+work.KKT[275]*source[91]+work.KKT[283]*source[92]+work.KKT[291]*source[93]+work.KKT[299]*source[94]+work.KKT[307]*source[95]+work.KKT[315]*source[96]+work.KKT[323]*source[97]+work.KKT[331]*source[98]+work.KKT[339]*source[99]+work.KKT[347]*source[100]+work.KKT[355]*source[101]+work.KKT[363]*source[102]+work.KKT[371]*source[103]+work.KKT[379]*source[104]+work.KKT[387]*source[105]+work.KKT[395]*source[106]+work.KKT[403]*source[107]+work.KKT[411]*source[108]+work.KKT[419]*source[109]+work.KKT[427]*source[110]+work.KKT[435]*source[111]+work.KKT[443]*source[112]+work.KKT[451]*source[113]+work.KKT[459]*source[114]+work.KKT[467]*source[115]+work.KKT[475]*source[116]+work.KKT[483]*source[117]+work.KKT[491]*source[118]+work.KKT[499]*source[119]+work.KKT[507]*source[120]+work.KKT[515]*source[121]+work.KKT[523]*source[122]+work.KKT[531]*source[123]+work.KKT[539]*source[124]+work.KKT[547]*source[125]+work.KKT[555]*source[126]+work.KKT[563]*source[127]+work.KKT[571]*source[128]+work.KKT[143]*source[129]+work.KKT[145]*source[136]+work.KKT[578]*source[143]+work.KKT[585]*source[144]+work.KKT[592]*source[145]+work.KKT[599]*source[146]+work.KKT[606]*source[147]+work.KKT[613]*source[148];
@@ -4928,7 +4928,7 @@ void matrix_multiply(double *result, double *source) {
   result[148] = work.KKT[613]*source[0]+work.KKT[614]*source[1]+work.KKT[615]*source[2]+work.KKT[616]*source[3]+work.KKT[617]*source[4]+work.KKT[618]*source[5]+work.KKT[619]*source[6]+work.KKT[141]*source[12];
 }
 
-double check_residual(double *target, double *multiplicand) {
+double CVX_Solver1::check_residual(double *target, double *multiplicand) {
   /* Returns the squared 2-norm of lhs - A*rhs. */
   /* Reuses v to find the residual. */
   int i;
@@ -4942,7 +4942,7 @@ double check_residual(double *target, double *multiplicand) {
   return residual;
 }
 
-void fill_KKT(void) {
+void CVX_Solver1::fill_KKT(void) {
   work.KKT[130] = 2;
   work.KKT[132] = 2;
   work.KKT[134] = 2;

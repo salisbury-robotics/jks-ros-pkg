@@ -9,7 +9,7 @@
 
 #include "solver.h"
 
-double eval_gap(void) {
+double CVX_Solver1::eval_gap(void) {
   int i;
   double gap;
 
@@ -20,7 +20,7 @@ double eval_gap(void) {
   return gap;
 }
 
-void set_defaults(void) {
+void CVX_Solver1::set_defaults(void) {
   settings.resid_tol = 1e-6;
   settings.eps = 1e-4;
   settings.max_iters = 25;
@@ -37,7 +37,7 @@ void set_defaults(void) {
   settings.kkt_reg = 1e-7;
 }
 
-void setup_pointers(void) {
+void CVX_Solver1::setup_pointers(void) {
   work.y = work.x + 13;
   work.s = work.x + 19;
   work.z = work.x + 84;
@@ -45,7 +45,7 @@ void setup_pointers(void) {
   vars.qdd_c = work.x + 0;
 }
 
-void setup_indexed_params(void) {
+void CVX_Solver1::setup_indexed_params(void) {
   /* In CVXGEN, you can say */
   /*   parameters */
   /*     A[i] (5,3), i=1..4 */
@@ -159,12 +159,12 @@ void setup_indexed_params(void) {
   params.Jac[50] = params.Jac_50;
 }
 
-void setup_indexing(void) {
+void CVX_Solver1::setup_indexing(void) {
   setup_pointers();
   setup_indexed_params();
 }
 
-void set_start(void) {
+void CVX_Solver1::set_start(void) {
   int i;
 
   for (i = 0; i < 13; i++)
@@ -180,7 +180,7 @@ void set_start(void) {
     work.z[i] = settings.z_init;
 }
 
-double eval_objv(void) {
+double CVX_Solver1::eval_objv(void) {
   int i;
   double objv;
 
@@ -200,7 +200,7 @@ double eval_objv(void) {
   return objv;
 }
 
-void fillrhs_aff(void) {
+void CVX_Solver1::fillrhs_aff(void) {
   int i;
   double *r1, *r2, *r3, *r4;
 
@@ -233,7 +233,7 @@ void fillrhs_aff(void) {
     r4[i] += work.b[i];
 }
 
-void fillrhs_cc(void) {
+void CVX_Solver1::fillrhs_cc(void) {
   int i;
 
   double *r2;
@@ -292,7 +292,7 @@ void fillrhs_cc(void) {
     r2[i] = work.s_inv[i]*(smu - ds_aff[i]*dz_aff[i]);
 }
 
-void refine(double *target, double *var) {
+void CVX_Solver1::refine(double *target, double *var) {
   int i, j;
 
   double *residual = work.buffer;
@@ -343,7 +343,7 @@ void refine(double *target, double *var) {
 #endif
 }
 
-double calc_ineq_resid_squared(void) {
+double CVX_Solver1::calc_ineq_resid_squared(void) {
   /* Calculates the norm ||-Gx - s + h||. */
   double norm2_squared;
   int i;
@@ -363,7 +363,7 @@ double calc_ineq_resid_squared(void) {
   return norm2_squared;
 }
 
-double calc_eq_resid_squared(void) {
+double CVX_Solver1::calc_eq_resid_squared(void) {
   /* Calculates the norm ||-Ax + b||. */
   double norm2_squared;
   int i;
@@ -383,7 +383,7 @@ double calc_eq_resid_squared(void) {
   return norm2_squared;
 }
 
-void better_start(void) {
+void CVX_Solver1::better_start(void) {
   /* Calculates a better starting point, using a similar approach to CVXOPT. */
   /* Not yet speed optimized. */
   int i;
@@ -447,7 +447,7 @@ void better_start(void) {
   }
 }
 
-void fillrhs_start(void) {
+void CVX_Solver1::fillrhs_start(void) {
   /* Fill rhs with (-q, 0, h, b). */
   int i;
   double *r1, *r2, *r3, *r4;
@@ -470,7 +470,7 @@ void fillrhs_start(void) {
     r4[i] = work.b[i];
 }
 
-long solve(void) {
+long CVX_Solver1::solve(void) {
   int i;
   int iter;
 
