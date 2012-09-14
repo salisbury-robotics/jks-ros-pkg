@@ -24,13 +24,20 @@ collision_detection::CollisionResult last_collision_result;
 
 // Load and instantiate global namespaces with relevant data and working space.
 
-extern "C" {
+//extern "C" {
+
+//}
+//Vars vars;
+//Params params;
+//Workspace work;
+//Settings settings;
+
+//cvx.setup_indexing();
+
 #include "cvxgen/solver.h"
-}
-Vars vars;
-Params params;
-Workspace work;
-Settings settings;
+CVX_Solver1 cvx;
+
+
 #endif
 
 
@@ -211,16 +218,16 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 //  Settings settings;
 
   // CVX Settings
-  set_defaults();
-  setup_indexing();
-  settings.verbose = 0;
+  cvx.set_defaults();
+  cvx.setup_indexing();
+  cvx.settings.verbose = 0;
 
   // - - - - - - - load all problem instance data - - - - - - - //
 
   // end-effector Jacobian
   // TODO magic numbers (though I suppose the CVX solver is already hard-coded)
   for(unsigned int index = 0; index < 6*7; index++ )
-    params.J_goal[index] = ee_jacobian(index/7, index%7);
+    cvx.params.J_goal[index] = ee_jacobian(index/7, index%7);
 
   // set up constraints from contact set
   unsigned constraint_count = std::min<size_t>(50, contact_normals.size());
@@ -230,42 +237,42 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     {
       //printf("has constraint\n");
       for (int j = 0; j < 6*7; j++) {
-        params.Jac[constraint][j] = contact_jacobians[constraint](j/7, j%7);
+        cvx.params.Jac[constraint][j] = contact_jacobians[constraint](j/7, j%7);
       }
       for (int j = 0; j < 3; j++) {
-        params.normal[constraint][j] = contact_normals[constraint][j];
+        cvx.params.normal[constraint][j] = contact_normals[constraint][j];
       }
     }
     else{
       //printf("setting to zero\n");
       for (int j = 0; j < 6*7; j++) {
-        params.Jac[constraint][j] = 0;
+        cvx.params.Jac[constraint][j] = 0;
       }
       for (int j = 0; j < 3; j++) {
-        params.normal[constraint][j] = 0;
+        cvx.params.normal[constraint][j] = 0;
       }
     }
   }
 
   for(unsigned int index = 0; index < 6; index++ )
   {
-    params.q[index] = 0; // should get these from the start_state.
-    params.q_min[index] = -10;
-    params.q_max[index] = 10;
+    cvx.params.q[index] = 0; // should get these from the start_state.
+    cvx.params.q_min[index] = -10;
+    cvx.params.q_max[index] = 10;
   }
 
   // TODO shoudl these be clipped down at all? :)
-  params.xdd[0] = x_error(0);
-  params.xdd[1] = x_error(1);
-  params.xdd[2] = x_error(2);
-  params.xdd[3] = rot_error(0);
-  params.xdd[4] = rot_error(1);
-  params.xdd[5] = rot_error(2);
+  cvx.params.xdd[0] = x_error(0);
+  cvx.params.xdd[1] = x_error(1);
+  cvx.params.xdd[2] = x_error(2);
+  cvx.params.xdd[3] = rot_error(0);
+  cvx.params.xdd[4] = rot_error(1);
+  cvx.params.xdd[5] = rot_error(2);
 
   // - - - - - - - Solve our problem at high speed! - - - - - - - //
   long num_iters = 0;
-  //num_iters = cvx_solve();
-  if(!work.converged)
+  num_iters = cvx.solve();
+  if(!cvx.work.converged)
   {
     printf("solving failed to converge in %d iterations.\n", num_iters);
     return false;
@@ -280,7 +287,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     const moveit_msgs::Constraints &c = req.motion_plan_request.goal_constraints[1];
     for (std::size_t i = 0 ; i < c.joint_constraints.size() ; ++i)
     {
-      goal_update[c.joint_constraints[i].joint_name] = vars.qdd_c[i] + start_state.getJointState(c.joint_constraints[i].joint_name)->getVariableValues()[0];
+      goal_update[c.joint_constraints[i].joint_name] = cvx.vars.qdd_c[i] + start_state.getJointState(c.joint_constraints[i].joint_name)->getVariableValues()[0];
     }
   }
   //planning_models::KinematicState::JointState* ksjs;
