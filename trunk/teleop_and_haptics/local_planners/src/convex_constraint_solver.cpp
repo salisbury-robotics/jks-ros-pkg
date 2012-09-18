@@ -64,6 +64,9 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   planning_models::KinematicState proxy_state = start_state;
   planning_models::KinematicState constrained_goal_state = start_state;
 
+  std::string planning_frame = ros::names::resolve("/", planning_scene->getPlanningFrame());
+
+
 
     const planning_models::KinematicState::JointStateGroup * jsg = proxy_state.getJointStateGroup(req.motion_plan_request.group_name);
     const planning_models::KinematicModel::JointModelGroup * jmg = planning_scene->getKinematicModel()->getJointModelGroup(req.motion_plan_request.group_name);
@@ -77,6 +80,31 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 //    }
 
     const std::map<std::string, unsigned int>& joint_index_map = jmg->getJointVariablesIndexMap();
+
+    std::vector<double> limits_min, limits_max, joint_vector;
+    limits_min.resize(7);
+    limits_max.resize(7);
+    joint_vector.resize(7);
+
+    {
+      const moveit_msgs::Constraints &c = req.motion_plan_request.goal_constraints[1];
+      for (std::size_t i = 0 ; i < c.joint_constraints.size() ; ++i)
+      {
+        std::string joint_name = c.joint_constraints[i].joint_name;
+        if(joint_index_map.find(joint_name) == joint_index_map.end())
+        {
+          ROS_WARN("Didin't find [%s] in the joint map, ignoring...", joint_name.c_str());
+          continue;
+        }
+        unsigned int joint_index = joint_index_map.find(joint_name)->second;
+
+        std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(joint_name)->getLimits();
+        limits_min[joint_index] = limits[0].min_position;
+        limits_max[joint_index] = limits[0].max_position;
+        joint_vector[joint_index] = start_state.getJointState(joint_name)->getVariableValues()[0];
+        ROS_INFO("Joint [%d] [%s] has min %.2f, value %.2f, max %.2f", joint_index, joint_name.c_str(), limits_min[joint_index], joint_vector[joint_index], limits_max[joint_index]);
+      }
+    }
 
 // ======== Extract all contact points and normals from previous collision state, get associated Jacobians ========
 
@@ -134,6 +162,9 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   }
   moveit_msgs::PositionConstraint    pc = c.position_constraints[0];
   moveit_msgs::OrientationConstraint oc = c.orientation_constraints[0];
+  pc.header.frame_id = ros::names::resolve("/", pc.header.frame_id);
+  oc.header.frame_id = ros::names::resolve("/", oc.header.frame_id);
+
   if(pc.link_name != oc.link_name)
   {
     ROS_ERROR("Currently can't support position and orientation goals that are not for the same link. Aborting...");
@@ -149,7 +180,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     ROS_ERROR("Need exactly one 'pose' for the end-effector goal region. Aborting...");
   }
 
-  std::string planning_frame = planning_scene->getPlanningFrame();
+
   if(pc.header.frame_id != planning_frame)
     ROS_WARN("The position goal header [%s] and planning_frame [%s] don't match, things are probably all wrong!",
              pc.header.frame_id.c_str(), planning_frame.c_str() );
@@ -176,6 +207,11 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
   // TODO need to make sure these are expressed in the same frame.
   Eigen::Vector3d x_error = goal_point - ee_point_in_planning_frame;
+  double x_error_mag = x_error.norm();
+  double clip = 0.06;
+  if(x_error_mag > clip)
+    x_error = x_error/x_error_mag*clip;
+
 
   // = = = = Rotations are gross = = = =
   Eigen::Quaterniond link_quaternion_e = Eigen::Quaterniond(planning_T_link.rotation());
@@ -192,8 +228,12 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
   // - - - This is what we use for orientation error
   Eigen::Vector3d rot_error = Eigen::Vector3d(goal_euler[0] - link_euler[0], goal_euler[1] - link_euler[1], goal_euler[2] - link_euler[2]);
+  //rot_error = = Eigen::Vector3d(0,0,0);
 
-  ROS_INFO("Getting end-effector Jacobian...");
+  ROS_INFO("pos error: %.3f, %.3f, %.3f  rot error: %.2f, %.2f, %.2f",
+           x_error(0), x_error(1), x_error(2),
+           rot_error(0), rot_error(1), rot_error(2));
+
   // Get end-effector Jacobian
   std::string ee_link = "r_gripper_led_frame";
   if(false && jmg->isChain())
@@ -203,12 +243,20 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   if(ee_link != pc.link_name)
     ROS_WARN("ee_link [%s] and position_goal link [%s] aren't the same, this could be bad!", ee_link.c_str(), pc.link_name.c_str());
 
+
+  ROS_INFO("Getting end-effector Jacobian for local point %.3f, %.3f, %.3f on link [%s]",
+           ee_point_in_ee_frame(0),
+           ee_point_in_ee_frame(1),
+           ee_point_in_ee_frame(2),
+           ee_link.c_str());
   Eigen::MatrixXd ee_jacobian;
   if(!jsg->getJacobian(ee_link , ee_point_in_ee_frame , ee_jacobian))
   {
     ROS_ERROR("Unable to get end-effector Jacobian! Can't plan, exiting...");
     return false;
   }
+
+  ROS_INFO_STREAM("End-effector jacobian is: \n" << ee_jacobian);
 
 
 // ======== Pack into solver data structure, run solver. ========
@@ -232,13 +280,14 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     cvx.params.J_goal[index] = ee_jacobian(index/7, index%7);
 
   // set up constraints from contact set
+  int MAX_CONSTRAINTS = 0;
   unsigned constraint_count = std::min<size_t>(50, contact_normals.size());
-  for(unsigned int constraint = 0; constraint < 50; constraint++)
+  for(unsigned int constraint = 0; constraint < MAX_CONSTRAINTS; constraint++)
   {
     if(constraint < constraint_count)
     {
       //printf("has constraint\n");
-      for (int j = 0; j < 6*7; j++) {
+      for (int j = 0; j < 3*7; j++) {
         cvx.params.Jac[constraint][j] = contact_jacobians[constraint](j/7, j%7);
       }
       for (int j = 0; j < 3; j++) {
@@ -247,7 +296,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     }
     else{
       //printf("setting to zero\n");
-      for (int j = 0; j < 6*7; j++) {
+      for (int j = 0; j < 3*7; j++) {
         cvx.params.Jac[constraint][j] = 0;
       }
       for (int j = 0; j < 3; j++) {
@@ -256,11 +305,11 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     }
   }
 
-  for(unsigned int index = 0; index < 6; index++ )
+  for(unsigned int index = 0; index < 7; index++ )
   {
-    cvx.params.q[index] = 0; // should get these from the start_state.
-    cvx.params.q_min[index] = -10;
-    cvx.params.q_max[index] = 10;
+    cvx.params.q[index] = joint_vector[index]; // should get these from the start_state.
+    cvx.params.q_min[index] = limits_min[index];
+    cvx.params.q_max[index] = limits_max[index];
   }
 
   // TODO should these be clipped down at all? :)
@@ -297,12 +346,10 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
         continue;
       }
       unsigned int joint_index = joint_index_map.find(joint_name)->second;
-      ROS_INFO("Creating goal update for joint [%d] [%s]", joint_index, joint_name.c_str());
       goal_update[joint_name] = cvx.vars.qdd_c[joint_index] + start_state.getJointState(joint_name)->getVariableValues()[0];
+      ROS_INFO("Updated joint [%d] [%s]: %.2f + %.2f", joint_index, joint_name.c_str(), start_state.getJointState(joint_name)->getVariableValues()[0], cvx.vars.qdd_c[joint_index]);
     }
   }
-  //planning_models::KinematicState::JointState* ksjs;
-  //ksjs->
 
   //goal_update[vars.qdd_c[index] + ]
   constrained_goal_state.setStateValues(goal_update);
@@ -315,7 +362,6 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   double interpolation_step = 0.1;
   while(interpolation_progress <= 1.0)
   {
-    interpolation_progress += interpolation_step;
     ROS_INFO("Doing interpolation, with progress %.2f ", interpolation_progress);
 
     // TODO this interpolation scheme might not allow the arm to slide along contacts very well...
@@ -341,6 +387,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     {
       proxy_state = *point;
     }
+    interpolation_progress += interpolation_step;
   }
 
 // ======== Convert proxy state to a "trajectory" ========
@@ -364,7 +411,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     pt.positions.push_back(js.position[i]);
     if(js.velocity.size()) pt.velocities.push_back(js.velocity[i]);
   }
-  pt.time_from_start = ros::Duration(0.1);
+  pt.time_from_start = ros::Duration(req.motion_plan_request.allowed_planning_time*1.5);
   traj.points.push_back(pt);
 
   traj.header.stamp = ros::Time::now();
