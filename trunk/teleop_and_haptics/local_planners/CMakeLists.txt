@@ -36,15 +36,13 @@ add_definitions(-DQT_NO_KEYWORDS)
 #rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
-#rosbuild_add_library(cvxsolver
-#)
+rosbuild_add_library(cvxsolvers
+
+src/cvxgen_quad/cvx.cpp
+src/cvxgen_norm1/cvx.cpp
+)
 
 rosbuild_add_library(${PROJECT_NAME}
-
-src/cvxgen/matrix_support.cpp
-src/cvxgen/ldl.cpp
-src/cvxgen/solver.cpp
-
 src/linear_joint_stepper.cpp
 include/local_planners/linear_joint_stepper.h
 
@@ -55,5 +53,5 @@ include/local_planners/util.h
 
   )
 
-#target_link_libraries(${PROJECT_NAME} cvxsolver)
+target_link_libraries(${PROJECT_NAME} cvxsolvers)
 

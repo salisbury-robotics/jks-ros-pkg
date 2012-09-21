@@ -71,7 +71,7 @@ namespace local_planners {
       double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
       std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getLimits();
       double u = 0;
-      moveit_msgs::JointLimits &limit = limits[0];
+      //moveit_msgs::JointLimits &limit = limits[0];
 
       gv = normalizeAngle(gv);
       sv = normalizeAngle(sv);
@@ -99,7 +99,7 @@ namespace local_planners {
       double gv = goal_state.getJointState(it->first)->getVariableValues()[0];
       std::vector<moveit_msgs::JointLimits> limits = planning_scene->getKinematicModel()->getJointModel(it->first)->getLimits();
       double u = 0;
-      moveit_msgs::JointLimits &limit = limits[0];
+      //moveit_msgs::JointLimits &limit = limits[0];
 
       gv = normalizeAngle(gv);
       sv = normalizeAngle(sv);
