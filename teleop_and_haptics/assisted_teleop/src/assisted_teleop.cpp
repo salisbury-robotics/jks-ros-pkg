@@ -169,6 +169,7 @@ AssistedTeleop::AssistedTeleop() :
     pv_->setAllStartChainModes(false);
     pv_->setAllStartVisibility(true);
     pv_->setAllStartInteractionModes(false);
+
     pv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
     pv_->hideAllGroups();
 

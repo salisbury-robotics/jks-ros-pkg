@@ -100,6 +100,8 @@ void TeleopVisualization::generateTeleopPlan(const std::string& name) {
 
   KinematicsStartGoalVisualization* ksgv = group_visualization_map_[current_group_].get();
 
+  ksgv->hideGoalRegularMarkers();
+
   //ksgv->setStartState(planning_scene_->getCurrentState());
 
   // We shouldn't need to do this here, but I'm worried that something weird is going on in the background.
