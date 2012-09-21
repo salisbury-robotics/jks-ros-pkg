@@ -154,18 +154,19 @@ AssistedTeleop::AssistedTeleop() :
         //addObject(const moveit_msgs::CollisionObject& coll,
         //                                         const std_msgs::ColorRGBA& col) {
 
-    if(monitor_robot_state) {
-        pv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
-        if(allow_trajectory_execution_) {
-            pv_->setAllStartChainModes(true);
-            pv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
-            pv_->addMenuEntry("Cycle last trajectory", boost::bind(&AssistedTeleop::startCycle, this));
-            pv_->addMenuEntry("Stop cycle", boost::bind(&AssistedTeleop::stopCycle, this));
-        }
-    }
+//    if(monitor_robot_state) {
+//        pv_->addMenuEntry("Reset start state", boost::bind(&AssistedTeleop::updateToCurrentState, this));
+//        if(allow_trajectory_execution_) {
+//            pv_->setAllStartChainModes(true);
+//            pv_->addMenuEntry("Execute last trajectory", boost::bind(&AssistedTeleop::executeLastTrajectory, this));
+//            pv_->addMenuEntry("Cycle last trajectory", boost::bind(&AssistedTeleop::startCycle, this));
+//            pv_->addMenuEntry("Stop cycle", boost::bind(&AssistedTeleop::stopCycle, this));
+//        }
+//    }
     //pv_->setAllStartVisibility(true);
     //pv_->setAllStartInteractionModes(false);
     pv_->hideAllGroups();
+    pv_->setAllStartChainModes(false);
     pv_->setAllStartVisibility(true);
     pv_->setAllStartInteractionModes(false);
     pv_->setTrajectoryExecutionFunction( boost::bind(&AssistedTeleop::executeLastTrajectory, this) );
@@ -377,6 +378,10 @@ void AssistedTeleop::executeLastTrajectory() {
 
     if(pv_->getLastTrajectory(group_name, traj))
     {
+      std::string controller_name;
+
+      if(group_name == "right_arm") controller_name = "r_arm_controller";
+      if(group_name == "left_arm")  controller_name = "l_arm_controller";
       trajectory_execution_manager_->pushAndExecute(traj);
     }
 }
@@ -426,7 +431,7 @@ void AssistedTeleop::attachObject(const std::string& name) {
 
 void AssistedTeleop::updateToCurrentState() {
     iov_->updateCurrentState(planning_scene_monitor_->getPlanningScene()->getCurrentState());
-    pv_->resetAllStartStates();
+    //pv_->resetAllStartStates();
 }
 
 }
