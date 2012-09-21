@@ -62,6 +62,7 @@ public:
                       ros::Publisher& marker_publisher);
   
 
+  void selectGroup(const std::string& group);
 
   void setTrajectoryExecutionFunction(TrajectoryExecutionFunction function)
   {

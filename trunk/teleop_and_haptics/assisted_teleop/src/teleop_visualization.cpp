@@ -53,6 +53,22 @@ TeleopVisualization::TeleopVisualization(const planning_scene::PlanningSceneCons
   pnh_.param("execute_trajectory", execute_trajectory_, true);
 }
 
+void TeleopVisualization::selectGroup(const std::string& group) {
+  if(current_group_ == group) return;
+  if(group_visualization_map_.find(group) == group_visualization_map_.end()) {
+    ROS_WARN_STREAM("No group name " << group);
+  }
+  if(!current_group_.empty()) {
+    group_visualization_map_[current_group_]->hideAllMarkers();
+  }
+  current_group_ = group;
+  group_visualization_map_[current_group_]->showAllMarkers();
+
+  KinematicsStartGoalVisualization* ksgv = group_visualization_map_[current_group_].get();
+  ksgv->setGoalState(planning_scene_->getCurrentState());
+  ksgv->setStartState(planning_scene_->getCurrentState());
+}
+
 bool TeleopVisualization::getProxyState(planning_models::KinematicState &kin_state)
 {
 
@@ -84,6 +100,18 @@ void TeleopVisualization::generateTeleopPlan(const std::string& name) {
 
   KinematicsStartGoalVisualization* ksgv = group_visualization_map_[current_group_].get();
 
+  //ksgv->setStartState(planning_scene_->getCurrentState());
+
+  // We shouldn't need to do this here, but I'm worried that something weird is going on in the background.
+//  {
+//    planning_models::KinematicState proxy(ksgv->getStartState());
+//    if( getProxyState(proxy) )
+//      ksgv->setStartState(proxy);
+//  }
+
+
+
+
   if(planner_type_ == "local")  // TODO change how these are selected!
   {
     createTeleopStep(name); // In this mode we use local "gradients" to move the end effector closer to the goal.
@@ -110,9 +138,11 @@ void TeleopVisualization::generateTeleopPlan(const std::string& name) {
   // last proxy state is "always valid", we won't run into the dreaded "can't plan" problem.
   // (Though, if the planning scene updates such that the proxy is now in collision we are
   // still screwed. Need to figure out the right way to deal with that case...
-  planning_models::KinematicState proxy(ksgv->getStartState());
-  if( getProxyState(proxy) )
-    ksgv->setStartState(proxy);
+  {
+    planning_models::KinematicState proxy(ksgv->getStartState());
+    if( getProxyState(proxy) )
+      ksgv->setStartState(proxy);
+  }
 }
 
 
@@ -160,6 +190,7 @@ void TeleopVisualization::createTeleopStep(const std::string& name) {
   KinematicsStartGoalVisualization* ksgv = group_visualization_map_[name].get();
 
   const planning_models::KinematicState& start_state = ksgv->getStartState();
+  //const planning_models::KinematicState& start_state = planning_scene_->getCurrentState();
   const planning_models::KinematicState& goal_state = ksgv->getGoalState();
 
   // TODO this function is probably broken; ask Ioan?
@@ -178,12 +209,21 @@ void TeleopVisualization::createTeleopStep(const std::string& name) {
     planning_models::kinematicStateToRobotState(start_state, req.motion_plan_request.start_state);
 
 
-    req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints("r_gripper_led_frame", ksgv->getGoalInteractiveMarkerPose()));
+    geometry_msgs::PoseStamped im_pose = ksgv->getGoalInteractiveMarkerPose();
+    tf::Pose p;
+    tf::poseMsgToTF(im_pose.pose, p);
+    p.setOrigin(p.getOrigin()-0.1*p.getBasis().getColumn(0));
+    tf::poseTFToMsg(p, im_pose.pose);
+    //im_pose.pose.position
+
+    //ROS_INFO_STREAM("IM pose is: \n" << im_pose);
+    req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints("r_wrist_roll_link", im_pose));
     req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(goal_state.getJointStateGroup(name),
                                                                                                        .001, .001));
+    //ROS_INFO_STREAM("Constraints are: \n" << req.motion_plan_request.goal_constraints[0]);
 
     req.motion_plan_request.num_planning_attempts = 1;
-    req.motion_plan_request.allowed_planning_time = ros::Duration(0.1);
+    req.motion_plan_request.allowed_planning_time = ros::Duration(teleop_period_*1.3);
 
     // Manually define what planner to use - DTC
     req.motion_plan_request.planner_id = getCurrentPlanner();
