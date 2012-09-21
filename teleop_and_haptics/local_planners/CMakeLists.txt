@@ -39,6 +39,7 @@ add_definitions(-DQT_NO_KEYWORDS)
 rosbuild_add_library(cvxsolvers
 
 src/cvxgen_quad/cvx.cpp
+src/cvxgen_constraints/cvx.cpp
 src/cvxgen_norm1/cvx.cpp
 )
 
