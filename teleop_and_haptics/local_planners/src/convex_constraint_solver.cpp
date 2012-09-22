@@ -30,8 +30,6 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
                    const moveit_msgs::GetMotionPlan::Request &req,
                    moveit_msgs::GetMotionPlan::Response &res) const
 {
-  ROS_WARN("Solving for group [%s] using ConvexConstraintSolver!", req.motion_plan_request.group_name.c_str());
-
   // Need to add in joint limit constraints
   // Get the position constraints from the collision detector
 
@@ -58,6 +56,17 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -/
 
+  std::string group_name = req.motion_plan_request.group_name;
+  std::string ee_group_name;
+  std::string ee_control_frame;
+  if(group_name == "right_arm"){ ee_group_name = "r_end_effector"; ee_control_frame = "r_wrist_roll_link"; }
+  if(group_name == "left_arm") { ee_group_name = "l_end_effector"; ee_control_frame = "l_wrist_roll_link"; }
+
+
+  ROS_WARN("Solving for group [%s], end-effector [%s], control frame [%s] using ConvexConstraintSolver!", group_name.c_str(), ee_group_name.c_str(), ee_control_frame.c_str());
+
+
+
   // We "getCurrentState" just to populate the structure with auxiliary info, then copy in the transform info from the planning request.
   planning_models::KinematicState start_state = planning_scene->getCurrentState();
   planning_models::robotStateToKinematicState(*(planning_scene->getTransforms()), req.motion_plan_request.start_state, start_state);
@@ -69,9 +78,16 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   std::string planning_frame = ros::names::resolve("/", planning_scene->getPlanningFrame());
 
 
+    const planning_models::KinematicState::JointStateGroup * jsg = proxy_state.getJointStateGroup(group_name);
+    const planning_models::KinematicModel::JointModelGroup * jmg = planning_scene->getKinematicModel()->getJointModelGroup(group_name);
+//    std::string end_effector_group_name = jmg->getAttachedEndEffectorGroupName();
+//    const std::vector<std::string>& subgroups = jmg->getSubgroupNames();
 
-    const planning_models::KinematicState::JointStateGroup * jsg = proxy_state.getJointStateGroup(req.motion_plan_request.group_name);
-    const planning_models::KinematicModel::JointModelGroup * jmg = planning_scene->getKinematicModel()->getJointModelGroup(req.motion_plan_request.group_name);
+//    ROS_INFO("End-effector group name is [%s].", end_effector_group_name.c_str());
+//    for(size_t i = 0; i< subgroups.size(); i++)
+//      ROS_INFO("Subgroup [%zd] is [%s].", i, subgroups[i].c_str());
+    const planning_models::KinematicModel::JointModelGroup * ee_jmg = planning_scene->getKinematicModel()->getJointModelGroup(ee_group_name);
+
 
 //    const std::vector<const planning_models::KinematicModel::JointModel*>& joint_models = jmg->getJointModels();
 //    std::map<std::string, unsigned int> joint_index_map;
@@ -145,8 +161,8 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
                  depth);
         // Contact point needs to be expressed with respect to the link; normals should stay in the common frame
         std::string group_contact;
-        if( jmg->hasLinkModel(contact1) ) group_contact = contact1;
-        else if( jmg->hasLinkModel(contact2) ) group_contact = contact2;
+        if(      jmg->hasLinkModel(contact1) || ee_jmg->hasLinkModel(contact1) ) group_contact = contact1;
+        else if( jmg->hasLinkModel(contact2) || ee_jmg->hasLinkModel(contact2) ) group_contact = contact2;
         else
         {
           ROS_WARN("Contact isn't on group [%s], skipping...", req.motion_plan_request.group_name.c_str());
@@ -258,22 +274,22 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
 
 
   // Get end-effector Jacobian
-  std::string ee_link = "r_wrist_roll_link";
-  if(false && jmg->isChain())
-    ee_link = planning_scene->getKinematicModel()->getJointModelGroup(jmg->getAttachedEndEffectorGroupName())->getEndEffectorParentGroup().second;
-  else
-    ROS_WARN("Using r_wrist_roll_link as HARD_CODED value.");
-  if(ee_link != pc.link_name)
-    ROS_WARN("ee_link [%s] and position_goal link [%s] aren't the same, this could be bad!", ee_link.c_str(), pc.link_name.c_str());
+//  std::string ee_control_frame = "r_wrist_roll_link";
+//  if(false && jmg->isChain())
+//    ee_control_frame = planning_scene->getKinematicModel()->getJointModelGroup(jmg->getAttachedEndEffectorGroupName())->getEndEffectorParentGroup().second;
+//  else
+//    ROS_WARN("Using r_wrist_roll_link as HARD_CODED value.");
+  if(ee_control_frame != pc.link_name)
+    ROS_WARN("ee_control_frame [%s] and position_goal link [%s] aren't the same, this could be bad!", ee_control_frame.c_str(), pc.link_name.c_str());
 
 
 //  ROS_INFO("Getting end-effector Jacobian for local point %.3f, %.3f, %.3f on link [%s]",
 //           ee_point_in_ee_frame(0),
 //           ee_point_in_ee_frame(1),
 //           ee_point_in_ee_frame(2),
-//           ee_link.c_str());
+//           ee_control_frame.c_str());
   Eigen::MatrixXd ee_jacobian;
-  if(!jsg->getJacobian(ee_link , ee_point_in_ee_frame , ee_jacobian))
+  if(!jsg->getJacobian(ee_control_frame , ee_point_in_ee_frame , ee_jacobian))
   {
     ROS_ERROR("Unable to get end-effector Jacobian! Can't plan, exiting...");
     return false;
@@ -402,6 +418,7 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
   //double proxy_goal_tolerance = 0.1;
   double interpolation_progress = 0.0;
   double interpolation_step = 0.34;
+  collision_detection::CollisionResult collision_result;
   while(interpolation_progress <= 1.0)
   {
     //ROS_INFO("Doing interpolation, with progress %.2f ", interpolation_progress);
@@ -418,11 +435,11 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     collision_request.contacts = true;
     collision_request.distance = false;
     collision_request.verbose = false;
-    collision_detection::CollisionResult collision_result;
+
+    collision_result.clear();
     planning_scene->checkCollision(collision_request, collision_result, *point);
     if(collision_result.collision)
     {
-      last_collision_result = collision_result;
       break;
     }
     else
@@ -432,9 +449,11 @@ bool ConvexConstraintSolver::solve(const planning_scene::PlanningSceneConstPtr& 
     // TODO Use proxy_goal_tolerance to exit if we are close enough!
     interpolation_progress += interpolation_step;
   }
+  // Store the last collision result!
+  last_collision_result = collision_result;
 
 // ======== Convert proxy state to a "trajectory" ========
-  ROS_INFO("Converting proxy to a trajectory, and returning...");
+  //ROS_INFO("Converting proxy to a trajectory, and returning...");
 
   moveit_msgs::RobotTrajectory rt;
   trajectory_msgs::JointTrajectory traj;
