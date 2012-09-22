@@ -218,8 +218,12 @@ void TeleopVisualization::createTeleopStep(const std::string& name) {
     tf::poseTFToMsg(p, im_pose.pose);
     //im_pose.pose.position
 
-    //ROS_INFO_STREAM("IM pose is: \n" << im_pose);
-    req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints("r_wrist_roll_link", im_pose));
+    std::string group_name = name;
+    std::string ee_control_frame;
+    if(group_name == "right_arm"){ ee_control_frame = "r_wrist_roll_link"; }
+    if(group_name == "left_arm") { ee_control_frame = "l_wrist_roll_link"; }
+
+    req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(ee_control_frame, im_pose));
     req.motion_plan_request.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(goal_state.getJointStateGroup(name),
                                                                                                        .001, .001));
     //ROS_INFO_STREAM("Constraints are: \n" << req.motion_plan_request.goal_constraints[0]);
@@ -228,9 +232,9 @@ void TeleopVisualization::createTeleopStep(const std::string& name) {
     req.motion_plan_request.allowed_planning_time = ros::Duration(teleop_period_*1.3);
 
     // Manually define what planner to use - DTC
-    req.motion_plan_request.planner_id = getCurrentPlanner();
+    //req.motion_plan_request.planner_id = getCurrentPlanner();
 
-    ROS_INFO_STREAM("USING MENU PLANNER " << getCurrentPlanner());
+    //ROS_INFO_STREAM("USING MENU PLANNER " << getCurrentPlanner());
 
     if(!move_group_pipeline_->generatePlan(planning_scene_, req, res)) {
       ROS_WARN_STREAM("Response traj " << res.trajectory.joint_trajectory);
