@@ -18,7 +18,8 @@ SET(CMAKE_CONFIGURATION_TYPES "Release;ReleaseWithDebInfo"
 
 #-----------------------------------------------------------------------------    
 # Flags for changint he compile settings
-SET(PHANTOM_DEVICE_SUPPORT True)
+#SET(PHANTOM_DEVICE_SUPPORT True)
+SET(PHANTOM_DEVICE_SUPPORT False)
 
 #-----------------------------------------------------------------------------
 # Output directories.
