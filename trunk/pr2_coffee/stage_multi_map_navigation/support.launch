@@ -14,11 +14,6 @@
 
   <include file="$(find multi_map_navigation)/launch/map_store.launch"/>
 
-  <node name="door_blast" pkg="multi_map_navigation" type="vacuous_transition" args="door_blast" />
-  <node name="door_drag" pkg="multi_map_navigation" type="vacuous_transition" args="door_drag" />
-  <node name="elevator_blast" pkg="multi_map_navigation" type="vacuous_transition" args="elevator_blast" />
-
-
   <!--<node name="map_server" pkg="map_server" type="map_server" args="$(find stage)/world/willow-full.pgm 0.1" respawn="false" />-->
 
   <!--<node name="rviz" pkg="rviz" type="rviz" args="-d $(find navigation_stage)/single_robot.vcg" />-->
