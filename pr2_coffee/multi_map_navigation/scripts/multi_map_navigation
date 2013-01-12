@@ -42,8 +42,14 @@ class MultiMapNavigationDataManager(object):
         self.list_maps_service = rospy.Service('~list_maps', ListMaps, self.list_maps)
         self.visualization_publisher = rospy.Publisher('visualization_marker', Marker)
 
+        transitions = ["door_blast", "elevator_blast", "door_drag"]
+        if rospy.has_param('~transition_types'):
+            transitions = rospy.get_param("~transition_types").split(" ")
+
         self.transition_action_clients = {"normal": None}
-        for client in ["door_blast", "elevator_blast", "door_drag"]:
+        for client in transitions:
+            if (client.strip() == ""):
+                continue
             rospy.loginfo("Waiting for " + client)
             cli = actionlib.SimpleActionClient(client, MultiMapNavigationTransitionAction)
             cli.wait_for_server()

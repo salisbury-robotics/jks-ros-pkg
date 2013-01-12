@@ -1,8 +1,9 @@
 <launch>
   <node pkg="multi_map_navigation" type="multi_map_navigation" name="multi_map_navigation" output="screen">
   	<param name="definition_file" value="$(find stage_multi_map_navigation)/maps/cfg.yaml" />
+	<param name="transition_types" value="" />
   </node>
-  <!--node pkg="multi_map_navigation" type="multi_map_navigation_test" name="multi_map_navigation_test" args="12 10 willow-down" >
-  </node -->
+  <node pkg="multi_map_navigation" type="multi_map_navigation_test" name="multi_map_navigation_test" args="12 10 willow-down" >
+  </node>
 </launch>
 
