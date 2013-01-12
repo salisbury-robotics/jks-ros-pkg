@@ -1,0 +1,12 @@
+<stack>
+  <description brief="multi_map_navigation">
+    System that allows navigation across multiple 2D maps
+  </description>
+  <author>Tony Pratkanis</author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/multi_map_navigation</url>
+  <depend stack="ros" /> <!-- roslib -->
+  <depend stack="ros_comm" /> <!-- rosconsole, std_msgs, roscpp -->
+
+</stack>
