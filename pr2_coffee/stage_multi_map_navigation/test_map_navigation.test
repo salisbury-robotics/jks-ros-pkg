@@ -1,0 +1,7 @@
+<launch>
+   <include file="$(find stage_multi_map_navigation)/support.launch"/>
+   <include file="$(find stage_multi_map_navigation)/multi_map_navigation.launch"/>
+   <!-- good when odom -> base_link = 36.718, 13.041 -->
+   <test test-name="test_nav" pkg="stage_multi_map_navigation"
+    type="get_to_goal.py" time-limit="130.0" args="36.718 13.041 0.4" />
+</launch>
