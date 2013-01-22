@@ -6,7 +6,11 @@ maps:
        north_angle: 0
      - name: clarkcenterfirstfloor
        north_angle: 0
+     - name: clarkcenterbasementelevator
+       north_angle: 0
      - name: clarkcenterfirstfloorelevator
+       north_angle: 0
+     - name: clarkcentersecondfloorelevator
        north_angle: 0
      - name: clarkcenterthirdfloorelevator
        north_angle: 0
@@ -134,8 +138,22 @@ wormholes:
              angle: -3.126
              floor: 1
              floor_type: mult_button
+             height: 0.0
            - map: clarkcenterthirdfloorelevator
              position: [48.569, 17.927]
              angle: -2.926
              floor: 3
+             height: 9.44
              floor_type: single_down
+           - map: clarkcentersecondfloorelevator
+             position: [48.569, 17.927]
+             angle: -2.926
+             floor: 2
+             height: 4.72
+             floor_type: mult_button
+           - map: clarkcentersecondfloorelevator
+             position: [48.569, 17.927]
+             angle: -2.926
+             floor: B
+             height: 04.72
+             floor_type: single_up

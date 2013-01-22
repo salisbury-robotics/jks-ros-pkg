@@ -10,7 +10,7 @@ from sensor_msgs.msg import *
 from visualization_msgs.msg import *
 from geometry_msgs.msg import *
 from pr2_msgs.srv import *
-from multli_map_navigation.msg import *
+from multi_map_navigation.msg import *
 from kinematics_msgs.srv import *
 from pr2_controllers_msgs.msg import *
 from pr2_common_action_msgs.msg import *
@@ -21,6 +21,129 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import roslib.packages
+
+def enum(**enums):
+    return type('Enum', (), enums)
+MonitorState = enum(STOPPED=0, DOWN=1, UP=2, CALIBRATE=3, LOCK=4)
+class ElevatorMonitor:
+    def __init__(self):
+        self.accel_tolerance = 0.2
+        self.reset(0)
+        self.recalibrate()
+        self.sub = rospy.Subscriber('/torso_lift_imu/data', \
+                                        sensor_msgs.msg.Imu, self.on_imu)
+
+    def reset(self, position):
+        self.count_down = 0
+        self.unlock_count = 0
+        self.averages_down = []
+        self.averages_lock = []
+        self.count_up = 0
+        self.averages_up = []
+        self.position = position
+
+    def recalibrate(self):
+        self.state = MonitorState.CALIBRATE
+        self.calibration_n = 0
+        self.calibration = 0.0
+        self.cal_offset = 0
+
+    def is_calibrated(self):
+        return (self.calibration_n > 100)
+
+    def on_imu(self, msg):
+        if (self.state == MonitorState.CALIBRATE):
+            self.calibration += msg.linear_acceleration.z
+            self.calibration_n += 1
+            self.cal_offset = self.calibration / self.calibration_n
+            if (self.is_calibrated()):
+                self.state = MonitorState.STOPPED
+        elif (not self.is_calibrated()):
+            return
+        if (self.state == MonitorState.LOCK):
+            if (msg.linear_acceleration.z < \
+                    (self.cal_offset + self.accel_tolerance)
+                and msg.linear_acceleration.z > \
+                    (self.cal_offset - self.accel_tolerance)):
+                self.unlock_count += 1
+                if (self.unlock_count > 200):
+                    self.position -= self.calc_accel(self.averages_lock)
+                    print "Unlock", self.position
+                    self.state = MonitorState.STOPPED
+            else:
+                self.unlock_count = 0
+            self.averages_lock.append(msg)
+        elif (self.state == MonitorState.STOPPED):
+            if (msg.linear_acceleration.z < (self.cal_offset - self.accel_tolerance)):
+                self.count_down = self.count_down + 1
+                self.averages_down.append(msg)
+                
+                if (self.count_down > 20):
+                    self.state = MonitorState.UP
+                    self.count_down = 0
+                    self.count_up = 0
+                    print "Going up"
+            else:
+                self.count_down = 0
+                self.averages_down = []
+                if (msg.linear_acceleration.z > \
+                        (self.cal_offset + self.accel_tolerance)):
+                    self.count_up = self.count_up + 1
+                    self.averages_up.append(msg)
+                    
+                    if (self.count_up > 20):
+                        self.state = MonitorState.DOWN
+                        self.count_up = 0
+                        self.count_down = 0
+                        print "Going down"
+                else:
+                    self.count_up = 0
+                    self.averages_up = []
+        elif (self.state == MonitorState.UP):
+            self.averages_down.append(msg)
+            if (msg.linear_acceleration.z > \
+                    (self.cal_offset + self.accel_tolerance)):
+                self.count_up = self.count_up + 1
+                if (self.count_up > 20):
+                    self.unlock_count = 0
+                    self.state = MonitorState.LOCK
+                    print "Stop"
+                    self.averages_lock = self.averages_down
+            else:
+                self.count_up = 0
+        elif (self.state == MonitorState.DOWN):
+            self.averages_up.append(msg)
+            if (msg.linear_acceleration.z < \
+                    (self.cal_offset - self.accel_tolerance)):
+                self.count_down = self.count_down + 1
+                if (self.count_down > 20):
+                    self.unlock_count = 0
+                    self.state = MonitorState.LOCK
+                    print "Stop"
+                    self.averages_lock = self.averages_up
+            else:
+                self.count_down = 0
+    
+    def is_stopped(self):
+        return (self.state == MonitorState.STOPPED)
+
+    def calc_accel(self, arr):
+        last = arr[0]
+        total = 0
+        
+        accel = 0.0
+        vel = 0.0
+        offset = 0.0
+        
+        for i in arr[1:]:
+            time = (i.header.stamp - last.header.stamp).to_sec()
+            accel = (i.linear_acceleration.z - self.cal_offset)
+            vel = vel + accel * time
+            offset = offset + vel * time
+            last = i
+        
+        return offset
+
 
 
 class ElevatorControl:
@@ -36,6 +159,7 @@ class ElevatorControl:
         self.elevator_locations = False
         self.height = 0.0
         self.counter = 0
+        self.accelerometer = ElevatorMonitor()
         self.visualization_publisher = rospy.Publisher(
             "/visualization_markers", Marker)
         self.cmd_vel_publisher = rospy.Publisher(
@@ -61,7 +185,6 @@ class ElevatorControl:
         self.arm = rospy.Publisher("r_arm_controller/command", JointTrajectory)
         self.gripper = actionlib.SimpleActionClient(
             "r_gripper_controller/gripper_action", Pr2GripperCommandAction)
-        self.ac_server.start()
         rospy.loginfo("Wait for tuck arm")
         self.tuck = actionlib.SimpleActionClient("tuck_arms", TuckArmsAction)
         self.tuck.wait_for_server()
@@ -89,6 +212,7 @@ class ElevatorControl:
             'elevator_blast') + "/images/"
 
         rospy.loginfo("started")
+        self.ac_server.start()
 
 
     def point_head(self, x, y, z, wait=True):
@@ -155,7 +279,10 @@ class ElevatorControl:
         elevator_yaml = yaml.load(msg.wormhole)
         print elevator_yaml
 
-        self.height = 0.0
+        self.height = elevator_yaml["locations"][msg.start]["height"]
+        print "Initial height", self.height
+        self.accelerometer.reset(self.height)
+        self.accelerometer.recalibrate()
 
         self.point_head(1.0, 0.0, 2.0)
         self.set_laser_and_wait(-0.4)
@@ -189,7 +316,6 @@ class ElevatorControl:
                                    (1.1, 0.0, 0.0), 
                                    (0.0, 0.0, -math.pi / 2),
                                    (0.7, 0.0, 0.0),
-                                   ("HEAD", 0.0, 1.0, 2.0), 
                                    ("SWITCH", "floor_loop"),],
                     "exit": [(1.2, 0.0, 0.0, "WAIT"), 
                              (1.1, math.pi / 2, 0.0, "WAIT"), 
@@ -207,8 +333,9 @@ class ElevatorControl:
         right_seq = {"start": [(1.1, -math.pi / 2, 0.0, "BAIL"),
                                (1.35, 0.0, 0.0, "BAIL"), 
                                ("SQUARE_CHECK",),
-                               (0.8, 0.0, 0.0),
-                               (0.55, -math.pi / 2, 0.0),
+                               #(0.8, 0.0, 0.0),
+                               #(0.55, -math.pi / 2, 0.0),
+                               (1.0, -0.6, 0.0), #Combine last two steps.
                                (0.0, 0.0, -math.pi / 2), 
                                ("SWITCH", "button_hit")],
                      "button_hit": [("FD", 0.1, 0.0, 5.0),
@@ -229,7 +356,6 @@ class ElevatorControl:
                                     ("TUCK", False), 
                                     (0.0, 0.0, -math.pi / 2), 
                                     (0.7, 0.0, 0.0),
-                                    ("HEAD", 0.0, 1.0, 2.0),
                                     ("SWITCH", "floor_loop"),],
                      "floor_loop": [(0.7, 0.0, 0.0, "WAIT-TL", 30.0, "stuck"), 
                                     ("FLOOR_CHECK", "wrong_floor"), 
@@ -383,7 +509,7 @@ class ElevatorControl:
 
         hc = 0
         while not rospy.is_shutdown() and hc < 4:
-            print self.location
+            #print self.location
             tmsg = Twist()
             if (self.location == False):
                 hc = 0
@@ -399,7 +525,7 @@ class ElevatorControl:
                 tmsg.linear.y = -self.location / 2.0
             else:
                 hc = hc + 1
-                print "Hit", hc
+                #print "Hit", hc
             self.cmd_vel_publisher.publish(tmsg)
             rospy.sleep(0.01)
 
@@ -408,7 +534,7 @@ class ElevatorControl:
         hc = 0
         pos = 0.0
         while not rospy.is_shutdown() and hc < 4:
-            print self.location
+            #print self.location
             tmsg = Twist()
 
             if (self.location < -0.02):
@@ -436,7 +562,7 @@ class ElevatorControl:
             
             self.arm.publish(goal)
             rospy.sleep(0.3)
-            print pos, self.location
+            #print pos, self.location
         
         self.process_im = False
         
@@ -508,7 +634,7 @@ class ElevatorControl:
                 self.tuck_arms(step[1])
             elif (step[0] == "SLEEP"):
                 rospy.sleep(step[1])
-            elif (step[0] == "FLOOR_CHECK"):
+            elif (step[0] == "FLOOR_CHECK_OLD"):
                 self.floor_signs = {}
                 for floor in self.elevator_locations["sign-images"][elevator]:
                     self.floor_signs[floor] = cv.LoadImage(
@@ -541,9 +667,30 @@ class ElevatorControl:
                 if (sign != self.goal_floor):
                     print "Wrong floor!!"
                     seq = seqs[step[1]]
+            elif (step[0] == "FLOOR_CHECK"):
+                while (not self.accelerometer.is_stopped()) and (not rospy.is_shutdown()):
+                    print "Wait for acceleromoter to detect stopping"
+                    rospy.sleep(0.01)
+                self.height = self.accelerometer.position
+                height_min = False
+                accel_floor = False
+                print "Current height is", self.height
+                for data in elevator_yaml["locations"]:
+                    print "Test", data["floor"], data["height"]
+                    delta = data["height"] - self.height
+                    if (delta < 0):
+                        delta = -delta
+                    if (height_min == False or delta < height_min):
+                        height_min = delta
+                        accel_floor = data["floor"]
+                print "Found", accel_floor, "want", self.goal_floor
+                if (str(accel_floor).strip() != str(self.goal_floor).strip()):
+                    print "Wrong floor"
+                    seq = seqs[step[1]]
             elif (step[0] == "SWITCH"):
                 seq = seqs[step[1]]
             elif (step[0] == "SQUARE_CHECK"):
+                self.accelerometer.reset(self.height)
                 self.cmd_vel_publisher.publish(Twist())
                 rospy.sleep(0.5)
                 self.wait_for_base_scan()
@@ -589,6 +736,8 @@ class ElevatorControl:
             self.move_to_target(self.generate_goal(0, 0), math.pi, True, True, watch_scans="WAIT")
             print "Stuck!"
             return self.do_elevator(msg)
+        self.ac_server.set_succeeded(MultiMapNavigationTransitionResult())
+        
     
     def head_image_callback(self, data):
         if (self.process_head_im):
@@ -1255,8 +1404,8 @@ class ElevatorControl:
                         break
                 else:
                     w = y + angle_offset
-                    print y, angle_offset, w
-
+                    #print y, angle_offset, w
+                    
                     dist = goal_transformed.pose.position.y \
                         * goal_transformed.pose.position.y
                     dist = dist + goal_transformed.pose.position.x \
@@ -1319,7 +1468,7 @@ class ElevatorControl:
                             msg.angular.z = 0
                             if (watch_scans == "BAIL"):
                                 self.cmd_vel_publisher.publish(msg)
-                                print "Bail"
+                                #print "Bail"
                                 return False
 
 
