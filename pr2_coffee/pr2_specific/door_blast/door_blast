@@ -251,18 +251,16 @@ class DoorBlast:
         
         self.move_to_target(self.generate_goal(-0.4, 0.6, True), 0)
     
-        xpos = 0.2
+        xpos = 0.40
         ypos = -0.6
         zpos = 1.1 + 0.2
         
+        #Position to open door
         self.arm_move(xpos - 0.1, -0.7, zpos, 4.0)
-
         self.set_gripper(0.0)
-
         self.move_to_target(self.generate_goal(0.2, 0.0, True), 0)
 
-
-
+        # Move forward to slide into the door
         self.arm_move(xpos, ypos, zpos, 2.0)
         while (xpos < 0.5 and not rospy.is_shutdown()):
             self.arm_move(xpos, ypos, zpos, 0.3)
@@ -271,38 +269,39 @@ class DoorBlast:
             xpos = xpos + 0.01
         xpos = xpos - 0.04
 
+        # Slide accross the door to find the handle
         ypos = -0.7
         self.arm_move(xpos, ypos, zpos, 1.0)
         while (ypos < 0.4 and not rospy.is_shutdown()):
-            self.arm_move(xpos, ypos, zpos, 0.3)
+            self.arm_move(xpos, ypos, zpos, 1.0)
             if (self.hand_dist((xpos, ypos, zpos)) > 0.01):
                 break
-            ypos = ypos + 0.01
+            ypos = ypos + 0.1
         
+        #If we missed the handle.
         if (ypos >= 0.4):
             self.tuck_arms()
             #self.move_to_target(self.generate_goal(-0.9, math.pi / 2))
             self.drag(msg)
 
-        target_pos = self.get_end_effector_pos()
-        self.arm_move(xpos - 0.1, target_pos[1] - 0.20, zpos, 3.0)
-        self.arm_move(xpos - 0.1, -0.46, zpos, 3.0)
+        rospy.sleep(0.3)
 
-        goal = self.generate_goal(0.46 + 0.05 + target_pos[1], math.pi / 2)
+        target_pos = self.get_end_effector_pos() #store position of the handle
+
+        #Move the arm back from the door
+        self.arm_move(xpos - 0.1, target_pos[1] - 0.20, zpos, 1.0)
+        self.arm_move(xpos - 0.1, -0.46, zpos, 0.2)
+
+        #Slide back and to the left
+        goal = self.generate_goal(0.46 + 0.1 + target_pos[1], math.pi / 2)
         self.move_to_target(goal, 0.0)
 
+        #Grab the handle
         self.set_gripper(0.086)
-
-        rospy.sleep(1.0)
-
-        print target_pos
-        self.arm_move(xpos + 0.1, -0.46, zpos)
-
-        rospy.sleep(1.0)
-        
+        self.arm_move(xpos + 0.1, -0.46, zpos, 1.0)
         self.set_gripper(0.00)
 
-        
+        #Grab the end effector
         target_pos = self.get_end_effector_pos()
         self.arm_move(xpos, -0.46, zpos, 5.0, False) 
         goal = self.generate_goal(0.46 + target_pos[1], math.pi / 2)
@@ -310,8 +309,9 @@ class DoorBlast:
 
         #Cancel out forward and backwards offset
         self.move_to_target(self.generate_goal(xpos - target_pos[0], 0), 0)
-
+        #Center of the door goals
         door_center_goal = self.generate_goal(0.05 - 0.9, math.pi / 2)
+        door_center_goal_inter = self.generate_goal(0.05 - 0.4, math.pi / 2)
 
         #Turn to face the door
         self.move_to_target(self.generate_goal(0.05, -math.pi / 2), -math.pi / 2, True, True)
@@ -335,7 +335,8 @@ class DoorBlast:
         self.arm_move(xpos, 0, zpos, 3.0, False)
 
         self.set_gripper(0.086)
-        self.move_to_target(door_center_goal, -math.pi * 6 / 5, True, True, time_limit=4.0)
+        
+        self.move_to_target(door_center_goal_inter, math.pi * (5.0 / 6.0), True, True, time_limit=4.0)
 
         #Tuck
         self.tuck_arms()
