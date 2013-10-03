@@ -571,8 +571,28 @@ class BlastWorld:
             print "-"*60, "done", "-"*60
         return True
 
-        
 
+    def robot_contains_condition(self, robot, condition):
+        obj = None
+        if condition[1].split(".")[0] == "robot":
+            if not condition[1].split(".")[1] in robot.holders:
+                if debug: print condition[1], "has invalid holder for robot"
+                return False
+            obj = robot.holders[condition[1].split(".")[1]]
+        else:
+            if debug: print "Invalid value for holder"
+            return False
+        if condition[2] == "":
+            return obj == None
+        if obj == None: return False #Obviously needs an object yet none
+        if condition[2] == obj.object_type.name: return True
+        if condition[0] == "exact-contains": return False
+        t = obj.object_type
+        while t.parent:
+            if t.name == condition[2]: return True
+            t = t.parent
+        return False
+    
     def take_action(self, robot_name, action, parameters, debug = False):
         #Get the robot
         robot = self.robots.get(robot_name)
@@ -693,25 +713,7 @@ class BlastWorld:
                     if condition[0] == "||" and v: return True
                 return condition[0] == "&&"
             elif (condition[0] == "contains" or condition[0] == "exact-contains"):
-                obj = None
-                if condition[1].split(".")[0] == "robot":
-                    if not condition[1].split(".")[1] in robot.holders:
-                        if debug: print condition[1], "has invalid holder for robot"
-                        return False
-                    obj = robot.holders[condition[1].split(".")[1]]
-                else:
-                    if debug: print "Invalid value for holder"
-                    return False
-                if condition[2] == "":
-                    return obj == None
-                if obj == None: return False #Obviously needs an object yet none
-                if condition[2] == obj.object_type.name: return True
-                if condition[0] == "exact-contains": return False
-                t = obj.object_type
-                while t.parent:
-                    if t.name == condition[2]: return True
-                    t = t.parent
-                return False
+                return self.robot_contains_condition(robot, condition)
             else:
                 print "Invalid condition", condition
             return False
@@ -780,6 +782,42 @@ class BlastWorld:
                 print "Could not find the action type", action, "for", robot.robot_type
             return None
 
+        #Try to optimize conditions
+        req_conditions = [action_type.condition]
+        conditions = [] #Conditions that absolutely must be true
+        while req_conditions:
+            condition = req_conditions[0]
+            req_conditions = req_conditions[1:]
+            if condition[0] in ['==', '!=', 'contains', 'exact-contains']:
+                conditions.append(condition)
+            if condition[0] == '&&':
+                for i in condition[1:]:
+                    req_conditions.append(i)
+
+        #print action_type.condition, "->", conditions
+        total_action_fail = False
+        for condition in conditions:
+            if condition[0] == "contains" or condition[0] == "exact-contains":
+                if not self.robot_contains_condition(robot, condition):
+                    total_action_fail = True
+                    break
+        if total_action_fail:
+            fail_res = {}
+            for key in action_type.parameters.iterkeys():
+                fail_res[key] = []
+            return fail_res
+
+
+        def test_loc(loc, param):
+            for x in conditions:
+                if param in x:
+                    if "robot.location" in x and x[0] == "==":
+                        if not robot.location.equal(loc): return False
+                if param + ".map" in x:
+                    if "robot.location.map" in x and x[0] == "==":
+                        if robot.location.map != loc.map: return False
+            return True
+
         #Get all the parameters
         parameters = {}
         location_parameters = {}
@@ -788,15 +826,28 @@ class BlastWorld:
             if ptype == "Pt":
                 #All the robot locations
                 for name, rob in self.robots.iteritems():
-                    parameters[param].append(rob.location)
+                    if test_loc(rob.location, param):
+                        parameters[param].append(rob.location)
                 #Get all the surface points
                 for name, surface in self.surfaces.iteritems():
-                    parameters[param].extend(surface.locations.values())
+                    for loc in surface.locations.values():
+                        if test_loc(loc, param):
+                            parameters[param].append(loc)
             elif ptype[0:len("Surface:")] == "Surface:":
                 stype = ptype.split(":")[1]
                 for name, surface in self.surfaces.iteritems():
                     if surface.surface_type.name == stype:
-                        parameters[param].append(surface)
+                        #Optimize
+                        good = True
+                        for x in conditions:
+                            if x[0] == "==" and "robot.location" in x:
+                                for v in x[1:]:
+                                    if v.find(param + ".locations.") == 0:
+                                        if not robot.location.equal(surface.locations.get(v.split(".")[2], None)):
+                                            good = False
+                                            break
+                        if good:
+                            parameters[param].append(surface)
             elif ptype[0:len("Location:")] == "Location:":
                 location_parameters[param] = ptype.split(":")[1].split(".")
             else:
@@ -808,7 +859,8 @@ class BlastWorld:
                 parameters[param][surf] = []
                 for loc, pt in surf.locations.iteritems():
                     if loc.find(data[1]) == 0:
-                        parameters[param][surf].append(pt)
+                        if test_loc(pt, param):
+                            parameters[param][surf].append(pt)
             parameters[param] = ([data[0]], parameters[param])
 
         return parameters
