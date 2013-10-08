@@ -498,11 +498,11 @@ class BlastWorld:
         copy = BlastWorld(self.types)
         copy.copy_on_write_optimize = copy_on_write_optimize
         for arr in ["maps", "surfaces", "robots"]:
-            copy_arr = getattr(copy, arr)
-            for name, item in getattr(self, arr).iteritems():
-                if copy_on_write_optimize:
-                    copy_arr[name] = item
-                else:
+            if copy_on_write_optimize:
+                setattr(copy, arr, getattr(self, arr).copy())
+            else:
+                copy_arr = getattr(copy, arr)
+                for name, item in getattr(self, arr).iteritems():
                     copy_arr[name] = item.copy()
         copy.hash_state = None
         return copy
