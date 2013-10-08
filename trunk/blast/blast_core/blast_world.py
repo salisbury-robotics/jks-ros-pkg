@@ -12,7 +12,7 @@ class BlastAction:
         self.condition = condition
         self.time_estimate = time_estimate
         self.changes = changes
-        self.planable = True #planable
+        self.planable = planable
         #FIXME: keywords: robot
 
 def make_test_actions():
