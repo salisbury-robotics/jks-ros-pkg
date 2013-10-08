@@ -12,7 +12,7 @@ class BlastAction:
         self.condition = condition
         self.time_estimate = time_estimate
         self.changes = changes
-        self.planable = planable
+        self.planable = True #planable
         #FIXME: keywords: robot
 
 def make_test_actions():
@@ -493,12 +493,17 @@ class BlastWorld:
         self.surfaces = {}
         self.robots = {}
         self.hash_state = None
-    def copy(self):
+        self.copy_on_write_optimize = False
+    def copy(self, copy_on_write_optimize = True):
         copy = BlastWorld(self.types)
+        copy.copy_on_write_optimize = copy_on_write_optimize
         for arr in ["maps", "surfaces", "robots"]:
             copy_arr = getattr(copy, arr)
             for name, item in getattr(self, arr).iteritems():
-                copy_arr[name] = item.copy()
+                if copy_on_write_optimize:
+                    copy_arr[name] = item
+                else:
+                    copy_arr[name] = item.copy()
         copy.hash_state = None
         return copy
     def append_map(self, mp):
@@ -748,10 +753,12 @@ class BlastWorld:
         #Conditions met, everything is done. Now we just need to update the values
         #create a queue of transations then execute them
         transactions = []
+        items_to_clone = {"robots": set(), "surfaces": set()}
         for var, val in action_type.changes.iteritems():
             sub = var.split(".")
             if debug: print var, "->", val
             if sub[0] == "robot":
+                items_to_clone["robots"].add(robot.name)
                 if not hasattr(robot, sub[1]):
                     if debug: print "Attempt to set invalid robot attribute", sub[1]
                     return None
@@ -765,20 +772,30 @@ class BlastWorld:
                     else:
                         v.position = None
                         v.parent = robot.name + "." + sub[2]
-                    transactions.append(("VAL", robot.holders, sub[2], v))
+                    transactions.append(("VAL", ("robot", robot.name, "holders"), sub[2], v))
                 else:
-                    transactions.append(("SET", robot, sub[1], v))
+                    transactions.append(("SET", ("robot", robot.name), sub[1], v))
             else:
                 if debug: print "Update failed"
                 return None
 
+        if self.copy_on_write_optimize:
+            for robot_name in items_to_clone["robots"]:
+                self.robots[robot_name] = self.robots[robot_name].copy()
+
         #Execute the transactions - this is where changes actually get made to the world
         self.hash_state = None
         for x in transactions:
+            v = None
+            if x[1][0] == "robot":
+                v = self.robots[x[1][1]]
+            for attr in x[1][2:]:
+                v = getattr(v, attr)
+
             if x[0] == "SET":
-                setattr(x[1], x[2], x[3])
+                setattr(v, x[2], x[3])
             elif x[0] == "VAL":
-                x[1][x[2]] = x[3]
+                v[x[2]] = x[3]
             else:
                 print "Really bad, transaction bad:", x
                 raise Exception("Bad transaction: " + str(x))
