@@ -17,7 +17,7 @@ class Planner:
 
 
     def parameter_iter(self, param, keys = None):
-        if keys == []: return [{}]
+        if keys == []: return [{},]
         if keys == None: 
             deps = {}
             #Sort the keys for dependencies
@@ -41,7 +41,7 @@ class Planner:
                         keys.append(key)
                         del deps[key]
             keys.reverse()
-        
+        if keys == []: return [{},]
         key = keys[0]
         keys = keys[1:]
 
@@ -97,8 +97,11 @@ class Planner:
                 #Now enumerate all possible actions
                 world_clone = world[0].copy()
                 for at in action_types:
-                    pv = world_clone.enumerate_action(robot_name, at)
-                    for parameters in self.parameter_iter(pv):
+                    planable, pv = world_clone.enumerate_action(robot_name, at)
+                    parameter_combos = []
+                    if planable and pv != False:
+                        parameter_combos = self.parameter_iter(pv)
+                    for parameters in parameter_combos:
                         self.actions_tested = self.actions_tested + 1
                         change = world_clone.take_action(robot_name, at, parameters)
                         #print robot.location, at, parameters, "->", change
@@ -170,10 +173,13 @@ if __name__ == '__main__':
     planner = Planner(world)
     planner.world_good = lambda w: w.robots["stair4"].holders["cup-holder"] != None and w.robots["stair4"].location.equal(w.surfaces["clarkfirstflooroutsidedoor"].locations["in_entrance"])
     world, time, steps = planner.plan_recursive()
-    print "Estimated time", time, "s"
-    print "Steps (total of", len(steps), "actions)"
-    for i in steps:
-        print i
+    if world and time and steps:
+        print "Estimated time", time, "s"
+        print "Steps (total of", len(steps), "actions)"
+        for i in steps:
+            print i
+    else:
+        print "Failed to find a plan"
     print "Tried", planner.worlds_tested, "worlds and", planner.actions_tested, "actions -", \
         planner.actions_finished, "finished (a", (planner.actions_finished * 100.0) / planner.actions_tested, "percent success rate)"
     print "Fail debug", planner.fail_debug
@@ -182,5 +188,6 @@ if __name__ == '__main__':
         for name, arr in planner.super_fail_debug.iteritems():
             print "Failed", name, "actions"
             for fail in arr:
+                print fail[0][0].to_text()
                 print fail[0][0].robots["stair4"].location, fail
 

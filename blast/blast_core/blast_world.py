@@ -3,16 +3,16 @@ import math
 import hashlib
 
 
-#############TODO: FIXME: fix .equal()
 
 class BlastAction:
-    def __init__(self, name, parameters, condition, time_estimate, changes): #Name must be robot_type.action
+    def __init__(self, name, parameters, condition, time_estimate, changes, planable = True): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
         self.condition = condition
         self.time_estimate = time_estimate
         self.changes = changes
+        self.planable = planable
         #FIXME: keywords: robot
 
 def make_test_actions():
@@ -39,6 +39,14 @@ def make_test_actions():
                                          "outfloor": "Location:elevator.floor_"},
                         ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor")),
                         "\"300\"", {"robot.location": "outfloor"}),
+            BlastAction("pr2.grab-money-bag", {}, 
+                        ("contains", "robot.right-arm", "None()"),
+                        "\"200\"", {"robot.holders.right-arm": "Object(\"coffee_money_bag\")",},
+                        planable = False),
+            BlastAction("pr2.give-object", {}, 
+                        ("not", ("contains", "robot.right-arm", "None()")),
+                        "\"200\"", {"robot.holders.right-arm": "None()",},
+                        planable = False),
             ]
 
 
@@ -573,6 +581,11 @@ class BlastWorld:
 
 
     def robot_contains_condition(self, robot, condition):
+        if condition[0].find("not-") == 0:
+            r = self.robot_contains_condition(robot, (condition[0][4:],) + condition[1:])
+            if r == True: return False
+            if r == False: return True
+            return r
         obj = None
         if condition[1].split(".")[0] == "robot":
             if not condition[1].split(".")[1] in robot.holders:
@@ -582,7 +595,8 @@ class BlastWorld:
         else:
             if debug: print "Invalid value for holder"
             return False
-        if condition[2] == "":
+        #print obj, condition
+        if condition[2] == "" or condition[2] == "None()":
             return obj == None
         if obj == None: return False #Obviously needs an object yet none
         if condition[2] == obj.object_type.name: return True
@@ -712,8 +726,11 @@ class BlastWorld:
                     if condition[0] == "&&" and not v: return False
                     if condition[0] == "||" and v: return True
                 return condition[0] == "&&"
-            elif (condition[0] == "contains" or condition[0] == "exact-contains"):
+            elif (condition[0] == "contains" or condition[0] == "exact-contains"
+                  or condition[0] == "not-contains" or condition[0] == "not-exact-contains"):
                 return self.robot_contains_condition(robot, condition)
+            elif (condition[0] == "not"):
+                return not assert_condition(condition[1])
             else:
                 print "Invalid condition", condition
             return False
@@ -773,14 +790,14 @@ class BlastWorld:
         robot = self.robots.get(robot_name)
         if not robot:
             if debug: print "Invalid robot:", robot_name
-            return None
+            return False, None
         
         #Get action type
         action_robot_type, action_type = self.types.get_action_for_robot(robot.robot_type, action)
         if not action_robot_type or not action_type:
             if debug:
                 print "Could not find the action type", action, "for", robot.robot_type
-            return None
+            return False, None
 
         #Try to optimize conditions
         req_conditions = [action_type.condition]
@@ -788,24 +805,27 @@ class BlastWorld:
         while req_conditions:
             condition = req_conditions[0]
             req_conditions = req_conditions[1:]
-            if condition[0] in ['==', '!=', 'contains', 'exact-contains']:
+            if condition[0] in ['==', '!=', 'contains', 'exact-contains', 'not-contains', 'not-exact-contains']:
                 conditions.append(condition)
-            if condition[0] == '&&':
+            elif condition[0] == '&&':
                 for i in condition[1:]:
                     req_conditions.append(i)
+            elif condition[0] == 'not':
+                invert = {"==": "!=", "contains": "not-contains", "exact-contains": "not-exact-contains",
+                          "!=": "==", "not-contains": "contains", "not-exact-contains": "exact-contains"}
+                if condition[1][0] in invert:
+                    req_conditions.append((invert[condition[1][0]],) + condition[1][1:])
+            else:
+                print "Ignore", condition
 
         #print action_type.condition, "->", conditions
-        total_action_fail = False
+
+        #Check for cases where it is impossible to execute the action
         for condition in conditions:
-            if condition[0] == "contains" or condition[0] == "exact-contains":
+            if condition[0] == "contains" or condition[0] == "exact-contains" \
+                    or condition[0] == "not-contains" or condition[0] == "not-exact-contains":
                 if not self.robot_contains_condition(robot, condition):
-                    total_action_fail = True
-                    break
-        if total_action_fail:
-            fail_res = {}
-            for key in action_type.parameters.iterkeys():
-                fail_res[key] = []
-            return fail_res
+                    return False, False
 
 
         def test_loc(loc, param):
@@ -863,7 +883,7 @@ class BlastWorld:
                             parameters[param][surf].append(pt)
             parameters[param] = ([data[0]], parameters[param])
 
-        return parameters
+        return action_type.planable, parameters
 
 
 def make_test_world():
@@ -943,7 +963,7 @@ def make_test_world():
     stair4 = BlastRobot("stair4", #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
                         BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
                         world.types.get_robot("pr2-cupholder"))
-    stair4.holders["right-arm"] = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
+    #stair4.holders["right-arm"] = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
     world.append_robot(stair4)
 
     return world
