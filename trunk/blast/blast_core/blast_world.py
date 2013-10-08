@@ -263,7 +263,8 @@ class BlastObject:
     def copy(self):
         if self.position:
             r = BlastObject(self.object_type, self.position.copy(), self.parent)
-        r = BlastObject(self.object_type, self.position, self.parent)
+        else:
+            r = BlastObject(self.object_type, self.position, self.parent)
         r.uid = self.uid
         return r
     
@@ -281,8 +282,7 @@ class BlastObject:
         
         if self.object_type.name != other.object_type.name: return False
         if self.parent != other.parent: return False
-        if self.position == other.position: return True
-        if not self.position: return False
+        if not self.position: return not other.position
         return self.position.equal(other.position)
 
     def to_text(self):
@@ -313,14 +313,14 @@ class BlastSurface:
             lclone[name] = loc.copy()
         return BlastSurface(self.name, lclone, self.surface_type, self.state)
 
-    def hash_update(self, hl):
+    def hash_update(self, hl, get_obj):
         for name, loc in sorted(self.locations.iteritems(), key=lambda x: x[0]):
             hl.update(name)
             loc.hash_update(hl)
         hl.update(self.state)
         hl.update(self.surface_type.name)
 
-    def equal(self, other):
+    def equal(self, other, get_obj, other_get_obj):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -361,13 +361,13 @@ class BlastMap:
         self.map = mid
         self.map_file = map_file
 
-    def hash_update(self, hl):
+    def hash_update(self, hl, get_obj):
         hl.update(self.map_file)
 
     def copy(self):
         return BlastMap(self.map, self.map_file)
 
-    def equal(self, other):
+    def equal(self, other, get_obj, other_get_obj):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -379,6 +379,22 @@ class BlastMap:
             + self.map_file + "\"):\n"
         return r
 
+class BlastObjectRef:
+    def __init__(self, uid):
+        self.uid = uid
+    def copy(self):
+        return BlastObjectRef(obj)
+    def equal(self, other, get_obj, other_get_obj):
+        if self == other: return True
+        if not self or not other: return False
+        if type(self) != type(other): return False
+        if self.__class__ != other.__class__: return False
+        return get_obj(self.uid).equal(other_get_obj(other.uid))
+    def hash_update(self, hl, get_obj):
+        get_obj(self.uid).hash_update(hl)
+    def to_text(self):
+        return "BlastObjectRef(" + str(self.uid) + ")"
+        
 
 class BlastRobot:
     def __init__(self, name, location, robot_type):
@@ -399,12 +415,7 @@ class BlastRobot:
 
     def copy(self):
         copy = BlastRobot(self.name, self.location.copy(), self.robot_type)
-        copy.holders = {}
-        for h in self.holders:
-            if self.holders[h]:
-                copy.holders[h] = self.holders[h].copy()
-            else:
-                copy.holders[h] = None
+        copy.holders = self.holders.copy()
         copy.positions = {}
         for name in self.positions:
             if self.positions[name]:
@@ -415,7 +426,7 @@ class BlastRobot:
                 copy.positions[name] = False
         return copy
 
-    def hash_update(self, hl):
+    def hash_update(self, hl, get_obj):
         hl.update(self.name)
         hl.update(self.robot_type.name)
         self.location.hash_update(hl)
@@ -423,7 +434,7 @@ class BlastRobot:
             if value == None:
                 hl.update("None")
             else:
-                value.hash_update(hl)
+                value.hash_update(hl, get_obj)
         for name, value in sorted(self.positions.iteritems(), key=lambda x: x[0]):
             if value == False:
                 hl.update("False")
@@ -431,7 +442,7 @@ class BlastRobot:
                 for j, sub in sorted(value.iteritems(), key=lambda x: x[0]):
                     hl.update(str(sub))
 
-    def equal(self, other):
+    def equal(self, other, get_obj, other_get_obj):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -443,7 +454,7 @@ class BlastRobot:
             if not name in self.holders: return False
         for name in self.holders:
             if self.holders[name]:
-                if not self.holders[name].equal(other.holders[name]): return False
+                if not self.holders[name].equal(other.holders[name], get_obj, other_get_obj): return False
             elif other.holders[name]:
                 return False
         for name in other.positions:
@@ -499,12 +510,17 @@ class BlastWorld:
         self.maps = {}
         self.surfaces = {}
         self.robots = {}
+        self.objects = {}
         self.hash_state = None
         self.copy_on_write_optimize = False
+
+    def get_obj(self, uid):
+        return self.objects.get(uid)
+
     def copy(self, copy_on_write_optimize = True):
         copy = BlastWorld(self.types)
         copy.copy_on_write_optimize = copy_on_write_optimize
-        for arr in ["maps", "surfaces", "robots"]:
+        for arr in ["maps", "surfaces", "robots", "objects"]:
             if copy_on_write_optimize:
                 setattr(copy, arr, getattr(self, arr).copy())
             else:
@@ -522,9 +538,14 @@ class BlastWorld:
     def append_robot(self, robot):
         self.hash_state = None
         self.robots[robot.name] = robot
+    def append_object(self, obj):
+        self.hash_state = None
+        self.objects[obj.uid] = obj
 
     def to_text(self):
         r = "World(" + ''.join('%02x' % ord(byte) for byte in self.get_hash_state()) + "):\n"
+        for uid, obj in sorted(self.objects.iteritems(), key=lambda x: x[0]):
+            r = r + "\tObjectSet(" + str(uid) + ", " + obj.to_text() + ")\n"
         for mid, mp in sorted(self.maps.iteritems(), key=lambda x: x[0]):
             r = r + mp.to_text()
             for name, sur in sorted(self.surfaces.iteritems(), key=lambda x: x[0]):
@@ -536,15 +557,27 @@ class BlastWorld:
                     r = r + robot.to_text()
         return r
 
+    def gc_objects(self): #Delete unused objects
+        objects = set()
+        for robot in self.robots.itervalues():
+            for obj in robot.holders.itervalues():
+                if obj:
+                    objects.add(obj.uid)
+
+        for obj in self.objects.keys():
+            if not obj in objects:
+                del self.objects[obj]
+
     def get_hash_state(self):
         if self.hash_state:
             return self.hash_state
 
         hl = hashlib.sha224()
+        get_obj = lambda x: self.get_obj(x)
         for arr in [self.maps, self.robots, self.surfaces]:
             for name, value in sorted(arr.iteritems(), key=lambda x: x[0]):
-                hl.update(name)
-                value.hash_update(hl)
+                hl.update(str(name))
+                value.hash_update(hl, get_obj)
         self.hash_state = hl.digest()
         
         return self.hash_state
@@ -560,21 +593,23 @@ class BlastWorld:
         hash_same = self.get_hash_state() == other.get_hash_state()
 
         #Comment out these two lines to verify hashing
-        if self.get_hash_state() != other.get_hash_state(): return False
+        if not hash_same: return False
         return True #Comment this line to ensure, 100%, no hash collisions
         #This is to double-check to make sure hashing went as expected.
         
+        get_obj = lambda x: self.get_obj(x)
+        other_get_obj = lambda x: other.get_obj(x)
         for arr, oarr in [(self.robots, other.robots), (self.surfaces, other.surfaces), (self.maps, other.maps)]:
             for name, value in oarr.iteritems():
                 if not name in arr:
-                    if warn and hash_same: print "Hash state collision"
+                    if warn and hash_same: print "Hash state collision due to missing", name
                     return False
             for name, value in arr.iteritems():
                 if not name in oarr:
-                    if warn and hash_same: print "Hash state collision"
+                    if warn and hash_same: print "Hash state collision due to extra", name
                     return False
-                if not value.equal(oarr[name]): 
-                    if warn and hash_same: print "Hash state collision"
+                if not value.equal(oarr[name], get_obj, other_get_obj): 
+                    if warn and hash_same: print "Hash state collision due to", name
                     return False
 
         if not hash_same and warn: 
@@ -608,6 +643,8 @@ class BlastWorld:
             if debug: print "Invalid value for holder"
             return False
         #print obj, condition
+        if obj:
+            obj = self.objects[obj.uid]
         if condition[2] == "" or condition[2] == "None()":
             return obj == None
         if obj == None: return False #Obviously needs an object yet none
@@ -685,7 +722,9 @@ class BlastWorld:
                     par = None
                     if len(vals) > 1: pos = vals[1]
                     if len(vals) > 2: par = vals[2]
-                    val = BlastObject(self.types.get_object(vals[0]), pos, par)
+                    obj = BlastObject(self.types.get_object(vals[0]), pos, par)
+                    self.append_object(obj)
+                    val = BlastObjectRef(obj.uid)
                 elif func == "None": 
                     val = BLAST_NONE
                 elif func == "False": 
@@ -777,8 +816,8 @@ class BlastWorld:
                     if BLAST_NONE.equal(v):
                         v = None
                     else:
-                        v.position = None
-                        v.parent = robot.name + "." + sub[2]
+                        self.get_obj(v.uid).position = None
+                        self.get_obj(v.uid).parent = robot.name + "." + sub[2]
                     transactions.append(("VAL", ("robot", robot.name, "holders"), sub[2], v))
                 else:
                     transactions.append(("SET", ("robot", robot.name), sub[1], v))
@@ -806,6 +845,8 @@ class BlastWorld:
             else:
                 print "Really bad, transaction bad:", x
                 raise Exception("Bad transaction: " + str(x))
+
+        self.gc_objects()
 
         return time_estimate
 
@@ -929,7 +970,7 @@ def make_test_world():
     world.append_map(clarkcenterthirdfloorelevator)
     clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", "maps/clarkcenterthirdflooroutside.pgm")
     world.append_map(clarkcenterthirdflooroutside)
-    clarkcenterpeetscoffee = BlastMap("clarkcenterthirdflooroutside", "maps/clarkcenterthirdflooroutside.pgm")
+    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterthirdflooroutside.pgm")
     world.append_map(clarkcenterpeetscoffee)
                                  
 
@@ -984,11 +1025,15 @@ def make_test_world():
                                  world.types.get_surface("coffee_shop"))
     world.append_surface(coffee_pickup)
 
-    stair4 = BlastRobot("stair4", #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
+    stair4 = BlastRobot("stair4", 
+                        #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
                         BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
                         world.types.get_robot("pr2-cupholder"))
-    #stair4.holders["right-arm"] = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
     world.append_robot(stair4)
+
+    #initial_bag = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
+    #world.append_object(initial_bag)
+    #stair4.holders["right-arm"] = BlastObjectRef(initial_bag.uid)
 
     return world
 
@@ -1002,7 +1047,7 @@ def run_test():
     print '-'*130
     print world.equal(world)
     
-    res = world.take_action("stair4", "move", {"end": BlastPt(56.869, 14.529, 2.511, "1337")})
+    res = world.take_action("stair4", "move", {"end": BlastPt(56.869, 14.529, 2.511, "clarkcenterpeetscoffee")})
     print "Action result:", res
     
     print '-'*130
@@ -1049,5 +1094,5 @@ def elevator_test():
     print "Elevator:", world.enumerate_action("stair4", "elevator")
 
 if __name__ == '__main__':
-    #run_test()
-    elevator_test()
+    run_test()
+    #elevator_test()
