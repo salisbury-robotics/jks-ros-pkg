@@ -249,16 +249,23 @@ class BlastPosIrr:
         if self.__class__ != other.__class__: return False
         return True
 
+blast_object_id = 0
+
 class BlastObject:
     def __init__(self, object_type, pos, parent): #Note: if pos is None, parent is a robot
         self.object_type = object_type
         self.position = pos
         self.parent = parent
+        global blast_object_id
+        self.uid = blast_object_id
+        blast_object_id = blast_object_id + 1
 
     def copy(self):
         if self.position:
-            return BlastObject(self.object_type, self.position.copy(), self.parent)
-        return BlastObject(self.object_type, self.position, self.parent)
+            r = BlastObject(self.object_type, self.position.copy(), self.parent)
+        r = BlastObject(self.object_type, self.position, self.parent)
+        r.uid = self.uid
+        return r
     
     def hash_update(self, hl):
         hl.update(self.object_type.name)
