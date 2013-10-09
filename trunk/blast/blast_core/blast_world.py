@@ -2,6 +2,19 @@
 import math
 import hashlib
 
+#Dynamics, arms
+
+class BlastTypeError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+class BlastError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
 
 
 class BlastAction:
@@ -10,10 +23,59 @@ class BlastAction:
         self.robot = name.split(".")[0]
         self.parameters = parameters
         self.condition = condition
+
+        if "robot" in self.parameters:
+            raise BlastTypeError("A parameter cannot be called 'robot' in " + name)
+
+        self.validate("Invalid condition for " + name, condition)
+        self.validate("Invalid time estimate for " + name, time_estimate)
+
         self.time_estimate = time_estimate
         self.changes = changes
+
+        for var in self.changes:
+            if var != "robot.location" and var.find("robot.holders.") != 0:
+                raise BlastTypeError("Invalid variable set in " + name + ": " + var)
+            self.validate("Invalid expression for variable " + var + " in " + name, self.changes[var])
+
         self.planable = planable
         #FIXME: keywords: robot
+
+    def validate(self, text, exp):
+        if type(exp) == type(""):
+            if exp.strip() == "": return
+            if exp.strip()[0] == "\"" and exp.strip()[-1] == "\"":
+                return
+            subs = paren_split(exp, '.')
+            if subs[0].find('(') != -1:
+                func = subs[0][0:subs[0].find("(")].strip()
+                if not func in ['dist', 'mul', 'add', 'sub', 'div', 'angle_diff', 'abs', 'Object', 'None', 'False', 'True']:
+                    raise BlastTypeError(text + ": invalid function: '" + func + "'")
+                args = paren_split(subs[0][subs[0].find("(")+1:subs[0].rfind(")")], ',')
+                for x in args: self.validate(text, x)
+            else:
+                if not subs[0] in self.parameters and subs[0] != "robot":
+                    raise BlastTypeError(text + ": invalid variable '" + subs[0] + "'")
+        elif type(exp) == type((0, 1)):
+            if len(exp) < 1:
+                raise BlastTypeError(text + ": empty expression")
+            if exp[0] == "contains" or exp[0] == "exact-contains" or\
+                    exp[0] == "not-contains" or exp[0] == "not-exact-contains":
+                if len(exp) != 3:
+                    raise BlastTypeError(text + ": wrong number of arguments for " + str(exp[0]) + ", must be 2")
+                if len(exp[1].split(".")) != 2:
+                    raise BlastTypeError(text + ": must have robot.<holder> for " + str(exp[0]))
+                if exp[1].split(".")[0] != "robot":
+                    raise BlastTypeError(text + ": must reference the robot (as in robot.<holder>) for " + str(exp[0]))
+            elif exp[0] in ["==", "!=", "&&", "||", "not"]:
+                if exp[0] == "not" and len(exp) != 2:
+                    raise BlastTypeError(text + ": not must only have one argument in " + str(exp))
+                for x in exp[1:]:
+                    self.validate(text, x)
+            else:
+                raise BlastTypeError(text + ": invalid expression: " + str(exp))
+        else:
+            raise BlastTypeError(text + "Bad type for expression:" + str(exp))
 
 def make_test_actions():
     return [BlastAction("pr2.move", {"end": "Pt"},
@@ -60,21 +122,25 @@ class BlastWorldTypes:
         self.actions = {}
 
     def add_surface_type(self, surface):
+        if surface.name in self.surfaces: raise BlastTypeError("Duplicate surface type: " + surface.name)
         self.surfaces[surface.name] = surface
     def get_surface(self, name):
         return self.surfaces.get(name, None)
 
     def add_robot_type(self, robot):
+        if robot.name in self.robots: raise BlastTypeError("Duplicate robot type: " + robot.name)
         self.robots[robot.name] = robot
     def get_robot(self, name):
         return self.robots.get(name, None)
 
     def add_object_type(self, obj):
+        if obj.name in self.objects: raise BlastTypeError("Duplicate object type: " + obj.name)
         self.objects[obj.name] = obj
     def get_object(self, name):
         return self.objects.get(name, None)
     
     def add_action_type(self, action):
+        if action.name in self.actions: raise BlastTypeError("Duplicate action type: " + action.name)
         self.actions[action.name] = action
     def get_action(self, name):
         return self.actions.get(name, None)
@@ -530,15 +596,19 @@ class BlastWorld:
         copy.hash_state = None
         return copy
     def append_map(self, mp):
+        if mp.map in self.maps: raise BlastError("Duplicate map: " + mp.map)
         self.hash_state = None
         self.maps[mp.map] = mp
     def append_surface(self, surface):
+        if surface.name in self.surfaces: raise BlastError("Duplicate surface: " + surface.name)
         self.hash_state = None
         self.surfaces[surface.name] = surface
     def append_robot(self, robot):
+        if robot.name in self.robots: raise BlastError("Duplicate robot: " + robot.name)
         self.hash_state = None
         self.robots[robot.name] = robot
     def append_object(self, obj):
+        if obj.uid in self.objects: raise BlastError("Duplicate object: " + obj.uid)
         self.hash_state = None
         self.objects[obj.uid] = obj
 
