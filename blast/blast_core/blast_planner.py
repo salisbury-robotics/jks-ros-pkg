@@ -232,8 +232,8 @@ class BlastPlannableWorld:
         self.world.append_object(obj)
         self.world.robots[robot].holders[holder] = blast_world.BlastObjectRef(obj.uid)
 
-    def take_action(self, robot, action, parameters):
-        if self.world.take_action(robot, action, parameters): #, True, True):
+    def take_action(self, robot, action, parameters, debug = True):
+        if self.world.take_action(robot, action, parameters, True, debug):
             return
         else:
             print "Blast failed to take action"
@@ -266,13 +266,12 @@ if __name__ == '__main__':
     print '-'*100
     world.plan_action("stair4", "buy_coffee", {"shop": "clark_peets_coffee_shop"})
     
-
     print '-'*100
     print "Plan to return"
     print '-'*100
     world.plan_to_location("stair4", initial_pickup_point)
-        
+    
     print '-'*100
     print "Give object back"
     print '-'*100
-    world.take_action("stair4", "give-object", {})
+    world.take_action("stair4", "give-object-cupholder", {})
