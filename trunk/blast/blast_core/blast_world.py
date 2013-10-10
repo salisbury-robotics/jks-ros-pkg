@@ -26,6 +26,19 @@ class BlastAction:
 
         if "robot" in self.parameters:
             raise BlastTypeError("A parameter cannot be called 'robot' in " + name)
+        for pname, ptype in self.parameters.iteritems():
+            if ptype == "Pt":
+                pass
+            elif ptype.find("Surface:") == 0:
+                pass
+            elif ptype.find("Location:") == 0:
+                vname = ptype[ptype.find(":")+1:].split(".")[0]
+                if not vname in self.parameters:
+                    raise BlastTypeError("Location parameter does not reference another parameter: " + pname + " -> " + vname)
+                if self.parameters[vname].find("Surface:") != 0:
+                    raise BlastTypeError("Location parameter " + pname + " does not reference a surface type variable (" + vname + ")")
+            else:
+                raise BlastTypeError("Invalid parameter type for " + pname + ": " + ptype)
 
         self.validate("Invalid condition for " + name, condition)
         self.validate("Invalid time estimate for " + name, time_estimate)
@@ -108,6 +121,10 @@ def make_test_actions():
             BlastAction("pr2.give-object", {}, 
                         ("not", ("contains", "robot.right-arm", "None()")),
                         "\"200\"", {"robot.holders.right-arm": "None()",},
+                        planable = False),
+            BlastAction("pr2-cupholder.give-object-cupholder", {}, 
+                        ("not", ("contains", "robot.cup-holder", "None()")),
+                        "\"200\"", {"robot.holders.cup-holder": "None()",},
                         planable = False),
             ]
 
@@ -832,12 +849,12 @@ class BlastWorld:
                     val = getattr(val, subs[0])
                 subs = subs[1:]
             return val
-        def assert_condition(condition):
+        def assert_condition(condition, super_debug=False):
             if (condition[0] == "==" or condition[0] == "!="):
-                #if debug: print condition[1], condition[2]
+                if super_debug: print condition[1], condition[2]
                 a = get_value(condition[1])
                 b = get_value(condition[2])
-                #if debug: print condition[0], a, b
+                if super_debug: print condition[0], a, b
                 if condition[0] == "==": 
                     if hasattr(a, "equal"): return a.equal(b)
                     if hasattr(b, "equal"): return b.equal(a)
@@ -850,21 +867,24 @@ class BlastWorld:
             elif (condition[0] == "&&" or condition[0] == "||"):
                 for i in xrange(1, len(condition)):
                     v = get_value(condition[i])
-                    if debug: print condition[i], v
+                    if super_debug: print condition[i], v
                     if condition[0] == "&&" and not v: return False
                     if condition[0] == "||" and v: return True
                 return condition[0] == "&&"
             elif (condition[0] == "contains" or condition[0] == "exact-contains"
                   or condition[0] == "not-contains" or condition[0] == "not-exact-contains"):
-                return self.robot_contains_condition(robot, condition)
+                r = self.robot_contains_condition(robot, condition)
+                if super_debug: print condition, "->", r
+                return r
             elif (condition[0] == "not"):
-                return not assert_condition(condition[1])
+                return not assert_condition(condition[1], super_debug)
             else:
                 print "Invalid condition", condition
             return False
         
         if not assert_condition(action_type.condition):
             if debug: print "Condition returned false"
+            if debug: assert_condition(action_type.condition, True)
             return None
     
         time_estimate = get_value(action_type.time_estimate)
