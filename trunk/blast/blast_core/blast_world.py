@@ -37,6 +37,9 @@ class BlastAction:
                     raise BlastTypeError("Location parameter does not reference another parameter: " + pname + " -> " + vname)
                 if self.parameters[vname].find("Surface:") != 0:
                     raise BlastTypeError("Location parameter " + pname + " does not reference a surface type variable (" + vname + ")")
+            elif ptype == "String":
+                if planable:
+                    raise BlastTypeError("Cannot plan with arbitary string type. Either declare action unplanable or add enumeration")
             else:
                 raise BlastTypeError("Invalid parameter type for " + pname + ": " + ptype)
 
@@ -114,15 +117,15 @@ def make_test_actions():
                                          "outfloor": "Location:elevator.floor_"},
                         ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor")),
                         "\"300\"", {"robot.location": "outfloor"}),
-            BlastAction("pr2.grab-object", {}, 
+            BlastAction("pr2.grab-object", {"tts-text": "String"}, 
                         ("contains", "robot.right-arm", "None()"),
                         "\"200\"", {"robot.holders.right-arm": "Object(\"arbitrary-object\")",},
                         planable = False),
-            BlastAction("pr2.give-object", {}, 
+            BlastAction("pr2.give-object", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.right-arm", "None()")),
                         "\"200\"", {"robot.holders.right-arm": "None()",},
                         planable = False),
-            BlastAction("pr2-cupholder.give-object-cupholder", {}, 
+            BlastAction("pr2-cupholder.give-object-cupholder", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.cup-holder", "None()")),
                         "\"200\"", {"robot.holders.cup-holder": "None()",},
                         planable = False),
@@ -1039,6 +1042,8 @@ class BlastWorld:
                             parameters[param].append(surface)
             elif ptype[0:len("Location:")] == "Location:":
                 location_parameters[param] = ptype.split(":")[1].split(".")
+            elif ptype == "String":
+                parameters[param] = []
             else:
                 print "Error, invalid parameter type:", ptype, "for:", param
         #Handle after all others parameterized
