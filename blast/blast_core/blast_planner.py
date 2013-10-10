@@ -258,7 +258,7 @@ if __name__ == '__main__':
     print '-'*100
     print "Grab money bag"
     print '-'*100
-    world.take_action("stair4", "grab-object", {})
+    world.take_action("stair4", "grab-object", {"tts-text": "Money Bag"})
     world.set_robot_holder("stair4", "right-arm", "coffee_money_bag")
 
     print '-'*100
@@ -274,4 +274,4 @@ if __name__ == '__main__':
     print '-'*100
     print "Give object back"
     print '-'*100
-    world.take_action("stair4", "give-object-cupholder", {})
+    world.take_action("stair4", "give-object-cupholder", {"tts-text": "Coffee Cup"})
