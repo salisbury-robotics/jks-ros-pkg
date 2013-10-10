@@ -101,9 +101,9 @@ def make_test_actions():
                                          "outfloor": "Location:elevator.floor_"},
                         ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor")),
                         "\"300\"", {"robot.location": "outfloor"}),
-            BlastAction("pr2.grab-money-bag", {}, 
+            BlastAction("pr2.grab-object", {}, 
                         ("contains", "robot.right-arm", "None()"),
-                        "\"200\"", {"robot.holders.right-arm": "Object(\"coffee_money_bag\")",},
+                        "\"200\"", {"robot.holders.right-arm": "Object(\"arbitrary-object\")",},
                         planable = False),
             BlastAction("pr2.give-object", {}, 
                         ("not", ("contains", "robot.right-arm", "None()")),
@@ -184,7 +184,7 @@ class ObjectType:
 
 def make_test_types_world():
     types_world = BlastWorldTypes()
-    
+    types_world.add_object_type(ObjectType("arbitrary-object"))
     types_world.add_object_type(ObjectType("coffee_cup"))
     types_world.add_object_type(ObjectType("coffee_money_bag"))
     
@@ -726,7 +726,7 @@ class BlastWorld:
             t = t.parent
         return False
     
-    def take_action(self, robot_name, action, parameters, debug = False):
+    def take_action(self, robot_name, action, parameters, execute = True, debug = False):
         #Get the robot
         robot = self.robots.get(robot_name)
         if not robot:
@@ -740,11 +740,18 @@ class BlastWorld:
                 print "Could not find the action type", action, "for", robot.robot_type
             return None
 
-        #Ensure that we have all the proper parameters
-        for name in action_type.parameters:
+        #Ensure that we have all the proper parameters and convert strings to locations
+        clone_param = False
+        for name, ptype in action_type.parameters.iteritems():
             if not name in parameters:
-                if debug: print "Parameter", parameter, "unspecified"
+                if debug: print "Parameter", name, "unspecified"
                 return None
+            if ptype.find("Surface:") == 0:
+                if type(parameters[name]) == type(""):
+                    if not clone_param:
+                        parameters = parameters.copy() #Avoid mutating the original dictionary
+                        clone_param = True
+                    parameters[name] = self.surfaces.get(parameters[name])
 
 
         #Check all the conditions
@@ -843,7 +850,7 @@ class BlastWorld:
             elif (condition[0] == "&&" or condition[0] == "||"):
                 for i in xrange(1, len(condition)):
                     v = get_value(condition[i])
-                    #if debug: print condition[i], v
+                    if debug: print condition[i], v
                     if condition[0] == "&&" and not v: return False
                     if condition[0] == "||" and v: return True
                 return condition[0] == "&&"
@@ -895,6 +902,9 @@ class BlastWorld:
                 if debug: print "Update failed"
                 return None
 
+        if not execute:
+            return time_estimate
+
         if self.copy_on_write_optimize:
             for robot_name in items_to_clone["robots"]:
                 self.robots[robot_name] = self.robots[robot_name].copy()
@@ -920,7 +930,7 @@ class BlastWorld:
 
         return time_estimate
 
-    def enumerate_action(self, robot_name, action):
+    def enumerate_action(self, robot_name, action, extra_goals):
         #Get the robot
         robot = self.robots.get(robot_name)
         if not robot:
@@ -960,6 +970,7 @@ class BlastWorld:
             if condition[0] == "contains" or condition[0] == "exact-contains" \
                     or condition[0] == "not-contains" or condition[0] == "not-exact-contains":
                 if not self.robot_contains_condition(robot, condition):
+
                     return False, False
 
 
@@ -988,6 +999,9 @@ class BlastWorld:
                     for loc in surface.locations.values():
                         if test_loc(loc, param):
                             parameters[param].append(loc)
+                for loc in extra_goals.get(param, []) + extra_goals.get(ptype, []):
+                    if test_loc(loc, param):
+                        parameters[param].append(loc)
             elif ptype[0:len("Surface:")] == "Surface:":
                 stype = ptype.split(":")[1]
                 for name, surface in self.surfaces.iteritems():
