@@ -11,6 +11,7 @@ class Planner:
         self.worlds_tested = 0
         self.actions_tested = 0
         self.actions_finished = 0
+        self.extra_goals = {}
 
         self.fail_debug = {}
         self.super_fail_debug = False
@@ -97,7 +98,7 @@ class Planner:
                 #Now enumerate all possible actions
                 world_clone = world[0].copy()
                 for at in action_types:
-                    planable, pv = world_clone.enumerate_action(robot_name, at)
+                    planable, pv = world_clone.enumerate_action(robot_name, at, self.extra_goals)
                     parameter_combos = []
                     if planable and pv != False:
                         parameter_combos = self.parameter_iter(pv)
@@ -168,7 +169,7 @@ class Planner:
         
     def plan_print(self):
         start_time = time.time()
-        world, est_time, steps = planner.plan_recursive()
+        world, est_time, steps = self.plan_recursive()
         print "Planning time:", time.time() - start_time, "seconds"
     
         if world and est_time and steps:
@@ -178,12 +179,12 @@ class Planner:
                 print i
         else:
             print "Failed to find a plan"
-        print "Tried", planner.worlds_tested, "worlds and", planner.actions_tested, "actions -", \
-            planner.actions_finished, "finished (a", (planner.actions_finished * 100.0) / planner.actions_tested, "percent success rate)"
-        print "Fail debug", planner.fail_debug
-        if planner.super_fail_debug:
+        print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions -", \
+            self.actions_finished, "finished (a", (self.actions_finished * 100.0) / self.actions_tested, "percent success rate)"
+        print "Fail debug", self.fail_debug
+        if self.super_fail_debug:
             print "Super fail debug"
-            for name, arr in planner.super_fail_debug.iteritems():
+            for name, arr in self.super_fail_debug.iteritems():
                 print "Failed", name, "actions"
                 for fail in arr:
                     print fail[0][0].to_text()
@@ -191,10 +192,87 @@ class Planner:
 
         return world, est_time, steps
 
+class BlastPlannableWorld:
+    def __init__(self, world):
+        self.world = world
+
+    def plan(self, world_good, extra_goals):
+        planner = Planner(self.world.copy())
+        planner.world_good = world_good
+        planner.extra_goals = extra_goals
+        world, est_time, steps = planner.plan_print()
+        if world and est_time and steps:
+            for step in steps:
+                params = {}
+                for name, value in step[2].iteritems():
+                    if type(value) == type((0,1,)):
+                        if value[0] == 'surface':
+                            params[name] = self.world.surfaces[value[1]]
+                        else:
+                            params[name] = value
+                    else:
+                        params[name] = value
+                self.take_action(step[0], step[1], params)
+            if not world.equal(self.world):
+                print "FAILED! Big issue: took actions that did not produce the desired world state"
+        else:
+            print "FAILED!"
+    
+    def plan_to_location(self, robot, location):
+        if self.world.robots[robot].location.equal(location):
+            print "Already at location"
+            return
+        return self.plan(lambda w: w.robots[robot].location.equal(location), 
+                         {"Pt": [location,]})
+
+    
+    def set_robot_holder(self, robot, holder, object_type):
+        obj_type = self.world.types.get_object(object_type)
+        obj = blast_world.BlastObject(obj_type, None, robot + "." + holder)
+        self.world.append_object(obj)
+        self.world.robots[robot].holders[holder] = blast_world.BlastObjectRef(obj.uid)
+
+    def take_action(self, robot, action, parameters):
+        if self.world.take_action(robot, action, parameters): #, True, True):
+            return
+        else:
+            print "Blast failed to take action"
+            return 
+
+    def plan_action(self, robot, action, parameters):
+        #FIXME: this can create problems if parameters is an extra element
+        r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, {})
+        return self.take_action(robot, action, parameters)
+
 
 if __name__ == '__main__':
-    world = blast_world.make_test_world()
+    world = BlastPlannableWorld(blast_world.make_test_world())
 
-    planner = Planner(world)
-    planner.world_good = lambda w: w.robots["stair4"].holders["cup-holder"] != None and w.robots["stair4"].location.equal(w.surfaces["clarkfirstflooroutsidedoor"].locations["in_entrance"])
-    planner.plan_print()
+    initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
+    
+    print '-'*100
+    print "Plan to pick up bag"
+    print '-'*100
+    world.plan_to_location("stair4", initial_pickup_point)
+
+    print '-'*100
+    print "Grab money bag"
+    print '-'*100
+    world.take_action("stair4", "grab-object", {})
+    world.set_robot_holder("stair4", "right-arm", "coffee_money_bag")
+
+    print '-'*100
+    print "Plan to buy coffee"
+    print '-'*100
+    world.plan_action("stair4", "buy_coffee", {"shop": "clark_peets_coffee_shop"})
+    
+
+    print '-'*100
+    print "Plan to return"
+    print '-'*100
+    world.plan_to_location("stair4", initial_pickup_point)
+        
+    print '-'*100
+    print "Give object back"
+    print '-'*100
+    world.take_action("stair4", "give-object", {})
