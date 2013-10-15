@@ -96,38 +96,44 @@ class BlastAction:
 def make_test_actions():
     return [BlastAction("pr2.move", {"end": "Pt"},
                         ("==", "robot.location.map", "end.map"),
-                        "add(mul(\"3\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
+                        "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
                         {"robot.location": "end" }),
             BlastAction("pr2-cupholder.buy_coffee", {"shop": "Surface:coffee_shop"},
                         ("&&", ("==", "robot.location", "shop.locations.start"),
-                         ("contains", "robot.right-arm", "coffee_money_bag")),
+                         ("contains", "robot.left-arm", "coffee_money_bag")),
                         "\"1000\"",
                         {"robot.location": "shop.locations.end",
                          "robot.holders.cup-holder": "Object(\"coffee_cup\")",
-                         "robot.holders.right-arm": "None()"}),
+                         "robot.holders.left-arm": "None()"}),
             BlastAction("pr2.door_blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance")),
-                        "\"100\"", {"robot.location": "door.locations.out_exit"}),
+                        "\"55\"", {"robot.location": "door.locations.out_exit"}),
             BlastAction("pr2.door_drag", {"door": "Surface:transparent_heavy_door"},
-                        ("&&", ("==", "robot.location", "door.locations.in_entrance")),
-                        "\"100\"", {"robot.location": "door.locations.in_exit"}),
+                        ("&&", ("==", "robot.location", "door.locations.in_entrance"), 
+                         ("contains", "robot.right-arm", "None()"),),
+                        "\"115\"", {"robot.location": "door.locations.in_exit"}),
                         
             BlastAction("pr2.elevator", {"elevator": "Surface:elevator", 
                                          "infloor": "Location:elevator.floor_",
                                          "outfloor": "Location:elevator.floor_"},
-                        ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor")),
-                        "\"300\"", {"robot.location": "outfloor"}),
+                        ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor"),
+                         ("contains", "robot.right-arm", "None()"),),
+                        "\"150\"", {"robot.location": "outfloor"}),
             BlastAction("pr2.grab-object", {"tts-text": "String"}, 
-                        ("contains", "robot.right-arm", "None()"),
-                        "\"200\"", {"robot.holders.right-arm": "Object(\"arbitrary-object\")",},
+                        ("contains", "robot.left-arm", "None()"),
+                        "\"30\"", {"robot.holders.left-arm": "Object(\"arbitrary-object\")",},
                         planable = False),
             BlastAction("pr2.give-object", {"tts-text": "String"}, 
-                        ("not", ("contains", "robot.right-arm", "None()")),
-                        "\"200\"", {"robot.holders.right-arm": "None()",},
+                        ("not", ("contains", "robot.left-arm", "None()")),
+                        "\"30\"", {"robot.holders.left-arm": "None()",},
+                        planable = False),
+            BlastAction("pr2-cupholder.grab-object-cupholder", {"tts-text": "String"}, 
+                        ("contains", "robot.cup-holder", "None()"),
+                        "\"30\"", {"robot.holders.cup-holder": "Object(\"arbitrary-object\")",},
                         planable = False),
             BlastAction("pr2-cupholder.give-object-cupholder", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.cup-holder", "None()")),
-                        "\"200\"", {"robot.holders.cup-holder": "None()",},
+                        "\"30\"", {"robot.holders.cup-holder": "None()",},
                         planable = False),
             ]
 
@@ -265,10 +271,8 @@ class BlastPt:
         return BlastPt(self.x, self.y, self.a, self.map)
 
     def hash_update(self, hl):
-        hl.update(str(self.x))
-        hl.update(str(self.y))
-        hl.update(str(self.a))
-        hl.update(str(self.map))
+        st = str(self.x) + str(self.y) + str(self.a) + str(self.map)
+        hl.update(st)
 
     def equal(self, other):
         if self == other: return True
@@ -632,8 +636,11 @@ class BlastWorld:
         self.hash_state = None
         self.objects[obj.uid] = obj
 
+    def get_hex_hash_state(self):
+        return ''.join('%02x' % ord(byte) for byte in self.get_hash_state())
+
     def to_text(self):
-        r = "World(" + ''.join('%02x' % ord(byte) for byte in self.get_hash_state()) + "):\n"
+        r = "World(" + self.get_hex_hash_state() + "):\n"
         for uid, obj in sorted(self.objects.iteritems(), key=lambda x: x[0]):
             r = r + "\tObjectSet(" + str(uid) + ", " + obj.to_text() + ")\n"
         for mid, mp in sorted(self.maps.iteritems(), key=lambda x: x[0]):
@@ -664,7 +671,7 @@ class BlastWorld:
 
         hl = hashlib.sha224()
         get_obj = lambda x: self.get_obj(x)
-        for arr in [self.maps, self.robots, self.surfaces]:
+        for arr in [self.maps, self.surfaces, self.robots]:
             for name, value in sorted(arr.iteritems(), key=lambda x: x[0]):
                 hl.update(str(name))
                 value.hash_update(hl, get_obj)
