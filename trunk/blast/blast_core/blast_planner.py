@@ -7,7 +7,7 @@ class Planner:
         self.world_good = lambda x: False
         self.planned_worlds = []
         self.good_worlds = []
-        self.time_limit = False
+        self.time_limit = None
         self.worlds_tested = 0
         self.actions_tested = 0
         self.actions_finished = 0
@@ -70,16 +70,18 @@ class Planner:
                     self.time_limit = world[1]
                 if world[1] < self.time_limit:
                     self.time_limit = world[1]
-
+        
         while self.worlds != []:
-            self.worlds_tested = self.worlds_tested + 1
             self.worlds.sort(key = lambda x: x[1]) #Sort by lowest time
             world = self.worlds[0]
             self.worlds = self.worlds[1:]
             self.planned_worlds.append(world)
 
             #Once we find a good world, we stop planning for worlds after that time
-            #if self.time_limit and world[1] >= self.time_limit: continue
+            if self.time_limit != None and world[1] >= self.time_limit: continue
+            
+            #Actually testing this world
+            self.worlds_tested = self.worlds_tested + 1
 
             for robot_name, robot in world[0].robots.iteritems():
                 #Find all valid robot types
@@ -172,15 +174,18 @@ class Planner:
         world, est_time, steps = self.plan_recursive()
         print "Planning time:", time.time() - start_time, "seconds"
     
-        if world and est_time and steps:
+        if world != None and est_time != None and steps != None:
             print "Estimated time", est_time, "seconds (=", est_time/60.0, "minutes)"
             print "Steps (total of", len(steps), "actions)"
             for i in steps:
                 print i
         else:
             print "Failed to find a plan"
-        print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions -", \
-            self.actions_finished, "finished (a", (self.actions_finished * 100.0) / self.actions_tested, "percent success rate)"
+        if self.actions_tested == 0:
+            print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions"
+        else:
+            print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions -", \
+                self.actions_finished, "finished (a", (self.actions_finished * 100.0) / self.actions_tested, "percent success rate)"
         print "Fail debug", self.fail_debug
         if self.super_fail_debug:
             print "Super fail debug"
@@ -201,7 +206,8 @@ class BlastPlannableWorld:
         planner.world_good = world_good
         planner.extra_goals = extra_goals
         world, est_time, steps = planner.plan_print()
-        if world and est_time and steps:
+        if world != None and est_time != None and steps != None:
+            print "Taking", len(steps), "steps"
             for step in steps:
                 params = {}
                 for name, value in step[2].iteritems():
@@ -212,11 +218,15 @@ class BlastPlannableWorld:
                             params[name] = value
                     else:
                         params[name] = value
-                self.take_action(step[0], step[1], params)
+                self.take_action(step[0], step[1], params) 
+            #print world.to_text()
             if not world.equal(self.world):
                 print "FAILED! Big issue: took actions that did not produce the desired world state"
+                return None
         else:
             print "FAILED!"
+            return None
+        return True
     
     def plan_to_location(self, robot, location):
         if self.world.robots[robot].location.equal(location):
@@ -226,23 +236,70 @@ class BlastPlannableWorld:
                          {"Pt": [location,]})
 
     
-    def set_robot_holder(self, robot, holder, object_type):
+    #API actions ---------------------------
+    def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
+        if not robot in self.world.robots:
+            print "Set robot holder invalid robot", robot
+            return False
+        if not holder in self.world.robots[robot].holders:
+            print "Set robot location invalid holder", holder, "for robot", robot
+            return False
+        if require_preexisting_object:
+            if self.world.robots[robot].holders[holder] == None:
+                print "Robot holder empty, requires object for holder", holder, "for robot", robot
+                return False
         obj_type = self.world.types.get_object(object_type)
         obj = blast_world.BlastObject(obj_type, None, robot + "." + holder)
         self.world.append_object(obj)
         self.world.robots[robot].holders[holder] = blast_world.BlastObjectRef(obj.uid)
+        self.world.hash_state = None
+        return True
 
-    def take_action(self, robot, action, parameters, debug = True):
-        if self.world.take_action(robot, action, parameters, True, debug):
-            return
-        else:
-            print "Blast failed to take action"
-            return 
+    def set_robot_location(self, robot, blast_pt):
+        if not robot in self.world.robots:
+            print "Set robot location invalid robot", robot
+            return False
+        self.world.robots[robot].location = blast_pt.copy()
+        self.world.hash_state = None
+        return True
+
+    def get_surface(self, surface):
+        return self.world.surfaces.get(surface) #FIXME: convert to JSON
 
     def plan_action(self, robot, action, parameters):
         #FIXME: this can create problems if parameters is an extra element
         r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, {})
-        return self.take_action(robot, action, parameters)
+        if r != None:
+            return self.take_action(robot, action, parameters)
+        return False
+    
+    #End API actions ---------------------------        
+
+    def take_action(self, robot, action, parameters, debug = True):
+        if action == "buy_coffee": #hack
+
+            #Here we are at the start location. This is where the literal line loop code would go.
+
+            print '-'*100
+            print "Executing buy coffee action"
+            print '-'*100
+
+            self.set_robot_location(robot, self.get_surface(parameters["shop"]).locations["end"])
+
+            print "----  Plan give object  ----"
+            self.plan_action("stair4", "give-object", {"tts-text": "Money Bag"})
+
+            print "---- Plan recive object ----"
+            world.plan_action("stair4", "grab-object-cupholder", {"tts-text": "Money Bag"})
+            world.set_robot_holder("stair4", "cup-holder", "coffee_cup")
+
+            return True
+        elif self.world.take_action(robot, action, parameters, True, debug):
+            return True
+        else:
+            print "Blast failed to take action"
+            return None
+
 
 
 if __name__ == '__main__':
@@ -259,7 +316,7 @@ if __name__ == '__main__':
     print "Grab money bag"
     print '-'*100
     world.take_action("stair4", "grab-object", {"tts-text": "Money Bag"})
-    world.set_robot_holder("stair4", "right-arm", "coffee_money_bag")
+    world.set_robot_holder("stair4", "left-arm", "coffee_money_bag")
 
     print '-'*100
     print "Plan to buy coffee"
