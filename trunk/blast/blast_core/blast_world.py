@@ -135,6 +135,8 @@ def make_test_actions():
                         ("not", ("contains", "robot.cup-holder", "None()")),
                         "\"30\"", {"robot.holders.cup-holder": "None()",},
                         planable = False),
+            BlastAction("pr2-cupholder.coffee_run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
+                        "True()", "\"10000\"", {"robot.location": "person_location"}, planable = False),
             ]
 
 
@@ -860,6 +862,7 @@ class BlastWorld:
                 subs = subs[1:]
             return val
         def assert_condition(condition, super_debug=False):
+            if (condition == "True()"): return True
             if (condition[0] == "==" or condition[0] == "!="):
                 if super_debug: print condition[1], condition[2]
                 a = get_value(condition[1])
@@ -990,7 +993,7 @@ class BlastWorld:
                           "!=": "==", "not-contains": "contains", "not-exact-contains": "exact-contains"}
                 if condition[1][0] in invert:
                     req_conditions.append((invert[condition[1][0]],) + condition[1][1:])
-            else:
+            elif condition != "True()":
                 print "Ignore", condition
 
         #print action_type.condition, "->", conditions
