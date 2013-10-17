@@ -200,6 +200,11 @@ class Planner:
 class BlastPlannableWorld:
     def __init__(self, world):
         self.world = world
+        self.real_world = False
+        self.action_callback = lambda r, a, p: True
+        def action_e_fail(r, a, p): 
+            print "Action failed epically", r, "-->", a
+        self.action_epic_fail_callback = action_e_fail
 
     def plan(self, world_good, extra_goals):
         planner = Planner(self.world.copy())
@@ -242,16 +247,21 @@ class BlastPlannableWorld:
             print "Set robot holder invalid robot", robot
             return False
         if not holder in self.world.robots[robot].holders:
-            print "Set robot location invalid holder", holder, "for robot", robot
+            print "Set robot holder invalid holder", holder, "for robot", robot
             return False
         if require_preexisting_object:
             if self.world.robots[robot].holders[holder] == None:
-                print "Robot holder empty, requires object for holder", holder, "for robot", robot
+                print "Robot holder empty, set requires object for holder", holder, "for robot", robot
                 return False
-        obj_type = self.world.types.get_object(object_type)
-        obj = blast_world.BlastObject(obj_type, None, robot + "." + holder)
-        self.world.append_object(obj)
-        self.world.robots[robot].holders[holder] = blast_world.BlastObjectRef(obj.uid)
+        self.world.robots[robot] = self.world.robots[robot].copy()
+        if object_type != None:
+            obj_type = self.world.types.get_object(object_type)
+            obj = blast_world.BlastObject(obj_type, None, robot + "." + holder)
+            self.world.append_object(obj)
+            self.world.robots[robot].holders[holder] = blast_world.BlastObjectRef(obj.uid)
+        else:
+            self.world.robots[robot].holders[holder] = None
+        self.world.gc_objects()
         self.world.hash_state = None
         return True
 
@@ -259,6 +269,7 @@ class BlastPlannableWorld:
         if not robot in self.world.robots:
             print "Set robot location invalid robot", robot
             return False
+        self.world.robots[robot] = self.world.robots[robot].copy()
         self.world.robots[robot].location = blast_pt.copy()
         self.world.hash_state = None
         return True
@@ -276,23 +287,21 @@ class BlastPlannableWorld:
     #End API actions ---------------------------        
 
     def take_action(self, robot, action, parameters, debug = True):
-        if action == "buy_coffee": #hack
-
-            #Here we are at the start location. This is where the literal line loop code would go.
-
-            print '-'*100
-            print "Executing buy coffee action"
-            print '-'*100
-
-            self.set_robot_location(robot, self.get_surface(parameters["shop"]).locations["end"])
-
-            print "----  Plan give object  ----"
-            self.plan_action("stair4", "give-object", {"tts-text": "Money Bag"})
-
-            print "---- Plan recive object ----"
-            world.plan_action("stair4", "grab-object-cupholder", {"tts-text": "Money Bag"})
-            world.set_robot_holder("stair4", "cup-holder", "coffee_cup")
-
+        if self.real_world:
+            test_world = self.world.copy()
+            if test_world.take_action(robot, action, parameters, True, debug) == None:
+                print "Attempted to take action in a state that was not desirable"
+                return None
+            else:
+                self.action_callback(robot, action, parameters)
+                if not test_world.equal(self.world):
+                    print "-"*60
+                    print test_world.to_text()
+                    print "-"*60
+                    print self.world.to_text()
+                    print "-"*60
+                    self.action_epic_fail_callback(robot, action, parameters)
+                    return None
             return True
         elif self.world.take_action(robot, action, parameters, True, debug):
             return True
