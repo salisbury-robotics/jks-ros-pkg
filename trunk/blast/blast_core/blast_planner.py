@@ -225,9 +225,10 @@ class BlastPlannableWorld:
                         params[name] = value
                 self.take_action(step[0], step[1], params) 
             #print world.to_text()
-            if not world.equal(self.world):
-                print "FAILED! Big issue: took actions that did not produce the desired world state"
-                return None
+            if not self.real_world:
+                if not world.equal(self.world):
+                    print "FAILED! Big issue: took actions that did not produce the desired world state"
+                    return None
         else:
             print "FAILED!"
             return None
@@ -265,6 +266,20 @@ class BlastPlannableWorld:
         self.world.hash_state = None
         return True
 
+    def set_robot_position(self, robot, position, val):
+        if not robot in self.world.robots:
+            print "Set robot position invalid robot", robot
+            return False
+        if not position in self.world.robots[robot].positions:
+            print "Set robot holder invalid position", position, "for robot", robot
+            return False
+
+        if type(val) == type([]):
+            for name, v in zip(self.world.robots[robot].robot_type.position_variables[position][False][0], val):
+                if v != None:
+                    self.world.robots[robot].positions[position][name] = v
+        
+
     def set_robot_location(self, robot, blast_pt):
         if not robot in self.world.robots:
             print "Set robot location invalid robot", robot
@@ -294,7 +309,7 @@ class BlastPlannableWorld:
                 return None
             else:
                 self.action_callback(robot, action, parameters)
-                if not test_world.equal(self.world):
+                if not test_world.equal(self.world, True): #Important to tolerate arm error
                     print "-"*60
                     print test_world.to_text()
                     print "-"*60

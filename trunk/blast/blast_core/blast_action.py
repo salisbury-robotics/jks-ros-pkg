@@ -1,6 +1,6 @@
 import blast_world
 import blast_planner
-import os
+import os, sys
 
 blast_action_exec_d = {}
 def set_action_exec(robot_type, action_type, item):
@@ -27,6 +27,12 @@ class BlastActionExec:
                                                  require_preexisting_object)
         self._manager.world_unlock()
 
+    def set_robot_position(self, pos, val):
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            self._manager.world.set_robot_position(self._robot, pos, val)
+        self._manager.world_unlock()
+        
     def plan_action(self, action, parameters):
         if self._manager.get_current_guid() == self._guid:
             self._manager.plan_action(self._robot, action, parameters)
@@ -52,6 +58,12 @@ class BlastManager:
         self.world = blast_planner.BlastPlannableWorld(blast_world.make_test_world())
         self.world.real_world = True
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
+
+        oefc = self.world.action_epic_fail_callback
+        def efc(r, a, p):
+            oefc(r, a, p)
+            sys.exit(1)
+        self.world.action_epic_fail_callback = efc
         self.action_stack = []
         self.action_guid = 0
 
