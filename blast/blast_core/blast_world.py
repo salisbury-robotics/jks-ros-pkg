@@ -2,7 +2,8 @@
 import math
 import hashlib
 
-#Dynamics, arms
+#Dynamic values for motion (torso, head)
+#Permissions system
 
 class BlastTypeError(Exception):
     def __init__(self, value):
@@ -50,7 +51,7 @@ class BlastAction:
         self.changes = changes
 
         for var in self.changes:
-            if var != "robot.location" and var.find("robot.holders.") != 0:
+            if var != "robot.location" and var.find("robot.holders.") != 0 and var.find("robot.positions.") != 0:
                 raise BlastTypeError("Invalid variable set in " + name + ": " + var)
             self.validate("Invalid expression for variable " + var + " in " + name, self.changes[var])
 
@@ -58,6 +59,8 @@ class BlastAction:
         #FIXME: keywords: robot
 
     def validate(self, text, exp):
+        if type(exp) == type([1,]):
+            return
         if type(exp) == type(""):
             if exp.strip() == "": return
             if exp.strip()[0] == "\"" and exp.strip()[-1] == "\"":
@@ -83,6 +86,13 @@ class BlastAction:
                     raise BlastTypeError(text + ": must have robot.<holder> for " + str(exp[0]))
                 if exp[1].split(".")[0] != "robot":
                     raise BlastTypeError(text + ": must reference the robot (as in robot.<holder>) for " + str(exp[0]))
+            elif exp[0] == "position":
+                if len(exp) != 3:
+                    raise BlastTypeError(text + ": wrong number of arguments for " + str(exp[0]) + ", must be 2")
+                if len(exp[1].split(".")) != 2:
+                    raise BlastTypeError(text + ": must have robot.<position> for " + str(exp[0]))
+                if exp[1].split(".")[0] != "robot":
+                    raise BlastTypeError(text + ": must reference the robot (as in robot.<position>) for " + str(exp[0]))
             elif exp[0] in ["==", "!=", "&&", "||", "not"]:
                 if exp[0] == "not" and len(exp) != 2:
                     raise BlastTypeError(text + ": not must only have one argument in " + str(exp))
@@ -90,14 +100,29 @@ class BlastAction:
                     self.validate(text, x)
             else:
                 raise BlastTypeError(text + ": invalid expression: " + str(exp))
+        elif exp == False or exp == None:
+            pass #For the position expressions
         else:
-            raise BlastTypeError(text + "Bad type for expression:" + str(exp))
+            raise BlastTypeError(text + ": Bad type for expression:" + str(exp))
+
+#With action state output: False = could be in any state, None = left in orginal state
+#Short-cut: whole thing = None or False
+#With action compares: False = Don't care
 
 def make_test_actions():
     return [BlastAction("pr2.move", {"end": "Pt"},
-                        ("==", "robot.location.map", "end.map"),
+                        ("&&", ("==", "robot.location.map", "end.map"),
+                         ("position", "robot.left-arm", "tucked"),
+                         ("position", "robot.right-arm", "tucked")),
                         "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
                         {"robot.location": "end" }),
+            BlastAction("pr2.tuck-both-arms", {}, 
+                        "True()", "\"10\"", #FIXME: need holder constraints
+                        {"robot.positions.left-arm": [0.06024, 1.248526, 1.789070, -1.683386, 
+                                                      -1.7343417, -0.0962141, -0.0864407, None],
+                         "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
+                                                        -1.4175, -1.8417, 0.21436, None]}),
+            
             BlastAction("pr2-cupholder.buy_coffee", {"shop": "Surface:coffee_shop"},
                         ("&&", ("==", "robot.location", "shop.locations.start"),
                          ("contains", "robot.left-arm", "coffee_money_bag")),
@@ -106,34 +131,50 @@ def make_test_actions():
                          "robot.holders.cup-holder": "Object(\"coffee_cup\")",
                          "robot.holders.left-arm": "None()"}),
             BlastAction("pr2.door_blast", {"door": "Surface:transparent_heavy_door"},
-                        ("&&", ("==", "robot.location", "door.locations.out_entrance")),
+                        ("&&", ("==", "robot.location", "door.locations.out_entrance"),
+                         ("position", "robot.left-arm", "tucked"),
+                         ("position", "robot.right-arm", "tucked")),
                         "\"55\"", {"robot.location": "door.locations.out_exit"}),
             BlastAction("pr2.door_drag", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.in_entrance"), 
+                         ("position", "robot.left-arm", "tucked"),
+                         ("position", "robot.right-arm", "tucked"),
                          ("contains", "robot.right-arm", "None()"),),
-                        "\"115\"", {"robot.location": "door.locations.in_exit"}),
+                        "\"115\"", {"robot.location": "door.locations.in_exit",
+                                    "robot.positions.left-arm": False, 
+                                    "robot.positions.right-arm": False}),
                         
             BlastAction("pr2.elevator", {"elevator": "Surface:elevator", 
                                          "infloor": "Location:elevator.floor_",
                                          "outfloor": "Location:elevator.floor_"},
                         ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor"),
-                         ("contains", "robot.right-arm", "None()"),),
+                         ("contains", "robot.right-arm", "None()"),
+                         ("position", "robot.left-arm", "tucked"),
+                         ("position", "robot.right-arm", "tucked")),
                         "\"150\"", {"robot.location": "outfloor"}),
             BlastAction("pr2.grab-object", {"tts-text": "String"}, 
                         ("contains", "robot.left-arm", "None()"),
-                        "\"30\"", {"robot.holders.left-arm": "Object(\"arbitrary-object\")",},
+                        "\"30\"", {"robot.holders.left-arm": "Object(\"arbitrary-object\")",
+                                   "robot.positions.left-arm": False, 
+                                   "robot.positions.right-arm": False},
                         planable = False),
             BlastAction("pr2.give-object", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.left-arm", "None()")),
-                        "\"30\"", {"robot.holders.left-arm": "None()",},
+                        "\"30\"", {"robot.holders.left-arm": "None()",
+                                   "robot.positions.left-arm": False, 
+                                   "robot.positions.right-arm": False},
                         planable = False),
             BlastAction("pr2-cupholder.grab-object-cupholder", {"tts-text": "String"}, 
                         ("contains", "robot.cup-holder", "None()"),
-                        "\"30\"", {"robot.holders.cup-holder": "Object(\"arbitrary-object\")",},
+                        "\"30\"", {"robot.holders.cup-holder": "Object(\"arbitrary-object\")",
+                                   "robot.positions.left-arm": False, 
+                                   "robot.positions.right-arm": False},
                         planable = False),
             BlastAction("pr2-cupholder.give-object-cupholder", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.cup-holder", "None()")),
-                        "\"30\"", {"robot.holders.cup-holder": "None()",},
+                        "\"30\"", {"robot.holders.cup-holder": "None()",
+                                   "robot.positions.left-arm": False, 
+                                   "robot.positions.right-arm": False},
                         planable = False),
             BlastAction("pr2-cupholder.coffee_run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "\"10000\"", {"robot.location": "person_location"}, planable = False),
@@ -231,8 +272,9 @@ def make_test_types_world():
                                                                 "elbow_flex", "forearm_roll", "r_wrist_flex",
                                                                 "wrist_roll", "gripper"],
                                                                [ATL, ATL, ATL, ATL, ATL, ATL, ATL, ATL],
-                                                               [0.06024, 1.248526, 1.789070, -1.683386, 
-                                                                -1.7343417, -0.0962141, -0.0864407, 0.0]),
+                                                               [False, False, False, False, False, False, False, False]),
+                                                               #[0.06024, 1.248526, 1.789070, -1.683386, 
+                                                               # -1.7343417, -0.0962141, -0.0864407, 0.0]),
                                                        "grip": [False, False, False, False, False, False, False, 0.0],
                                                        "release": [False, False, False, False, False, False, False, 0.1],
                                                        "tucked": [0.06024, 1.248526, 1.789070, -1.683386, 
@@ -243,8 +285,9 @@ def make_test_types_world():
                                                                  "elbow_flex", "forearm_roll", "r_wrist_flex",
                                                                  "wrist_roll", "gripper"],
                                                                 [ATL, ATL, ATL, ATL, ATL, ATL, ATL, ATL],
-                                                                [-0.023593, 1.1072800, -1.5566882, -2.124408,
-                                                                  -1.4175, -1.8417, 0.21436, 0.0]),
+                                                                [False, False, False, False, False, False, False, False]),
+                                                                #[-0.023593, 1.1072800, -1.5566882, -2.124408,
+                                                                #  -1.4175, -1.8417, 0.21436, 0.0]),
                                                         "grip": [False, False, False, False, False, False, False, 0.0],
                                                         "release": [False, False, False, False, False, False, False, 0.1],
                                                         "tucked": [-0.023593, 1.1072800, -1.5566882, -2.124408,
@@ -366,7 +409,7 @@ class BlastObject:
         else: hl.update("None")
         if self.parent: hl.update(self.parent)
 
-    def equal(self, other):
+    def equal(self, other, tolerant = False):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -412,7 +455,7 @@ class BlastSurface:
         hl.update(self.state)
         hl.update(self.surface_type.name)
 
-    def equal(self, other, get_obj, other_get_obj):
+    def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -459,7 +502,7 @@ class BlastMap:
     def copy(self):
         return BlastMap(self.map, self.map_file)
 
-    def equal(self, other, get_obj, other_get_obj):
+    def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -534,7 +577,7 @@ class BlastRobot:
                 for j, sub in sorted(value.iteritems(), key=lambda x: x[0]):
                     hl.update(str(sub))
 
-    def equal(self, other, get_obj, other_get_obj):
+    def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
@@ -554,9 +597,22 @@ class BlastRobot:
         for name in self.positions:
             if self.positions[name]:
                 if not other.positions[name]: return False
+
+                tol = {}
+                if tolerant:
+                    tup = self.robot_type.position_variables[name][False]
+                    for joint, toler in zip(tup[0], tup[1]):
+                        tol[joint] = toler
+
                 for joint in self.positions[name]:
                     if joint not in other.positions[name]: return False
-                    if self.positions[name][joint] != other.positions[name][joint]: return False
+                    if tolerant:
+                        if self.positions[name][joint] != False and other.positions[name][joint] != False: 
+                            d = self.positions[name][joint] - other.positions[name][joint]
+                            if tol[joint] < -d or d > tol[joint]:
+                                return False
+                    else:
+                        if self.positions[name][joint] != other.positions[name][joint]: return False
             elif other.positions[name]:
                 return False
         return True
@@ -681,20 +737,23 @@ class BlastWorld:
         
         return self.hash_state
 
-    def equal(self, other):
+    def equal(self, other, tolerant = False): #Tolerant of slight variations
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
         if self.__class__ != other.__class__: return False
 
+        if not tolerant: #Hash checks only in tolerant equals
+            warn = True
+            hash_same = self.get_hash_state() == other.get_hash_state()
 
-        warn = True
-        hash_same = self.get_hash_state() == other.get_hash_state()
-
-        #Comment out these two lines to verify hashing
-        if not hash_same: return False
-        return True #Comment this line to ensure, 100%, no hash collisions
-        #This is to double-check to make sure hashing went as expected.
+            #Comment out these two lines to verify hashing
+            if not hash_same: return False
+            return True #Comment this line to ensure, 100%, no hash collisions
+            #This is to double-check to make sure hashing went as expected.
+        else:
+            warn = True
+            hash_same = True
         
         get_obj = lambda x: self.get_obj(x)
         other_get_obj = lambda x: other.get_obj(x)
@@ -707,7 +766,7 @@ class BlastWorld:
                 if not name in oarr:
                     if warn and hash_same: print "Hash state collision due to extra", name
                     return False
-                if not value.equal(oarr[name], get_obj, other_get_obj): 
+                if not value.equal(oarr[name], get_obj, other_get_obj, tolerant): 
                     if warn and hash_same: print "Hash state collision due to", name
                     return False
 
@@ -726,6 +785,34 @@ class BlastWorld:
         return True
 
 
+    def robot_position_condition(self, robot, condition, debug, super_debug):
+        if condition[1].find("robot.") != 0:
+            if debug: print "Invalid position type", condition[1]
+            return None
+        pos = condition[1].split(".")[1]
+        if not pos in robot.positions:
+            if debug: print "Invalid position name", condition[1]
+            return None
+        if not pos in robot.robot_type.position_variables:
+            if debug: print "Invalid position name", condition[1]
+            return None
+        
+        state = robot.positions[pos]
+        typ = robot.robot_type.position_variables[pos]
+        if type(condition[2]) == type(""):
+            if not condition[2] in typ:
+                if debug: print "Invalid pre-defined position state", condition[2]
+                return None 
+            for name, goal, tol in zip(typ[False][0], typ[condition[2]], typ[False][1]):
+                if goal != False:
+                    if state[name] == False:
+                        if super_debug: print state[name], name, "failed"
+                        return False
+                    if goal - tol > state[name] or goal + tol < state[name]:
+                        if super_debug: print name, goal, tol, state[name], "failed"
+                        return False
+        return True
+    
     def robot_contains_condition(self, robot, condition):
         if condition[0].find("not-") == 0:
             r = self.robot_contains_condition(robot, (condition[0][4:],) + condition[1:])
@@ -862,6 +949,7 @@ class BlastWorld:
                 subs = subs[1:]
             return val
         def assert_condition(condition, super_debug=False):
+            if (condition in [False, None, True]): return condition
             if (condition == "True()"): return True
             if (condition[0] == "==" or condition[0] == "!="):
                 if super_debug: print condition[1], condition[2]
@@ -889,6 +977,10 @@ class BlastWorld:
                 r = self.robot_contains_condition(robot, condition)
                 if super_debug: print condition, "->", r
                 return r
+            elif (condition[0] == "position"):
+                r = self.robot_position_condition(robot, condition, debug, super_debug)
+                if super_debug: print condition, "->", r
+                return True
             elif (condition[0] == "not"):
                 return not assert_condition(condition[1], super_debug)
             else:
@@ -918,7 +1010,10 @@ class BlastWorld:
                 if not hasattr(robot, sub[1]):
                     if debug: print "Attempt to set invalid robot attribute", sub[1]
                     return None
-                v = get_value(val)
+                if type(val) == type([1,]):
+                    v = [get_value(x) if x not in [None, False, True] and type(x) != type(0.01) else x for x in val]
+                else:
+                    v = get_value(val)
                 if v == None:
                     if debug: print "Invalid value for set:", val
                     return None
@@ -929,6 +1024,30 @@ class BlastWorld:
                         self.get_obj(v.uid).position = None
                         self.get_obj(v.uid).parent = robot.name + "." + sub[2]
                     transactions.append(("VAL", ("robot", robot.name, "holders"), sub[2], v))
+                elif sub[1] == "positions":
+                    if not sub[2] in robot.positions:
+                        if debug: print "Invalid position for robot", robot.name, sub
+                        return None
+                    set_d = {}
+                    if type(v) == type([1,]):
+                        joint_names = robot.robot_type.position_variables[sub[2]][False][0]
+                        if len(joint_names) != len(v):
+                            if debug: print "Invalid number of joints for array based-update", sub[2]
+                            return None
+                        for joint_name, value in zip(joint_names, v):
+                            if value == None:
+                                set_d[joint_name] = robot.positions[sub[2]][joint_name]
+                            else:
+                                set_d[joint_name] = value
+                    elif v == None:
+                        pass #The action is assumed to have left everything in the previous state
+                    elif v == False:
+                        for joint_name in robot.robot_type.position_variables[sub[2]][False][0]:
+                            set_d[joint_name] = False
+                    else:
+                        if debug: print "Invalid type for positions", v
+                    if v != None:
+                        transactions.append(("VAL", ("robot", robot.name, "positions"), sub[2], set_d))
                 else:
                     transactions.append(("SET", ("robot", robot.name), sub[1], v))
             else:
@@ -983,7 +1102,7 @@ class BlastWorld:
         while req_conditions:
             condition = req_conditions[0]
             req_conditions = req_conditions[1:]
-            if condition[0] in ['==', '!=', 'contains', 'exact-contains', 'not-contains', 'not-exact-contains']:
+            if condition[0] in ['==', '!=', 'contains', 'exact-contains', 'not-contains', 'not-exact-contains', 'position']:
                 conditions.append(condition)
             elif condition[0] == '&&':
                 for i in condition[1:]:
@@ -1003,7 +1122,9 @@ class BlastWorld:
             if condition[0] == "contains" or condition[0] == "exact-contains" \
                     or condition[0] == "not-contains" or condition[0] == "not-exact-contains":
                 if not self.robot_contains_condition(robot, condition):
-
+                    return False, False
+            if condition[0] == "position":
+                if not self.robot_position_condition(robot, condition, False, False):
                     return False, False
 
 
@@ -1158,6 +1279,8 @@ def make_test_world():
 
 def run_test():
     world = make_test_world()
+    world.robots["stair4"].location = BlastPt(55.840, 14.504, -0.331, "clarkcenterpeetscoffee")
+    print "Tuck arms:", world.take_action("stair4", "tuck-both-arms", {})
     
     print '-'*130
     print "                                                            PRE-EXEC"
@@ -1176,7 +1299,7 @@ def run_test():
     print '-'*130
     print world.equal(world)
     
-    
+def buy():
     res = world.take_action("stair4", "buy_coffee", {"shop": world.surfaces["clark_peets_coffee_shop"] })
     print "Action result:", res
     
@@ -1188,6 +1311,7 @@ def run_test():
     print '-'*130
     print world.equal(world)
 
+def clone_world_test(world):
     clone = world.copy()
     print '-'*130
     print "                                                            CLONE"
@@ -1196,8 +1320,8 @@ def run_test():
     print '-'*130
     print "Equal", clone.equal(world)
     
-    print "Move:", world.enumerate_action("stair4", "move")
-    print "Coffee:", world.enumerate_action("stair4", "buy_coffee")
+    print "Move:", world.enumerate_action("stair4", "move", {})
+    print "Coffee:", world.enumerate_action("stair4", "buy_coffee", {})
 
 
 def elevator_test():
@@ -1210,8 +1334,29 @@ def elevator_test():
     print world.to_text()
     print '-'*130
 
-    print "Elevator:", world.enumerate_action("stair4", "elevator")
+    print "Elevator:", world.enumerate_action("stair4", "elevator", {})
+
+
+def arms_test():
+    world = make_test_world()
+    
+    print '-'*130
+    print "                                                            PRE-EXEC"
+    print '-'*130
+    print world.to_text()
+    print '-'*130
+
+    print "Tuck arms:", world.take_action("stair4", "tuck-both-arms", {})
+
+    
+    print '-'*130
+    print "                                                            POST-EXEC"
+    print '-'*130
+    print world.to_text()
+    print '-'*130
+    
 
 if __name__ == '__main__':
     run_test()
     #elevator_test()
+    #arms_test()
