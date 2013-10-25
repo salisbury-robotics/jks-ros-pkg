@@ -308,7 +308,10 @@ class BlastPlannableWorld:
                 print "Attempted to take action in a state that was not desirable"
                 return None
             else:
-                self.action_callback(robot, action, parameters)
+                if not self.action_callback(robot, action, parameters):
+                    print "Action callback failed to work, going to epic fail"
+                    self.action_epic_fail_callback(robot, action, parameters)
+                    return None
                 if not test_world.equal(self.world, True): #Important to tolerate arm error
                     print "-"*60
                     print test_world.to_text()

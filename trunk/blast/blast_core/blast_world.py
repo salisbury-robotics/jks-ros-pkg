@@ -32,6 +32,8 @@ class BlastAction:
                 pass
             elif ptype.find("Surface:") == 0:
                 pass
+            elif ptype.find("Joint:") == 0:
+                pass
             elif ptype.find("Location:") == 0:
                 vname = ptype[ptype.find(":")+1:].split(".")[0]
                 if not vname in self.parameters:
@@ -112,6 +114,7 @@ class BlastAction:
 def make_test_actions():
     return [BlastAction("pr2.move", {"end": "Pt"},
                         ("&&", ("==", "robot.location.map", "end.map"),
+                         ("position", "robot.torso", [0.0,]),
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked")),
                         "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
@@ -132,17 +135,23 @@ def make_test_actions():
                          "robot.holders.left-arm": "None()"}),
             BlastAction("pr2.door_blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance"),
+                         ("position", "robot.torso", [0.3,]),
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked")),
                         "\"55\"", {"robot.location": "door.locations.out_exit"}),
             BlastAction("pr2.door_drag", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.in_entrance"), 
+                         ("position", "robot.torso", [0.3,]),
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked"),
                          ("contains", "robot.right-arm", "None()"),),
                         "\"115\"", {"robot.location": "door.locations.in_exit",
                                     "robot.positions.left-arm": False, 
                                     "robot.positions.right-arm": False}),
+
+            BlastAction("pr2.torso", {"height": "Joint:torso.torso"},
+                        "True()", "\"20\"", #FIXME
+                        {"robot.positions.torso": ["height",]}),
                         
             BlastAction("pr2.elevator", {"elevator": "Surface:elevator", 
                                          "infloor": "Location:elevator.floor_",
@@ -150,6 +159,7 @@ def make_test_actions():
                         ("&&", ("==", "robot.location", "infloor"), ("!=", "infloor", "outfloor"),
                          ("contains", "robot.right-arm", "None()"),
                          ("position", "robot.left-arm", "tucked"),
+                         ("position", "robot.torso", [0.0,]),
                          ("position", "robot.right-arm", "tucked")),
                         "\"150\"", {"robot.location": "outfloor"}),
             BlastAction("pr2.grab-object", {"tts-text": "String"}, 
@@ -799,18 +809,32 @@ class BlastWorld:
         
         state = robot.positions[pos]
         typ = robot.robot_type.position_variables[pos]
+
+        name_array = typ[False][0]
+        tol_array = typ[False][1]
+        goal_array = []
         if type(condition[2]) == type(""):
             if not condition[2] in typ:
                 if debug: print "Invalid pre-defined position state", condition[2]
                 return None 
-            for name, goal, tol in zip(typ[False][0], typ[condition[2]], typ[False][1]):
-                if goal != False:
-                    if state[name] == False:
-                        if super_debug: print state[name], name, "failed"
-                        return False
-                    if goal - tol > state[name] or goal + tol < state[name]:
-                        if super_debug: print name, goal, tol, state[name], "failed"
-                        return False
+            goal_array = typ[condition[2]]
+        elif type(condition[2]) == type([1,]):
+            if len(condition[2]) != len(name_array):
+                if debug: print "Wrong length for goal array", condition[2], "for", name_array
+                return None
+            goal_array = condition[2]
+        else:
+            if debug: print "Invalid type for position state compare", condition[2]
+            return None
+
+        for name, goal, tol in zip(name_array, goal_array, tol_array):
+            if goal != False:
+                if state[name] == False:
+                    if super_debug: print state[name], name, "failed"
+                    return False
+                if goal - tol > state[name] or goal + tol < state[name]:
+                    if super_debug: print name, goal, tol, state[name], "failed"
+                    return False
         return True
     
     def robot_contains_condition(self, robot, condition):
@@ -1175,6 +1199,31 @@ class BlastWorld:
                 location_parameters[param] = ptype.split(":")[1].split(".")
             elif ptype == "String":
                 parameters[param] = []
+            elif ptype[0:len("Joint:")] == "Joint:":
+                parameters[param] = []
+                position, joint = ptype.split(":")[1].split(".")
+                rtypes = [ robot.robot_type, ]
+                while rtypes[-1].parent:
+                    rtypes.append(rtypes[-1].parent)
+                rtypes = [r.name for r in rtypes]
+                for aname, action in self.types.actions.iteritems():
+                    if aname.split(".")[0] in rtypes:
+                        def crawl_actions(c):
+                            if type(c) != type((1,)):
+                                return []
+                            if c[0] != "position":
+                                out = []
+                                for cr in c[1:]:
+                                    out = out + crawl_actions(cr)
+                                return out
+                            if c[1].split(".")[1] == position:
+                                if type(c[2]) == type([]):
+                                    a = c[2][ robot.robot_type.position_variables[position][False][0].index(joint)]
+                                    if (a != False and a != None) or type(a) == type(0.1):
+                                        return [a,]
+                            return []
+                        parameters[param] = parameters[param] + crawl_actions(action.condition)
+                parameters[param] = list(set(parameters[param])) #Remove duplicates
             else:
                 print "Error, invalid parameter type:", ptype, "for:", param
         #Handle after all others parameterized
@@ -1326,6 +1375,7 @@ def clone_world_test(world):
 
 def elevator_test():
     world = make_test_world()
+    print "Tuck arms:", world.take_action("stair4", "tuck-both-arms", {})
     world.robots["stair4"].location = world.surfaces["clarkelevator"].locations["floor_1"].copy()
     
     print '-'*130
@@ -1355,8 +1405,28 @@ def arms_test():
     print world.to_text()
     print '-'*130
     
+def torso_test():
+    world = make_test_world()
+    
+    print '-'*130
+    print "                                                            PRE-EXEC"
+    print '-'*130
+    print world.to_text()
+    print '-'*130
+    
+    print "Lift", world.take_action("stair4", "torso", {"height": 0.3})
+    
+    
+    print '-'*130
+    print "                                                            POST-EXEC"
+    print '-'*130
+    print world.to_text()
+    print '-'*130
+
+    print world.enumerate_action("stair4", "torso", {})
 
 if __name__ == '__main__':
-    run_test()
+    torso_test()
+    #run_test()
     #elevator_test()
     #arms_test()
