@@ -202,32 +202,37 @@ def make_test_actions():
 ################################################################
 
 class BlastWorldTypes(object):
-    __slots__ = ['surfaces', 'robots', 'objects', 'actions']
+    __slots__ = ['surfaces', 'robots', 'objects', 'actions', 'parameter_values_cache']
     def __init__(self):
         self.surfaces = {}
         self.robots = {}
         self.objects = {}
         self.actions = {}
+        self.parameter_values_cache = {}
 
     def add_surface_type(self, surface):
+        self.parameter_values_cache = {}
         if surface.name in self.surfaces: raise BlastTypeError("Duplicate surface type: " + surface.name)
         self.surfaces[surface.name] = surface
     def get_surface(self, name):
         return self.surfaces.get(name, None)
 
     def add_robot_type(self, robot):
+        self.parameter_values_cache = {}
         if robot.name in self.robots: raise BlastTypeError("Duplicate robot type: " + robot.name)
         self.robots[robot.name] = robot
     def get_robot(self, name):
         return self.robots.get(name, None)
 
     def add_object_type(self, obj):
+        self.parameter_values_cache = {}
         if obj.name in self.objects: raise BlastTypeError("Duplicate object type: " + obj.name)
         self.objects[obj.name] = obj
     def get_object(self, name):
         return self.objects.get(name, None)
     
     def add_action_type(self, action):
+        self.parameter_values_cache = {}
         if action.name in self.actions: raise BlastTypeError("Duplicate action type: " + action.name)
         self.actions[action.name] = action
     def get_action(self, name):
@@ -1224,30 +1229,35 @@ class BlastWorld(object):
             elif ptype == "String":
                 parameters[param] = []
             elif ptype[0:len("Joint:")] == "Joint:":
-                parameters[param] = []
-                position, joint = ptype.split(":")[1].split(".")
-                rtypes = [ robot.robot_type, ]
-                while rtypes[-1].parent:
-                    rtypes.append(rtypes[-1].parent)
-                rtypes = [r.name for r in rtypes]
-                for aname, action in self.types.actions.iteritems():
-                    if aname.split(".")[0] in rtypes:
-                        def crawl_actions(c):
-                            if type(c) != type((1,)):
+                
+                if param in self.types.parameter_values_cache:
+                    parameters[param] = self.types.parameter_values_cache[ptype]
+                else:
+                    parameters[param] = []
+                    position, joint = ptype.split(":")[1].split(".")
+                    rtypes = [ robot.robot_type, ]
+                    while rtypes[-1].parent:
+                        rtypes.append(rtypes[-1].parent)
+                    rtypes = [r.name for r in rtypes]
+                    for aname, action in self.types.actions.iteritems():
+                        if aname.split(".")[0] in rtypes:
+                            def crawl_actions(c):
+                                if type(c) != type((1,)):
+                                    return []
+                                if c[0] != "position":
+                                    out = []
+                                    for cr in c[1:]:
+                                        out = out + crawl_actions(cr)
+                                    return out
+                                if c[1].split(".")[1] == position:
+                                    if type(c[2]) == type([]):
+                                        a = c[2][ robot.robot_type.position_variables[position][False][0].index(joint)]
+                                        if (a != False and a != None) or type(a) == type(0.1):
+                                            return [a,]
                                 return []
-                            if c[0] != "position":
-                                out = []
-                                for cr in c[1:]:
-                                    out = out + crawl_actions(cr)
-                                return out
-                            if c[1].split(".")[1] == position:
-                                if type(c[2]) == type([]):
-                                    a = c[2][ robot.robot_type.position_variables[position][False][0].index(joint)]
-                                    if (a != False and a != None) or type(a) == type(0.1):
-                                        return [a,]
-                            return []
                         parameters[param] = parameters[param] + crawl_actions(action.condition)
-                parameters[param] = list(set(parameters[param])) #Remove duplicates
+                    parameters[param] = list(set(parameters[param])) #Remove duplicates
+                    self.types.parameter_values_cache[ptype] = parameters[param]
             else:
                 print "Error, invalid parameter type:", ptype, "for:", param
         #Handle after all others parameterized
