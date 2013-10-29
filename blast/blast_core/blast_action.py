@@ -9,6 +9,7 @@ def set_action_exec(robot_type, action_type, item):
     blast_action_exec_d[robot_type][action_type] = item
 
 class BlastRuntimeError(Exception):
+    __slots__ = ['value']
     def __init__(self, value):
         self.value = value
     def __str__(self):
@@ -31,6 +32,12 @@ class BlastActionExec:
         if self._manager.get_current_guid() == self._guid:
             self._manager.world.set_robot_holder(self._robot, holder, ot,
                                                  require_preexisting_object)
+        self._manager.world_unlock()
+
+    def robot_transfer_holder(self, from_holder, to_holder):
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            self._manager.world.robot_transfer_holder(self._robot, from_holder, to_holder)
         self._manager.world_unlock()
 
     def set_robot_position(self, pos, val):

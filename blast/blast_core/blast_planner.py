@@ -13,6 +13,7 @@ class Planner:
         self.actions_finished = 0
         self.extra_goals = {}
 
+        self.action_type_debug = {}
         self.fail_debug = {}
         self.super_fail_debug = False
 
@@ -108,6 +109,8 @@ class Planner:
                         self.actions_tested = self.actions_tested + 1
                         change = world_clone.take_action(robot_name, at, parameters) 
                         #print robot.location, at, parameters, "->", change
+                        if self.action_type_debug != False:
+                            self.action_type_debug[at] = self.action_type_debug.get(at, 0) + 1
                         if change == None: #failed
                             #world_clone.take_action(robot_name, at, parameters, debug=True)  #Failed action print
                             if self.fail_debug != False:
@@ -188,6 +191,7 @@ class Planner:
             print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions -", \
                 self.actions_finished, "finished (a", (self.actions_finished * 100.0) / self.actions_tested, "percent success rate)"
         print "Fail debug", self.fail_debug
+        print "Action type debug", self.action_type_debug
         if self.super_fail_debug:
             print "Super fail debug"
             for name, arr in self.super_fail_debug.iteritems():
@@ -244,6 +248,22 @@ class BlastPlannableWorld:
 
     
     #API actions ---------------------------
+    def robot_transfer_holder(self, robot, from_holder, to_holder):
+        if not robot in self.world.robots:
+            print "Set robot holder invalid robot", robot
+            return False
+        if not from_holder in self.world.robots[robot].holders:
+            print "Set robot holder invalid holder", from_holder, "for robot", robot
+            return False
+        if not to_holder in self.world.robots[robot].holders:
+            print "Set robot holder invalid holder", to_holder, "for robot", robot
+            return False
+        
+        self.world.robots[robot] = self.world.robots[robot].copy()
+        self.world.robots[robot].holders[to_holder] = self.world.robots[robot].holders[from_holder]
+        self.world.robots[robot].holders[from_holder] = None
+        return True
+    
     def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
         if not robot in self.world.robots:
             print "Set robot holder invalid robot", robot

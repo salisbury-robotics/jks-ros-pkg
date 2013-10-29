@@ -118,8 +118,8 @@ def make_test_actions():
                          ("position", "robot.right-arm", "tucked")),
                         "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
                         {"robot.location": "end" }),
-            BlastAction("pr2.tuck-both-arms", {}, 
-                        "True()", "\"10\"", #FIXME: need holder constraints
+            BlastAction("pr2.tuck-both-arms", {}, #Contains = temp hack for holder constraints
+                        ("not", ("contains", "robot.left-arm", "coffee_cup"),), "\"10\"", #FIXME: need holder constraints
                         {"robot.positions.left-arm": [0.06024, 1.248526, 1.789070, -1.683386, 
                                                       -1.7343417, -0.0962141, -0.0864407, None],
                          "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
@@ -178,19 +178,19 @@ def make_test_actions():
 
             
             BlastAction("pr2-cupholder.stash-cupholder", {}, 
-                        ("&&", ("contains", "robot.left-arm", "None()"),
+                        ("&&", ("not", ("contains", "robot.left-arm", "None()")),
                          ("contains", "robot.cup-holder", "None()")),
-                        "\"30\"", {"robot.holders.cup-holder": "robot.holders.left-holder",
+                        "\"30\"", {"robot.holders.cup-holder": "robot.holders.left-arm",
                                    "robot.holders.left-arm": "None()",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
-                                   "robot.positions.right-arm": False},
-                        planable = False),
-            BlastAction("pr2-cupholder.give-object-cupholder", {"tts-text": "String"}, 
-                        ("not", ("contains", "robot.cup-holder", "None()")),
+                                   "robot.positions.right-arm": False}),
+            BlastAction("pr2-cupholder.unstash-cupholder", {}, 
+                        ("&&", ("not", ("contains", "robot.cup-holder", "None()")),
+                         ("contains", "robot.left-arm", "None()")),
                         "\"30\"", {"robot.holders.cup-holder": "None()",
-                                   "robot.positions.left-arm": False, 
-                                   "robot.positions.right-arm": False},
-                        planable = False),
+                                   "robot.holders.left-arm": "robot.holders.cup-holder",
+                                   "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
+                                   "robot.positions.right-arm": False}),
             BlastAction("pr2-cupholder.coffee_run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "\"10000\"", {"robot.location": "person_location"}, planable = False),
             ]
@@ -957,6 +957,8 @@ class BlastWorld:
                     if debug: print "Invalid function:", func, "in", value
                     return None
             elif subs[0] == "robot":
+                if subs[1] == "holders":
+                    return robot.holders[subs[2]]
                 val = robot
             elif subs[0] in parameters:
                 val = parameters[subs[0]]
@@ -1325,15 +1327,18 @@ def make_test_world():
                         world.types.get_robot("pr2-cupholder"))
     world.append_robot(stair4)
 
-    #initial_bag = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
-    #world.append_object(initial_bag)
-    #stair4.holders["right-arm"] = BlastObjectRef(initial_bag.uid)
 
     return world
 
 def run_test():
     world = make_test_world()
+    
+    #Set at the shop with the initial bag
+    initial_bag = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
+    world.append_object(initial_bag)
+    world.robots["stair4"].holders["left-arm"] = BlastObjectRef(initial_bag.uid)
     world.robots["stair4"].location = BlastPt(55.840, 14.504, -0.331, "clarkcenterpeetscoffee")
+    
     print "Tuck arms:", world.take_action("stair4", "tuck-both-arms", {})
     
     print '-'*130
@@ -1353,13 +1358,23 @@ def run_test():
     print '-'*130
     print world.equal(world)
     
-def buy():
     res = world.take_action("stair4", "buy_coffee", {"shop": world.surfaces["clark_peets_coffee_shop"] })
     print "Action result:", res
     
     
     print '-'*130
     print "                                                            POST-EXEC"
+    print '-'*130
+    print world.to_text()
+    print '-'*130
+    print world.equal(world)
+
+
+    res = world.take_action("stair4", "stash-cupholder", {}, debug = True)
+    print "Action result:", res
+
+    print '-'*130
+    print "                                                            POST-STASH"
     print '-'*130
     print world.to_text()
     print '-'*130
@@ -1431,7 +1446,7 @@ def torso_test():
     print world.enumerate_action("stair4", "torso", {})
 
 if __name__ == '__main__':
-    torso_test()
-    #run_test()
+    #torso_test()
+    run_test()
     #elevator_test()
     #arms_test()
