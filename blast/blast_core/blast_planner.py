@@ -3,7 +3,7 @@ import blast_world, time
 
 class Planner:
     def __init__(self, initial_world):
-        self.worlds = [(initial_world, 0, [])]
+        self.worlds = [(initial_world, 0, [], None)]
         self.world_good = lambda x: False
         self.planned_worlds = []
         self.good_worlds = []
@@ -127,6 +127,12 @@ class Planner:
                             #    print "X"*60
                             #if failed:
                             #    print "Failed because equal to previous world"
+                            if not failed: #Compare to parent worlds
+                                parent = world[3]
+                                while parent and not failed:
+                                    if parent[0].equal(world_clone):
+                                        failed = True
+                                    parent = parent[3]
                             if not failed:
                                 for world_cmp in self.worlds:
                                     if world_cmp[0].equal(world_clone):
@@ -141,7 +147,7 @@ class Planner:
                                         break
                             if not failed:
                                 #print "Succeeded"
-                                new_world = (world_clone, world[1] + float(change), world[2] + [(robot_name, at, parameters)])
+                                new_world = (world_clone, world[1] + float(change), world[2] + [(robot_name, at, parameters)], world)
                                 self.worlds.append(new_world)
                                 if self.world_good(world_clone):
                                     if self.time_limit == False:

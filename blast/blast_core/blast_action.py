@@ -126,8 +126,11 @@ class BlastManager:
         return True
 
 
-if __name__ == '__main__':
+def test_main():
     man = BlastManager()
     load_actions("test_actions")
     man.plan_action("stair4", "coffee_run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
                                              "shop": "clark_peets_coffee_shop"})
+if __name__ == '__main__':
+    test_main()
+
