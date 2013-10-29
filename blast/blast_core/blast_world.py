@@ -256,7 +256,7 @@ class SurfaceType(object):
         self.states = states
 
 class RobotType(object):
-    __slots__ = ['name', 'holders', 'position_variables', 'parent']
+    __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort']
     def __init__(self, name, holders, position_variables, parent = None):
         self.name = name
         self.holders = {}
@@ -271,6 +271,8 @@ class RobotType(object):
             self.holders[n] = d
         for n, d in position_variables.iteritems():
             self.position_variables[n] = d
+        self.position_variables_keysort = sorted(self.position_variables.keys())
+        self.holders_keysort = sorted(self.holders.keys())
 
 class ObjectType(object):
     __slots__ = ["name", "parent"]
@@ -457,10 +459,11 @@ class BlastObject(object):
         return "Object(\"" + self.object_type.name + "\", " + pt + ", \"" + self.parent + "\")"
 
 class BlastSurface(object):
-    __slots__ = ['name', 'locations', 'surface_type', 'state']
+    __slots__ = ['name', 'locations', 'surface_type', 'state', 'locations_keysort']
     def __init__(self, name, locations, surface_type, state = None):
         self.name = name
         self.locations = locations
+        self.locations_keysort = sorted(locations.keys())
         self.surface_type = surface_type
         self.state = state
         if not self.state:
@@ -481,9 +484,9 @@ class BlastSurface(object):
         return BlastSurface(self.name, lclone, self.surface_type, self.state)
 
     def hash_update(self, hl, get_obj):
-        for name, loc in sorted(self.locations.iteritems(), key=lambda x: x[0]):
+        for name in self.locations_keysort:
             hl.update(name)
-            loc.hash_update(hl)
+            self.locations[name].hash_update(hl)
         hl.update(self.state)
         hl.update(self.surface_type.name)
 
@@ -601,17 +604,19 @@ class BlastRobot(object):
         hl.update(self.name)
         hl.update(self.robot_type.name)
         self.location.hash_update(hl)
-        for name, value in sorted(self.holders.iteritems(), key=lambda x: x[0]):
+        for name in self.robot_type.holders_keysort:
+            value = self.holders[name]
             if value == None:
                 hl.update("None")
             else:
                 value.hash_update(hl, get_obj)
-        for name, value in sorted(self.positions.iteritems(), key=lambda x: x[0]):
+        for name in self.robot_type.position_variables_keysort:
+            value = self.positions[name]
             if value == False:
                 hl.update("False")
             else:
-                for j, sub in sorted(value.iteritems(), key=lambda x: x[0]):
-                    hl.update(str(sub))
+                for j in self.robot_type.position_variables[name][False][0]:
+                    hl.update(str(value[j]))
 
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
@@ -655,11 +660,11 @@ class BlastRobot(object):
 
     def to_text(self):
         r = ""
-        for name in sorted(self.positions.keys()):
+        for name in self.robot_type.position_variables_keysort:
             if self.positions[name]:
                 r = r + "\t\tRobotState(\"" + self.name + "\", \"" + name + "\", "
                 r = r + ", ".join([str(x) for n, x in sorted(self.positions[name].iteritems(), key=lambda x: x[0])]) + ")\n"
-        for name in sorted(self.holders.keys()):
+        for name in self.robot_type.holders_keysort:
             if self.holders[name]:
                 r = r + "\t\tRobotHolder(\"" + self.name + "\", \"" + name + "\", "
                 r = r + self.holders[name].to_text() + ")\n"
@@ -689,13 +694,18 @@ def paren_split(value, delim):
     return subs
 
 class BlastWorld(object):
-    __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'hash_state', 'copy_on_write_optimize']
+    __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'hash_state', 'copy_on_write_optimize',
+                 'maps_keysort', 'surfaces_keysort', 'robots_keysort', 'objects_keysort']
     def __init__(self, types):
         self.types = types
         self.maps = {}
         self.surfaces = {}
         self.robots = {}
         self.objects = {}
+        self.maps_keysort = []
+        self.surfaces_keysort = []
+        self.robots_keysort = []
+        self.objects_keysort = []
         self.hash_state = None
         self.copy_on_write_optimize = False
 
@@ -706,6 +716,7 @@ class BlastWorld(object):
         copy = BlastWorld(self.types)
         copy.copy_on_write_optimize = copy_on_write_optimize
         for arr in ["maps", "surfaces", "robots", "objects"]:
+            setattr(copy, arr + '_keysort', getattr(self, arr + '_keysort'))
             if copy_on_write_optimize:
                 setattr(copy, arr, getattr(self, arr).copy())
             else:
@@ -718,33 +729,39 @@ class BlastWorld(object):
         if mp.map in self.maps: raise BlastError("Duplicate map: " + mp.map)
         self.hash_state = None
         self.maps[mp.map] = mp
+        self.maps_keysort = sorted(self.maps.keys())
     def append_surface(self, surface):
         if surface.name in self.surfaces: raise BlastError("Duplicate surface: " + surface.name)
         self.hash_state = None
         self.surfaces[surface.name] = surface
+        self.surfaces_keysort = sorted(self.surfaces.keys())
     def append_robot(self, robot):
         if robot.name in self.robots: raise BlastError("Duplicate robot: " + robot.name)
         self.hash_state = None
         self.robots[robot.name] = robot
+        self.robots_keysort = sorted(self.robots.keys())
     def append_object(self, obj):
         if obj.uid in self.objects: raise BlastError("Duplicate object: " + obj.uid)
         self.hash_state = None
         self.objects[obj.uid] = obj
+        self.objects_keysort = sorted(self.objects.keys())
 
     def get_hex_hash_state(self):
         return ''.join('%02x' % ord(byte) for byte in self.get_hash_state())
 
     def to_text(self):
         r = "World(" + self.get_hex_hash_state() + "):\n"
-        for uid, obj in sorted(self.objects.iteritems(), key=lambda x: x[0]):
-            r = r + "\tObjectSet(" + str(uid) + ", " + obj.to_text() + ")\n"
-        for mid, mp in sorted(self.maps.iteritems(), key=lambda x: x[0]):
+        for uid in self.objects_keysort:
+            r = r + "\tObjectSet(" + str(uid) + ", " + self.objects[uid].to_text() + ")\n"
+        for mid in self.maps_keysort:
             r = r + mp.to_text()
-            for name, sur in sorted(self.surfaces.iteritems(), key=lambda x: x[0]):
-                for loc in sorted(sur.locations):
+            for name in self.surfaces_keysort:
+                sur = self.surfaces[name]
+                for loc in sur.locations_keysort:
                     if sur.locations[loc].map == mp.map:
                         r = r + sur.to_text(loc)
-            for name, robot in sorted(self.robots.iteritems(), key=lambda x: x[0]):
+            for name in self.robots_keysort:
+                robot = self.robots[name]
                 if robot.location.map == mp.map:
                     r = r + robot.to_text()
         return r
@@ -766,10 +783,11 @@ class BlastWorld(object):
 
         hl = hashlib.sha224()
         get_obj = lambda x: self.get_obj(x)
-        for arr in [self.maps, self.surfaces, self.robots]:
-            for name, value in sorted(arr.iteritems(), key=lambda x: x[0]):
+        for arr, keysort in [(self.maps, self.maps_keysort), (self.surfaces, self.surfaces_keysort), 
+                             (self.robots, self.robots_keysort)]:
+            for name in keysort:
                 hl.update(str(name))
-                value.hash_update(hl, get_obj)
+                arr[name].hash_update(hl, get_obj)
         self.hash_state = hl.digest()
         
         return self.hash_state
@@ -1231,7 +1249,7 @@ class BlastWorld(object):
             elif ptype[0:len("Joint:")] == "Joint:":
                 
                 if param in self.types.parameter_values_cache:
-                    parameters[param] = self.types.parameter_values_cache[ptype].copy()
+                    parameters[param] = self.types.parameter_values_cache[ptype]
                 else:
                     parameters[param] = []
                     position, joint = ptype.split(":")[1].split(".")
@@ -1257,7 +1275,7 @@ class BlastWorld(object):
                                 return []
                         parameters[param] = parameters[param] + crawl_actions(action.condition)
                     parameters[param] = list(set(parameters[param])) #Remove duplicates
-                    self.types.parameter_values_cache[ptype] = parameters[param].copy()
+                    self.types.parameter_values_cache[ptype] = parameters[param]
             else:
                 print "Error, invalid parameter type:", ptype, "for:", param
         #Handle after all others parameterized
