@@ -5,19 +5,22 @@ import hashlib
 #Permissions system
 
 class BlastTypeError(Exception):
+    __slots__ = ['value']
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
 
 class BlastError(Exception):
+    __slots__ = ['value']
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
 
 
-class BlastAction:
+class BlastAction(object):
+    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate', 'changes', 'planable']
     def __init__(self, name, parameters, condition, time_estimate, changes, planable = True): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
@@ -198,7 +201,8 @@ def make_test_actions():
 
 ################################################################
 
-class BlastWorldTypes:
+class BlastWorldTypes(object):
+    __slots__ = ['surfaces', 'robots', 'objects', 'actions']
     def __init__(self):
         self.surfaces = {}
         self.robots = {}
@@ -240,12 +244,14 @@ class BlastWorldTypes:
                 return None, None
         return action_robot_type, action_type
 
-class SurfaceType:
+class SurfaceType(object):
+    __slots__ = ['name', 'states']
     def __init__(self, name, states):
         self.name = name
         self.states = states
 
-class RobotType:
+class RobotType(object):
+    __slots__ = ['name', 'holders', 'position_variables', 'parent']
     def __init__(self, name, holders, position_variables, parent = None):
         self.name = name
         self.holders = {}
@@ -261,7 +267,8 @@ class RobotType:
         for n, d in position_variables.iteritems():
             self.position_variables[n] = d
 
-class ObjectType:
+class ObjectType(object):
+    __slots__ = ["name", "parent"]
     def __init__(self, name, parent = None):
         self.name = name
         self.parent = None
@@ -320,7 +327,8 @@ def make_test_types_world():
 
 ################################################################
 
-class BlastPt:
+class BlastPt(object):
+    __slots__ = ['x', 'y', 'a', 'map']
     def __init__(self, x, y, a, mid):
         self.x = x
         self.y = y
@@ -355,7 +363,8 @@ class BlastPt:
         return "Pt(" + str(self.x) + ", " + str(self.y) \
             + ", " + str(self.a) + ", \"" + self.map + "\")"
 
-class BlastPos:
+class BlastPos(object):
+    __slots__ = ('x', 'y', 'z', 'rx', 'ry', 'rz')
     def __init__(self, x, y, z, rx, ry, rz):
         self.x = x
         self.y = y
@@ -385,7 +394,8 @@ class BlastPos:
         return "Pos(" + str(self.x) + ", " + str(self.y) + ", " + str(self.z) \
             + ", " + str(self.rx) + ", " + str(self.ry) + ", " + str(self.rz)
 
-class BlastPosIrr:
+class BlastPosIrr(object):
+    __slots__ = ()
     def __init__(self):
         pass
     def copy(self): 
@@ -401,7 +411,8 @@ class BlastPosIrr:
 
 blast_object_id = 0
 
-class BlastObject:
+class BlastObject(object):
+    __slots__ = ('object_type', 'position', 'parent', 'uid')
     def __init__(self, object_type, pos, parent): #Note: if pos is None, parent is a robot
         self.object_type = object_type
         self.position = pos
@@ -440,7 +451,8 @@ class BlastObject:
         if self.position: pt = self.position.to_text()
         return "Object(\"" + self.object_type.name + "\", " + pt + ", \"" + self.parent + "\")"
 
-class BlastSurface:
+class BlastSurface(object):
+    __slots__ = ['name', 'locations', 'surface_type', 'state']
     def __init__(self, name, locations, surface_type, state = None):
         self.name = name
         self.locations = locations
@@ -491,7 +503,8 @@ class BlastSurface:
             + self.locations[loc].to_text() + ", \"" + self.surface_type.name \
             + "\", \"" + self.state + "\")\n"
 
-class BlastPrimitive:
+class BlastPrimitive(object):
+    __slots__ = ['name']
     def __init__(self, name):
         self.name = name
     def to_text():
@@ -506,7 +519,8 @@ BLAST_FALSE = BlastPrimitive("False")
 BLAST_TRUE = BlastPrimitive("True")
 BLAST_NONE = BlastPrimitive("None")
 
-class BlastMap:
+class BlastMap(object):
+    __slots__ = ['map', 'map_file']
     def __init__(self, mid, map_file):
         self.map = mid
         self.map_file = map_file
@@ -529,7 +543,8 @@ class BlastMap:
             + self.map_file + "\"):\n"
         return r
 
-class BlastObjectRef:
+class BlastObjectRef(object):
+    __slots__ = ['uid']
     def __init__(self, uid):
         self.uid = uid
     def copy(self):
@@ -546,7 +561,8 @@ class BlastObjectRef:
         return "BlastObjectRef(" + str(self.uid) + ")"
         
 
-class BlastRobot:
+class BlastRobot(object):
+    __slots__ = ['name', 'robot_type', 'location', 'holders', 'positions']
     def __init__(self, name, location, robot_type):
         self.name = name
         self.robot_type = robot_type
@@ -668,6 +684,7 @@ def paren_split(value, delim):
     return subs
 
 class BlastWorld:
+    __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'hash_state', 'copy_on_write_optimize']
     def __init__(self, types):
         self.types = types
         self.maps = {}
