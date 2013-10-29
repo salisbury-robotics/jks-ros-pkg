@@ -1231,7 +1231,7 @@ class BlastWorld(object):
             elif ptype[0:len("Joint:")] == "Joint:":
                 
                 if param in self.types.parameter_values_cache:
-                    parameters[param] = self.types.parameter_values_cache[ptype]
+                    parameters[param] = self.types.parameter_values_cache[ptype].copy()
                 else:
                     parameters[param] = []
                     position, joint = ptype.split(":")[1].split(".")
