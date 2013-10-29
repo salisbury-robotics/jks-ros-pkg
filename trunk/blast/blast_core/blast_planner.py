@@ -19,7 +19,9 @@ class Planner:
 
 
     def parameter_iter(self, param, keys = None):
-        if keys == []: return [{},]
+        if keys == []: 
+            yield {}
+            return
         if keys == None: 
             deps = {}
             #Sort the keys for dependencies
@@ -43,26 +45,23 @@ class Planner:
                         keys.append(key)
                         del deps[key]
             keys.reverse()
-        if keys == []: return [{},]
+        if keys == []: 
+            yield {}
+            return 
         key = keys[0]
         keys = keys[1:]
-
-        out = []
-        down = self.parameter_iter(param, keys)
-        for next_d in down:
+  
+        for next_d in self.parameter_iter(param, keys):
             ls = param[key]
             if type(ls) != type([]): #Handle dependent keys
                 ls = ls[1]
                 for v in param[key][0]:
                     ls = ls[next_d[v]]
             for value in ls:
-                nxt = {}
-                for v in next_d: nxt[v] = next_d[v]
+                nxt = next_d.copy()
                 nxt[key] = value
-                out.append(nxt)
-
-        return out
-
+                yield nxt
+        
     def plan_recursive(self):
         for world in self.worlds:
             if self.world_good(world[0]):
@@ -101,10 +100,9 @@ class Planner:
                 world_clone = world[0].copy()
                 for at in action_types:
                     planable, pv = world_clone.enumerate_action(robot_name, at, self.extra_goals)
-                    parameter_combos = []
-                    if planable and pv != False:
-                        parameter_combos = self.parameter_iter(pv)
-                    for parameters in parameter_combos:
+                    if not planable or pv == False:
+                        continue
+                    for parameters in self.parameter_iter(pv):
                         self.actions_tested = self.actions_tested + 1
                         change = world_clone.take_action(robot_name, at, parameters) 
                         #print robot.location, at, parameters, "->", change
