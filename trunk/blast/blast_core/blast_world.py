@@ -1257,7 +1257,7 @@ class BlastWorld(object):
                                 return []
                         parameters[param] = parameters[param] + crawl_actions(action.condition)
                     parameters[param] = list(set(parameters[param])) #Remove duplicates
-                    self.types.parameter_values_cache[ptype] = parameters[param]
+                    self.types.parameter_values_cache[ptype] = parameters[param].copy()
             else:
                 print "Error, invalid parameter type:", ptype, "for:", param
         #Handle after all others parameterized
