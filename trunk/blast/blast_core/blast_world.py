@@ -683,7 +683,7 @@ def paren_split(value, delim):
         subs.append(cur.strip())
     return subs
 
-class BlastWorld:
+class BlastWorld(object):
     __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'hash_state', 'copy_on_write_optimize']
     def __init__(self, types):
         self.types = types
