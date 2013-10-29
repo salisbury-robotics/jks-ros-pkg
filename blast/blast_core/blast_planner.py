@@ -73,13 +73,12 @@ class Planner:
                     self.time_limit = world[1]
         
         while self.worlds != []:
-            self.worlds.sort(key = lambda x: x[1]) #Sort by lowest time
-            world = self.worlds[0]
-            self.worlds = self.worlds[1:]
+            world = min(self.worlds, key = lambda x: x[1])
+            self.worlds.remove(world)
             self.planned_worlds.append(world)
 
             #Once we find a good world, we stop planning for worlds after that time
-            if self.time_limit != None and world[1] >= self.time_limit: continue
+            if self.time_limit != None and world[1] >= self.time_limit: break
             
             #Actually testing this world
             self.worlds_tested = self.worlds_tested + 1
