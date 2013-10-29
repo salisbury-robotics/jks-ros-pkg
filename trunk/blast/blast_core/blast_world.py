@@ -807,7 +807,7 @@ class BlastWorld(object):
             return True #Comment this line to ensure, 100%, no hash collisions
             #This is to double-check to make sure hashing went as expected.
         else:
-            warn = True
+            warn = False
             hash_same = True
         
         get_obj = lambda x: self.get_obj(x)
