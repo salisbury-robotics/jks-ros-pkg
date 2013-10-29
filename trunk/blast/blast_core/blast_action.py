@@ -8,6 +8,12 @@ def set_action_exec(robot_type, action_type, item):
         blast_action_exec_d[robot_type] = {}
     blast_action_exec_d[robot_type][action_type] = item
 
+class BlastRuntimeError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+    
 class BlastActionExec:
     def __init__(self, robot, manager, guid):
         self._robot = robot
@@ -35,7 +41,8 @@ class BlastActionExec:
         
     def plan_action(self, action, parameters):
         if self._manager.get_current_guid() == self._guid:
-            self._manager.plan_action(self._robot, action, parameters)
+            if not self._manager.plan_action(self._robot, action, parameters):
+                raise BlastRuntimeError("Planning to run action failed")
 
     def get_surface(self, surface):
         if type(surface) != type(""):
@@ -43,7 +50,7 @@ class BlastActionExec:
         return self._manager.world.get_surface(surface)
     
     def run(self, parameters):
-        raise blast_world.BlastError("Empty action run")
+        raise BlastRuntimeError("Empty action run")
 
 
 def load_actions(directory):
@@ -103,9 +110,13 @@ class BlastManager:
     def take_action(self, robot, action, parameters):
         if self.world.take_action(robot, action, parameters) == None:
             print "Epic fail for", robot, "-->", action
+            return False
+        return True
     def plan_action(self, robot, action, parameters):
         if self.world.plan_action(robot, action, parameters) == None:
             print "Epic fail for", robot, "-->", action
+            return False
+        return True
 
 
 if __name__ == '__main__':

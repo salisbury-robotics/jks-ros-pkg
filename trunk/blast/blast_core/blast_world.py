@@ -2,7 +2,6 @@
 import math
 import hashlib
 
-#Dynamic values for motion (torso, head)
 #Permissions system
 
 class BlastTypeError(Exception):
@@ -131,8 +130,9 @@ def make_test_actions():
                          ("contains", "robot.left-arm", "coffee_money_bag")),
                         "\"1000\"",
                         {"robot.location": "shop.locations.end",
-                         "robot.holders.cup-holder": "Object(\"coffee_cup\")",
-                         "robot.holders.left-arm": "None()"}),
+                         "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
+                         "robot.positions.right-arm": "None()",
+                         "robot.holders.left-arm": "Object(\"coffee_cup\")"}),
             BlastAction("pr2.door_blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance"),
                          ("position", "robot.torso", [0.3,]),
@@ -162,22 +162,27 @@ def make_test_actions():
                          ("position", "robot.torso", [0.0,]),
                          ("position", "robot.right-arm", "tucked")),
                         "\"150\"", {"robot.location": "outfloor"}),
+            
             BlastAction("pr2.grab-object", {"tts-text": "String"}, 
                         ("contains", "robot.left-arm", "None()"),
                         "\"30\"", {"robot.holders.left-arm": "Object(\"arbitrary-object\")",
-                                   "robot.positions.left-arm": False, 
+                                   "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
                         planable = False),
             BlastAction("pr2.give-object", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.left-arm", "None()")),
                         "\"30\"", {"robot.holders.left-arm": "None()",
-                                   "robot.positions.left-arm": False, 
+                                   "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
                         planable = False),
-            BlastAction("pr2-cupholder.grab-object-cupholder", {"tts-text": "String"}, 
-                        ("contains", "robot.cup-holder", "None()"),
-                        "\"30\"", {"robot.holders.cup-holder": "Object(\"arbitrary-object\")",
-                                   "robot.positions.left-arm": False, 
+
+            
+            BlastAction("pr2-cupholder.stash-cupholder", {}, 
+                        ("&&", ("contains", "robot.left-arm", "None()"),
+                         ("contains", "robot.cup-holder", "None()")),
+                        "\"30\"", {"robot.holders.cup-holder": "robot.holders.left-holder",
+                                   "robot.holders.left-arm": "None()",
+                                   "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
                         planable = False),
             BlastAction("pr2-cupholder.give-object-cupholder", {"tts-text": "String"}, 
@@ -1070,7 +1075,7 @@ class BlastWorld:
                             set_d[joint_name] = False
                     else:
                         if debug: print "Invalid type for positions", v
-                    if v != None:
+                    if v != None and set_d != {}:
                         transactions.append(("VAL", ("robot", robot.name, "positions"), sub[2], set_d))
                 else:
                     transactions.append(("SET", ("robot", robot.name), sub[1], v))
