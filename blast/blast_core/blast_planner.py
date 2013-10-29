@@ -106,9 +106,10 @@ class Planner:
                         parameter_combos = self.parameter_iter(pv)
                     for parameters in parameter_combos:
                         self.actions_tested = self.actions_tested + 1
-                        change = world_clone.take_action(robot_name, at, parameters)
+                        change = world_clone.take_action(robot_name, at, parameters) 
                         #print robot.location, at, parameters, "->", change
                         if change == None: #failed
+                            #world_clone.take_action(robot_name, at, parameters, debug=True)  #Failed action print
                             if self.fail_debug != False:
                                 self.fail_debug[at] = self.fail_debug.get(at, 0) + 1
                             if self.super_fail_debug != False:
@@ -297,7 +298,7 @@ class BlastPlannableWorld:
         r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, {})
         if r != None:
             return self.take_action(robot, action, parameters)
-        return False
+        return r
     
     #End API actions ---------------------------        
 
