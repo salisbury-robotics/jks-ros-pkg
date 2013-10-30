@@ -797,7 +797,9 @@ class BlastWorld(object):
         if not self or not other: return False
         if type(self) != type(other): return False
         if self.__class__ != other.__class__: return False
+        return self.equal_valid(other, tolerant)
 
+    def equal_valid(self, other, tolerant = False): #Tolerant of slight variations
         if not tolerant: #Hash checks only in tolerant equals
             warn = True
             hash_same = self.get_hash_state() == other.get_hash_state()

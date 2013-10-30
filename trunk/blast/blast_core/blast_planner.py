@@ -70,7 +70,25 @@ class Planner:
                     self.time_limit = world[1]
                 if world[1] < self.time_limit:
                     self.time_limit = world[1]
-        
+
+        cached_types = {}
+        cached_actions = {}
+        for robot_name, robot in self.worlds[0][0].robots.iteritems():
+            #Find all valid robot types
+            robot_types = []
+            t = robot.robot_type
+            while t:
+                robot_types.append(t.name)
+                t = t.parent
+            #Find all valid actions
+            action_types = []
+            for name in world[0].types.actions.keys():
+                if name.split(".")[0] in robot_types:
+                    if not name.split(".")[1] in action_types:
+                        action_types.append(name.split(".")[1])
+            cached_types[robot.name] = robot_types
+            cached_actions[robot.name] = action_types
+
         while self.worlds != []:
             world = min(self.worlds, key = lambda x: x[1])
             self.worlds.remove(world)
@@ -83,18 +101,8 @@ class Planner:
             self.worlds_tested = self.worlds_tested + 1
 
             for robot_name, robot in world[0].robots.iteritems():
-                #Find all valid robot types
-                robot_types = []
-                t = robot.robot_type
-                while t:
-                    robot_types.append(t.name)
-                    t = t.parent
-                #Find all valid actions
-                action_types = []
-                for name in world[0].types.actions.keys():
-                    if name.split(".")[0] in robot_types:
-                        if not name.split(".")[1] in action_types:
-                            action_types.append(name.split(".")[1])
+                robot_types = cached_types[robot.name]
+                action_types = cached_actions[robot.name]
 
                 #Now enumerate all possible actions
                 world_clone = world[0].copy()
@@ -130,18 +138,18 @@ class Planner:
                             if not failed: #Compare to parent worlds
                                 parent = world[3]
                                 while parent and not failed:
-                                    if parent[0].equal(world_clone):
+                                    if parent[0].equal_valid(world_clone):
                                         failed = True
                                     parent = parent[3]
                             if not failed:
                                 for world_cmp in self.worlds:
-                                    if world_cmp[0].equal(world_clone):
+                                    if world_cmp[0].equal_valid(world_clone):
                                         failed = True
                                         #print "Equal to another world to be tested"
                                         break
                             if not failed:
                                 for world_cmp in self.planned_worlds:
-                                    if world_cmp[0].equal(world_clone):
+                                    if world_cmp[0].equal_valid(world_clone):
                                         failed = True
                                         #print "Equal to a previously tested world"
                                         break
