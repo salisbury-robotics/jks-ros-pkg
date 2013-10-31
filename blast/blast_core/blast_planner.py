@@ -276,12 +276,7 @@ class BlastPlannableWorld:
         if not to_holder in self.world.robots[robot].holders:
             print "Set robot holder invalid holder", to_holder, "for robot", robot
             return False
-        
-        self.world.robots[robot] = self.world.robots[robot].copy()
-        self.world.robots[robot].holders[to_holder] = self.world.robots[robot].holders[from_holder]
-        self.world.robots[robot].holders[from_holder] = None
-        self.world.robots[robot].reparent_objects(lambda x: self.world.get_obj(x), lambda x: self.world.copy_obj(x))
-        self.world.clear_hash("robots")
+        self.world.robot_transfer_holder(robot, from_holder, to_holder)
         return True
     
     def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
@@ -295,17 +290,7 @@ class BlastPlannableWorld:
             if self.world.robots[robot].holders[holder] == None:
                 print "Robot holder empty, set requires object for holder", holder, "for robot", robot
                 return False
-        self.world.robots[robot] = self.world.robots[robot].copy()
-        if object_type != None:
-            obj_type = self.world.types.get_object(object_type)
-            obj = blast_world.BlastObject(obj_type, None, robot + "." + holder)
-            self.world.append_object(obj)
-            self.world.robots[robot].holders[holder] = blast_world.BlastObjectRef(obj.uid)
-        else:
-            self.world.robots[robot].holders[holder] = None
-        self.world.gc_objects()
-        self.world.robots[robot].reparent_objects(lambda x: self.world.get_obj(x), lambda x: self.world.copy_obj(x))
-        self.world.clear_hash("robots")
+        self.world.set_robot_holder(robot, holder, object_type)
         return True
 
     def set_robot_position(self, robot, position, val):
@@ -315,21 +300,14 @@ class BlastPlannableWorld:
         if not position in self.world.robots[robot].positions:
             print "Set robot holder invalid position", position, "for robot", robot
             return False
-
-        if type(val) == type([]):
-            for name, v in zip(self.world.robots[robot].robot_type.position_variables[position][False][0], val):
-                if v != None:
-                    self.world.robots[robot].positions[position][name] = v
-        self.world.clear_hash("robots")
-        
-
+        self.world.set_robot_position(robot, position, val)
+        return True
+    
     def set_robot_location(self, robot, blast_pt):
         if not robot in self.world.robots:
             print "Set robot location invalid robot", robot
             return False
-        self.world.robots[robot] = self.world.robots[robot].copy()
-        self.world.robots[robot].location = blast_pt.copy()
-        self.world.clear_hash("robots")
+        self.world.set_robot_location(robot, blast_pt)
         return True
 
     def get_surface(self, surface):
@@ -341,7 +319,6 @@ class BlastPlannableWorld:
         if r != None:
             return self.take_action(robot, action, parameters)
         return r
-    
     #End API actions ---------------------------        
 
     def take_action(self, robot, action, parameters, debug = True):

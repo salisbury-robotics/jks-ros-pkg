@@ -819,6 +819,43 @@ class BlastWorld(object):
         elif key == "surfaces": return self.surfaces_hash_state
         elif key == "maps": return self.maps_hash_state
 
+    def set_robot_position(self, robot, position, val):
+        if self.copy_on_write_optimize:
+            self.robots[robot] = self.robots[robot].copy()
+        if type(val) == type([]):
+            for name, v in zip(self.robots[robot].robot_type.position_variables[position][False][0], val):
+                if v != None:
+                    self.robots[robot].positions[position][name] = v
+        self.clear_hash("robots")
+    
+    def set_robot_location(self, robot, blast_pt):
+        if self.copy_on_write_optimize:
+            self.robots[robot] = self.robots[robot].copy()
+        self.robots[robot].location = blast_pt.copy()
+        self.clear_hash("robots")
+
+    def robot_transfer_holder(self, robot, from_holder, to_holder):
+        if self.copy_on_write_optimize:
+            self.robots[robot] = self.robots[robot].copy()
+        self.robots[robot].holders[to_holder] = self.robots[robot].holders[from_holder]
+        self.robots[robot].holders[from_holder] = None
+        self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
+        self.clear_hash("robots")
+
+    def set_robot_holder(self, robot, holder, object_type):
+        if self.copy_on_write_optimize:
+            self.robots[robot] = self.robots[robot].copy()
+        if object_type != None:
+            obj_type = self.types.get_object(object_type)
+            obj = BlastObject(obj_type, None, robot + "." + holder)
+            self.append_object(obj)
+            self.robots[robot].holders[holder] = BlastObjectRef(obj.uid)
+        else:
+            self.robots[robot].holders[holder] = None
+        self.gc_objects()
+        self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
+        self.clear_hash("robots")
+    
     def clear_hash(self, key):
         self._set_hash(key, None)
         self.sumh = None
