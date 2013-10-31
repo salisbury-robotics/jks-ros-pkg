@@ -1,5 +1,5 @@
 
-import blast_world, time
+import blast_world, time, json
 
 class Planner:
     def __init__(self, initial_world):
@@ -181,7 +181,9 @@ class Planner:
                     action_clean = {}
                     for param, value in action[2].iteritems():
                         if value.__class__ == blast_world.BlastSurface:
-                            action_clean[param] = ("surface", value.name)
+                            action_clean[param] = value.name
+                        elif value.__class__ == blast_world.BlastPt:
+                            action_clean[param] = value.to_dict()
                         else:
                             action_clean[param] = value
                     r.append((action[0], action[1], action_clean))
@@ -237,19 +239,18 @@ class BlastPlannableWorld:
         if world != None and est_time != None and steps != None:
             print "Taking", len(steps), "steps"
             for step in steps:
-                params = {}
-                for name, value in step[2].iteritems():
-                    if type(value) == type((0,1,)):
-                        if value[0] == 'surface':
-                            params[name] = self.world.surfaces[value[1]]
-                        else:
-                            params[name] = value
-                    else:
-                        params[name] = value
-                self.take_action(step[0], step[1], params) 
+                print step[0], step[1], step[2]
+                if not self.take_action(step[0], step[1], step[2]):
+                    print "FAILED"
+                    return None
             #print world.to_text()
             if not self.real_world:
                 if not world.equal(self.world):
+                    print '-'*60, "GOAL:"
+                    print self.world.to_text()
+                    print '-'*60, "GEN:"
+                    print world.to_text()
+                    print '-'*60
                     print "FAILED! Big issue: took actions that did not produce the desired world state"
                     return None
         else:
@@ -307,21 +308,28 @@ class BlastPlannableWorld:
         if not robot in self.world.robots:
             print "Set robot location invalid robot", robot
             return False
-        self.world.set_robot_location(robot, blast_pt)
+        self.world.set_robot_location(robot, blast_world.BlastPt(blast_pt['x'], blast_pt['y'],
+                                                                 blast_pt['a'], blast_pt['map']))
         return True
 
     def get_surface(self, surface):
-        return self.world.surfaces.get(surface) #FIXME: convert to JSON
+        return self.world.surfaces.get(surface).to_dict()
 
     def plan_action(self, robot, action, parameters):
         #FIXME: this can create problems if parameters is an extra element
         r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, {})
         if r != None:
             return self.take_action(robot, action, parameters)
-        return r
-    #End API actions ---------------------------        
+        return r   
 
     def take_action(self, robot, action, parameters, debug = True):
+        parameters = parameters.copy()
+        for name in parameters:
+            if parameters[name].__class__ == blast_world.BlastSurface:
+                parameters[name] = parameters[name].name
+            elif hasattr(parameters[name], "to_dict"):
+                parameters[name] = parameters[name].to_dict()
+
         if self.real_world:
             test_world = self.world.copy()
             if test_world.take_action(robot, action, parameters, True, debug) == None:
@@ -346,6 +354,7 @@ class BlastPlannableWorld:
         else:
             print "Blast failed to take action"
             return None
+    #End API actions ---------------------------        
 
 
 

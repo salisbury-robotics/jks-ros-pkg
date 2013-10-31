@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import math
 import hashlib
+import json
 
 #Permissions system
 
@@ -342,6 +343,9 @@ class BlastPt(object):
         self.a = a
         self.map = mid
 
+    def to_dict(self):
+        return {'x': self.x, 'y': self.y, 'a': self.a, 'map': self.map}
+
     def copy(self):
         return BlastPt(self.x, self.y, self.a, self.map)
 
@@ -471,6 +475,15 @@ class BlastSurface(object):
             for state, data in surface_type.states.iteritems():
                 if data.get("default", False):
                     self.state = state
+
+    def to_dict(self):
+        lc = {}
+        for name in self.locations:
+            lc[name] = self.locations[name].to_dict()
+        return {'name': self.name, 'locations': lc, 'state': self.state,
+                'type': self.surface_type.name}
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
     def __str__(self):
         return "Surface:" + self.name
@@ -1031,7 +1044,14 @@ class BlastWorld(object):
             if not name in parameters:
                 if debug: print "Parameter", name, "unspecified"
                 return None
-            if ptype.find("Surface:") == 0:
+            if ptype == "Pt" or ptype.find("Location:") == 0:
+                if type(parameters[name]) == type({}):
+                    if not clone_param:
+                        parameters = parameters.copy() #Avoid mutating the original dictionary
+                        clone_param = True
+                    parameters[name] = BlastPt(parameters[name]["x"], parameters[name]["y"], 
+                                               parameters[name]["a"], parameters[name]["map"])
+            elif ptype.find("Surface:") == 0:
                 if type(parameters[name]) == type(""):
                     if not clone_param:
                         parameters = parameters.copy() #Avoid mutating the original dictionary
