@@ -401,4 +401,5 @@ if __name__ == '__main__':
     print '-'*100
     print "Give object back"
     print '-'*100
-    world.take_action("stair4", "give-object-cupholder", {"tts-text": "Coffee Cup"})
+    world.take_action("stair4", "unstash-cupholder", {})
+    world.take_action("stair4", "give-object", {"tts-text": "Coffee Cup"})
