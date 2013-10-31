@@ -182,16 +182,16 @@ def make_test_actions():
             
             BlastAction("pr2-cupholder.stash-cupholder", {}, 
                         ("&&", ("not", ("contains", "robot.left-arm", "None()")),
-                         ("contains", "robot.cup-holder", "None()")),
-                        "\"30\"", {"robot.holders.cup-holder": "robot.holders.left-arm",
+                         ("contains", "robot.cupholder", "None()")),
+                        "\"30\"", {"robot.holders.cupholder": "robot.holders.left-arm",
                                    "robot.holders.left-arm": "None()",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False}),
             BlastAction("pr2-cupholder.unstash-cupholder", {}, 
-                        ("&&", ("not", ("contains", "robot.cup-holder", "None()")),
+                        ("&&", ("not", ("contains", "robot.cupholder", "None()")),
                          ("contains", "robot.left-arm", "None()")),
-                        "\"30\"", {"robot.holders.cup-holder": "None()",
-                                   "robot.holders.left-arm": "robot.holders.cup-holder",
+                        "\"30\"", {"robot.holders.cupholder": "None()",
+                                   "robot.holders.left-arm": "robot.holders.cupholder",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False}),
             BlastAction("pr2-cupholder.coffee_run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
@@ -327,7 +327,7 @@ def make_test_types_world():
                                           "tilt-laser": False,
                                           }))
 
-    types_world.add_robot_type(RobotType("pr2-cupholder", {"cup-holder": {}}, {}, types_world.get_robot("pr2")))
+    types_world.add_robot_type(RobotType("pr2-cupholder", {"cupholder": {}}, {}, types_world.get_robot("pr2")))
 
     [types_world.add_action_type(x) for x in make_test_actions()]
     return types_world
