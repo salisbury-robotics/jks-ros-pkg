@@ -162,11 +162,10 @@ class Planner:
                                         #print "Equal to a previously tested world"
                                         break
                             if not failed:
-                                #print "Succeeded"
                                 new_world = (world_clone, world[1] + float(change), world[2] + [(robot_name, at, parameters)], world)
                                 self.worlds.append(new_world)
                                 if self.world_good(world_clone):
-                                    if self.time_limit == False:
+                                    if self.time_limit == None:
                                         self.time_limit = new_world[1]
                                     if self.time_limit > new_world[1]:
                                         self.time_limit = new_world[1]
