@@ -618,6 +618,22 @@ class BlastRobot(object):
                 for j in self.robot_type.position_variables[name][False][0]:
                     hl.update(str(value[j]))
 
+    def reparent_objects(self, get_obj, copy_obj):
+        change = False
+        for name in self.robot_type.holders_keysort:
+            value = self.holders[name]
+            if value:
+                if get_obj(value.uid).parent != self.name + "." + name:
+                    copy_obj(value.uid)
+                    get_obj(value.uid).parent = self.name + "." + name
+                    get_obj(value.uid).position = None
+                    change = True
+                elif get_obj(value.uid).position:
+                    copy_obj(value.uid)
+                    get_obj(value.uid).position = None
+                    change = True
+        return change
+
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
@@ -633,6 +649,7 @@ class BlastRobot(object):
                 if not self.holders[name].equal(other.holders[name], get_obj, other_get_obj): return False
             elif other.holders[name]:
                 return False
+
         for name in other.positions:
             if not name in self.positions: return False
         for name in self.positions:
@@ -694,7 +711,8 @@ def paren_split(value, delim):
     return subs
 
 class BlastWorld(object):
-    __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'hash_state', 'copy_on_write_optimize',
+    __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'copy_on_write_optimize', 'sumh',
+                 'maps_hash_state', 'surfaces_hash_state', 'robots_hash_state', 'objects_hash_state',
                  'maps_keysort', 'surfaces_keysort', 'robots_keysort', 'objects_keysort']
     def __init__(self, types):
         self.types = types
@@ -706,43 +724,54 @@ class BlastWorld(object):
         self.surfaces_keysort = []
         self.robots_keysort = []
         self.objects_keysort = []
-        self.hash_state = None
-        self.copy_on_write_optimize = False
+        self.maps_hash_state = None
+        self.robots_hash_state = None
+        self.surfaces_hash_state = None
+        self.objects_hash_state = None
+        self.sumh = None
+        self.copy_on_write_optimize = True
 
+    def copy_obj(self, uid):
+        if self.copy_on_write_optimize and uid in self.objects:
+            self.objects[uid] = self.objects[uid].copy()
     def get_obj(self, uid):
         return self.objects.get(uid)
 
     def copy(self, copy_on_write_optimize = True):
         copy = BlastWorld(self.types)
-        copy.copy_on_write_optimize = copy_on_write_optimize
+        copy.copy_on_write_optimize = copy_on_write_optimize and self.copy_on_write_optimize
         for arr in ["maps", "surfaces", "robots", "objects"]:
             setattr(copy, arr + '_keysort', getattr(self, arr + '_keysort'))
-            if copy_on_write_optimize:
+            if copy.copy_on_write_optimize:
                 setattr(copy, arr, getattr(self, arr).copy())
             else:
                 copy_arr = getattr(copy, arr)
                 for name, item in getattr(self, arr).iteritems():
                     copy_arr[name] = item.copy()
-        copy.hash_state = None
+        copy.surfaces_hash_state = self.surfaces_hash_state
+        copy.maps_hash_state = self.maps_hash_state
+        copy.objects_hash_state = self.objects_hash_state
+        copy.robots_hash_state = self.robots_hash_state
+        copy.sumh = self.sumh
         return copy
     def append_map(self, mp):
         if mp.map in self.maps: raise BlastError("Duplicate map: " + mp.map)
-        self.hash_state = None
+        self.clear_hash("maps")
         self.maps[mp.map] = mp
         self.maps_keysort = sorted(self.maps.keys())
     def append_surface(self, surface):
         if surface.name in self.surfaces: raise BlastError("Duplicate surface: " + surface.name)
-        self.hash_state = None
+        self.clear_hash("surfaces")
         self.surfaces[surface.name] = surface
         self.surfaces_keysort = sorted(self.surfaces.keys())
     def append_robot(self, robot):
         if robot.name in self.robots: raise BlastError("Duplicate robot: " + robot.name)
-        self.hash_state = None
+        self.clear_hash("robots")
         self.robots[robot.name] = robot
         self.robots_keysort = sorted(self.robots.keys())
     def append_object(self, obj):
         if obj.uid in self.objects: raise BlastError("Duplicate object: " + obj.uid)
-        self.hash_state = None
+        self.clear_hash("objects")
         self.objects[obj.uid] = obj
         self.objects_keysort = sorted(self.objects.keys())
 
@@ -754,6 +783,7 @@ class BlastWorld(object):
         for uid in self.objects_keysort:
             r = r + "\tObjectSet(" + str(uid) + ", " + self.objects[uid].to_text() + ")\n"
         for mid in self.maps_keysort:
+            mp = self.maps[mid]
             r = r + mp.to_text()
             for name in self.surfaces_keysort:
                 sur = self.surfaces[name]
@@ -773,24 +803,53 @@ class BlastWorld(object):
                 if obj:
                     objects.add(obj.uid)
 
-        for obj in self.objects.keys():
+        for obj in self.objects_keysort:
             if not obj in objects:
+                self.objects_keysort.remove(obj)
                 del self.objects[obj]
 
-    def get_hash_state(self):
-        if self.hash_state:
-            return self.hash_state
+    def _set_hash(self, key, val):
+        if key == "robots": self.robots_hash_state = val
+        elif key == "objects": self.objects_hash_state = val
+        elif key == "surfaces": self.surfaces_hash_state = val
+        elif key == "maps": self.maps_hash_state = val
+    def _get_hash(self, key):
+        if key == "robots": return self.robots_hash_state
+        elif key == "objects": return self.objects_hash_state
+        elif key == "surfaces": return self.surfaces_hash_state
+        elif key == "maps": return self.maps_hash_state
 
-        hl = hashlib.sha224()
-        get_obj = lambda x: self.get_obj(x)
-        for arr, keysort in [(self.maps, self.maps_keysort), (self.surfaces, self.surfaces_keysort), 
-                             (self.robots, self.robots_keysort)]:
-            for name in keysort:
-                hl.update(str(name))
-                arr[name].hash_update(hl, get_obj)
-        self.hash_state = hl.digest()
-        
-        return self.hash_state
+    def clear_hash(self, key):
+        self._set_hash(key, None)
+        self.sumh = None
+
+    def get_hash_state(self):
+        if self.sumh: return self.sumh
+        self.sumh = ""
+        for field, arr, keysort in [("robots", self.robots, self.robots_keysort),
+                                    ("surfaces", self.surfaces, self.surfaces_keysort),
+                                    ("maps", self.maps, self.maps_keysort), ]:
+            v = self._get_hash(field)
+            if v == None:
+                hl = hashlib.sha224()
+                get_obj = lambda x: self.get_obj(x)
+                for name in keysort:
+                    hl.update(str(name))
+                    arr[name].hash_update(hl, get_obj)
+                v = hl.digest()
+                self._set_hash(field, v)
+            self.sumh = self.sumh + v
+        return self.sumh
+
+    def detect_bad_parenting(self):
+        r = ""
+        for name in self.robots_keysort:
+            robot = self.robots[name]
+            for holder in robot.robot_type.holders_keysort:
+                if robot.holders[holder]:
+                    if self.get_obj(robot.holders[holder].uid).parent != (name + "." + holder):
+                        r = r + "stair4: " + holder + "\n"
+        return r
 
     def equal(self, other, tolerant = False): #Tolerant of slight variations
         if self == other: return True
@@ -801,14 +860,16 @@ class BlastWorld(object):
 
     def equal_valid(self, other, tolerant = False): #Tolerant of slight variations
         if not tolerant: #Hash checks only in tolerant equals
-            warn = True
+            warn = False
             hash_same = self.get_hash_state() == other.get_hash_state()
 
             #Comment out these two lines to verify hashing
-            if not hash_same: return False
-            return True #Comment this line to ensure, 100%, no hash collisions
+            #if not hash_same: return False
+            #return True #Comment this line to ensure, 100%, no hash collisions
             #This is to double-check to make sure hashing went as expected.
         else:
+            #if self.get_hash_state() == other.get_hash_state(): return True
+            
             warn = False
             hash_same = True
         
@@ -1075,6 +1136,7 @@ class BlastWorld(object):
         #create a queue of transations then execute them
         transactions = []
         items_to_clone = {"robots": set(), "surfaces": set()}
+        robots_to_reparent = []
         for var, val in action_type.changes.iteritems():
             sub = var.split(".")
             if debug: print var, "->", val
@@ -1093,10 +1155,9 @@ class BlastWorld(object):
                 if sub[1] == "holders":
                     if BLAST_NONE.equal(v):
                         v = None
-                    else:
-                        self.get_obj(v.uid).position = None
-                        self.get_obj(v.uid).parent = robot.name + "." + sub[2]
-                    transactions.append(("VAL", ("robot", robot.name, "holders"), sub[2], v))
+                    transactions.append(("VAL", ("robot", robot.name, "holders"), sub[2], v)) 
+                    if not robot.name in robots_to_reparent:
+                        robots_to_reparent.append(robot.name)
                 elif sub[1] == "positions":
                     if not sub[2] in robot.positions:
                         if debug: print "Invalid position for robot", robot.name, sub
@@ -1112,7 +1173,7 @@ class BlastWorld(object):
                                 set_d[joint_name] = robot.positions[sub[2]][joint_name]
                             else:
                                 set_d[joint_name] = value
-                    elif v == None:
+                    elif v == None or v == BLAST_NONE:
                         pass #The action is assumed to have left everything in the previous state
                     elif v == False:
                         for joint_name in robot.robot_type.position_variables[sub[2]][False][0]:
@@ -1135,11 +1196,13 @@ class BlastWorld(object):
                 self.robots[robot_name] = self.robots[robot_name].copy()
 
         #Execute the transactions - this is where changes actually get made to the world
-        self.hash_state = None
         for x in transactions:
             v = None
             if x[1][0] == "robot":
+                self.clear_hash("robots")
                 v = self.robots[x[1][1]]
+            else:
+                raise Exception("Invalid transaction: " + str(x))
             for attr in x[1][2:]:
                 v = getattr(v, attr)
 
@@ -1151,6 +1214,9 @@ class BlastWorld(object):
                 print "Really bad, transaction bad:", x
                 raise Exception("Bad transaction: " + str(x))
 
+        for robot_name in self.robots_keysort: #robots_to_reparent:
+            if self.robots[robot_name].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x)):
+                self.clear_hash("robots")
         self.gc_objects()
 
         return time_estimate
