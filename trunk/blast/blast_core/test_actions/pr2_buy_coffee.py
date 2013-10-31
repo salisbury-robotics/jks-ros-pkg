@@ -4,7 +4,7 @@ class BlastPr2BuyCoffeeActionExec(BlastActionExec):
         BlastActionExec.__init__(self, robot, manager, guid)
     def run(self, parameters):
         print "+"*30, "Move to end", "+"*30
-        self.plan_action("move", {"end": self.get_surface(parameters["shop"]).locations["end"] })
+        self.plan_action("move", {"end": self.get_surface(parameters["shop"])["locations"]["end"] })
         print "+"*30, "Give money", "+"*30
         self.plan_action("give-object", {"tts-text": "Money Bag"})
         print "+"*30, "Grab object", "+"*30
