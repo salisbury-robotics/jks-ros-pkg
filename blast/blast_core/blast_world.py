@@ -860,11 +860,11 @@ class BlastWorld(object):
 
     def equal_valid(self, other, tolerant = False): #Tolerant of slight variations
         if not tolerant: #Hash checks only in tolerant equals
-            warn = False
+            warn = True
             hash_same = self.get_hash_state() == other.get_hash_state()
 
             #Comment out these two lines to verify hashing
-            #if not hash_same: return False
+            if not hash_same: return False
             #return True #Comment this line to ensure, 100%, no hash collisions
             #This is to double-check to make sure hashing went as expected.
         else:
