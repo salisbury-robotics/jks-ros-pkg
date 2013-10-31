@@ -116,6 +116,14 @@ class Planner:
                         #print robot.location, at, parameters, "->", change
                         if self.action_type_debug != False:
                             self.action_type_debug[at] = self.action_type_debug.get(at, 0) + 1
+
+                        if world_clone.detect_bad_parenting():
+                            print "-"*60
+                            print "Bad parenting: ", world_clone.detect_bad_parenting()
+                            print "after action:", robot_name, at, parameters
+                            print world_clone.to_text()
+                            print "-"*60
+
                         if change == None: #failed
                             #world_clone.take_action(robot_name, at, parameters, debug=True)  #Failed action print
                             if self.fail_debug != False:
@@ -273,6 +281,8 @@ class BlastPlannableWorld:
         self.world.robots[robot] = self.world.robots[robot].copy()
         self.world.robots[robot].holders[to_holder] = self.world.robots[robot].holders[from_holder]
         self.world.robots[robot].holders[from_holder] = None
+        self.world.robots[robot].reparent_objects(lambda x: self.world.get_obj(x), lambda x: self.world.copy_obj(x))
+        self.world.clear_hash("robots")
         return True
     
     def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
@@ -295,7 +305,8 @@ class BlastPlannableWorld:
         else:
             self.world.robots[robot].holders[holder] = None
         self.world.gc_objects()
-        self.world.hash_state = None
+        self.world.robots[robot].reparent_objects(lambda x: self.world.get_obj(x), lambda x: self.world.copy_obj(x))
+        self.world.clear_hash("robots")
         return True
 
     def set_robot_position(self, robot, position, val):
@@ -310,6 +321,7 @@ class BlastPlannableWorld:
             for name, v in zip(self.world.robots[robot].robot_type.position_variables[position][False][0], val):
                 if v != None:
                     self.world.robots[robot].positions[position][name] = v
+        self.world.clear_hash("robots")
         
 
     def set_robot_location(self, robot, blast_pt):
@@ -318,7 +330,7 @@ class BlastPlannableWorld:
             return False
         self.world.robots[robot] = self.world.robots[robot].copy()
         self.world.robots[robot].location = blast_pt.copy()
-        self.world.hash_state = None
+        self.world.clear_hash("robots")
         return True
 
     def get_surface(self, surface):
