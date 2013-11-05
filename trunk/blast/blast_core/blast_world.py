@@ -660,7 +660,7 @@ class BlastRobot(object):
                 value.hash_update(hl, get_obj)
         for name in self.robot_type.position_variables_keysort:
             value = self.positions[name]
-            if value == False:
+            if value == False and type(value) == type(True):
                 hl.update("False")
             else:
                 for j in self.robot_type.position_variables[name][False][0]:
@@ -1021,8 +1021,8 @@ class BlastWorld(object):
             return None
 
         for name, goal, tol in zip(name_array, goal_array, tol_array):
-            if goal != False:
-                if state[name] == False:
+            if not (goal == False and type(goal) == type(True)):
+                if state[name] == False and type(state[name]) == type(True):
                     if super_debug: print state[name], name, "failed"
                     return False
                 if goal - tol > state[name] or goal + tol < state[name]:
@@ -1293,7 +1293,7 @@ class BlastWorld(object):
                                 set_d[joint_name] = value
                     elif v == None or v == BLAST_NONE:
                         pass #The action is assumed to have left everything in the previous state
-                    elif v == False:
+                    elif v == False and type(v) == type(True):
                         for joint_name in robot.robot_type.position_variables[sub[2]][False][0]:
                             set_d[joint_name] = False
                     else:
