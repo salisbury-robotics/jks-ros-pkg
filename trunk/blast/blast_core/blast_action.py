@@ -104,7 +104,7 @@ class BlastManager:
             print "Problem - action has no exec class", robot, action
             return False
  
-        print "--- Exec action", robot, "-->", action
+        print "--- Exec action", robot, "-->", action, parameters
         exe = action_exec(robot, self, self.action_guid)
         self.action_guid = self.action_guid + 1
         self.action_stack.append(exe)
