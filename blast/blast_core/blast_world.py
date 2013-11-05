@@ -160,6 +160,9 @@ def make_test_actions():
             BlastAction("pr2.torso", {"height": "Joint:torso.torso"},
                         "True()", "\"20\"", #FIXME
                         {"robot.positions.torso": ["height",]}),
+            BlastAction("pr2.head", {"pan": "Joint:head.pan", "tilt": "Joint:head.tilt"},
+                        "True()", "\"3\"",
+                        {"robot.positions.head": ["pan", "tilt",]}),
                         
             BlastAction("pr2.elevator", {"elevator": "Surface:elevator", 
                                          "infloor": "Location:elevator.floor_",
