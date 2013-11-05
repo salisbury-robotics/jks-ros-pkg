@@ -5,6 +5,8 @@ import json
 
 #Permissions system
 
+BLAST_INFINITY = 1e10 #For objects
+
 class BlastTypeError(Exception):
     __slots__ = ['value']
     def __init__(self, value):
@@ -122,8 +124,10 @@ def make_test_actions():
                          ("position", "robot.right-arm", "tucked")),
                         "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
                         {"robot.location": "end" }),
-            BlastAction("pr2.tuck-both-arms", {}, #Contains = temp hack for holder constraints
-                        ("not", ("contains", "robot.left-arm", "coffee_cup"),), "\"10\"", #FIXME: need holder constraints
+            BlastAction("pr2.tuck-both-arms", {},
+                        ("contains", "robot.left-arm", {"rotation_limit": [(0.5, math.pi)],
+                                                        "accept_empty": True}), 
+                        "\"10\"", 
                         {"robot.positions.left-arm": [0.06024, 1.248526, 1.789070, -1.683386, 
                                                       -1.7343417, -0.0962141, -0.0864407, None],
                          "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
@@ -182,15 +186,15 @@ def make_test_actions():
 
             
             BlastAction("pr2-cupholder.stash-cupholder", {}, 
-                        ("&&", ("not", ("contains", "robot.left-arm", "None()")),
+                        ("&&", ("contains", "robot.left-arm", {"has_tag": "cupholder_object"}),
                          ("contains", "robot.cupholder", "None()")),
                         "\"30\"", {"robot.holders.cupholder": "robot.holders.left-arm",
                                    "robot.holders.left-arm": "None()",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False}),
             BlastAction("pr2-cupholder.unstash-cupholder", {}, 
-                        ("&&", ("not", ("contains", "robot.cupholder", "None()")),
-                         ("contains", "robot.left-arm", "None()")),
+                        ("&&", ("contains", "robot.cupholder", {"has_tag": "cupholder_object"}),
+                         ("contains", "robot.left-arm",  "None()")),
                         "\"30\"", {"robot.holders.cupholder": "None()",
                                    "robot.holders.left-arm": "robot.holders.cupholder",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
@@ -231,6 +235,11 @@ class BlastWorldTypes(object):
         self.objects[obj.name] = obj
     def get_object(self, name):
         return self.objects.get(name, None)
+    def add_object_tag(self, name, tag):
+        if name in self.objects:
+            self.objects[name].add_tag(tag)
+            return False
+        return True
     
     def add_action_type(self, action):
         self.parameter_values_cache = {}
@@ -276,16 +285,42 @@ class RobotType(object):
         self.holders_keysort = sorted(self.holders.keys())
 
 class ObjectType(object):
-    __slots__ = ["name", "parent"]
-    def __init__(self, name, parent = None):
+    __slots__ = ["name", "parent", "tags", "motion_limits"]
+    def __init__(self, name, motion_limits, parent = None):
         self.name = name
+        self.tags = set()
         self.parent = None
+
+        #Create motion limits
+        self.motion_limits = motion_limits
+        if parent:
+            for name, value in parent.motion_limits.iteritems():
+                if not name in self.motion_limits:
+                    self.motion_limits[name] = value
+        def_motion_limits = {"rotation_limit": math.pi, "accel_x": BLAST_INFINITY, 
+                             "accel_y": BLAST_INFINITY, "accel_z": BLAST_INFINITY}
+        for name, value in def_motion_limits.iteritems():
+            if not name in self.motion_limits:
+                self.motion_limits[name] = value
+    
+    def add_tag(self, name):
+        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z"]
+        if name in bad_list:
+            raise BlastTypeError(name + " is an invalid tag for objects because "
+                                 + "it is a motion constraint in " + self.name)
+        self.tags.add(name)
 
 def make_test_types_world():
     types_world = BlastWorldTypes()
-    types_world.add_object_type(ObjectType("arbitrary-object"))
-    types_world.add_object_type(ObjectType("coffee_cup"))
-    types_world.add_object_type(ObjectType("coffee_money_bag"))
+    types_world.add_object_type(ObjectType("arbitrary-object", {}))
+    types_world.add_object_type(ObjectType("coffee_cup", 
+                                           {"rotation_limit": 0.1,
+                                            "accel_z": 0.2,
+                                            "accel_x": 1.0,
+                                            "accel_y": 1.0},
+                                           ))
+    types_world.add_object_tag("coffee_cup", "cupholder_object")
+    types_world.add_object_type(ObjectType("coffee_money_bag", {}))
     
     types_world.add_surface_type(SurfaceType("coffee_shop",
                                              {"default": {"default": True, "accessible": True}}))
@@ -1015,14 +1050,40 @@ class BlastWorld(object):
             obj = self.objects[obj.uid]
         if condition[2] == "" or condition[2] == "None()":
             return obj == None
-        if obj == None: return False #Obviously needs an object yet none
-        if condition[2] == obj.object_type.name: return True
-        if condition[0] == "exact-contains": return False
-        t = obj.object_type
-        while t.parent:
-            if t.name == condition[2]: return True
-            t = t.parent
-        return False
+
+        if type(condition[2]) == type(""):
+            if obj == None: return False #Obviously needs an object yet none
+            if condition[2] == obj.object_type.name: return True
+            if condition[0] == "exact-contains": return False
+            t = obj.object_type
+            while t.parent:
+                if t.name == condition[2]: return True
+                t = t.parent
+            return False
+        else: #Motion constraints/tags
+            if obj == None: return condition[2].get("accept_empty", False)
+            for name, value in condition[2].iteritems():
+                if name == "has_tag":
+                    if type(value) == type(""):
+                        value = [value,]
+                    for tag in value:
+                        if not tag in obj.object_type.tags:
+                            return False
+                elif name == "not_tag":
+                    if type(value) == type(""):
+                        value = [value,]
+                    for tag in value:
+                        if tag in obj.object_type.tags:
+                            return False
+                elif name in obj.object_type.motion_limits:
+                    tval = obj.object_type.motion_limits[name]
+                    in_region = False
+                    for region in value:
+                        if tval >= region[0] and tval <= region[1]:
+                            in_region = True
+                            break
+                    if not in_region: return False
+            return True
     
     def take_action(self, robot_name, action, parameters, execute = True, debug = False):
         #Get the robot
@@ -1549,6 +1610,8 @@ def run_test():
     print world.to_text()
     print '-'*130
     print world.equal(world)
+
+    print "Tuck arms:", world.take_action("stair4", "tuck-both-arms", {})
 
 def clone_world_test(world):
     clone = world.copy()
