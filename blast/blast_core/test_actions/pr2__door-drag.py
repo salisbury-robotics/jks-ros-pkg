@@ -1,8 +1,8 @@
 
 class BlastPr2DoorDragActionExec(BlastActionExec):
-    def __init__(self, robot, manager, guid):
-        BlastActionExec.__init__(self, robot, manager, guid)
+    def __init__(self):
+        BlastActionExec.__init__(self)
     def run(self, parameters):
         self.set_location(self.get_surface(parameters["door"])["locations"]["in_exit"])
-set_action_exec("pr2", "door_drag", BlastPr2DoorDragActionExec)
+set_action_exec(BlastPr2DoorDragActionExec)
 
