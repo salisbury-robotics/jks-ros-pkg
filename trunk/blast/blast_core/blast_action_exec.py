@@ -30,7 +30,7 @@ def ipc_packet(packet):
 
 
 class BlastActionExec():
-    def __init__(self, robot = None, manager = None, guid = None):
+    def __init__(self):
         pass
 
     def json(self, d):
@@ -96,10 +96,8 @@ class BlastActionExec():
     def run(self):
         raise Exception("Need to override run method")
 
-def set_action_exec(ex, garbage = None, couldbe = None): #FIXME: legacy API code
-    if couldbe:
-        ex = couldbe
-    ex(None, None, None).run(parameters) #Nones for legacy
+def set_action_exec(ex):
+    ex().run(parameters) #Nones for legacy
 
 try:
     parameters = json.loads(sys.argv[2])
