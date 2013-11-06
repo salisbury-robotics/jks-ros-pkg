@@ -184,14 +184,6 @@ class BlastActionExec:
             raise BlastRuntimeError("Internal action error")
         return not error
 
-
-#def load_actions(directory):
-#    for f in os.listdir(directory):
-#        if f[-3:] == ".py":
-#            execfile(os.path.join(directory, f))
-
-#Let people create planing worlds....
-
 class BlastManager:
     def __init__(self, directories):
         self.directories = directories
@@ -257,8 +249,7 @@ class BlastManager:
 
 def test_main():
     man = BlastManager(["test_actions",])
-    #load_actions("test_actions")
-    man.plan_action("stair4", "coffee_run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
+    man.plan_action("stair4", "coffee-run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
                                              "shop": "clark_peets_coffee_shop"})
 if __name__ == '__main__':
     test_main()
