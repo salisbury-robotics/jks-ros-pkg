@@ -134,7 +134,7 @@ def make_test_actions():
                          "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
                                                         -1.4175, -1.8417, 0.21436, None]}),
             
-            BlastAction("pr2-cupholder.buy_coffee", {"shop": "Surface:coffee_shop"},
+            BlastAction("pr2-cupholder.buy-coffee", {"shop": "Surface:coffee_shop"},
                         ("&&", ("==", "robot.location", "shop.locations.start"),
                          ("contains", "robot.left-arm", "coffee_money_bag")),
                         "\"1000\"",
@@ -142,13 +142,13 @@ def make_test_actions():
                          "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                          "robot.positions.right-arm": "None()",
                          "robot.holders.left-arm": "Object(\"coffee_cup\")"}),
-            BlastAction("pr2.door_blast", {"door": "Surface:transparent_heavy_door"},
+            BlastAction("pr2.door-blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance"),
                          ("position", "robot.torso", [0.3,]),
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked")),
                         "\"55\"", {"robot.location": "door.locations.out_exit"}),
-            BlastAction("pr2.door_drag", {"door": "Surface:transparent_heavy_door"},
+            BlastAction("pr2.door-drag", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.in_entrance"), 
                          ("position", "robot.torso", [0.3,]),
                          ("position", "robot.left-arm", "tucked"),
@@ -203,7 +203,7 @@ def make_test_actions():
                                    "robot.holders.left-arm": "robot.holders.cupholder",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False}),
-            BlastAction("pr2-cupholder.coffee_run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
+            BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "\"10000\"", {"robot.location": "person_location"}, planable = False),
             ]
 
@@ -1592,7 +1592,7 @@ def run_test():
     print '-'*130
     print world.equal(world)
     
-    res = world.take_action("stair4", "buy_coffee", {"shop": world.surfaces["clark_peets_coffee_shop"] })
+    res = world.take_action("stair4", "buy-coffee", {"shop": world.surfaces["clark_peets_coffee_shop"] })
     print "Action result:", res
     
     
@@ -1626,7 +1626,7 @@ def clone_world_test(world):
     print "Equal", clone.equal(world)
     
     print "Move:", world.enumerate_action("stair4", "move", {})
-    print "Coffee:", world.enumerate_action("stair4", "buy_coffee", {})
+    print "Coffee:", world.enumerate_action("stair4", "buy-coffee", {})
 
 
 def elevator_test():

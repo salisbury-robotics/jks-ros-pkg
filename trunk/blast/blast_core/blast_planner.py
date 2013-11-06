@@ -379,7 +379,7 @@ if __name__ == '__main__':
     print '-'*100
     print "Plan to buy coffee"
     print '-'*100
-    world.plan_action("stair4", "buy_coffee", {"shop": "clark_peets_coffee_shop"})
+    world.plan_action("stair4", "buy-coffee", {"shop": "clark_peets_coffee_shop"})
     
     print '-'*100
     print "Plan to return"
