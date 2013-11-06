@@ -1,6 +1,6 @@
 import blast_world
 import blast_planner
-import os, sys
+import os, sys, subprocess, json
 
 blast_action_exec_d = {}
 def set_action_exec(robot_type, action_type, item):
@@ -16,59 +16,185 @@ class BlastRuntimeError(Exception):
         return repr(self.value)
     
 class BlastActionExec:
-    def __init__(self, robot, manager, guid):
+    def __init__(self, robot, manager, guid, filenames):
         self._robot = robot
         self._manager = manager
         self._guid = guid
+        self._filenames = filenames
     
-    def set_location(self, position):
+    def set_location(self, position, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._manager.world.set_robot_location(self._robot, position.copy())
+            self._get_world(world).set_robot_location(self._robot, position.copy())
         self._manager.world_unlock()
 
-    def set_robot_holder(self, holder, ot, require_preexisting_object = True):
+    def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._manager.world.set_robot_holder(self._robot, holder, ot,
-                                                 require_preexisting_object)
+            self._get_world(world).set_robot_holder(self._robot, holder, ot,
+                                                         require_preexisting_object)
         self._manager.world_unlock()
 
-    def robot_transfer_holder(self, from_holder, to_holder):
+    def robot_transfer_holder(self, from_holder, to_holder, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._manager.world.robot_transfer_holder(self._robot, from_holder, to_holder)
+            self._get_world(world).robot_transfer_holder(self._robot, from_holder, to_holder)
         self._manager.world_unlock()
 
-    def set_robot_position(self, pos, val):
+    def set_robot_position(self, pos, val, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._manager.world.set_robot_position(self._robot, pos, val)
+            self._get_world(world).set_robot_position(self._robot, pos, val)
         self._manager.world_unlock()
         
-    def plan_action(self, action, parameters):
+    def plan_action(self, action, parameters, world = None):
+        r = None
         if self._manager.get_current_guid() == self._guid:
-            if not self._manager.plan_action(self._robot, action, parameters):
-                raise BlastRuntimeError("Planning to run action failed")
+            r = self._manager.plan_action(self._robot, action, parameters)
+        print r
+        if r == None:
+            raise BlastRuntimeError("Planning to run action failed")
+        return r
 
-    def get_surface(self, surface):
+    def create_world(self, new_world, world = None):
+        if type(new_world) != type(""):
+            raise BlastRuntimeError("new_world name must be a string")
+        self._manager.world_lock()
+        if new_world in self._manager.worlds:
+            name = "action_" + str(self.guid) + "_" + new_world
+            self._manager.worlds[name] = self._get_world(world).copy()
+            self._manager.action_worlds[self.guid] = self._manager.action_worlds.get(self.guid, []) + [name,]
+        self._manager.world_unlock()
+
+    def get_surface(self, surface, world = None):
         if type(surface) != type(""):
             surface = surface.name
-        return self._manager.world.get_surface(surface)
+        return self._get_world(world).get_surface(surface)
+
+    def _get_world(self, world):
+        if world == None: return self._manager.worlds[None]
+        name = "action_" + str(self.guid) + "_" + new_world
+        return self._manager.worlds[name]
     
     def run(self, parameters):
-        raise BlastRuntimeError("Empty action run")
+        py_file = None
+        for filename in self._filenames:
+            for direct in self._manager.directories:
+                if os.path.exists(os.path.join(direct, filename)):
+                    py_file = os.path.join(direct, filename)
+                    break
+            if py_file: break
+        if not py_file:
+            raise BlastRuntimeError("No file for action with options " + str(self._filenames) 
+                                    + " in directories " + str(self._manager.directories))
+        proc = subprocess.Popen(['python', "blast_action_exec.py", py_file, json.dumps(parameters)],
+                                stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=sys.stdout)
+        message = None
+
+        error = False
+        while True:
+            result = proc.stdout.readline()
+            if type(result) != type(""):
+                print "Ignore packet", result
+            elif result.find("GET_SURFACE") == 0:
+                if result.strip().split(",")[0].strip() == "GET_SURFACE":
+                    world = result.strip().split(",")[1].strip()
+                    surface = result.strip().split(",")[2].strip()
+                else:
+                    world = None
+                    surface = result.strip().split(",")[1].strip()
+                res = self.get_surface(surface, world)
+                if res:
+                    proc.stdin.write("SURFACE" + json.dumps(self.get_surface(surface, world)).replace("\n", "\\n") + "\n")
+                else:
+                    proc.stdin.write("None\n")
+                proc.stdin.flush()
+            elif result.find("PLAN_ACTION") == 0:
+                if result.strip().split(",")[0].strip() == "PLAN_ACTION":
+                    world = result.strip().split(",")[1].strip()
+                    action = result.strip().split(",")[2].strip()
+                    parameters = json.loads(",".join(result.strip().split(",")[3:]))
+                else:
+                    world = None
+                    action = result.strip().split(",")[1].strip()
+                    parameters = json.loads(",".join(result.strip().split(",")[2:]))
+                try:
+                    proc.stdin.write(str(self.plan_action(action, parameters, world)) + "\n")
+                except BlastRuntimeError as ex:
+                    print "--- Runtime error ----", ex
+                    proc.stdin.write("None\n")
+                proc.stdin.flush()
+            elif result.find("SET_ROBOT_LOCATION") == 0:
+                if result.strip().split(",")[0].strip() == "SET_ROBOT_LOCATION":
+                    world = result.strip().split(",")[1].strip()
+                    location = json.loads(",".join(result.strip().split(",")[2:]))
+                else:
+                    world = None
+                    location = json.loads(",".join(result.strip().split(",")[1:]))
+                if self.set_location(location, world):
+                    proc.stdin.write("True\n")
+                else:
+                    proc.stdin.write("None\n")
+                proc.stdin.flush()
+            elif result.find("SET_ROBOT_POSITION") == 0:
+                if result.strip().split(",")[0].strip() == "SET_ROBOT_POSITION":
+                    world = result.strip().split(",")[1].strip()
+                    position = result.strip().split(",")[2].strip()
+                    state = json.loads(",".join(result.strip().split(",")[3:]))
+                else:
+                    world = None
+                    position = result.strip().split(",")[1].strip()
+                    state = json.loads(",".join(result.strip().split(",")[2:]))
+                proc.stdin.write(str(self.set_robot_position(position, state, world)) + "\n")
+                proc.stdin.flush()
+            elif result.find("SET_ROBOT_HOLDER") == 0:
+                if result.strip().split(",")[0].strip() == "SET_ROBOT_HOLDER":
+                    world = result.strip().split(",")[1].strip()
+                    holder = result.strip().split(",")[2].strip()
+                    ot = result.strip().split(",")[3].strip()
+                    req = result.strip().split(",")[4].strip() == "True"
+                else:
+                    world = None
+                    holder = result.strip().split(",")[1].strip()
+                    ot = result.strip().split(",")[2].strip()
+                    req = result.strip().split(",")[3].strip() == "True"
+                if ot == "None()": ot = None
+                proc.stdin.write(str(self.set_robot_holder(holder, ot, req, world)) + "\n")
+                proc.stdin.flush()
+            elif result.find("ROBOT_TRANSFER_HOLDER") == 0:
+                if result.strip().split(",")[0].strip() == "ROBOT_TRANSFER_HOLDER":
+                    world = result.strip().split(",")[1].strip()
+                    from_h = result.strip().split(",")[2].strip()
+                    to_h = result.strip().split(",")[3].strip()
+                else:
+                    world = None
+                    from_h = result.strip().split(",")[1].strip()
+                    to_h = result.strip().split(",")[2].strip()
+                proc.stdin.write(str(self.robot_transfer_holder(from_h, to_h, world)) + "\n")
+                proc.stdin.flush()
+            elif result.strip() == "TERMINATE":
+                break
+            elif result.strip() == "ERROR":
+                error = True
+                break
+            elif result.strip() != "":
+                print "Bad IPC packet", '"' + result.strip() + '"'
+
+        if error:
+            raise BlastRuntimeError("Internal action error")
+        return not error
 
 
-def load_actions(directory):
-    for f in os.listdir(directory):
-        if f[-3:] == ".py":
-            execfile(os.path.join(directory, f))
+#def load_actions(directory):
+#    for f in os.listdir(directory):
+#        if f[-3:] == ".py":
+#            execfile(os.path.join(directory, f))
 
 #Let people create planing worlds....
 
 class BlastManager:
-    def __init__(self):
+    def __init__(self, directories):
+        self.directories = directories
         self.world = blast_planner.BlastPlannableWorld(blast_world.make_test_world())
         self.world.real_world = True
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
@@ -80,6 +206,9 @@ class BlastManager:
         self.world.action_epic_fail_callback = efc
         self.action_stack = []
         self.action_guid = 0
+        self.action_worlds = {}
+        self.worlds = {None: self.world}
+
 
     def world_lock(self):
         pass
@@ -94,23 +223,22 @@ class BlastManager:
     def on_action_take(self, robot, action, parameters):
         print "Action!", robot, action, parameters
         robot_type = self.world.world.robots[robot].robot_type
-        action_exec = None
+        action_exec = []
         while robot_type:
-            if robot_type.name in blast_action_exec_d:
-                if action in blast_action_exec_d[robot_type.name]:
-                    action_exec = blast_action_exec_d[robot_type.name][action]
+            action_exec.append(robot_type.name + "__" + action + ".py")
             robot_type = robot_type.parent
-        if action_exec == None:
-            print "Problem - action has no exec class", robot, action
-            return False
- 
+
         print "--- Exec action", robot, "-->", action, parameters
-        exe = action_exec(robot, self, self.action_guid)
+        exe = BlastActionExec(robot, self, self.action_guid, action_exec)
         self.action_guid = self.action_guid + 1
         self.action_stack.append(exe)
         exe.run(parameters)
+        if self.get_current_guid() in self.action_worlds:
+            for world in self.action_worlds[self.get_current_guid()]:
+                del self.worlds["action_" + str(self.get_current_guid()) + "_" + world]
+            del self.action_worlds[self.get_current_guid()]
         self.action_stack.remove(exe)
-        print "--- Done"
+        print "--- Done", action
         return True
         
 
@@ -120,15 +248,16 @@ class BlastManager:
             return False
         return True
     def plan_action(self, robot, action, parameters):
-        if self.world.plan_action(robot, action, parameters) == None:
+        res = self.world.plan_action(robot, action, parameters)
+        if res == None:
             print "Epic fail for", robot, "-->", action
-            return False
-        return True
+            return None
+        return res
 
 
 def test_main():
-    man = BlastManager()
-    load_actions("test_actions")
+    man = BlastManager(["test_actions",])
+    #load_actions("test_actions")
     man.plan_action("stair4", "coffee_run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
                                              "shop": "clark_peets_coffee_shop"})
 if __name__ == '__main__':

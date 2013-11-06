@@ -313,7 +313,9 @@ class BlastPlannableWorld:
         return True
 
     def get_surface(self, surface):
-        return self.world.surfaces.get(surface).to_dict()
+        sur = self.world.surfaces.get(surface)
+        if sur != None: sur = sur.to_dict()
+        return sur
 
     def plan_action(self, robot, action, parameters):
         #FIXME: this can create problems if parameters is an extra element

@@ -6,6 +6,7 @@ import json
 #Permissions system
 
 BLAST_INFINITY = 1e10 #For objects
+#FIXME: __ illegal in robot names
 
 class BlastTypeError(Exception):
     __slots__ = ['value']
@@ -1116,12 +1117,11 @@ class BlastWorld(object):
                     parameters[name] = BlastPt(parameters[name]["x"], parameters[name]["y"], 
                                                parameters[name]["a"], parameters[name]["map"])
             elif ptype.find("Surface:") == 0:
-                if type(parameters[name]) == type(""):
+                if type(parameters[name]) == type("") or type(parameters[name]) == type(u""):
                     if not clone_param:
                         parameters = parameters.copy() #Avoid mutating the original dictionary
                         clone_param = True
                     parameters[name] = self.surfaces.get(parameters[name])
-
 
         #Check all the conditions
         def get_value(value):
