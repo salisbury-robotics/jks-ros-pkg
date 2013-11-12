@@ -185,9 +185,9 @@ class BlastActionExec:
         return not error
 
 class BlastManager:
-    def __init__(self, directories):
+    def __init__(self, directories, world):
         self.directories = directories
-        self.world = blast_planner.BlastPlannableWorld(blast_world.make_test_world())
+        self.world = blast_planner.BlastPlannableWorld(world)
         self.world.real_world = True
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
 
@@ -248,7 +248,7 @@ class BlastManager:
 
 
 def test_main():
-    man = BlastManager(["test_actions",])
+    man = BlastManager(["test_actions",], blast_world.make_test_world())
     man.plan_action("stair4", "coffee-run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
                                              "shop": "clark_peets_coffee_shop"})
 if __name__ == '__main__':

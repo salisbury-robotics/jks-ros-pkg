@@ -317,6 +317,16 @@ class BlastPlannableWorld:
         if sur != None: sur = sur.to_dict()
         return sur
 
+    def get_map(self, map):
+        mp = self.world.maps.get(map)
+        if mp != None: mp = mp.to_dict()
+        return mp
+    
+    def get_robot(self, robot):
+        rb = self.world.robots.get(robot)
+        if rb != None: rb = rb.to_dict()
+        return rb
+
     def plan_action(self, robot, action, parameters):
         #FIXME: this can create problems if parameters is an extra element
         r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, {})

@@ -288,6 +288,12 @@ class RobotType(object):
         self.position_variables_keysort = sorted(self.position_variables.keys())
         self.holders_keysort = sorted(self.holders.keys())
 
+    def to_dict(self):
+        par = None
+        if self.parent: par = self.parent.name
+        return {"name": self.name, "holders": self.holders, 
+                "position_variables": self.position_variables, "parent": par}
+
 class ObjectType(object):
     __slots__ = ["name", "parent", "tags", "motion_limits"]
     def __init__(self, name, motion_limits, parent = None):
@@ -603,6 +609,9 @@ class BlastMap(object):
             + self.map_file + "\"):\n"
         return r
 
+    def to_dict(self):
+        return {"map": self.map, "map_file": self.map_file}
+
 class BlastObjectRef(object):
     __slots__ = ['uid']
     def __init__(self, uid):
@@ -739,6 +748,11 @@ class BlastRobot(object):
                 r = r + self.holders[name].to_text() + ")\n"
         return "\t\tRobot(\"" + self.name + "\", " + self.location.to_text() \
             + ", \"" + self.robot_type.name + "\")\n" + r
+    
+    def to_dict(self):
+        return {"name": self.name, "robot_type": self.robot_type.name, 
+                "location": self.location.to_dict(),
+                "holders": self.holders, "positions": self.positions}
 
 def paren_split(value, delim):
     subs = []
@@ -878,6 +892,9 @@ class BlastWorld(object):
             for name, v in zip(self.robots[robot].robot_type.position_variables[position][False][0], val):
                 if v != None:
                     self.robots[robot].positions[position][name] = v
+        elif type(val) == type({}):
+            for name, v in val.iteritems():
+                self.robots[robot].positions[position][name] = v
         self.clear_hash("robots")
     
     def set_robot_location(self, robot, blast_pt):
@@ -1500,7 +1517,7 @@ def make_test_world():
     world.append_map(clarkcenterthirdfloorelevator)
     clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", "maps/clarkcenterthirdflooroutside.pgm")
     world.append_map(clarkcenterthirdflooroutside)
-    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterthirdflooroutside.pgm")
+    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterpeetscoffee.pgm")
     world.append_map(clarkcenterpeetscoffee)
                                  
 
