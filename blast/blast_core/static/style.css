@@ -1,4 +1,11 @@
 
+div, img { 
+    -moz-user-select: none; 
+    -khtml-user-select: none; 
+    -webkit-user-select: none; 
+    -o-user-select: none; 
+    user-select: none;
+} 
 
 body {
     background-color: #ECF0F1;
@@ -46,4 +53,32 @@ span.square-button {
 }
 span.square-button:hover {
     background-color: #BBC;
+}
+
+div.edit-world {
+    border: 0px;
+    background-color: #2ECC71;
+    color: #FFF;
+    padding: 5px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 16px;
+    text-align: center;
+}
+div.edit-world:hover {
+    background-color: #3EDC81;
+}
+
+div.edit-world-me {
+    background-color: #3498DB;
+}
+div.edit-world-me:hover {
+    background-color: #44A8EB;
+}
+
+div.edit-world-other {
+    background-color: #E74C3C;
+}
+div.edit-world-other:hover {
+    background-color: #F75C4C;
 }
