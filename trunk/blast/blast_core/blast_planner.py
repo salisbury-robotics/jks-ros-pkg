@@ -231,6 +231,11 @@ class BlastPlannableWorld:
             print "Action failed epically", r, "-->", a
         self.action_epic_fail_callback = action_e_fail
 
+    def copy(self):
+        c = BlastPlannableWorld(self.world.copy())
+        c.real_world = False
+        return c
+
     def plan(self, world_good, extra_goals):
         planner = Planner(self.world.copy())
         planner.world_good = world_good

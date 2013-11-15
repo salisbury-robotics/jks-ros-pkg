@@ -270,10 +270,15 @@ class SurfaceType(object):
         self.states = states
 
 class RobotType(object):
-    __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort']
-    def __init__(self, name, holders, position_variables, parent = None):
+    __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort',
+                 'display']
+    def __init__(self, name, display, holders, position_variables, parent = None):
+        #TODO: define "display" values
+
         self.name = name
         self.holders = {}
+        self.display = {}
+
         self.position_variables = {}
         self.parent = parent
         if parent:
@@ -281,17 +286,21 @@ class RobotType(object):
                 self.holders[n] = d
             for n, d in parent.position_variables.iteritems():
                 self.position_variables[n] = d
+            for n, d in parent.display.iteritems():
+                self.display[n] = d
         for n, d in holders.iteritems():
             self.holders[n] = d
         for n, d in position_variables.iteritems():
             self.position_variables[n] = d
+        for n, d in display.iteritems():
+            self.display[n] = d
         self.position_variables_keysort = sorted(self.position_variables.keys())
         self.holders_keysort = sorted(self.holders.keys())
 
     def to_dict(self):
         par = None
         if self.parent: par = self.parent.name
-        return {"name": self.name, "holders": self.holders, 
+        return {"name": self.name, "holders": self.holders, "display": self.display,
                 "position_variables": self.position_variables, "parent": par}
 
 class ObjectType(object):
@@ -339,9 +348,31 @@ def make_test_types_world():
     types_world.add_surface_type(SurfaceType("elevator",
                                              {"default": {"default": True, "accessible": True}}))
     ATL = 0.0001 #Arm offset tolerance
-    types_world.add_robot_type(RobotType("pr2", {"left-arm": {"mass-limit": 2.5}, 
-                                                 "right-arm": {"mass-limit": 2.5},
+    types_world.add_robot_type(RobotType("pr2", {"width": 0.668, "height": 0.668, 
+                                                 "image": {"image": "robot_fs/pr2/pr2_def.png",
+                                                           "priority": 0, #Lowest
+                                                           "left-arm": (0.668 , 0),
+                                                           "right-arm": (0, 0),
+                                                           },       
+                                                 "image,left-arm=tucked": {"image": "robot_fs/pr2/pr2_left_tucked.png",
+                                                                           "left-arm": (24 / 48.0 * 0.668, 15 / 48.0 * 0.668),
+                                                                           "right-arm": (41 / 48.0 * 0.668, 11 / 48.0 * 0.668),
+                                                                           "priority": 50,
+                                                                           },
+                                                 "image,right-arm=tucked": {"image": "robot_fs/pr2/pr2_right_tucked.png",
+                                                                            "left-arm": (6 / 48.0 * 0.668, 10 / 48.0 * 0.668),
+                                                                            "right-arm": (17 / 48.0 * 0.668, 20 / 48.0 * 0.668),
+                                                                            "priority": 50,
+                                                                            },
+                                                 "image,left-arm=tucked,right-arm=tucked": {"image": "robot_fs/pr2/pr2_both_tucked.png",
+                                                                                            "left-arm": (24 / 48.0 * 0.668, 15 / 48.0 * 0.668),
+                                                                                            "right-arm": (17 / 48.0 * 0.668, 20 / 48.0 * 0.668),
+                                                                                            "priority": 100,
+                                                                                            },
                                                  },
+                                         {"left-arm": {"mass-limit": 2.5}, 
+                                          "right-arm": {"mass-limit": 2.5},
+                                          },
                                          {"torso": {False: (["torso",], [ATL,], [0.0,]), "up": [0.3,], "down": [0.0,], },
                                           "left-arm": {False: (["shoulder_pan", "shoulder_lift", "upper_arm_roll",
                                                                 "elbow_flex", "forearm_roll", "r_wrist_flex",
@@ -373,7 +404,8 @@ def make_test_types_world():
                                           "tilt-laser": False,
                                           }))
 
-    types_world.add_robot_type(RobotType("pr2-cupholder", {"cupholder": {}}, {}, types_world.get_robot("pr2")))
+    types_world.add_robot_type(RobotType("pr2-cupholder", {},
+                                         {"cupholder": {}}, {}, types_world.get_robot("pr2")))
 
     [types_world.add_action_type(x) for x in make_test_actions()]
     return types_world
@@ -586,31 +618,33 @@ BLAST_TRUE = BlastPrimitive("True")
 BLAST_NONE = BlastPrimitive("None")
 
 class BlastMap(object):
-    __slots__ = ['map', 'map_file']
-    def __init__(self, mid, map_file):
+    __slots__ = ['map', 'map_file', 'ppm']
+    def __init__(self, mid, map_file, ppm):
         self.map = mid
         self.map_file = map_file
+        self.ppm = ppm
 
     def hash_update(self, hl, get_obj):
-        hl.update(self.map_file)
+        hl.update(self.map_file + str(self.ppm))
 
     def copy(self):
-        return BlastMap(self.map, self.map_file)
+        return BlastMap(self.map, self.map_file, self.ppm)
 
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
         if self.__class__ != other.__class__: return False
-        return other.map == self.map and self.map_file == other.map_file
+        return other.map == self.map and self.map_file == other.map_file  \
+            and self.ppm == other.ppm
 
     def to_text(self):
         r = "\tMap(\"" + str(self.map) + "\", \"" \
-            + self.map_file + "\"):\n"
+            + self.map_file + "\", \"" + str(self.ppm) + "\"):\n"
         return r
 
     def to_dict(self):
-        return {"map": self.map, "map_file": self.map_file}
+        return {"map": self.map, "map_file": self.map_file, "ppm": self.ppm}
 
 class BlastObjectRef(object):
     __slots__ = ['uid']
@@ -1501,23 +1535,23 @@ class BlastWorld(object):
 def make_test_world():
     world = BlastWorld(make_test_types_world())
 
-    clarkcenterfirstfloordoor = BlastMap("clarkcenterfirstfloordoor", "maps/clarkcenterfirstfloordoor.pgm")
+    clarkcenterfirstfloordoor = BlastMap("clarkcenterfirstfloordoor", "maps/clarkcenterfirstfloordoor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloordoor)
-    clarkcenterfirstflooroutside = BlastMap("clarkcenterfirstflooroutside", "maps/clarkcenterfirstflooroutside.pgm")
+    clarkcenterfirstflooroutside = BlastMap("clarkcenterfirstflooroutside", "maps/clarkcenterfirstflooroutside.pgm", 20.0)
     world.append_map(clarkcenterfirstflooroutside)
-    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", "maps/clarkcenterfirstfloor.pgm")
+    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", "maps/clarkcenterfirstfloor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloor)
-    clarkcenterbasementelevator = BlastMap("clarkcenterbasementelevator", "maps/clarkcenterbasementelevator.pgm")
+    clarkcenterbasementelevator = BlastMap("clarkcenterbasementelevator", "maps/clarkcenterbasementelevator.pgm", 20.0)
     world.append_map(clarkcenterbasementelevator)
-    clarkcenterfirstfloorelevator = BlastMap("clarkcenterfirstfloorelevator", "maps/clarkcenterfirstfloorelevator.pgm")
+    clarkcenterfirstfloorelevator = BlastMap("clarkcenterfirstfloorelevator", "maps/clarkcenterfirstfloorelevator.pgm", 20.0)
     world.append_map(clarkcenterfirstfloorelevator)
-    clarkcentersecondfloorelevator = BlastMap("clarkcentersecondfloorelevator", "maps/clarkcentersecondfloorelevator.pgm")
+    clarkcentersecondfloorelevator = BlastMap("clarkcentersecondfloorelevator", "maps/clarkcentersecondfloorelevator.pgm", 20.0)
     world.append_map(clarkcentersecondfloorelevator)
-    clarkcenterthirdfloorelevator = BlastMap("clarkcenterthirdfloorelevator", "maps/clarkcenterthirdfloorelevator.pgm")
+    clarkcenterthirdfloorelevator = BlastMap("clarkcenterthirdfloorelevator", "maps/clarkcenterthirdfloorelevator.pgm", 20.0)
     world.append_map(clarkcenterthirdfloorelevator)
-    clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", "maps/clarkcenterthirdflooroutside.pgm")
+    clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", "maps/clarkcenterthirdflooroutside.pgm", 20.0)
     world.append_map(clarkcenterthirdflooroutside)
-    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterpeetscoffee.pgm")
+    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterpeetscoffee.pgm", 20.0)
     world.append_map(clarkcenterpeetscoffee)
                                  
 
@@ -1578,7 +1612,7 @@ def make_test_world():
                         world.types.get_robot("pr2-cupholder"))
     world.append_robot(stair4)
 
-
+    world.take_action("stair4", "tuck-both-arms", {}) #To debug with arms tucked.
     return world
 
 def run_test():

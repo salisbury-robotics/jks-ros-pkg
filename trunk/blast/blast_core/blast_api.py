@@ -5,8 +5,14 @@ import blast_action, blast_world
 DEBUG = True
 SECRET_KEY = 'flask_dev_key'
 
+SESSION_TIMEOUT = 10.0
+
 
 manager = blast_action.BlastManager(["test_world"], blast_world.make_test_world())
+world_edit_lock = threading.Lock()
+world_edit_session = None
+
+
 
 class BlastFs(object):
     def __init__(self, root = "", first_filters = None):
@@ -29,7 +35,7 @@ class BlastFs(object):
         return open(self.get_file_name(name), "r")
         
 
-fs = BlastFs("", ["maps/"])
+fs = BlastFs("", ["maps/", "robot_fs/"])
 
 def return_json(js):
     if type(js) != type(""): js = json.dumps(js)
@@ -41,6 +47,7 @@ login_sessions = {}
 login_sessions_lock = threading.Lock()
 
 def get_world(world):
+    print world
     global login_sessions, login_sessions_lock
     login_sessions_lock.acquire()
     if not "sid" in session: 
@@ -53,11 +60,54 @@ def get_world(world):
     login_sessions_lock.release()
     return w
 
+def lock_world(world):
+    global login_sessions, login_sessions_lock, world_edit_session, world_edit_lock
+    if world != None:
+        return True
+    world_edit_lock.acquire()
+    if world_edit_session != str(session["sid"]):
+        world_edit_lock.release()
+        return False
+    return True
+
+def unlock_world(world):
+    global login_sessions, login_sessions_lock, world_edit_session, world_edit_lock
+    if world != None:
+        return True
+    world_edit_lock.release()
+    return True
+
+def lock_world_error(world):
+    return "World failed to lock"
+
 
 login_sessions = {}
 
 
 permissions = ["view", "edit", "plan"]
+
+
+
+def clean_sessions():
+    global login_sessions, login_sessions_lock, world_edit_session
+    bad_sessions = []
+    login_sessions_lock.acquire()
+    clean_time = time.time()
+    for sid in login_sessions:
+        if login_sessions[sid]["last_update"] + SESSION_TIMEOUT < clean_time:
+            print "Kill session", sid
+            if world_edit_session == sid:
+                world_edit_lock.acquire()
+                if world_edit_session == sid:
+                    world_edit_session = None
+                world_edit_lock.release()
+            bad_sessions.append(sid)
+
+    for sid in bad_sessions:
+        del login_sessions[sid]
+
+    login_sessions_lock.release()
+
 
 def get_user_permission(session, perm):
     global login_sessions, login_sessions_lock
@@ -74,6 +124,7 @@ def get_user_permission(session, perm):
         login_sessions_lock.release()
         return True
     login_sessions_lock.release()
+    clean_sessions()
     return False
 
 def permission_error(request, perm):
@@ -87,9 +138,9 @@ app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 @app.route('/session', methods=["PUT", "GET"])
 def session_manage():
-    global login_sessions, login_sessions_lock
-    login_sessions_lock.acquire()
+    global login_sessions, login_sessions_lock, world_edit_session
     if request.method == "PUT":
+        login_sessions_lock.acquire()
         sid = str(time.time()) + "-" + str(uuid.uuid4())
         login_sessions[sid] = {"sid": sid, "last_update": time.time(),
                                "worlds": {None: manager.world, }}
@@ -97,16 +148,20 @@ def session_manage():
         login_sessions_lock.release()
         return "true"
     elif request.method == "GET":
+        login_sessions_lock.acquire()
         if not "sid" in session: 
             login_sessions_lock.release()
             return "false"
         if not str(session["sid"]) in login_sessions: 
             login_sessions_lock.release()
             return "false"
+        login_sessions[str(session["sid"])]["last_update"] = time.time()
         login_sessions_lock.release()
-        return "true"
+        clean_sessions()
+        ew = world_edit_session #Copy to avoid race conditions so no locking
+        return return_json({"sessions": len(login_sessions), "edit_world": ew != None,
+                            "edit_other_session": ew != str(session["sid"]) })
     else:
-        login_sessions_lock.release()
         return "false"
     
     
@@ -116,7 +171,7 @@ def show_main_page():
     f = open("static/index.html", "r")
     r = f.read()
     f.close()
-    return r
+    return r.replace("${SESSION_TIMEOUT}", str(SESSION_TIMEOUT))
 
 @app.route('/world/<world>/surface')
 @app.route('/surface')
@@ -138,15 +193,26 @@ def api_map(world = None, map = None):
         return return_json(get_world(world).get_map(map))
     return return_json(get_world(world).world.maps_keysort)
 
-@app.route('/world/<world>/')
 @app.route('/robot')
 @app.route('/world/<world>/robot/<robot>')
+@app.route('/world/<world>/robot')
 @app.route('/robot/<robot>')
 def api_robot(world = None, robot = None):
     if not get_user_permission(session, "view"): return permission_error(request, "view")
     if robot:
-        return return_json(get_world(world).get_robot(robot))
-    return return_json(get_world(world).world.robots_keysort)
+        rd = get_world(world).get_robot(robot)
+        if request.args.get("include_type", "false") == "true":
+            rd["robot_type"] = get_world(world).world.types.robots.get(rd["robot_type"]).to_dict()
+        return return_json(rd)
+
+    if request.args.get("map", False) == False:
+        robots = get_world(world).world.robots_keysort
+    else:
+        robots = []
+        for robot in get_world(world).world.robots_keysort:
+            if get_world(world).world.robots[robot].location.map == request.args["map"]:
+                robots.append(robot)
+    return return_json(robots)
 
 @app.route('/fs/<path:filename>')
 def api_fs(filename):
@@ -175,6 +241,7 @@ def api_fspng(filename, imformat="PNG"):
 
 
 @app.route('/robot/<robot>/location', methods=["GET", "POST"])
+@app.route('/world/<world>/robot/<robot>/location', methods=["GET", "POST"])
 def api_robot_location(world = None, robot = None):
     if request.method == "GET": perm = "view"
     elif request.method == "POST" and world != None: perm = "plan"
@@ -185,7 +252,12 @@ def api_robot_location(world = None, robot = None):
         robot = get_world(world).get_robot(robot)
         if robot != None: robot = robot["location"]
         return return_json(robot)
-    return return_json(get_world(world).set_robot_location(robot, json.loads(request.data)))
+    
+    if not lock_world(world):
+        return lock_world_error(world)
+    r = return_json(get_world(world).set_robot_location(robot, json.loads(request.data)))
+    unlock_world(world)
+    return r
 
 
 @app.route('/robot/<robot>/holder', methods=["GET"])
@@ -204,12 +276,18 @@ def api_robot_holder(world = None, robot = None, holder = None):
             if robot != None: robot = get_world(world).world.objects.get(robot.uid, None)
             if robot != None: robot = robot.object_type.name
         return return_json(robot)
+    
+    if not lock_world(world):
+        return lock_world_error(world)
     ot = json.loads(request.data)    
     pre = True
     if type(ot) != type("") and type(ot) != type(u""):
         pre = ot["require_pre_existing_object"]
         ot = ot["object_type"]
-    return return_json(get_world(world).set_robot_holder(robot, holder, ot, pre))
+    
+    r = return_json(get_world(world).set_robot_holder(robot, holder, ot, pre))
+    unlock_world(world)
+    return r
 
 @app.route('/robot/<robot>/position', methods=["GET"])
 @app.route('/robot/<robot>/position/<position>', methods=["GET", "POST"])
@@ -225,9 +303,13 @@ def api_robot_position(world = None, robot = None, position = None):
         if robot != None and position != None: robot = robot["positions"].get(position, None)
         return return_json(robot)
     else:
+        if not lock_world(world):
+            return lock_world_error(world)
         if not position in get_world(world).get_robot(robot)["positions"]: return_json(False)
         set_data = json.loads(request.data)
-        return return_json(get_world(world).set_robot_position(robot, position, set_data))
+        r = return_json(get_world(world).set_robot_position(robot, position, set_data))
+        unlock_world(world)
+        return r
 
 @app.route('/robot/<robot>/type', methods=["GET"])
 def api_robot_type(world = None, robot = None):
@@ -244,6 +326,47 @@ def api_robot_type(world = None, robot = None):
     if robot != None: robot = robot.to_dict()
     return return_json(robot)
 
+
+@app.route('/edit_world', methods=["GET", "PUT"])
+def edit_world(world = None, robot = None):
+    global world_edit_session
+    if not get_user_permission(session, "edit"): return permission_error(request, "edit")
+    if request.method == "GET":
+        ew = edit_world_session
+        return return_json(rw == str(session["sid"]))
+    elif request.method == "PUT":
+        state = json.loads(request.data)
+        world_edit_lock.acquire()
+        if world_edit_session == None and state == True:
+            world_edit_session = str(session["sid"])
+            world_edit_lock.release()
+            return return_json(True)
+        elif world_edit_session == str(session["sid"]) and state == False:
+            world_edit_session = None
+            world_edit_lock.release()
+            return return_json(True)
+        world_edit_lock.release()
+        return return_json(False)
+    return return_json(False)
+
+@app.route('/world', methods=["GET", "PUT"])
+def api_world(world = None):
+    global login_sessions, login_sessions_lock
+    if not get_user_permission(session, "view"): return permission_error(request, "view")
+    wc = get_world(world)
+    login_sessions_lock.acquire()
+    if request.method == "GET":
+        r = return_json(login_sessions[str(session["sid"])]["worlds"].keys())
+    elif request.method == "PUT": 
+        world_name = json.loads(request.data)
+        manager.worlds["api_" + str(session["sid"]) + "_" + world_name] = wc.copy()
+        login_sessions[str(session["sid"])]["worlds"][world_name] = \
+            manager.worlds["api_" + str(session["sid"]) + "_" + world_name]
+        r = "true"
+    else:
+        r = "ERRROR"
+    login_sessions_lock.release()
+    return r
 
 app.run(debug=DEBUG)
 

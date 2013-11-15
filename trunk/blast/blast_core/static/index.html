@@ -6,6 +6,10 @@
     <link href="/static/style.css" rel="stylesheet" type="text/css" />
   </head>
   
+  <script>
+    SESSION_TIMEOUT = ${SESSION_TIMEOUT};
+  </script>
+  
   <body>
     <div style="margin-left: auto; margin-right: auto; width:400px;" id="primary-screen">
       <div style="height: 100px;"></div>
@@ -43,10 +47,19 @@
 	  <span class="square-button" id="zoom-out">-</span>
 	  <span class="square-button" id="zoom-in">+</span>
 	</div>
+	<div style="height: 10px;"></div>
+
+	<div class="edit-world" id="edit-world">
+	</div>
+
       </div>
       <div style="width: 800px; height: 800px; position:relative; overflow: scroll; float: right;">
-	<div id="map" style="position: relative; margin: 0px; padding: 0px; border: 0px;">
-	  <img src="" alt="Map failed to load" id="map-image" />
+	<div id="map-container" style="position: relative; margin: 0px; padding: 0px; border: 0px;">
+	  <div id="map" style="position: absolute; margin: 0px; padding: 0px; border: 0px;">
+	    <!--<div id="map-upper-left" style="position: absolute; left: 0px; top:0px; width: 1px; height: 1px;" />-->
+	    <img src="" alt="Map failed to load" id="map-image" style="position: absolute; left: 0px; top: 0px" draggable="false" />
+	    <!--<div id="map-lower-right" style="position: absolute; left: 0px; top:0px; width: 1px; height: 1px;" />-->
+	  </div>
 	</div>
       </div>
     </div>
