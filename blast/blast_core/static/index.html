@@ -39,6 +39,9 @@
     </div>
 
     <div style="margin-left: auto; margin-right: auto; width:1000px;" id="map-screen">
+
+
+
       <div style="height: 100px;"></div>
       <div style="width: 200px; height: 800px; float: left;">
 	<div style="width: 200px;">
@@ -52,7 +55,46 @@
 	<div class="edit-world" id="edit-world">
 	</div>
 
+	<div style="height: 10px;"></div>
+
+	<div class="edit-robot" id="edit-robot">
+	  <div style="width: 200px;">
+	    <span class="square-button" id="edit-robot-exit">X</span>
+	    <span class="square-button" id="edit-robot-reset" style="width: 100px;">RESET</span>
+	  </div>
+
+	  <div style="height: 10px;"></div>
+	  <div class="edit-item-1">
+	    <div id="edit-robot-name"></div>
+
+	    X: <input id="edit-robot-x" style="width: 35px;"/>
+	    Y: <input id="edit-robot-y" style="width: 35px;"/>
+	    A: <input id="edit-robot-a" style="width: 35px;"/>
+	    Map: <select id="edit-robot-map" style="width: 140px;"></select>
+	  </div>
+	  
+	  
+	</div>
+
+
+
+	<div class="edit-nothing" id="edit-nothing">
+	  <div style="width: 200px;" id="mapbuffer">
+	  </div>
+
+	  <div class="edit-item-1" id="map-items">
+	    Map Items
+	  </div>
+	  
+
+	  <div style="height: 10px;" id="map-items-buffer"></div>
+
+	  
+	  
+	</div>
+
       </div>
+      
       <div style="width: 800px; height: 800px; position:relative; overflow: scroll; float: right;">
 	<div id="map-container" style="position: relative; margin: 0px; padding: 0px; border: 0px;">
 	  <div id="map" style="position: absolute; margin: 0px; padding: 0px; border: 0px;">

@@ -289,6 +289,8 @@ def api_robot_holder(world = None, robot = None, holder = None):
     unlock_world(world)
     return r
 
+@app.route('/world/<world>/robot/<robot>/position', methods=["GET"])
+@app.route('/world/<world>/robot/<robot>/position/<position>', methods=["GET", "POST"])
 @app.route('/robot/<robot>/position', methods=["GET"])
 @app.route('/robot/<robot>/position/<position>', methods=["GET", "POST"])
 def api_robot_position(world = None, robot = None, position = None):
