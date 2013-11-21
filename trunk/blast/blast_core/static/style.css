@@ -82,3 +82,26 @@ div.edit-world-other {
 div.edit-world-other:hover {
     background-color: #F75C4C;
 }
+
+
+
+div.edit-item-1 {
+    border: 0px;
+    background-color: #2ECC71;
+    color: #FFF;
+    padding: 5px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 16px;
+    text-align: center;
+}
+div.edit-item-2 {
+    border: 0px;
+    background-color: #E74C3C;
+    color: #FFF;
+    padding: 5px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 16px;
+    text-align: center;
+}
