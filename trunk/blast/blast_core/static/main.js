@@ -1,5 +1,29 @@
 
+robots = {};
+robots_plan = {};
+surfaces = {};
+
+current_map_data = null;
+pixel_scale = 0.0; //pixels per meter
+map_zoom = 1.0;
+
+selected = null;
+selected_type = null;
+drag = null;
+
 ///////////////////////////////////////////////////////////////////
+
+function toFixed(value, precision) {
+    var precision = precision || 0,
+    neg = value < 0,
+    power = Math.pow(10, precision),
+    value = Math.round(value * power),
+    integral = String((neg ? Math.ceil : Math.floor)(value / power)),
+    fraction = String((neg ? -value : value) % power),
+    padding = new Array(Math.max(precision - fraction.length, 0) + 1).join('0');
+    return precision ? integral + '.' +  padding + fraction : integral;
+}
+
 $.postJSON = function(url, data, cb) {
     return $.ajax({type: "POST", url: url, dataType: 'json',
 		   contentType: 'application/json',
@@ -12,6 +36,12 @@ $.putJSON = function(url, data, cb) {
 		   success: cb});
 };
 
+$.deleteJSON = function(url, cb) {
+    return $.ajax({type: "DELETE", url: url, dataType: 'json',
+		   contentType: 'application/json',
+		   data: JSON.stringify({}),
+		   success: cb});
+};
 
 ///////////////////////////////////////////////////////////////////
 //Support reload.
@@ -83,14 +113,14 @@ $.putJSON( "/session", {}, function(data) {
 
     
     $.putJSON( "/world", "plan", function(data) {
-	/*$.postJSON("/world/plan/robot/stair4/location", 
+	$.postJSON("/world/plan/robot/stair4/location", 
 		   {"x": 20, "y": 40, "a": 0, "map": "clarkcenterfirstfloor"},
 		   function(data2) {
 		       $.getJSON( "/world/plan/robot/stair4/location", function(data2) {
 			   console.log(data2);
 		       });
 
-		   });*/
+		   });
     });
 
     hide_all();
@@ -99,6 +129,24 @@ $.putJSON( "/session", {}, function(data) {
 });
 
 $('#back').click(function() { hide_all(); $('#primary-screen').show(); });
+
+
+$('#plan-to-world').click(function() {
+    $.putJSON('/plan/plan', null, function(r) {
+	if (selected == null && selected_type == null) {
+	    update_select(null, null);
+	}
+    });
+});
+$('#plan-clear').click(function() {
+    if (confirm("Delete all actions?")) {
+	$.deleteJSON("/plan/plan", function() {
+	    if (selected == null && selected_type == null) {
+		update_select(null, null);
+	    }
+	});
+    }
+});
 
 ///////////////////////////////////////////////////////////////////
 
@@ -114,13 +162,6 @@ $.getJSON( "/map", function( data ) {
 });
 
 
-robots = {};
-robots_plan = {};
-surfaces = {};
-
-current_map_data = null;
-pixel_scale = 0.0; //pixels per meter
-map_zoom = 1.0;
 
 function position_div(div, x, y, a) {
     div.css("position", "absolute");
@@ -415,10 +456,6 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 
 
 
-selected = null;
-selected_type = null;
-drag = null;
-
 function update_select(nst, ns) {
     if (selected_type == "plan-robot") {
 	if (robots_plan[selected].div) {
@@ -487,8 +524,64 @@ function update_select(nst, ns) {
 		    }
 	      });
 	}
+
+	$.getJSON("/plan/plan", function(plan) {
+	    var edit_idx = 1;
+	    if (plan != null) {
+		for (var action_i in plan[0]) {
+		    var action = plan[0][action_i];
+		    edit_idx++;
+		    if (edit_idx > 2) { edit_idx = 1; }
+		    var str = "";
+		    for (var param in action[2]) {
+			var value = action[2][param];
+			if ('object' == typeof(value)) {
+			    if (value.x != undefined && value.y != undefined &&
+				value.a != undefined && value.map != undefined) {
+				str = str + ", " + param + ":(" + toFixed(value.x, 2) + ","
+				    + toFixed(value.y, 2) + "," + toFixed(value.a, 2) + "," + value.map + ")";
+			    } else {
+				str = str + ", " + param + ":STRANGE_OBJECT";
+			    }
+			} else {
+			    str = str + ", " + param + ":" + value;
+			}
+		    }
+		    $('<div class="edit-item-' + edit_idx + '">' + action[0] + ': '
+		      + action[1] + str + '</div>').data("idx", action_i)
+			.insertBefore($('#plan-buffer')).click(function() {
+			    if (confirm("Delete all actions after this one?")) {
+				$.deleteJSON("/plan/plan?start=" + $(this).data("idx"), function() {
+				    if (selected == null && selected_type == null) {
+					update_select(null, null);
+				    }
+				});
+			    }
+			});
+		}
+	    }
+
+	    if (plan != null && plan[1]) {
+		$('#plan-execute').removeAttr("disabled");
+		$('#plan-execute').attr("title", "");
+	    } else {
+		$('#plan-execute').attr("disabled", "disabled");
+		$('#plan-execute').attr("title", "Cannot execute this plan because the goal world changed");
+	    }
+	    if (plan != null && plan[0].length > 0) {
+		$('#plan-clear').removeAttr("disabled");
+		$('#plan-clear').attr("title", "");
+		
+	    } else {
+		$('#plan-clear').attr("disabled", "disabled");
+		$('#plan-clear').attr("title", "Can't clear empty plan");
+	    }
+
+	});
     }
 }
+
+
 update_select(null, null);
 
 function same_robot(r1, r2) { //visiually the same

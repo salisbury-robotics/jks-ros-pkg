@@ -370,6 +370,91 @@ def api_world(world = None):
     login_sessions_lock.release()
     return r
 
+
+@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
+@app.route('/plan/<target>', methods=["GET", "PUT", "DELETE"])
+def api_plan(target, world = None):
+    global login_sessions, login_sessions_lock
+    if request.method == "PUT" or request.method == "DELETE": 
+        if not get_user_permission(session, "plan"): return permission_error(request, "plan")
+    else:
+        if not get_user_permission(session, "view"): return permission_error(request, "view")
+
+    world_edit_lock.acquire()
+
+    if world_edit_session != None:
+        world_edit_lock.release()
+        return "false"
+
+    start = get_world(world)
+    end = get_world(target)
+    if start == None or end == None:
+        world_edit_lock.release()
+        return "null"
+
+
+    if request.method == "DELETE":
+        print request.args.get("start", "FAIL")
+        try:
+            start_i = int(request.args.get("start", "0"))
+        except:
+            start_i = 0
+        if start_i < 0: start_i = 0
+        start.plan_steps[end] = start.plan_steps[end][0:start_i]
+
+
+    start_clone = start.copy()
+    start_clone.real_world = False
+
+    if not end in start.plan_steps:
+        start.plan_steps[end] = []
+
+    for i in start.plan_steps[end]:
+        start_clone.take_action(i[0], i[1], i[2])
+
+
+    worked = None
+    equal = False
+    if request.method == "PUT":     
+        locations = []
+        for name, robot in end.world.robots.iteritems():
+            locations.append(robot.location.copy())
+
+
+        plan_to_world, time, steps = start_clone.plan(lambda w: w.equal(end.world), {"Pt": locations}, plan_and_return = True)
+
+        if plan_to_world != None:
+            worked = True
+            start.plan_steps[end].extend(steps)
+            equal = True
+        else:
+            worked = False
+            equal = False
+    else:
+        if request.method == "DELETE": worked = True
+        equal = start_clone.world.equal(end.world)
+    
+    if end in start.plan_steps:
+        p = [x for x in start.plan_steps[end]]
+
+        if True:
+            actions = {}
+            for robot, action, params in p:
+                if not robot in actions:
+                    actions[robot] = {}
+                if not action in actions[robot]:
+                    rt, at = start.world.types.get_action_for_robot(start.world.robots[robot].robot_type, action)
+                    actions[robot] = at.display
+        else:
+            actions = None
+    else:
+        actions = None
+        p = None
+    world_edit_lock.release()
+
+    return return_json([p, equal, worked, actions])
+
+
 app.run(debug=DEBUG)
 
 
