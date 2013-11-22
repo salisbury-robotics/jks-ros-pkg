@@ -24,11 +24,12 @@ class BlastError(Exception):
 
 
 class BlastAction(object):
-    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate', 'changes', 'planable']
-    def __init__(self, name, parameters, condition, time_estimate, changes, planable = True): #Name must be robot_type.action
+    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate', 'changes', 'display', 'planable']
+    def __init__(self, name, parameters, condition, time_estimate, changes, display, planable = True): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
+        self.display = display
         self.condition = condition
 
         if "robot" in self.parameters:
@@ -124,7 +125,9 @@ def make_test_actions():
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked")),
                         "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
-                        {"robot.location": "end" }),
+                        {"robot.location": "end" },
+                        [("line", "robot.location", "end", "00FF00"),
+                         ]),
             BlastAction("pr2.tuck-both-arms", {},
                         ("contains", "robot.left-arm", {"rotation_limit": [(0.5, math.pi)],
                                                         "accept_empty": True}), 
@@ -132,7 +135,8 @@ def make_test_actions():
                         {"robot.positions.left-arm": [0.06024, 1.248526, 1.789070, -1.683386, 
                                                       -1.7343417, -0.0962141, -0.0864407, None],
                          "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
-                                                        -1.4175, -1.8417, 0.21436, None]}),
+                                                        -1.4175, -1.8417, 0.21436, None]},
+                        [("icon", "robot.location", "action_fs/pr2/tuck_both_arms/icon.png"), ],),
             
             BlastAction("pr2-cupholder.buy-coffee", {"shop": "Surface:coffee_shop"},
                         ("&&", ("==", "robot.location", "shop.locations.start"),
@@ -141,13 +145,16 @@ def make_test_actions():
                         {"robot.location": "shop.locations.end",
                          "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                          "robot.positions.right-arm": "None()",
-                         "robot.holders.left-arm": "Object(\"coffee_cup\")"}),
+                         "robot.holders.left-arm": "Object(\"coffee_cup\")"},
+                        [("line", "robot.location", "shop.locations.end"),
+                         ("icon", "shop.locations.end", "action_fs/pr2/buy-coffee/icon.png"), ],),
             BlastAction("pr2.door-blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance"),
                          ("position", "robot.torso", [0.3,]),
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked")),
-                        "\"55\"", {"robot.location": "door.locations.out_exit"}),
+                        "\"55\"", {"robot.location": "door.locations.out_exit"},
+                        [("icon", "shop.locations.end", "action_fs/pr2/door-blast/icon.png"),],),
             BlastAction("pr2.door-drag", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.in_entrance"), 
                          ("position", "robot.torso", [0.3,]),
@@ -156,14 +163,17 @@ def make_test_actions():
                          ("contains", "robot.right-arm", "None()"),),
                         "\"115\"", {"robot.location": "door.locations.in_exit",
                                     "robot.positions.left-arm": False, 
-                                    "robot.positions.right-arm": False}),
+                                    "robot.positions.right-arm": False},
+                        [("icon", "shop.locations.end", "action_fs/pr2/door-drag/icon.png"),],),
 
             BlastAction("pr2.torso", {"height": "Joint:torso.torso"},
                         "True()", "\"20\"", #FIXME
-                        {"robot.positions.torso": ["height",]}),
+                        {"robot.positions.torso": ["height",]},
+                        [("icon", "shop.locations.end", "action_fs/pr2/torso/icon.png"),],),
             BlastAction("pr2.head", {"pan": "Joint:head.pan", "tilt": "Joint:head.tilt"},
                         "True()", "\"3\"",
-                        {"robot.positions.head": ["pan", "tilt",]}),
+                        {"robot.positions.head": ["pan", "tilt",]},
+                        [("icon", "shop.locations.end", "action_fs/pr2/head/icon.png"),],),
                         
             BlastAction("pr2.elevator", {"elevator": "Surface:elevator", 
                                          "infloor": "Location:elevator.floor_",
@@ -173,19 +183,22 @@ def make_test_actions():
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.torso", [0.0,]),
                          ("position", "robot.right-arm", "tucked")),
-                        "\"150\"", {"robot.location": "outfloor"}),
+                        "\"150\"", {"robot.location": "outfloor"},
+                        [("icon", "shop.locations.end", "action_fs/pr2/elevator/icon.png"),],),
             
             BlastAction("pr2.grab-object", {"tts-text": "String"}, 
                         ("contains", "robot.left-arm", "None()"),
                         "\"30\"", {"robot.holders.left-arm": "Object(\"arbitrary-object\")",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
+                        [("icon", "shop.locations.end", "action_fs/pr2/grab-object/icon.png"),],
                         planable = False),
             BlastAction("pr2.give-object", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.left-arm", "None()")),
                         "\"30\"", {"robot.holders.left-arm": "None()",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
+                        [("icon", "shop.locations.end", "action_fs/pr2/give-object/icon.png"),],
                         planable = False),
 
             
@@ -195,16 +208,19 @@ def make_test_actions():
                         "\"30\"", {"robot.holders.cupholder": "robot.holders.left-arm",
                                    "robot.holders.left-arm": "None()",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
-                                   "robot.positions.right-arm": False}),
+                                   "robot.positions.right-arm": False},
+                        [("icon", "shop.locations.end", "action_fs/pr2-cupholder/stash-cupholder/icon.png"),],),
             BlastAction("pr2-cupholder.unstash-cupholder", {}, 
                         ("&&", ("contains", "robot.cupholder", {"has_tag": "cupholder_object"}),
                          ("contains", "robot.left-arm",  "None()")),
                         "\"30\"", {"robot.holders.cupholder": "None()",
                                    "robot.holders.left-arm": "robot.holders.cupholder",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
-                                   "robot.positions.right-arm": False}),
+                                   "robot.positions.right-arm": False},
+                        [("icon", "shop.locations.end", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),],),
             BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
-                        "True()", "\"10000\"", {"robot.location": "person_location"}, planable = False),
+                        "True()", "\"10000\"", {"robot.location": "person_location"}, 
+                        [], planable = False),
             ]
 
 
@@ -253,7 +269,10 @@ class BlastWorldTypes(object):
         return self.actions.get(name, None)
 
     def get_action_for_robot(self, robot_type, action):
-        action_robot_type = robot_type
+        if type(robot_type) == type(""):
+            action_robot_type = self.get_robot(robot_type)
+        else:
+            action_robot_type = robot_type
         action_type = None
         while not action_type:
             action_type = self.get_action(action_robot_type.name + "." + action)

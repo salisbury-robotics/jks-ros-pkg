@@ -226,6 +226,7 @@ class BlastPlannableWorld:
     def __init__(self, world):
         self.world = world
         self.real_world = False
+        self.plan_steps = {}
         self.action_callback = lambda r, a, p: True
         def action_e_fail(r, a, p): 
             print "Action failed epically", r, "-->", a
@@ -236,11 +237,13 @@ class BlastPlannableWorld:
         c.real_world = False
         return c
 
-    def plan(self, world_good, extra_goals):
+    def plan(self, world_good, extra_goals, plan_and_return = False):
         planner = Planner(self.world.copy())
         planner.world_good = world_good
         planner.extra_goals = extra_goals
         world, est_time, steps = planner.plan_print()
+        if plan_and_return:
+            return world, est_time, steps
         if world != None and est_time != None and steps != None:
             print "Taking", len(steps), "steps"
             for step in steps:
