@@ -32,10 +32,13 @@ class BlastFs(object):
     def get_file(self, name):
         fs = self.get_file_name(name)
         if fs == None: return None
-        return open(self.get_file_name(name), "r")
+        try:
+            return open(self.get_file_name(name), "r")
+        except:
+            return None
         
 
-fs = BlastFs("", ["maps/", "robot_fs/"])
+fs = BlastFs("", ["maps/", "robot_fs/", "action_fs/"])
 
 def return_json(js):
     if type(js) != type(""): js = json.dumps(js)
@@ -217,11 +220,11 @@ def api_robot(world = None, robot = None):
 @app.route('/fs/<path:filename>')
 def api_fs(filename):
     if not get_user_permission(session, "view"): return permission_error(request, "view")
-    mime, encoding = fs.get_mime_type(filename)
     f = fs.get_file(filename)
-    if f == None: return ""
+    if f == None: return Response(response="", status=404)
     r = f.read()
     f.close()
+    mime, encoding = fs.get_mime_type(filename)
     resp = Response(response=r, status=200, mimetype=mime)
     return resp
 
@@ -229,7 +232,7 @@ def api_fs(filename):
 def api_fspng(filename, imformat="PNG"):
     if not get_user_permission(session, "view"): return permission_error(request, "view")
     f = fs.get_file(filename)
-    if f == None: return ""
+    if f == None: return Response(response="", status=404, mimetype="image/png")
     output = StringIO.StringIO()
     im = Image.open(f)
     im.save(output, format=imformat)
@@ -444,7 +447,7 @@ def api_plan(target, world = None):
                     actions[robot] = {}
                 if not action in actions[robot]:
                     rt, at = start.world.types.get_action_for_robot(start.world.robots[robot].robot_type, action)
-                    actions[robot] = at.display
+                    actions[robot][action] = {"display": at.display, "changes": at.changes }
         else:
             actions = None
     else:

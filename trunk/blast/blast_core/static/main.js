@@ -11,6 +11,8 @@ selected = null;
 selected_type = null;
 drag = null;
 
+plan_divs = [];
+
 ///////////////////////////////////////////////////////////////////
 
 function toFixed(value, precision) {
@@ -379,7 +381,6 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	robot.data.location.map = $(this).val();
 	$.postJSON(robot_url + selected + "/location", robot.data.location,
 		   function() {
-		       console.log(current_map_data);
 		       if ($(this).val() == current_map_data.name) {
 			   redraw();
 		       } else {
@@ -502,34 +503,125 @@ function update_select(nst, ns) {
     if (selected_type == null && selected == null) {
 	$('#edit-robot').hide();
 	$('#edit-nothing').show();
-	
 	$('#edit-nothing').children().each(function(i) {
 	    if (!$(this).attr('id')) {
 		$(this).remove();
 	    }
 	});
 	
-	var edit_idx = 1;
-	for (var robot in robots) {
-	    var robot = robots[robot];
-	    edit_idx++;
-	    if (edit_idx > 2) { edit_idx = 1; }
-	    $('<div class="edit-item-' + edit_idx + '">' + robot.data.name + '</div>')
-		.insertBefore($('#map-items-buffer')).data('robot', robot.data.name)
-		.click(function() {
-		    if (is_editting_world) {
-			update_select("edit-robot", $(this).data('robot'));
-		    } else {
-			update_select("plan-robot", $(this).data('robot'));
-		    }
-	      });
-	}
-
 	$.getJSON("/plan/plan", function(plan) {
 	    var edit_idx = 1;
+
+	    $('#edit-nothing').children().each(function(i) {
+		if (!$(this).attr('id')) {
+		    $(this).remove();
+		}
+	    });
+	    
+	    var edit_idx = 1;
+	    for (var robot in robots) {
+		var robot = robots[robot];
+		edit_idx++;
+		if (edit_idx > 2) { edit_idx = 1; }
+		$('<div class="edit-item-' + edit_idx + '">' + robot.data.name + '</div>')
+		    .insertBefore($('#map-items-buffer')).data('robot', robot.data.name)
+		    .click(function() {
+			if (is_editting_world) {
+			    update_select("edit-robot", $(this).data('robot'));
+			} else {
+			    update_select("plan-robot", $(this).data('robot'));
+			}
+		    });
+	    }
+	    
+	    $('#edit-nothing').children().each(function(i) {
+		if (!$(this).attr('id')) {
+		    $(this).remove();
+		}
+	    });
+	
+	    for (var i in plan_divs) {
+		plan_divs[i].remove();
+	    }
+	    plan_divs = [];
 	    if (plan != null) {
+		
+		var robot_locations = {};
+		for (var robot in robots) {
+		    robot_locations[robot] = robots[robot].data.location;
+		}
+
 		for (var action_i in plan[0]) {
 		    var action = plan[0][action_i];
+
+		    for (var step_i in plan[3][action[0]][action[1]].display) {
+			var step = plan[3][action[0]][action[1]].display[step_i];
+			if (step[0] == "line") {
+			    var startl = action[2][step[1]];
+			    if (step[1] == "robot.location") {
+				startl = robot_locations[robot];
+			    }
+			    var endl = action[2][step[2]];
+			    if (step[2] == "robot.location") {
+				endl = robot_locations[robot];
+			    }
+			    if (endl && startl) {
+				if (endl.map != current_map_data.map) { endl = null; }
+				if (startl.map != current_map_data.map) { startl = null; }
+			    } else {
+				console.log("Failed to draw line:");
+				console.log(step);
+			    }
+
+			    if (endl && startl) {
+				var len = Math.sqrt((startl.x - endl.x) * (startl.x - endl.x) + (startl.y - endl.y) * (startl.y - endl.y));
+				var ndots = Math.floor(len * 2);
+				if (ndots < 2) { ndots = 2; }
+				for (var dot_iter = 0; dot_iter < ndots; dot_iter++) {
+				    var scale = dot_iter / (ndots - 1.0);
+				    var x = (endl.x - startl.x) * scale + startl.x;
+				    var y = (endl.y - startl.y) * scale + startl.y;
+				    var dot = $('<div style=\"position: absolute; width: 3px; height: 3px; background-color: #'
+						+ step[3] + '; "></div>').appendTo("#map");
+				    position_div(dot, x, y, 0);
+				    plan_divs.push(dot);
+				}
+			    }
+			} else if (step[0] == "icon") {
+			    var l = action[2];
+			    if (step[1] == "robot.location") {
+				l = robot_locations[robot];
+			    } else {
+				for (var sub in step[1].split(".")) {
+				    if (typeof(l) == "string") {
+					l = surfaces[l].data;
+				    }
+				    l = l[step[1].split(".")[sub]];
+				}
+			    }
+			    var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
+					+ 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
+			    var a = 0; if (step[3] == "rotate") { a = l.a; }
+			    position_div(dot, l.x, l.y, a);
+			    plan_divs.push(dot);
+			} else {
+			    console.log("Failed a display element:");
+			    console.log(step);
+			}
+		    }
+		    for (var step_name in plan[3][action[0]][action[1]].changes) {
+			var step = plan[3][action[0]][action[1]].changes[step_name];
+			if (step_name == "robot.location") {
+			    robot_locations[robot] = action[2];
+			    for (var sub in step.split(".")) {
+				if (typeof(robot_locations[robot]) == "string") {
+				    robot_locations[robot] = surfaces[robot_locations[robot]].data;
+				}
+				robot_locations[robot] = robot_locations[robot][step.split(".")[sub]];
+			    }
+			}
+		    }
+
 		    edit_idx++;
 		    if (edit_idx > 2) { edit_idx = 1; }
 		    var str = "";
@@ -615,6 +707,8 @@ function show_map(map) {
 	    }
 	}
 
+	update_select(null, null);
+
 	$.getJSON("/robot?map=" + map, function(data) {
 	    for (var robot in data) {
 		var robot = data[robot];
@@ -682,6 +776,7 @@ function show_map(map) {
 				  }
 			      }
 			      surfaces[surface_data.name] = {'data': surface_data, 'divs': divs};
+			      update_select(null, null);
 			  });
 	    }
 	});
