@@ -599,11 +599,13 @@ function update_select(nst, ns) {
 				    l = l[step[1].split(".")[sub]];
 				}
 			    }
-			    var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
-					+ 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
-			    var a = 0; if (step[3] == "rotate") { a = l.a; }
-			    position_div(dot, l.x, l.y, a);
-			    plan_divs.push(dot);
+			    if (l.map == current_map_data.map) {
+				var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
+					    + 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
+				var a = 0; if (step[3] == "rotate") { a = l.a; }
+				position_div(dot, l.x, l.y, a);
+				plan_divs.push(dot);
+			    }
 			} else {
 			    console.log("Failed a display element:");
 			    console.log(step);
