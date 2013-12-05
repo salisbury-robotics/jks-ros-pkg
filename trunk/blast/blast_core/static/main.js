@@ -135,6 +135,14 @@ $('#back').click(function() { hide_all(); $('#primary-screen').show(); });
 
 $('#plan-to-world').click(function() {
     $.putJSON('/plan/plan', null, function(r) {
+	if (!r) {
+	    alert("Planning failed!");
+	    return;
+	}
+	if (!r[1] || !r[2]) {
+	    alert("Planning failed!");
+	    return;
+	}
 	if (selected == null && selected_type == null) {
 	    update_select(null, null);
 	}
@@ -148,6 +156,115 @@ $('#plan-clear').click(function() {
 	    }
 	});
     }
+});
+
+///////////////////////////////////////////////////////////////////
+
+$('#plan-action-div').hide();
+$('#plan-action').click(function () {
+    $('#plan-action-robot').html('');
+    for (var r in robots) {
+	$('#plan-action-robot').append('<option value=\"' + r + '\">' + r + '</option>');
+    }
+    $('#plan-action-robot').unbind('change').change(function() {
+	$('#plan-action-type').html('');
+	$('#plan-action-type').unbind('change');
+	$.getJSON('/action_type/' + robots[$(this).val()].data.robot_type.name, 
+		  function(data) {
+		      for (var d in data) {
+			  if (data[d][2]) {
+			      $('#plan-action-type').append('<option value=\"' + data[d][0] + "." +
+							    data[d][1] + '\">' + data[d][1] + '</option>');
+			  }
+		      }
+		      $('#plan-action-type').append('<option disabled="disabled">----------------------</option>');
+		      for (var d in data) {
+			  if (!data[d][2]) {
+			      $('#plan-action-type').append('<option value=\"' + data[d][0] + "." +
+							    data[d][1] + '\">' + data[d][1] + '</option>');
+			  }
+		      }
+		      $('#plan-action-type').unbind('change').change(function() {
+			  $('#plan-action-items').html('');
+			  $.getJSON('/action_type/' + $(this).val().replace(".", "/"),
+				    function(data) {
+					$('#plan-action-items').data('parameters', data.parameters);
+					for (var param in data.parameters) {
+					    var param_type = data.parameters[param];
+					    if (param_type == "Pt") {
+						$('#plan-action-items').append(param + ": x:<input id=\"plan-action-item-x-" + param
+									       + "\" value=\"17.5\" size=\"10\"></input>");
+						$('#plan-action-items').append(" y: <input id=\"plan-action-item-y-" + param 
+									       + "\" value=\"38.4\" size=\"10\"></input>");
+						$('#plan-action-items').append(" a: <input id=\"plan-action-item-a-" + param
+									       + "\" value=\"-2.3\" size=\"10\"></input>");
+						var map_sel = $('<select id="plan-action-item-map-' + param + '"></select>');
+						for (var i in maps) {
+						    var sel = ""; if (maps[i] == "clarkcenterfirstfloor") { sel = "selected=\"selected\""; }
+						    map_sel.append('<option value=\"' + maps[i] + '\" ' + sel + '>' + maps[i] + '</option>');
+						}
+						$('#plan-action-items').append(map_sel);
+						$('#plan-action-items').append("<br>");
+					    } else if (param_type.indexOf("Surface:") == 0) {
+						var st = param_type.split(":")[1],  sel = "selected=\"selected\"";
+						var surface_sel = $('<select id="plan-action-item-surface-' + param + '"></select>');
+						for (var i in surfaces) {
+						    if (surfaces[i].data.type == st) {
+							surface_sel.append('<option value=\"' + i + '\" ' + sel + '>' + i + '</option>');
+							sel = "";
+						    }
+						}
+						$('#plan-action-items').append(param + ": ");
+						$('#plan-action-items').append(surface_sel);
+						$('#plan-action-items').append("<br>");
+					    } else if (param_type == "String" || param_type.indexOf("Joint:") == 0) {
+						$('#plan-action-items').append(param + ": <input id=\"plan-action-item-str-" + param + "\"></input> <br>");
+					    } else {
+						$('#plan-action-items').append(param + ": Invalid Parameter Type: " + param_type + "<br>");
+					    }
+					}
+				    }
+				   );
+		      }).trigger("change");
+		  });
+
+
+    }).trigger('change');
+    $('#plan-action-div').show();
+});
+
+$('#plan-action-ok').click(function () {
+    var parameters = $('#plan-action-items').data('parameters');
+    var params = {};
+    for (var param in parameters) {
+	var param_type = parameters[param];
+	if (param_type == "Pt") {
+	    params[param] = {"x": $("#plan-action-item-x-" + param).val(),
+			     "y": $("#plan-action-item-y-" + param).val(),
+			     "a": $("#plan-action-item-a-" + param).val(),
+			     "map": $("#plan-action-item-map-" + param).val()};
+	} else if (param_type.indexOf("Surface:") == 0) {
+	    params[param] = $("#plan-action-item-surface-" + param).val();
+	} else if (param_type == "String" || param_type.indexOf("Joint:") == 0) {
+	    params[param] = $("#plan-action-item-str-" + param).val();
+	} else {
+	    alert("Invalid parameter type: " + param);
+	}
+    }
+    
+    $.putJSON('/plan/plan', {"robot": $('#plan-action-robot').val(), "action": $('#plan-action-type').val(),
+			     "parameters": params },
+	      function(r) {
+		  update_select(null, null);
+		  $.getJSON('/robot/' + $('#plan-action-robot').val() + "/location", function (data) {
+		      show_map(data.map);
+		  });
+	      });
+    $('#plan-action-div').hide();
+});
+
+$('#plan-action-cancel').click(function () {
+    $('#plan-action-div').hide();
 });
 
 ///////////////////////////////////////////////////////////////////

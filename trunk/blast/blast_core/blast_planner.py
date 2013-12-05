@@ -106,10 +106,12 @@ class Planner:
 
                 #Now enumerate all possible actions
                 world_clone = world[0].copy()
+                #print robot_name, robot.location.to_text()
                 for at in action_types:
                     planable, pv = world_clone.enumerate_action(robot_name, at, self.extra_goals)
                     if not planable or pv == False:
                         continue
+                    #print robot_name, at, [x for x in self.parameter_iter(pv)]
                     for parameters in self.parameter_iter(pv):
                         self.actions_tested = self.actions_tested + 1
                         change = world_clone.take_action(robot_name, at, parameters) 
@@ -237,7 +239,7 @@ class BlastPlannableWorld:
         c.real_world = False
         return c
 
-    def plan(self, world_good, extra_goals, plan_and_return = False):
+    def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False):
         planner = Planner(self.world.copy())
         planner.world_good = world_good
         planner.extra_goals = extra_goals
@@ -264,6 +266,8 @@ class BlastPlannableWorld:
         else:
             print "FAILED!"
             return None
+        if report_plan:
+            return world, est_time, steps
         return True
     
     def plan_to_location(self, robot, location):
@@ -335,11 +339,18 @@ class BlastPlannableWorld:
         if rb != None: rb = rb.to_dict()
         return rb
 
-    def plan_action(self, robot, action, parameters):
+    def plan_action(self, robot, action, parameters, plan_and_return = False, include_action = False):
         #FIXME: this can create problems if parameters is an extra element
-        r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, {})
+        r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, 
+                      {}, plan_and_return = plan_and_return, report_plan = True)
+        print "STUFFFFFFF", r
         if r != None:
-            return self.take_action(robot, action, parameters)
+            if include_action:
+                r[2].append((robot, action, parameters))
+            if not plan_and_return:
+                worked = self.take_action(robot, action, parameters)
+                if not worked:
+                    return None #This really shouldn't happen, because the action is tested.
         return r   
 
     def take_action(self, robot, action, parameters, debug = True):
