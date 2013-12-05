@@ -331,6 +331,27 @@ def api_robot_type(world = None, robot = None):
     if robot != None: robot = robot.to_dict()
     return return_json(robot)
 
+@app.route('/action_type/<robot_type>/<action_type>', methods=["GET"])
+@app.route('/action_type/<robot_type>', methods=["GET"])
+@app.route('/action_type', methods=["GET"])
+def action_type(world = None, robot_type = None, action_type = None):
+    if not get_user_permission(session, "view"): return permission_error(request, "view")
+    if action_type and robot_type:
+        return return_json(get_world(world).world.types.actions[robot_type + "." + action_type].to_dict())
+    
+    rts = None
+    if robot_type:
+        rts = []
+        rt = get_world(world).world.types.robots.get(robot_type, None)
+        while rt:
+            rts.append(rt.name)
+            rt = rt.parent
+
+    ats = []
+    for name, action in get_world(world).world.types.actions.iteritems():
+        if rts == None or name.split(".")[0] in rts:
+            ats.append(name.split(".") + [action.user,])
+    return return_json(ats)
 
 @app.route('/edit_world', methods=["GET", "PUT"])
 def edit_world(world = None, robot = None):
@@ -395,7 +416,7 @@ def api_plan(target, world = None):
         world_edit_lock.release()
         return "null"
 
-
+    action_data = None
     if request.method == "DELETE":
         print request.args.get("start", "FAIL")
         try:
@@ -404,7 +425,8 @@ def api_plan(target, world = None):
             start_i = 0
         if start_i < 0: start_i = 0
         start.plan_steps[end] = start.plan_steps[end][0:start_i]
-
+    elif request.method == "PUT":
+        action_data = json.loads(request.data)
 
     start_clone = start.copy()
     start_clone.real_world = False
@@ -412,24 +434,50 @@ def api_plan(target, world = None):
     if not end in start.plan_steps:
         start.plan_steps[end] = []
 
+    print "Taking already taken steps"
     for i in start.plan_steps[end]:
         start_clone.take_action(i[0], i[1], i[2])
+    print "Done"
+    print
+    print request.method
 
 
     worked = None
     equal = False
+
+    #Planning occurs in three phases: 
+    #1. Plan to achieve the world
+    #2. Plan to achieve the world where the action can be run
+    #3. Actually do the action
+    #Phases 2 and 3 are optional, conditioned on action_data not sucking, 
+    #and phases 2 and 3 actually modified the plan world. If you specify 
+    #and action, you have to reload the world. ALSO end world can't be real
+
     if request.method == "PUT":     
         locations = []
         for name, robot in end.world.robots.iteritems():
             locations.append(robot.location.copy())
-
-
-        plan_to_world, time, steps = start_clone.plan(lambda w: w.equal(end.world), {"Pt": locations}, plan_and_return = True)
+        
+        print "Planning...."
+        plan_to_world, time, steps = start_clone.plan(lambda w: w.equal(end.world, tolerant=True), 
+                                                      {"Pt": locations}, plan_and_return = True)
+        print "Result:", plan_to_world
+        print "Done", steps, time
 
         if plan_to_world != None:
             worked = True
             start.plan_steps[end].extend(steps)
             equal = True
+
+            if (action_data):
+                plan_final_world, time2, steps = end.plan_action(action_data["robot"], action_data["action"].split(".")[-1], 
+                                                                 action_data["parameters"], include_action = True)
+                if plan_final_world != None:
+                    #Note - all of these steps need to be applied to the end world
+                    start.plan_steps[end].extend(steps)
+                else:
+                    worked = False
+                    equal = False
         else:
             worked = False
             equal = False

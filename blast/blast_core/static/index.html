@@ -38,8 +38,27 @@
       </div>
     </div>
 
-    <div style="margin-left: auto; margin-right: auto; width:1000px;" id="map-screen">
+    <div style="margin-left: auto; margin-right: auto; width:1000px; position: relative;" id="map-screen">
 
+
+      <div id="plan-action-div"
+	   style="position: absolute; width: 800px; height: 560px; top: 200px; left: 100px; background-color: #2980b9; z-index: 9000; ">
+	<div style="width: 700px; margin: 50px; text-align: center;">
+	  Order Action
+	</div>
+
+	<div style="width: 760px; margin: 20px; text-align: center;">
+	  Robot: <select id="plan-action-robot"></select> Action: <select id="plan-action-type"></select>
+	</div>
+
+	<div id="plan-action-items" style="width: 760px; margin: 20px; text-align: center; overflow: auto; height: 300px;">
+	</div>
+
+	<div style="width: 750px; margin: 25px; text-align: center;">
+	  <button class="edit-world" id="plan-action-ok">Plan</button>
+	  <button class="edit-world edit-world-other" id="plan-action-cancel">Cancel</button>
+	</div>
+      </div>
 
 
       <div style="height: 100px;"></div>
@@ -81,6 +100,9 @@
 	<div class="edit-nothing" id="edit-nothing">
 	  <div style="width: 200px;" id="mapbuffer">
 	  </div>
+
+	  <button class="edit-world" id="plan-action">Plan Action</button>
+	  <div style="height: 10px;" id="plan-action-buffer"></div>
 
 	  <div class="edit-item-1" id="map-items">
 	    Map Items

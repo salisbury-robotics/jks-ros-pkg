@@ -24,8 +24,14 @@ class BlastError(Exception):
 
 
 class BlastAction(object):
-    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate', 'changes', 'display', 'planable']
-    def __init__(self, name, parameters, condition, time_estimate, changes, display, planable = True): #Name must be robot_type.action
+    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate', 'changes', 'display', 'planable', 'user']
+
+    def to_dict(self):
+        return {"name": self.name, "parameters": self.parameters, "condition": self.condition, 
+                "time_estimate": self.changes, "display": self.display, 
+                "planable": self.planable, 'user': self.user}
+
+    def __init__(self, name, parameters, condition, time_estimate, changes, display, planable = True, user = False): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
@@ -65,6 +71,7 @@ class BlastAction(object):
             self.validate("Invalid expression for variable " + var + " in " + name, self.changes[var])
 
         self.planable = planable
+        self.user = user
         #FIXME: keywords: robot
 
     def validate(self, text, exp):
@@ -220,7 +227,7 @@ def make_test_actions():
                         [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),],),
             BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "\"10000\"", {"robot.location": "person_location"}, 
-                        [], planable = False),
+                        [], planable = False, user = True),
             ]
 
 
@@ -1184,8 +1191,8 @@ class BlastWorld(object):
                     if not clone_param:
                         parameters = parameters.copy() #Avoid mutating the original dictionary
                         clone_param = True
-                    parameters[name] = BlastPt(parameters[name]["x"], parameters[name]["y"], 
-                                               parameters[name]["a"], parameters[name]["map"])
+                    parameters[name] = BlastPt(float(parameters[name]["x"]), float(parameters[name]["y"]), 
+                                               float(parameters[name]["a"]), parameters[name]["map"])
             elif ptype.find("Surface:") == 0:
                 if type(parameters[name]) == type("") or type(parameters[name]) == type(u""):
                     if not clone_param:
@@ -1210,8 +1217,8 @@ class BlastWorld(object):
                 vals = [get_value(x) for x in args]
                 if func == "dist":
                     #FIXME: type check, map same check
-                    dx = (vals[0].x - vals[1].x)
-                    dy = (vals[0].y - vals[1].y)
+                    dx = float(vals[0].x) - float(vals[1].x)
+                    dy = float(vals[0].y) - float(vals[1].y)
                     val = math.sqrt(dx * dx + dy * dy)
                 elif func == "mul":
                     val = float(vals[0])
