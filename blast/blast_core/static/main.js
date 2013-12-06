@@ -668,6 +668,8 @@ function update_select(nst, ns) {
 		    robot_locations[robot] = robots[robot].data.location;
 		}
 
+		var fixed_actions = 0;
+
 		for (var action_i in plan[0]) {
 		    var action = plan[0][action_i];
 
@@ -758,8 +760,13 @@ function update_select(nst, ns) {
 			    str = str + ", " + param + ":" + value;
 			}
 		    }
-		    $('<div class="edit-item-' + edit_idx + '">' + action[0] + ': '
-		      + action[1] + str + '</div>').data("idx", action_i)
+		    var color = "";
+		    if (action[3]) {
+			fixed_actions++;
+			color = "background-color: grey;";
+		    }
+		    $('<div class="edit-item-' + edit_idx + '" style="' + color + '">' + action[0] 
+		      + ': ' + action[1] + str + '</div>').data("idx", action_i - fixed_actions)
 			.insertBefore($('#plan-buffer')).click(function() {
 			    if (confirm("Delete all actions after this one?")) {
 				$.deleteJSON("/plan/plan?start=" + $(this).data("idx"), function() {
@@ -792,6 +799,11 @@ function update_select(nst, ns) {
     }
 }
 
+$('#plan-execute').click(function() {
+    $.postJSON("/execute_plan/plan", null, function(result) {
+	alert(result);
+    });
+});
 
 update_select(null, null);
 

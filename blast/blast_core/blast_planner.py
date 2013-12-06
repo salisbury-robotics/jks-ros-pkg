@@ -229,6 +229,8 @@ class BlastPlannableWorld:
         self.world = world
         self.real_world = False
         self.plan_steps = {}
+        self.current_plan = []
+        self.post_exec_world = None
         self.action_callback = lambda r, a, p: True
         def action_e_fail(r, a, p): 
             print "Action failed epically", r, "-->", a
