@@ -10,6 +10,7 @@ SESSION_TIMEOUT = 10.0
 
 manager = blast_action.BlastManager(["test_world"], blast_world.make_test_world())
 world_edit_lock = threading.Lock()
+WORLD_EDIT_EXECUTING_PLAN = "EXECUTING_PLAN"
 world_edit_session = None
 
 
@@ -406,15 +407,16 @@ def api_plan(target, world = None):
 
     world_edit_lock.acquire()
 
-    if world_edit_session != None:
-        world_edit_lock.release()
-        return "false"
+    #if world_edit_session != None:
+    #    world_edit_lock.release()
+    #    return "false"
 
     start = get_world(world)
     end = get_world(target)
     if start == None or end == None:
         world_edit_lock.release()
-        return "null"
+        print "Error: world in planner"
+        return return_json(None)
 
     action_data = None
     if request.method == "DELETE":
@@ -428,13 +430,16 @@ def api_plan(target, world = None):
     elif request.method == "PUT":
         action_data = json.loads(request.data)
 
-    start_clone = start.copy()
+    if start.post_exec_world:
+        start_clone = start.post_exec_world.copy()
+    else:
+        start_clone = start.copy()
     start_clone.real_world = False
 
     if not end in start.plan_steps:
         start.plan_steps[end] = []
 
-    print "Taking already taken steps"
+    print "Taking already taken steps", start.current_plan
     for i in start.plan_steps[end]:
         start_clone.take_action(i[0], i[1], i[2])
     print "Done"
@@ -483,14 +488,15 @@ def api_plan(target, world = None):
             equal = False
     else:
         if request.method == "DELETE": worked = True
-        equal = start_clone.world.equal(end.world)
+        equal = start_clone.world.equal(end.world, tolerant=True)
     
     if end in start.plan_steps:
-        p = [x for x in start.plan_steps[end]]
+        p = [(x[0], x[1], x[2], True) for x in start.current_plan]
+        p = p + [(x[0], x[1], x[2], False) for x in start.plan_steps[end]]
 
         if True:
             actions = {}
-            for robot, action, params in p:
+            for robot, action, params, is_unplanned in p:
                 if not robot in actions:
                     actions[robot] = {}
                 if not action in actions[robot]:
@@ -506,7 +512,91 @@ def api_plan(target, world = None):
     return return_json([p, equal, worked, actions])
 
 
-app.run(debug=DEBUG)
+@app.route('/execute_plan/<target>', methods=["POST"])
+def execute_plan(target):
+    global world_edit_session, world_edit_lock
+    if not get_user_permission(session, "plan"): return permission_error(request, "plan")
+    world_edit_lock.acquire()
+    start = get_world(None)
+    end = get_world(target)
+
+    if start.post_exec_world:
+        start_clone = start.post_exec_world.copy()
+    else:
+        start_clone = start.copy()
+    start_clone.real_world = False
+
+    if not end in start.plan_steps:
+        start.plan_steps[end] = []
+
+    print "Taking already taken steps"
+    for i in start.plan_steps[end]:
+        start_clone.take_action(i[0], i[1], i[2])
+    if not start_clone.world.equal(end.world, tolerant=True):
+        world_edit_lock.release()
+        return return_json(False)
+
+    if world_edit_session != None and world_edit_session != WORLD_EDIT_EXECUTING_PLAN:
+        world_edit_lock.release()
+        return return_json(False)
+    else:
+        world_edit_session = WORLD_EDIT_EXECUTING_PLAN
+
+    start.post_exec_world = start_clone
+    start.current_plan.extend(start.plan_steps[end])
+    start.plan_steps[end] = []
+
+    world_edit_lock.release()
+
+    return return_json(True)
+
+
+class ManagerThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.alive = True
+        pass
+
+    def run(self):
+        global world_edit_session, world_edit_lock, manager
+        while self.alive:
+            world_edit_lock.acquire()
+            current_action = None
+            if manager.world.current_plan != []:
+                world_edit_session = WORLD_EDIT_EXECUTING_PLAN
+                current_action = manager.world.current_plan[0]
+            else:
+                manager.world.post_exec_world = None
+                world_edit_session = None
+            world_edit_lock.release()
+
+            if current_action:
+                print "Take action!", current_action
+                try:
+                    time.sleep(10.0)
+                except:
+                    alive = False
+
+                #Only remove here so that the display of the current plan
+                #won't be deleted until here
+                world_edit_lock.acquire()
+                manager.world.current_plan = manager.world.current_plan[1:]
+                world_edit_lock.release()
+
+                #TODO: deal with the fallout of the action, trigger a re-load
+            else:
+                try:
+                    time.sleep(0.1)
+                except:
+                    alive = False
+
+
+mthread = ManagerThread()
+mthread.start()
+
+app.run(debug=DEBUG, threaded=True)
+mthread.alive = False
+mthread.join()
 
 
 
