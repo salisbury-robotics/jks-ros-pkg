@@ -390,6 +390,10 @@ function redraw_robot(robots, robot_data, border) {
     }
     robots[robot_data.name].data = robot_data;
     robots[robot_data.name].div = div;
+    
+    if (selected == robot_data.name && (selected_type == "plan-robot" || selected_type == "robot")) {
+	update_select(selected_type, robot_data.name);
+    }
 };
 
 
@@ -415,7 +419,6 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	$.getJSON(robot_url + selected + "?include_type=true", 
 		  function(robot_data) {
 		      redraw_robot(robot_dir, robot_data, "3px solid #e67e22");
-		      update_select(selected_type_r, robot_data.name);
 		  });
     };
     
@@ -538,7 +541,6 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 			   $.getJSON(robot_url + selected + "?include_type=true", 
 				     function(robot_data) {
 					 redraw_robot(robot_dir, robot_data, "3px solid #e67e22");
-					 update_select(selected_type_r, robot_data.name);
 				     });
 		       });
 	    drag = null;
@@ -563,7 +565,6 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 			   $.getJSON(robot_url + selected + "?include_type=true", 
 				     function(robot_data) {
 					 redraw_robot(robot_dir, robot_data, "3px solid #e67e22");
-					 update_select(selected_type_r, robot_data.name);
 				     });
 		       });
 	    drag = null;
@@ -824,93 +825,96 @@ function show_map(map) {
     $.getJSON("/map/" + map, function (data) {
 	current_map_data = data;
 	pixel_scale = data.ppm;
-	$('#map-image').attr('src', '/fspng/' + data.map_file);
-
-	for (var robot in robots) { 
-	    robots[robot].div.remove();
-	}
-	for (var robot in robots_plan) { 
-	    robots_plan[robot].div.remove();
-	}
-	for (var surface in surfaces) { 
-	    for (var i in surfaces[surface].divs) { 
-		surfaces[surface].divs[i].remove();
+	$('#map-image').unbind('load').load(function() {
+	    for (var robot in robots) { 
+		robots[robot].div.remove();
 	    }
-	}
-
-	update_select(null, null);
-
-	$.getJSON("/robot?map=" + map, function(data) {
-	    for (var robot in data) {
-		var robot = data[robot];
-		$.getJSON("/robot/" + robot + "?include_type=true", function(d) {
-		    redraw_robot(robots, d);
-		    robots[d.name].default_ocf = function() {
-			if (is_editting_world) {
-			    update_select("edit-robot", $(this).data("robot"));
-			} else {
-			    if (robots_plan[d.name].data.location.map == robots[d.name].data.location.map) {
-				update_select(null, null);
-				robots_plan[d.name].div.show();
-				update_select("plan-robot", $(this).data("robot"));
+	    for (var robot in robots_plan) { 
+		robots_plan[robot].div.remove();
+	    }
+	    for (var surface in surfaces) { 
+		for (var i in surfaces[surface].divs) { 
+		    surfaces[surface].divs[i].remove();
+		}
+	    }
+	    
+	    update_select(null, null);
+	    
+	    $.getJSON("/robot?map=" + map, function(data) {
+		for (var robot in data) {
+		    var robot = data[robot];
+		    $.getJSON("/robot/" + robot + "?include_type=true", function(d) {
+			redraw_robot(robots, d);
+			robots[d.name].default_ocf = function() {
+			    if (is_editting_world) {
+				update_select("edit-robot", $(this).data("robot"));
 			    } else {
-				alert("Robot is on " + robots_plan[d.name].data.location.map + ".");
+				if (robots_plan[d.name].data.location.map == robots[d.name].data.location.map) {
+				    update_select(null, null);
+				    robots_plan[d.name].div.show();
+				    update_select("plan-robot", $(this).data("robot"));
+				} else {
+				    alert("Robot is on " + robots_plan[d.name].data.location.map + ".");
+				}
+			    }
+			};
+			robots[d.name].div.click(robots[d.name].default_ocf);
+			if (robots_plan[d.name]) {
+			    if (same_robot(robots_plan[d.name], robots[d.name])) {
+				robots_plan[d.name].div.hide();
+			    } else {
+				robots_plan[d.name].div.show();
 			    }
 			}
-		    };
-		    robots[d.name].div.click(robots[d.name].default_ocf);
-		    if (robots_plan[d.name]) {
-			if (same_robot(robots_plan[d.name], robots[d.name])) {
-			    robots_plan[d.name].div.hide();
-			} else {
-			    robots_plan[d.name].div.show();
-			}
-		    }
-		    update_select(null, null);
-		});
-	    }
-	});
-	$.getJSON("/world/plan/robot?map=" + map, function(data) {
-	    for (var robot in data) {
-		var robot = data[robot];
-		$.getJSON("/world/plan/robot/" + robot + "?include_type=true", function(d) {
-		    redraw_robot(robots_plan, d, "3px solid #2ecc71");
-		    robots_plan[d.name].div.click(function() {
-			update_select("plan-robot", $(this).data("robot"));
+			update_select(null, null);
 		    });
-		    if (robots_plan[d.name]) {
-			if (same_robot(robots_plan[d.name], robots[d.name])) {
-			    robots_plan[d.name].div.hide();
-			} else {
-			    robots_plan[d.name].div.show();
+		}
+	    });
+	    $.getJSON("/world/plan/robot?map=" + map, function(data) {
+		for (var robot in data) {
+		    var robot = data[robot];
+		    $.getJSON("/world/plan/robot/" + robot + "?include_type=true", function(d) {
+			redraw_robot(robots_plan, d, "3px solid #2ecc71");
+			robots_plan[d.name].div.click(function() {
+			    update_select("plan-robot", $(this).data("robot"));
+			});
+			if (robots_plan[d.name]) {
+			    if (same_robot(robots_plan[d.name], robots[d.name])) {
+				robots_plan[d.name].div.hide();
+			    } else {
+				robots_plan[d.name].div.show();
+			    }
 			}
-		    }
-		    update_select(null, null);
-		});
-	    }
+			update_select(null, null);
+		    });
+		}
+	    });
+	    
+	    $.getJSON("/surface", function(data) {
+		for (var surface in data) {
+		    var surface = data[surface];
+		    $.getJSON("/surface/" + surface,
+			      function(surface_data) {
+				  var divs = [];
+				  for (var ln in surface_data.locations) {
+				      var l = surface_data.locations[ln];
+				      if (l.map == map) {
+					  var div = $('<div style="width: 20px; height: 20px; background: url('
+						      + '\'/static/def_arrow.png\'); background-size: 20px 20px;" title="'
+						      + surface_data.name + "." + ln + '"> </div>').appendTo('#map');
+					  position_div(div, l.x, l.y, l.a);
+					  divs.push(div);
+				      }
+				  }
+				  surfaces[surface_data.name] = {'data': surface_data, 'divs': divs};
+				  update_select(null, null);
+			      });
+		}
+	    });
 	});
 	
-	$.getJSON("/surface", function(data) {
-	    for (var surface in data) {
-		var surface = data[surface];
-		$.getJSON("/surface/" + surface,
-			  function(surface_data) {
-			      var divs = [];
-			      for (var ln in surface_data.locations) {
-				  var l = surface_data.locations[ln];
-				  if (l.map == map) {
-				      var div = $('<div style="width: 20px; height: 20px; background: url('
-						  + '\'/static/def_arrow.png\'); background-size: 20px 20px;" title="'
-						  + surface_data.name + "." + ln + '"> </div>').appendTo('#map');
-				      position_div(div, l.x, l.y, l.a);
-				      divs.push(div);
-				  }
-			      }
-			      surfaces[surface_data.name] = {'data': surface_data, 'divs': divs};
-			      update_select(null, null);
-			  });
-	    }
-	});
+	$('#map-image').attr('src', '/fspng/' + data.map_file);
+
     });
 }
 
