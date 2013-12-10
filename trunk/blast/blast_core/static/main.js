@@ -15,6 +15,36 @@ plan_divs = [];
 
 ///////////////////////////////////////////////////////////////////
 
+z_orders = {};
+Z_STACK = 10000; //10000 items per type
+// Z_STACK * 1 = surfaces
+// Z_STACK * 2 = real robots
+// Z_STACK * 3 = planning
+
+// Z_STACK * 100 = dialogs
+
+function get_z_order(name) {
+    if (z_orders[name]) {
+	return z_orders[name];
+    }
+    var found = true;
+    var z = 0;
+    while (found) {
+	found = false;
+	z = z + 1;
+	for (var name in z_orders) {
+	    if (z == z_orders[name]) {
+		found = true;
+		break;
+	    }
+	}
+    }
+    z_orders[name] = z;
+    return z;
+}
+
+///////////////////////////////////////////////////////////////////
+
 function toFixed(value, precision) {
     var precision = precision || 0,
     neg = value < 0,
@@ -158,9 +188,45 @@ $('#plan-clear').click(function() {
     }
 });
 
+
 ///////////////////////////////////////////////////////////////////
 
-$('#plan-action-div').hide();
+
+function call_feed(time) {
+
+    $.getJSON("/feed/" + time, function(data) {
+	if (!data) {
+	    return;
+	}
+
+	console.log("World: " + data[1]);
+	console.log("Type: " + data[2]);
+	console.log("Item: " + data[3]);
+
+	if (data[1] == null && data[2] == "plan" && data[3] == null) {
+	    //Reload null select
+	    if (selected_type == null && selected == null) {
+		update_select(null, null);
+	    }
+	} else if (data[1] == null && data[2] == "edit-world" && data[3] == null) {
+	    update_session();
+	} else if (data[2] == "robot" && data[3] && (!data[1] || data[1] == "plan")) {
+	    if (data[1] == "plan") {
+		load_plan_robot(data[3], false);
+	    } else {
+		load_physical_robot(data[3], false);
+	    }
+	}
+	call_feed(data[0]);
+    });
+
+}
+
+call_feed(0);
+
+///////////////////////////////////////////////////////////////////
+
+$('#plan-action-div').css("z-index", Z_STACK * 100).hide();
 $('#plan-action').click(function () {
     $('#plan-action-robot').html('');
     for (var r in robots) {
@@ -309,6 +375,16 @@ function zoomlessScreenYtoWorldY(y) {
 }
 
 
+function check_robot_same(robot_name) {
+    if (robots_plan[robot_name]) {
+	if (same_robot(robots_plan[robot_name], robots[robot_name])) {
+	    robots_plan[robot_name].div.hide();
+	} else {
+	    robots_plan[robot_name].div.show();
+	}
+    }
+}
+
 function redraw_robot(robots, robot_data, border) {
     var rd = robot_data.robot_type.display;
     var position_flags = [];
@@ -414,13 +490,6 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
     robot.halo = $('<div style="position: absolute; color: #e67e22;">X</div>').appendTo(robot.div);
     robot.halo.css("left", (robot.div.width() / 2 - robot.halo.width() / 2) + "px");
     robot.halo.css("top", (-robot.div.height() - robot.halo.height()) / 1.5 + "px");
-
-    var redraw = function () {
-	$.getJSON(robot_url + selected + "?include_type=true", 
-		  function(robot_data) {
-		      redraw_robot(robot_dir, robot_data, "3px solid #e67e22");
-		  });
-    };
     
     $('#edit-robot').children().each(function(i) {
 	if ($(this).attr('id') != '') {
@@ -461,7 +530,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 			  
 			  if (up) {
 			      $.postJSON(robot_url + selected + "/position/" + pos, 
-					   robot.data.positions[pos], redraw);
+					 robot.data.positions[pos], function() { });
 			  }
 		      }));
 	    }
@@ -485,25 +554,23 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
     $('#edit-robot-x').unbind('keyup').keyup(function() {
 	if (robot.data.location.x == 1.0 * $(this).val()) { return; }
 	robot.data.location.x = 1.0 * $(this).val();
-	$.postJSON(robot_url + selected + "/location", robot.data.location, redraw);
+	$.postJSON(robot_url + selected + "/location", robot.data.location, function() { });
     });
     $('#edit-robot-y').unbind('keyup').keyup(function() {
 	if (robot.data.location.y == 1.0 * $(this).val()) { return; }
 	robot.data.location.y = 1.0 * $(this).val();
-	$.postJSON(robot_url + selected + "/location", robot.data.location, redraw);
+	$.postJSON(robot_url + selected + "/location", robot.data.location, function () { });
     });
     $('#edit-robot-a').unbind('keyup').keyup(function() {
 	if (robot.data.location.a == 1.0 * $(this).val()) { return; }
 	robot.data.location.a = 1.0 * $(this).val();
-	$.postJSON(robot_url + selected + "/location", robot.data.location, redraw);
+	$.postJSON(robot_url + selected + "/location", robot.data.location, function() {} );
     });
     $('#edit-robot-map').unbind('change').change(function() {
 	robot.data.location.map = $(this).val();
 	$.postJSON(robot_url + selected + "/location", robot.data.location,
 		   function() {
-		       if ($(this).val() == current_map_data.name) {
-			   redraw();
-		       } else {
+		       if ($(this).val() != current_map_data.name) {
 			   if (robot.div) { robot.div.hide(); }
 			   if (robot.halo) { robot.halo.remove(); }
 			   update_select(null, null);
@@ -513,10 +580,10 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 
     $('#edit-robot-reset').unbind('click').click(function() {
 	$.postJSON(robot_url + selected + "/location", 
-		   robots[robot.data.name].data.location, redraw);
+		   robots[robot.data.name].data.location, function () { });
 	for (var pos in robots[robot.data.name].data.positions) {
 	    $.postJSON(robot_url + selected + "/position/" + pos, 
-		       robots[robot.data.name].data.positions[pos], redraw);
+		       robots[robot.data.name].data.positions[pos], function () { });
 	}
     });
     $('#edit-robot-exit').unbind('click').click(function() {
@@ -537,18 +604,16 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	});
 	$(document).unbind("mouseup").mouseup(function() {
 	    $.postJSON(robot_url + selected + "/location", robot.data.location,
-		       function() {
-			   $.getJSON(robot_url + selected + "?include_type=true", 
-				     function(robot_data) {
-					 redraw_robot(robot_dir, robot_data, "3px solid #e67e22");
-				     });
-		       });
+		       function() { });
 	    drag = null;
 	    $(document).unbind("mousemove").unbind("mouseup");
 	});
     });
+
+    console.log("Update select div");
     
     robot.div.unbind("mousedown").mousedown(function() {
+	console.log("Down: " + drag);
 	if (drag != null) { return; }
 	drag = $(this);
 	$(document).unbind("mousemove").mousemove(function(event) {
@@ -563,13 +628,63 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	    $.postJSON(robot_url + selected + "/location", robot.data.location,
 		       function() {
 			   $.getJSON(robot_url + selected + "?include_type=true", 
-				     function(robot_data) {
-					 redraw_robot(robot_dir, robot_data, "3px solid #e67e22");
-				     });
+				     function(robot_data) { });
 		       });
 	    drag = null;
 	    $(document).unbind("mousemove").unbind("mouseup");
 	});
+    });
+}
+
+function same_robot(r1, r2) { //visiually the same
+    if (!r1 || !r2) { return r1 == r2; }
+    return r1.data.location.x == r2.data.location.x
+	&& r1.data.location.y == r2.data.location.y
+	&& r1.data.location.a == r2.data.location.a
+	&& r1.data.location.map == r2.data.location.map;
+}
+
+function load_physical_robot(robot, nuke_select) {
+    $.getJSON("/robot/" + robot + "?include_type=true", function(d) {
+	redraw_robot(robots, d);
+	robots[d.name].div.css("z-index", Z_STACK * 2 + get_z_order(d.name));
+	robots[d.name].default_ocf = function() {
+	    console.log("Click the robot");
+	    if (is_editting_world) {
+		update_select("edit-robot", $(this).data("robot"));
+	    } else {
+		if (robots_plan[d.name].data.location.map == robots[d.name].data.location.map) {
+		    update_select(null, null);
+		    robots_plan[d.name].div.show();
+		    update_select("plan-robot", $(this).data("robot"));
+		} else {
+		    alert("Robot is on " + robots_plan[d.name].data.location.map + ".");
+		}
+	    }
+	};
+	robots[d.name].div.click(robots[d.name].default_ocf);
+	check_robot_same(d.name);
+	if (nuke_select) {
+	    update_select(null, null);
+	} else if (selected_type == "robot" && selected == d.name) {
+	    update_select(selected_type, selected);
+	}
+    });
+}
+
+function load_plan_robot(robot, nuke_select) {
+    $.getJSON("/world/plan/robot/" + robot + "?include_type=true", function(d) {
+	redraw_robot(robots_plan, d, "3px solid #2ecc71");
+	robots_plan[d.name].div.css("z-index", Z_STACK * 3 + get_z_order(d.name));
+	robots_plan[d.name].div.click(function() {
+	    update_select("plan-robot", $(this).data("robot"));
+	});
+	check_robot_same(d.name);
+	if (nuke_select) {
+	    update_select(null, null);
+	} else if (selected_type == "plan-robot" && selected == d.name) {
+	    update_select(selected_type, selected);
+	}
     });
 }
 
@@ -802,19 +917,13 @@ function update_select(nst, ns) {
 
 $('#plan-execute').click(function() {
     $.postJSON("/execute_plan/plan", null, function(result) {
-	alert(result);
+	if (result !== true) {
+	    alert("Bad planning result: " + result);
+	}
     });
 });
 
 update_select(null, null);
-
-function same_robot(r1, r2) { //visiually the same
-    if (!r1 || !r2) { return r1 == r2; }
-    return r1.data.location.x == r2.data.location.x
-	&& r1.data.location.y == r2.data.location.y
-	&& r1.data.location.a == r2.data.location.a
-	&& r1.data.location.map == r2.data.location.map;
-}
 
 
 function show_map(map) {
@@ -842,51 +951,12 @@ function show_map(map) {
 	    
 	    $.getJSON("/robot?map=" + map, function(data) {
 		for (var robot in data) {
-		    var robot = data[robot];
-		    $.getJSON("/robot/" + robot + "?include_type=true", function(d) {
-			redraw_robot(robots, d);
-			robots[d.name].default_ocf = function() {
-			    if (is_editting_world) {
-				update_select("edit-robot", $(this).data("robot"));
-			    } else {
-				if (robots_plan[d.name].data.location.map == robots[d.name].data.location.map) {
-				    update_select(null, null);
-				    robots_plan[d.name].div.show();
-				    update_select("plan-robot", $(this).data("robot"));
-				} else {
-				    alert("Robot is on " + robots_plan[d.name].data.location.map + ".");
-				}
-			    }
-			};
-			robots[d.name].div.click(robots[d.name].default_ocf);
-			if (robots_plan[d.name]) {
-			    if (same_robot(robots_plan[d.name], robots[d.name])) {
-				robots_plan[d.name].div.hide();
-			    } else {
-				robots_plan[d.name].div.show();
-			    }
-			}
-			update_select(null, null);
-		    });
+		    load_physical_robot(data[robot], true);
 		}
 	    });
 	    $.getJSON("/world/plan/robot?map=" + map, function(data) {
 		for (var robot in data) {
-		    var robot = data[robot];
-		    $.getJSON("/world/plan/robot/" + robot + "?include_type=true", function(d) {
-			redraw_robot(robots_plan, d, "3px solid #2ecc71");
-			robots_plan[d.name].div.click(function() {
-			    update_select("plan-robot", $(this).data("robot"));
-			});
-			if (robots_plan[d.name]) {
-			    if (same_robot(robots_plan[d.name], robots[d.name])) {
-				robots_plan[d.name].div.hide();
-			    } else {
-				robots_plan[d.name].div.show();
-			    }
-			}
-			update_select(null, null);
-		    });
+		    load_plan_robot(data[robot], true);
 		}
 	    });
 	    

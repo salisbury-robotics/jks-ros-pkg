@@ -8,7 +8,7 @@ SECRET_KEY = 'flask_dev_key'
 SESSION_TIMEOUT = 10.0
 
 
-manager = blast_action.BlastManager(["test_world"], blast_world.make_test_world())
+manager = blast_action.BlastManager(["test_actions"], blast_world.make_test_world())
 world_edit_lock = threading.Lock()
 WORLD_EDIT_EXECUTING_PLAN = "EXECUTING_PLAN"
 world_edit_session = None
@@ -261,6 +261,10 @@ def api_robot_location(world = None, robot = None):
         return lock_world_error(world)
     r = return_json(get_world(world).set_robot_location(robot, json.loads(request.data)))
     unlock_world(world)
+
+    for_user = str(session["sid"])
+    if world == None: for_user == None
+    queue_load(world, "robot", robot, for_user)
     return r
 
 
@@ -291,6 +295,9 @@ def api_robot_holder(world = None, robot = None, holder = None):
     
     r = return_json(get_world(world).set_robot_holder(robot, holder, ot, pre))
     unlock_world(world)
+    for_user = str(session["sid"])
+    if world == None: for_user == None
+    queue_load(world, "robot", robot, for_user)
     return r
 
 @app.route('/world/<world>/robot/<robot>/position', methods=["GET"])
@@ -315,6 +322,9 @@ def api_robot_position(world = None, robot = None, position = None):
         set_data = json.loads(request.data)
         r = return_json(get_world(world).set_robot_position(robot, position, set_data))
         unlock_world(world)
+        for_user = str(session["sid"])
+        if world == None: for_user == None
+        queue_load(world, "robot", robot, for_user)
         return r
 
 @app.route('/robot/<robot>/type', methods=["GET"])
@@ -367,12 +377,15 @@ def edit_world(world = None, robot = None):
         if world_edit_session == None and state == True:
             world_edit_session = str(session["sid"])
             world_edit_lock.release()
+            queue_load(None, "edit-world", None)
             return return_json(True)
         elif world_edit_session == str(session["sid"]) and state == False:
             world_edit_session = None
             world_edit_lock.release()
+            queue_load(None, "edit-world", None)
             return return_json(True)
         world_edit_lock.release()
+        queue_load(None, "edit-world", None)
         return return_json(False)
     return return_json(False)
 
@@ -511,6 +524,31 @@ def api_plan(target, world = None):
 
     return return_json([p, equal, worked, actions])
 
+feed_lock = threading.Lock()
+feed = []
+global_feed_alive = True
+def queue_load(w, typ, item, for_user = None):
+    global feed, feed_lock, global_feed_alive
+    feed_lock.acquire()
+    while len(feed) > 0:
+        if (feed[0][0] > time.time() - 60.0):
+            break
+        feed = feed[1:]
+    feed.append( (time.time(), w, typ, item, for_user) )
+    feed_lock.release()
+
+@app.route('/feed/<start>')
+def get_feed(start):
+    start = float(start)
+    while global_feed_alive:
+        feed_lock.acquire()
+        for step in feed:
+            if step[0] > start and (step[4] == None or step[4] == str(session["sid"])):
+                feed_lock.release()
+                return return_json(step)
+        feed_lock.release()
+        time.sleep(0.1)
+    return return_json(None)
 
 @app.route('/execute_plan/<target>', methods=["POST"])
 def execute_plan(target):
@@ -547,7 +585,10 @@ def execute_plan(target):
     start.plan_steps[end] = []
 
     world_edit_lock.release()
-
+    
+    queue_load(None, "edit-world", None)
+    queue_load(None, "plan", None)
+    
     return return_json(True)
 
 
@@ -567,14 +608,18 @@ class ManagerThread(threading.Thread):
                 current_action = manager.world.current_plan[0]
             else:
                 manager.world.post_exec_world = None
-                world_edit_session = None
+                if world_edit_session == WORLD_EDIT_EXECUTING_PLAN:
+                    world_edit_session = None
+                    queue_load(None, "edit-world", None)
             world_edit_lock.release()
 
             if current_action:
-                print "Take action!", current_action
                 try:
-                    time.sleep(10.0)
+                    time.sleep(3.0)
+                    manager.take_action(current_action[0], current_action[1], current_action[2])
                 except:
+                    import traceback
+                    traceback.print_exc()
                     alive = False
 
                 #Only remove here so that the display of the current plan
@@ -582,8 +627,8 @@ class ManagerThread(threading.Thread):
                 world_edit_lock.acquire()
                 manager.world.current_plan = manager.world.current_plan[1:]
                 world_edit_lock.release()
-
-                #TODO: deal with the fallout of the action, trigger a re-load
+                queue_load(None, "plan", None)
+                queue_load(None, "robot", current_action[0])
             else:
                 try:
                     time.sleep(0.1)
@@ -595,10 +640,9 @@ mthread = ManagerThread()
 mthread.start()
 
 app.run(debug=DEBUG, threaded=True)
+global_feed_alive = False
 mthread.alive = False
 mthread.join()
-
-
 
 
 
