@@ -15,18 +15,23 @@ class BlastRuntimeError(Exception):
     def __str__(self):
         return repr(self.value)
     
+def thunk():
+    return
+
 class BlastActionExec:
-    def __init__(self, robot, manager, guid, filenames):
+    def __init__(self, robot, manager, guid, filenames, on_robot_change = thunk):
         self._robot = robot
         self._manager = manager
         self._guid = guid
         self._filenames = filenames
+        self._on_robot_change = on_robot_change
     
     def set_location(self, position, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
             self._get_world(world).set_robot_location(self._robot, position.copy())
         self._manager.world_unlock()
+        self._on_robot_change()
 
     def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
         self._manager.world_lock()
@@ -34,18 +39,21 @@ class BlastActionExec:
             self._get_world(world).set_robot_holder(self._robot, holder, ot,
                                                          require_preexisting_object)
         self._manager.world_unlock()
+        self._on_robot_change()
 
     def robot_transfer_holder(self, from_holder, to_holder, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
             self._get_world(world).robot_transfer_holder(self._robot, from_holder, to_holder)
         self._manager.world_unlock()
+        self._on_robot_change()
 
     def set_robot_position(self, pos, val, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
             self._get_world(world).set_robot_position(self._robot, pos, val)
         self._manager.world_unlock()
+        self._on_robot_change()
         
     def plan_action(self, action, parameters, world = None):
         r = None

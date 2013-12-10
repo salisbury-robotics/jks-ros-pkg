@@ -951,10 +951,10 @@ class BlastWorld(object):
         if type(val) == type([]):
             for name, v in zip(self.robots[robot].robot_type.position_variables[position][False][0], val):
                 if v != None:
-                    self.robots[robot].positions[position][name] = v
+                    self.robots[robot].positions[position][name] = float(v)
         elif type(val) == type({}):
             for name, v in val.iteritems():
-                self.robots[robot].positions[position][name] = v
+                self.robots[robot].positions[position][name] = float(v)
         self.clear_hash("robots")
     
     def set_robot_location(self, robot, blast_pt):
