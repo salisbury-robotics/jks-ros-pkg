@@ -504,7 +504,7 @@ def api_plan(target, world = None):
         equal = start_clone.world.equal(end.world, tolerant=True)
     
     if end in start.plan_steps:
-        p = [(x[0], x[1], x[2], True) for x in start.current_plan]
+        p = [(x[0], x[1], x[2], True) for x in start.display_plan]
         p = p + [(x[0], x[1], x[2], False) for x in start.plan_steps[end]]
 
         if True:
@@ -596,7 +596,31 @@ class ManagerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.alive = True
+        manager.on_robot_change = lambda robot: self.on_robot_change(robot)
+        manager.on_plan_action = lambda: self.on_plan_action()
         pass
+
+    def on_plan_action(self):
+        world_edit_lock.acquire()
+        plan = [manager.world.current_plan,] +  [x for x in manager.implicit_plan]
+        plan_out = []
+        for level in plan:
+            if level != []:
+                plan_out.append(level[0])
+        plan.reverse()
+        for level in plan:
+            if level != []:
+                plan_out.extend(level[1:])
+
+        print "OUTPUT PLAN!!!!", plan_out
+        manager.world.display_plan = plan_out
+
+        world_edit_lock.release()
+        queue_load(None, "plan", None)
+
+    def on_robot_change(self, robot):
+        queue_load(None, "robot", robot)
+        time.sleep(3.0)
 
     def run(self):
         global world_edit_session, world_edit_lock, manager
@@ -627,8 +651,9 @@ class ManagerThread(threading.Thread):
                 world_edit_lock.acquire()
                 manager.world.current_plan = manager.world.current_plan[1:]
                 world_edit_lock.release()
-                queue_load(None, "plan", None)
+                
                 queue_load(None, "robot", current_action[0])
+                self.on_plan_action()
             else:
                 try:
                     time.sleep(0.1)

@@ -386,6 +386,13 @@ function check_robot_same(robot_name) {
 }
 
 function redraw_robot(robots, robot_data, border) {
+    console.log(current_map_data.map + " " + robot_data.location.map);
+    if (current_map_data.map != robot_data.location.map) {
+	if (robots[robot_data.name].div) { robots[robot_data.name].div.remove(); }
+	if (robots[robot_data.name].halo) { robots[robot_data.name].halo.remove(); }
+	return false;
+    }
+    
     var rd = robot_data.robot_type.display;
     var position_flags = [];
     for (var pos_name in robot_data.robot_type.position_variables) {
@@ -470,6 +477,7 @@ function redraw_robot(robots, robot_data, border) {
     if (selected == robot_data.name && (selected_type == "plan-robot" || selected_type == "robot")) {
 	update_select(selected_type, robot_data.name);
     }
+    return true;
 };
 
 
@@ -570,7 +578,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	robot.data.location.map = $(this).val();
 	$.postJSON(robot_url + selected + "/location", robot.data.location,
 		   function() {
-		       if ($(this).val() != current_map_data.name) {
+		       if ($(this).val() != current_map_data.map) {
 			   if (robot.div) { robot.div.hide(); }
 			   if (robot.halo) { robot.halo.remove(); }
 			   update_select(null, null);
@@ -646,7 +654,9 @@ function same_robot(r1, r2) { //visiually the same
 
 function load_physical_robot(robot, nuke_select) {
     $.getJSON("/robot/" + robot + "?include_type=true", function(d) {
-	redraw_robot(robots, d);
+	if (!redraw_robot(robots, d)) {
+	    return;
+	}
 	robots[d.name].div.css("z-index", Z_STACK * 2 + get_z_order(d.name));
 	robots[d.name].default_ocf = function() {
 	    console.log("Click the robot");
@@ -674,7 +684,9 @@ function load_physical_robot(robot, nuke_select) {
 
 function load_plan_robot(robot, nuke_select) {
     $.getJSON("/world/plan/robot/" + robot + "?include_type=true", function(d) {
-	redraw_robot(robots_plan, d, "3px solid #2ecc71");
+	if (!redraw_robot(robots_plan, d, "3px solid #2ecc71")) {
+	    return;
+	}
 	robots_plan[d.name].div.css("z-index", Z_STACK * 3 + get_z_order(d.name));
 	robots_plan[d.name].div.click(function() {
 	    update_select("plan-robot", $(this).data("robot"));

@@ -58,7 +58,7 @@ class BlastActionExec:
     def plan_action(self, action, parameters, world = None):
         r = None
         if self._manager.get_current_guid() == self._guid:
-            r = self._manager.plan_action(self._robot, action, parameters)
+            r = self._manager.plan_action(self._robot, action, parameters, True)
         print r
         if r == None:
             raise BlastRuntimeError("Planning to run action failed")
@@ -198,6 +198,8 @@ class BlastManager:
         self.world = blast_planner.BlastPlannableWorld(world)
         self.world.real_world = True
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
+        self.on_robot_change = lambda robot: None
+        self.on_plan_action = lambda: None
 
         oefc = self.world.action_epic_fail_callback
         def efc(r, a, p):
@@ -209,6 +211,9 @@ class BlastManager:
         self.action_worlds = {}
         self.worlds = {None: self.world}
 
+        self.implicit_plan = []
+
+
 
     def world_lock(self):
         pass
@@ -219,6 +224,7 @@ class BlastManager:
             return self.action_stack[-1]._guid
         except:
             return None
+        
 
     def on_action_take(self, robot, action, parameters):
         print "Action!", robot, action, parameters
@@ -229,9 +235,16 @@ class BlastManager:
             robot_type = robot_type.parent
 
         print "--- Exec action", robot, "-->", action, parameters
-        exe = BlastActionExec(robot, self, self.action_guid, action_exec)
+        def rc():
+            self.on_robot_change(robot)
+        exe = BlastActionExec(robot, self, self.action_guid, action_exec, rc)
         self.action_guid = self.action_guid + 1
         self.action_stack.append(exe)
+        
+        while len(self.implicit_plan) < len(self.action_stack):
+            self.implicit_plan.append([])
+        self.implicit_plan[len(self.action_stack)-1] = []
+        
         exe.run(parameters)
         if self.get_current_guid() in self.action_worlds:
             for world in self.action_worlds[self.get_current_guid()]:
@@ -242,13 +255,20 @@ class BlastManager:
         return True
         
 
-    def take_action(self, robot, action, parameters):
+    def take_action(self, robot, action, parameters, do_cb = False):
         if self.world.take_action(robot, action, parameters) == None:
             print "Epic fail for", robot, "-->", action
             return False
         return True
-    def plan_action(self, robot, action, parameters):
-        res = self.world.plan_action(robot, action, parameters)
+    def plan_action(self, robot, action, parameters, do_cb = False):
+        if do_cb:
+            sh = len(self.action_stack) - 1
+            def update_cb(arg):
+                self.implicit_plan[sh] = arg
+                self.on_plan_action()
+        else:
+            update_db = lambda x: None
+        res = self.world.plan_action(robot, action, parameters, execution_cb=update_cb)
         if res == None:
             print "Epic fail for", robot, "-->", action
             return None
