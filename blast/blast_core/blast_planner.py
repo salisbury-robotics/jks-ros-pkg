@@ -230,10 +230,14 @@ class BlastPlannableWorld:
         self.real_world = False
         self.plan_steps = {}
         self.current_plan = []
+
+        self.display_plan = []
+
         self.post_exec_world = None
         self.action_callback = lambda r, a, p: True
         def action_e_fail(r, a, p): 
             print "Action failed epically", r, "-->", a
+            print "With parameters: ", p
         self.action_epic_fail_callback = action_e_fail
 
     def copy(self):
@@ -241,7 +245,7 @@ class BlastPlannableWorld:
         c.real_world = False
         return c
 
-    def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False):
+    def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
         planner.world_good = world_good
         planner.extra_goals = extra_goals
@@ -250,11 +254,15 @@ class BlastPlannableWorld:
             return world, est_time, steps
         if world != None and est_time != None and steps != None:
             print "Taking", len(steps), "steps"
+            x = 0
             for step in steps:
+                execution_cb(steps[x:])
+                x = x + 1
                 print step[0], step[1], step[2]
                 if not self.take_action(step[0], step[1], step[2]):
                     print "FAILED"
                     return None
+            execution_cb([])
             #print world.to_text()
             if not self.real_world:
                 if not world.equal(self.world):
@@ -341,10 +349,11 @@ class BlastPlannableWorld:
         if rb != None: rb = rb.to_dict()
         return rb
 
-    def plan_action(self, robot, action, parameters, plan_and_return = False, include_action = False):
+    def plan_action(self, robot, action, parameters, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
         #FIXME: this can create problems if parameters is an extra element
         r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, 
-                      {}, plan_and_return = plan_and_return, report_plan = True)
+                      {}, plan_and_return = plan_and_return, report_plan = True, 
+                      execution_cb = lambda x: execution_cb(x + [(robot, action, parameters),]))
         print "STUFFFFFFF", r
         if r != None:
             if include_action:
@@ -353,6 +362,7 @@ class BlastPlannableWorld:
                 worked = self.take_action(robot, action, parameters)
                 if not worked:
                     return None #This really shouldn't happen, because the action is tested.
+            execution_cb([])
         return r   
 
     def take_action(self, robot, action, parameters, debug = True):
@@ -379,6 +389,7 @@ class BlastPlannableWorld:
                     print "-"*60
                     print self.world.to_text()
                     print "-"*60
+                    print "The output world differs, epic fail!"
                     self.action_epic_fail_callback(robot, action, parameters)
                     return None
             return True

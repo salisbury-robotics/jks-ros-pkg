@@ -14,4 +14,6 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
         self.plan_action("move", {"end": parameters["person_location"] })
         print "-"*30, "Give out coffee", "-"*30
         self.plan_action("give-object", {"tts-text": "Coffee Cup"})
+        print "-"*30, "Tuck", "-"*30
+        self.plan_action("tuck-both-arms", {})
 set_action_exec(BlastPr2CoffeeRunActionExec)

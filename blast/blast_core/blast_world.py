@@ -441,9 +441,9 @@ def make_test_types_world():
 class BlastPt(object):
     __slots__ = ['x', 'y', 'a', 'map']
     def __init__(self, x, y, a, mid):
-        self.x = x
-        self.y = y
-        self.a = a
+        self.x = float(x)
+        self.y = float(y)
+        self.a = float(a)
         self.map = mid
 
     def to_dict(self):
@@ -810,9 +810,15 @@ class BlastRobot(object):
             + ", \"" + self.robot_type.name + "\")\n" + r
     
     def to_dict(self):
+        r_holder = {}
+        for name in self.robot_type.holders_keysort:
+            if self.holders[name] != None:
+                r_holder[name] = self.holders[name].uid
+            else:
+                r_holder[name] = None
         return {"name": self.name, "robot_type": self.robot_type.name, 
                 "location": self.location.to_dict(),
-                "holders": self.holders, "positions": self.positions}
+                "holders": r_holder, "positions": self.positions}
 
 def paren_split(value, delim):
     subs = []
