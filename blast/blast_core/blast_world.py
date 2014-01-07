@@ -391,13 +391,14 @@ class ObjectType(object):
                 if not name in self.motion_limits:
                     self.motion_limits[name] = value
         def_motion_limits = {"rotation_limit": math.pi, "accel_x": BLAST_INFINITY, 
-                             "accel_y": BLAST_INFINITY, "accel_z": BLAST_INFINITY}
+                             "accel_y": BLAST_INFINITY, "accel_z": BLAST_INFINITY,
+                             "bound_x": False, "bound_y": False, "bound_z": False}
         for name, value in def_motion_limits.iteritems():
             if not name in self.motion_limits:
                 self.motion_limits[name] = value
     
     def add_tag(self, name):
-        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z"]
+        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z", "bound_x", "bound_y", "bound_z"]
         if name in bad_list:
             raise BlastTypeError(name + " is an invalid tag for objects because "
                                  + "it is a motion constraint in " + self.name)
@@ -410,7 +411,10 @@ def make_test_types_world():
                                            {"rotation_limit": 0.1,
                                             "accel_z": 0.2,
                                             "accel_x": 1.0,
-                                            "accel_y": 1.0},
+                                            "accel_y": 1.0,
+                                            "bound_x": 0.09398,
+                                            "bound_y": 0.09398,
+                                            "bound_z": 0.15748},
                                            ))
     types_world.add_object_tag("coffee_cup", "cupholder_object")
     types_world.add_object_type(ObjectType("coffee_money_bag", {}))
@@ -986,14 +990,23 @@ class BlastWorld(object):
                 if obj:
                     objects.add(obj.uid)
 
-        for surface in self.surfaces.itervalues():
+        for name in self.surfaces_keysort:
+            surface = self.surfaces[name]
             nobjects = []
+            diff = False
             for obj in surface.objects:
                 if obj.uid in self.objects_keysort:
                     if self.objects[obj.uid].parent == surface.name:
                         nobjects.append(obj)
                         objects.add(obj.uid)
-            surface.objects = nobjects
+                    else:
+                        diff = True
+                else:
+                    diff = True
+            if diff:
+                self.surfaces[name] = surface.copy()
+                self.surfaces[name].objects = nobjects
+                
 
         for obj in self.objects_keysort:
             if not obj in objects:
@@ -1483,6 +1496,7 @@ class BlastWorld(object):
                     pos = (pos[0], BlastPos(v[0], v[1], v[2], v[3], v[4], v[5]))
                 surface = get_value(pos[0])
                 pos = pos[1]
+                items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("ADDOBJ", (surface, ), obj, pos))
             else:
                 if debug: print "Update failed"
@@ -1494,6 +1508,8 @@ class BlastWorld(object):
         if self.copy_on_write_optimize:
             for robot_name in items_to_clone["robots"]:
                 self.robots[robot_name] = self.robots[robot_name].copy()
+            for surface_name in items_to_clone["surfaces"]:
+                self.surfaces[surface_name] = self.surfaces[surface_name].copy()
 
         #Execute the transactions - this is where changes actually get made to the world
         for x in transactions:
@@ -1511,6 +1527,8 @@ class BlastWorld(object):
             elif x[0] == "VAL":
                 v[x[2]] = x[3]
             elif x[0] == "ADDOBJ":
+                if self.copy_on_write_optimize:
+                    self.objects[x[2].uid] = self.objects[x[2].uid].copy()
                 obj = self.objects[x[2].uid]
                 obj.parent = v.name
                 obj.position = x[3]
@@ -1701,6 +1719,10 @@ def make_table_top_world():
     cup = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0, 0, 0, 0, 0, 0), "table_1")
     world.append_object(cup)
     world.surfaces["table_1"].objects.append(BlastObjectRef(cup.uid))
+    
+    cup2 = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0, 0, 0, 0, 0, 0), "table_1")
+    world.append_object(cup2)
+    world.surfaces["table_1"].objects.append(BlastObjectRef(cup2.uid))
 
     
     return world
