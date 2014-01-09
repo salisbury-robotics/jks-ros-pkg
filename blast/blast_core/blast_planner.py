@@ -25,19 +25,19 @@ class Planner:
         if keys == None: 
             deps = {}
             #Sort the keys for dependencies
-            for key in param.keys():
+            for key in param.iterkeys():
                 if type(param[key]) == type([]):
                     deps[key] = []
                 else:
                     deps[key] = param[key][0]
             keys = []
-            while deps.keys() != []:
+            while deps.keys() != []: #Loop through deps, using deps as a list of keys
                 k = deps.keys()
-                while k != []:
+                while k != []: #Crawl deps
                     key = k[0]
                     k = k[1:]
                     deps_met = True
-                    for d in k:
+                    for d in deps[key]: #Loop through remaining keys
                         if not d in keys:
                             deps_met = False
                             break
