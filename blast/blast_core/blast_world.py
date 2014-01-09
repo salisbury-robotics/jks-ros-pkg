@@ -71,9 +71,10 @@ class BlastAction(object):
                     raise BlastTypeError("Pos parameter does not reference another parameter: " + pname + " -> " + vname)
                 if self.parameters[vname].find("Surface:") != 0:
                     raise BlastTypeError("Pos parameter " + pname + " does not reference a surface type variable (" + vname + ")")
-                if len(ptype[ptype.find(":")+1:].split(",")) != 7:
-                    raise BlastTypeError("Pos parameter " + pname + " does not have 7 arguments for type (" + vname + ")")
-                for f in ptype[ptype.find(":")+1:].split(",")[1:]:
+                #Fixme: the object variable could be bad
+                if len(ptype[ptype.find(":")+1:].split(",")) != 8:
+                    raise BlastTypeError("Pos parameter " + pname + " does not have 8 arguments for type (" + vname + ")")
+                for f in ptype[ptype.find(":")+1:].split(",")[2:]:
                     try:
                         r = float(f.strip())
                     except:
@@ -269,7 +270,7 @@ def make_test_actions():
                          }, []),
             
             BlastAction("pr2-cupholder.table-place-left", 
-                        {"table": "Surface:table", "position": "Pos:table, 0, 0, 0, 0, 0, 0"},
+                        {"table": "Surface:table", "position": "Pos:table, robot.holders.left-arm, 0.6602, 0, 0.762, 0, 0, 0"},
                         
                         ("==", "robot.location", "table.locations.location"), "\"20\"",
 
@@ -338,11 +339,12 @@ class BlastWorldTypes(object):
         return action_robot_type, action_type
 
 class SurfaceType(object):
-    __slots__ = ['name', 'states']
-    def __init__(self, name, states):
+    __slots__ = ['name', 'states', 'planes']
+    def __init__(self, name, states, planes = {}):
         self.name = name
         self.states = states
-
+        self.planes = planes
+    
 class RobotType(object):
     __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort',
                  'display']
@@ -392,13 +394,13 @@ class ObjectType(object):
                     self.motion_limits[name] = value
         def_motion_limits = {"rotation_limit": math.pi, "accel_x": BLAST_INFINITY, 
                              "accel_y": BLAST_INFINITY, "accel_z": BLAST_INFINITY,
-                             "bound_x": False, "bound_y": False, "bound_z": False}
+                             "bound_d": False, "bound_h": False}
         for name, value in def_motion_limits.iteritems():
             if not name in self.motion_limits:
                 self.motion_limits[name] = value
     
     def add_tag(self, name):
-        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z", "bound_x", "bound_y", "bound_z"]
+        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z", "bound_d", "bound_h"]
         if name in bad_list:
             raise BlastTypeError(name + " is an invalid tag for objects because "
                                  + "it is a motion constraint in " + self.name)
@@ -412,9 +414,8 @@ def make_test_types_world():
                                             "accel_z": 0.2,
                                             "accel_x": 1.0,
                                             "accel_y": 1.0,
-                                            "bound_x": 0.09398,
-                                            "bound_y": 0.09398,
-                                            "bound_z": 0.15748},
+                                            "bound_d": 0.09398,
+                                            "bound_h": 0.15748},
                                            ))
     types_world.add_object_tag("coffee_cup", "cupholder_object")
     types_world.add_object_type(ObjectType("coffee_money_bag", {}))
@@ -422,7 +423,11 @@ def make_test_types_world():
     types_world.add_surface_type(SurfaceType("coffee_shop",
                                              {"default": {"default": True, "accessible": True}}))
     types_world.add_surface_type(SurfaceType("table",
-                                             {"default": {"default": True, "accessible": True}}))
+                                             {"default": {"default": True, "accessible": True}},
+                                             {"location": [ [(0.2540, -0.6985, 0.762), (0.2540,  0.6985, 0.762),
+                                                             (1.0668,  0.6985, 0.762), (1.0668, -0.6985, 0.762),
+                                                             ], ],
+                                              }))
     types_world.add_surface_type(SurfaceType("transparent_heavy_door",
                                              {"default": {"default": True, "accessible": True}}))
     types_world.add_surface_type(SurfaceType("elevator",
@@ -557,6 +562,11 @@ class BlastPos(object):
         if self.ry != other.ry: return False
         if self.rz != other.rz: return False
         return True
+
+    def __repr__(self):
+        return self.to_text()
+    def __str__(self):
+        return self.to_text()
     
     def to_text(self):
         return "Pos(" + str(self.x) + ", " + str(self.y) + ", " + str(self.z) \
@@ -620,13 +630,14 @@ class BlastObject(object):
         return "Object(\"" + self.object_type.name + "\", " + pt + ", \"" + self.parent + "\")"
 
 class BlastSurface(object):
-    __slots__ = ['name', 'locations', 'surface_type', 'state', 'locations_keysort', 'objects']
-    def __init__(self, name, locations, surface_type, state = None):
+    __slots__ = ['name', 'locations', 'surface_type', 'state', 'locations_keysort', 'objects', 'planes']
+    def __init__(self, name, locations, surface_type, planes = {}, state = None):
         self.name = name
         self.locations = locations
         self.locations_keysort = sorted(locations.keys())
         self.surface_type = surface_type
         self.state = state
+        self.planes = planes #By location, then array of planes with points
         self.objects = []
         if not self.state:
             self.state = ""
@@ -652,7 +663,9 @@ class BlastSurface(object):
         lclone = {}
         for name, loc in self.locations.iteritems():
             lclone[name] = loc.copy()
-        return BlastSurface(self.name, lclone, self.surface_type, self.state)
+        c = BlastSurface(self.name, lclone, self.surface_type, self.state)
+        c.objects = [x.copy() for x in self.objects]
+        return c
 
     def hash_update(self, hl, get_obj):
         for name in self.locations_keysort:
@@ -732,7 +745,7 @@ class BlastObjectRef(object):
     def __init__(self, uid):
         self.uid = uid
     def copy(self):
-        return BlastObjectRef(obj)
+        return BlastObjectRef(self.uid)
     def equal(self, other, get_obj, other_get_obj):
         if self == other: return True
         if not self or not other: return False
@@ -995,22 +1008,25 @@ class BlastWorld(object):
             nobjects = []
             diff = False
             for obj in surface.objects:
+                #print obj
                 if obj.uid in self.objects_keysort:
                     if self.objects[obj.uid].parent == surface.name:
                         nobjects.append(obj)
                         objects.add(obj.uid)
                     else:
+                        #print "Remove", obj.uid, "for parent"
                         diff = True
                 else:
+                    #print "Remove", obj.uid, "for non-existence"
                     diff = True
             if diff:
                 self.surfaces[name] = surface.copy()
                 self.surfaces[name].objects = nobjects
+            #print self.surfaces[name].objects
                 
 
         for obj in self.objects_keysort:
             if not obj in objects:
-                self.objects_keysort.remove(obj)
                 del self.objects[obj]
         self.objects_keysort = sorted(self.objects.keys())
 
@@ -1312,7 +1328,7 @@ class BlastWorld(object):
 
             subs = paren_split(value, '.')
 
-            print subs[0], parameters
+            #print subs[0], parameters
 
             val = None
             if subs[0].find('(') != -1:
@@ -1497,7 +1513,7 @@ class BlastWorld(object):
                 surface = get_value(pos[0])
                 pos = pos[1]
                 items_to_clone["surfaces"].add(surface.name)
-                transactions.append(("ADDOBJ", (surface, ), obj, pos))
+                transactions.append(("ADDOBJ", ("surface", surface.name), obj, pos))
             else:
                 if debug: print "Update failed"
                 return None
@@ -1514,11 +1530,14 @@ class BlastWorld(object):
         #Execute the transactions - this is where changes actually get made to the world
         for x in transactions:
             v = None
+            #print x
             if x[1][0] == "robot":
                 self.clear_hash("robots")
                 v = self.robots[x[1][1]]
+            elif x[1][0] == "surface":
+                v = self.surfaces[x[1][1]]
             else:
-                v = x[1][0]
+                print "Bad transaction", x
             for attr in x[1][2:]:
                 v = getattr(v, attr)
 
@@ -1532,7 +1551,7 @@ class BlastWorld(object):
                 obj = self.objects[x[2].uid]
                 obj.parent = v.name
                 obj.position = x[3]
-                v.objects.append(x[2])
+                v.objects.append(BlastObjectRef(obj.uid))
             else:
                 print "Really bad, transaction bad:", x
                 raise Exception("Bad transaction: " + str(x))
@@ -1601,6 +1620,7 @@ class BlastWorld(object):
 
         #Get all the parameters
         parameters = {}
+        position_parameters = {}
         location_parameters = {}
         surfaceobject_parameters = {}
         for param, ptype in action_type.parameters.iteritems():
@@ -1671,9 +1691,11 @@ class BlastWorld(object):
                     self.types.parameter_values_cache[ptype] = parameters[param]
             elif ptype[0:len("Pos:")] == "Pos:":
                 vt = ptype.split(":")[1].split(",")
-                va = [float(v.strip()) for v in vt[1:]]
-                #TODO come up with a deterministic algorithm for point selection in blocked cases.
-                parameters[param] = [ (vt[0], BlastPos(va[0], va[1], va[2], va[3], va[4], va[5])), ]
+                va = [float(v.strip()) for v in vt[2:]]
+                #TODO decide what to do about specified positions
+                p = BlastPos(va[0], va[1], va[2], va[3], va[4], va[5])
+                position_parameters[param] = (vt[0], vt[1], [p, ])
+                
             else:
                 print "Error, invalid parameter type:", ptype, "for:", param
         #Handle after all others parameterized
@@ -1686,6 +1708,74 @@ class BlastWorld(object):
                         if test_loc(pt, param):
                             parameters[param][surf].append(pt)
             parameters[param] = ([data[0]], parameters[param])
+
+
+        for param, data in position_parameters.iteritems():
+            parameters[param] = {}
+            for surf in parameters[data[0]]:
+                parameters[param][surf.name] = []
+                obj = None
+                if data[1].strip().find("robot.holders.") == 0:
+                    obj = self.objects[robot.holders[data[1].strip().split(".")[2]].uid]
+                if not obj:
+                    break
+
+                for initial_pos in data[2]:
+                    w = 0
+                    #TODO: this does not handle rotation down properly
+                    wx = obj.object_type.motion_limits["bound_d"] + 0.01
+                    wy = obj.object_type.motion_limits["bound_d"] + 0.01
+                    while w < 30:
+                        if w == 0:
+                            test = [(0, 0)]
+                        else:
+                            test = []
+                            #Make centric rectangle loops of size w around objects
+                            yp = w
+                            xp = 0
+                            test.append((xp, yp))
+                            while xp < w:
+                                xp = xp + 1
+                                test.append((xp, yp))
+                            while yp > -w:
+                                yp = yp - 1
+                                test.append((xp, yp))
+                            while xp > -w:
+                                xp = xp - 1
+                                test.append((xp, yp))
+                            while yp < w:
+                                yp = yp + 1
+                                test.append((xp, yp))
+                            while xp < -1:
+                                xp = xp + 1
+                                test.append((xp, yp))
+
+                        for t in test:
+                            p = initial_pos.copy()
+                            p.x = p.x + wx * t[0]
+                            p.y = p.y + wy * t[1]
+                            
+                            collision = False
+
+                            #Does not handle rotation
+                            for obj_cp in surf.objects:
+                                obj_c = self.objects[obj_cp.uid]
+                                dx = obj_c.position.x - p.x
+                                dy = obj_c.position.y - p.y
+                                dz = obj_c.position.z - p.z
+                                cyl_dist = dx * dx + dy * dy
+                                diam = obj_c.object_type.motion_limits['bound_d'] + obj.object_type.motion_limits['bound_d']
+                                zh = obj_c.object_type.motion_limits['bound_h'] + obj.object_type.motion_limits['bound_h']
+                                if (cyl_dist * 4 < diam * diam and (dz > -zh and dz < zh)):
+                                    collision = True
+                                    break
+                            if not collision:
+                                parameters[param][surf.name].append(p)
+                                w = 1000000
+                                break
+                        w = w + 1
+                #parameters[param] = [ (vt[0], p), ]
+            
 
         for param, data in surfaceobject_parameters.iteritems():
             parameters[param] = {}
@@ -1701,7 +1791,7 @@ def make_table_top_world():
 
     world.append_surface(BlastSurface("table_1", 
                                       {"location": BlastPt(20.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
-                                      world.types.get_surface("table")))
+                                      world.types.get_surface("table"),))
     world.append_surface(BlastSurface("table_2", 
                                       {"location": BlastPt(30.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
                                       world.types.get_surface("table")))
@@ -1716,14 +1806,13 @@ def make_table_top_world():
     world.take_action("stair4", "move", {"end": BlastPt(20.742, 18.390, -2.737, clarkcenterfirstfloor.map)}) #To debug with arms tucked.
 
 
-    cup = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0, 0, 0, 0, 0, 0), "table_1")
+    cup = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
     world.append_object(cup)
     world.surfaces["table_1"].objects.append(BlastObjectRef(cup.uid))
     
-    cup2 = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0, 0, 0, 0, 0, 0), "table_1")
+    cup2 = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
     world.append_object(cup2)
     world.surfaces["table_1"].objects.append(BlastObjectRef(cup2.uid))
-
     
     return world
     
@@ -1949,7 +2038,7 @@ def pick_and_place_test():
     print '-'*130
     
     print world.enumerate_action("stair4", "table-place-left", {})
-    print world.take_action("stair4", "table-place-left", {"table": "table_1", "position": "table, Pos(0, 0, 0, 0, 0, 0)"}, debug=True)
+    print world.take_action("stair4", "table-place-left", {"table": "table_1", "position": "table, Pos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0)"}, debug=True)
     
     
     print '-'*130
