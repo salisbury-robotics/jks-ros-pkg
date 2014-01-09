@@ -90,9 +90,11 @@ class BlastAction(object):
         
         for var in self.changes:
             if var != "robot.location" and var.find("robot.holders.") != 0 and var.find("robot.positions.") != 0 \
-                    and not (var.split(".")[0] in surface_parameters and var.split(".")[1].split("+")[0] == "objects"):
+                    and not (var.split(".")[0] in surface_parameters and var.split(".")[1].split("+")[0] == "objects") \
+                    and not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
                 raise BlastTypeError("Invalid variable set in " + name + ": " + var)
-            self.validate("Invalid expression for variable " + var + " in " + name, self.changes[var])
+            if not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
+                self.validate("Invalid expression for variable " + var + " in " + name, self.changes[var])
 
         self.planable = planable
         self.user = user
@@ -277,6 +279,13 @@ def make_test_actions():
                         {"table.objects+0": "robot.holders.left-arm:position",
                          "robot.holders.left-arm": "None()",
                          }, []),
+
+            
+            BlastAction("pr2-cupholder.table-coffee-scan", 
+                        {"table": "Surface:table"},
+                        ("==", "robot.location", "table.locations.location"), "\"1\"",
+                        {"table.scan": "coffee_cup,coffee_money_bag" }, []),
+            
             ]
 
 
@@ -630,14 +639,14 @@ class BlastObject(object):
         return "Object(\"" + self.object_type.name + "\", " + pt + ", \"" + self.parent + "\")"
 
 class BlastSurface(object):
-    __slots__ = ['name', 'locations', 'surface_type', 'state', 'locations_keysort', 'objects', 'planes']
-    def __init__(self, name, locations, surface_type, planes = {}, state = None):
+    __slots__ = ['name', 'locations', 'surface_type', 'state', 'locations_keysort', 'objects', 'scan']
+    def __init__(self, name, locations, surface_type, state = None):
         self.name = name
         self.locations = locations
         self.locations_keysort = sorted(locations.keys())
         self.surface_type = surface_type
         self.state = state
-        self.planes = planes #By location, then array of planes with points
+        self.scan = set()
         self.objects = []
         if not self.state:
             self.state = ""
@@ -665,6 +674,7 @@ class BlastSurface(object):
             lclone[name] = loc.copy()
         c = BlastSurface(self.name, lclone, self.surface_type, self.state)
         c.objects = [x.copy() for x in self.objects]
+        [c.scan.add(x) for x in self.scan]
         return c
 
     def hash_update(self, hl, get_obj):
@@ -1514,6 +1524,10 @@ class BlastWorld(object):
                 pos = pos[1]
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("ADDOBJ", ("surface", surface.name), obj, pos))
+            elif sub[0] in surface_parameters and len(sub) == 2 and sub[1] == "scan":
+                surface = get_value(sub[0])
+                items_to_clone["surfaces"].add(surface.name)
+                transactions.append(("SCAN", ("surface", surface.name), val))
             else:
                 if debug: print "Update failed"
                 return None
@@ -1552,6 +1566,8 @@ class BlastWorld(object):
                 obj.parent = v.name
                 obj.position = x[3]
                 v.objects.append(BlastObjectRef(obj.uid))
+            elif x[0] == "SCAN":
+                [v.scan.add(t.strip()) for t in x[2].split(",")]
             else:
                 print "Really bad, transaction bad:", x
                 raise Exception("Bad transaction: " + str(x))
@@ -1701,7 +1717,7 @@ class BlastWorld(object):
         #Handle after all others parameterized
         for param, data in location_parameters.iteritems():
             parameters[param] = {}
-            for surf in parameters[data]:
+            for surf in parameters[data[0]]:
                 parameters[param][surf] = []
                 for loc, pt in surf.locations.iteritems():
                     if loc.find(data[1]) == 0:
@@ -1774,13 +1790,15 @@ class BlastWorld(object):
                                 w = 1000000
                                 break
                         w = w + 1
-                #parameters[param] = [ (vt[0], p), ]
+
+            parameters[param] = [ ([data[0],], parameters[param]), ]
             
 
         for param, data in surfaceobject_parameters.iteritems():
             parameters[param] = {}
             for surf in parameters[data]:
                 parameters[param][surf] = [x for x in surf.objects]
+            parameters[param] = ([data,], parameters[param])
         
         return action_type.planable, parameters
 
@@ -2042,10 +2060,11 @@ def pick_and_place_test():
     
     
     print '-'*130
-    print "                                                            POST-EXEC"
+    print "                                                            SCAN"
     print '-'*130
     print world.to_text()
     print '-'*130
+    print world.take_action("stair4", "table-coffee-scan", {"table": "table_1"}, debug=True)
 
 if __name__ == '__main__':
     #torso_test()
