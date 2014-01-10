@@ -54,9 +54,13 @@ class Planner:
         for next_d in self.parameter_iter(param, keys):
             ls = param[key]
             if type(ls) != type([]): #Handle dependent keys
+                #print ls
                 ls = ls[1]
                 for v in param[key][0]:
-                    ls = ls[next_d[v]]
+                    if type(next_d[v]) == blast_world.BlastSurface:
+                        ls = ls[next_d[v].name]
+                    else:
+                        ls = ls[next_d[v]]
             for value in ls:
                 nxt = next_d.copy()
                 nxt[key] = value
@@ -94,6 +98,12 @@ class Planner:
             self.worlds.remove(world)
             self.planned_worlds.append(world)
 
+
+            #print "-"*120
+            #for a in world[2]: print a
+            #print world[0].to_text()
+            #print "-"*120
+
             #Once we find a good world, we stop planning for worlds after that time
             if self.time_limit != None and world[1] >= self.time_limit: break
             
@@ -119,12 +129,12 @@ class Planner:
                         if self.action_type_debug != False:
                             self.action_type_debug[at] = self.action_type_debug.get(at, 0) + 1
 
-                        if world_clone.detect_bad_parenting():
-                            print "-"*60
-                            print "Bad parenting: ", world_clone.detect_bad_parenting()
-                            print "after action:", robot_name, at, parameters
-                            print world_clone.to_text()
-                            print "-"*60
+                        #if world_clone.detect_bad_parenting():
+                        #    print "-"*60
+                        #    print "Bad parenting: ", world_clone.detect_bad_parenting()
+                        #    print "after action:", robot_name, at, parameters
+                        #    print world_clone.to_text()
+                        #    print "-"*60
 
                         if change == None: #failed
                             #world_clone.take_action(robot_name, at, parameters, debug=True)  #Failed action print
@@ -401,8 +411,18 @@ class BlastPlannableWorld:
     #End API actions ---------------------------        
 
 
+if __name__ == '__main__' and True:
+    world = BlastPlannableWorld(blast_world.make_table_top_world())
+    initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
-if __name__ == '__main__':
+    
+    print '-'*100
+    print "Plan to pick up coffee cup"
+    print '-'*100
+    world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
+
+
+if __name__ == '__main__' and False:
     world = BlastPlannableWorld(blast_world.make_test_world())
 
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
