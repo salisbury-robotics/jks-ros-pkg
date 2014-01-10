@@ -152,7 +152,7 @@ class BlastAction(object):
 #With action compares: False = Don't care
 
 def make_test_actions():
-    return [BlastAction("pr2.move", {"end": "Pt"},
+    test = [BlastAction("pr2.move", {"end": "Pt"},
                         ("&&", ("==", "robot.location.map", "end.map"),
                          ("position", "robot.torso", [0.0,]),
                          ("position", "robot.left-arm", "tucked"),
@@ -241,7 +241,8 @@ def make_test_actions():
                         "\"30\"", {"robot.holders.cupholder": "robot.holders.left-arm",
                                    "robot.holders.left-arm": "None()",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
-                                   "robot.positions.right-arm": False},
+                                   #"robot.positions.right-arm": None
+                                   },
                         [("icon", "robot.location", "action_fs/pr2-cupholder/stash-cupholder/icon.png"),],),
             BlastAction("pr2-cupholder.unstash-cupholder", {}, 
                         ("&&", ("contains", "robot.cupholder", {"has_tag": "cupholder_object"}),
@@ -249,7 +250,8 @@ def make_test_actions():
                         "\"30\"", {"robot.holders.cupholder": "None()",
                                    "robot.holders.left-arm": "robot.holders.cupholder",
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
-                                   "robot.positions.right-arm": False},
+                                   #"robot.positions.right-arm": None
+                                   },
                         [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),],),
             BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "\"10000\"", {"robot.location": "person_location"}, 
@@ -259,25 +261,31 @@ def make_test_actions():
             BlastAction("pr2-cupholder.table-pick-left", 
                         {"table": "Surface:table", "object": "SurfaceObject:table"}, #FIXME: motion/size limits + can't be too far back
                         
-                        ("==", "robot.location", "table.locations.location"), "\"20\"",
+                        ("&&", ("contains", "robot.left-arm",  "None()"),
+                         ("==", "robot.location", "table.locations.location")), "\"20\"",
 
                         {"robot.holders.left-arm": "object",
+                         "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                          }, []),
-            BlastAction("pr2-cupholder.table-pick-right", 
-                        {"table": "Surface:table", "object": "SurfaceObject:table"},
-                        
-                        ("==", "robot.location", "table.locations.location"), "\"20\"",
-
-                        {"robot.holders.right-arm": "object",
-                         }, []),
+            #BlastAction("pr2-cupholder.table-pick-right", 
+            #            {"table": "Surface:table", "object": "SurfaceObject:table"},
+            #            
+            #            ("==", "robot.location", "table.locations.location"), "\"20\"",
+#
+#                        {"robot.holders.right-arm": "object",
+#            "robot.positions.right-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
+#                         }, []),
             
             BlastAction("pr2-cupholder.table-place-left", 
                         {"table": "Surface:table", "position": "Pos:table, robot.holders.left-arm, 0.6602, 0, 0.762, 0, 0, 0"},
                         
-                        ("==", "robot.location", "table.locations.location"), "\"20\"",
+                        ("&&", ("not", ("contains", "robot.left-arm", "None()")),
+                         ("==", "robot.location", "table.locations.location")), "\"20\"",
 
                         {"table.objects+0": "robot.holders.left-arm:position",
                          "robot.holders.left-arm": "None()",
+                         "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
+                         #"robot.positions.left-arm": False,
                          }, []),
 
             
@@ -287,6 +295,7 @@ def make_test_actions():
                         {"table.scan": "coffee_cup,coffee_money_bag" }, []),
             
             ]
+    return test
 
 
 ################################################################
@@ -572,6 +581,13 @@ class BlastPos(object):
         if self.rz != other.rz: return False
         return True
 
+    def hash_update(self, hl):
+        stp = str(self.x) + str(self.y) + str(self.z)
+        sta = str(self.rx) + str(self.ry) + str(self.rz)
+        hl.update(stp)
+        hl.update(sta)
+        
+
     def __repr__(self):
         return self.to_text()
     def __str__(self):
@@ -684,6 +700,26 @@ class BlastSurface(object):
         hl.update(self.state)
         hl.update(self.surface_type.name)
 
+        def cmpf(a, b):
+            oa = get_obj(a.uid)
+            ob = get_obj(b.uid)
+
+            def ti(v):
+                if (v > -1 and v < 1 and v != 0.0):
+                    v = 1.0 / v
+                return int(v)
+
+            if (oa.position.x != ob.position.x): return ti(oa.position.x - ob.position.x)
+            if (oa.position.y != ob.position.y): return ti(oa.position.y - ob.position.y)
+            if (oa.position.z != ob.position.z): return ti(oa.position.z - ob.position.z)
+            if (oa.position.rx != ob.position.rx): return ti(oa.position.rx - ob.position.rx)
+            if (oa.position.ry != ob.position.ry): return ti(oa.position.ry - ob.position.ry)
+            return ti(oa.position.rz - ob.position.rz)
+
+        self.objects.sort(cmpf)
+        for o in self.objects:
+            o.hash_update(hl, get_obj)
+
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
@@ -703,7 +739,7 @@ class BlastSurface(object):
     def to_text(self, loc):
         return "\t\tSurface(\"" + self.name + "\", \"" + loc + "\", " \
             + self.locations[loc].to_text() + ", \"" + self.surface_type.name \
-            + "\", \"" + self.state + "\")\n"
+            + "\", \"" + self.state + "\", \"" + ",".join(self.scan) + "\")\n"
 
 class BlastPrimitive(object):
     __slots__ = ['name']
@@ -1032,6 +1068,7 @@ class BlastWorld(object):
             if diff:
                 self.surfaces[name] = surface.copy()
                 self.surfaces[name].objects = nobjects
+                self.clear_hash("surfaces")
             #print self.surfaces[name].objects
                 
 
@@ -1301,12 +1338,12 @@ class BlastWorld(object):
                     parameters[name] = BlastPt(float(parameters[name]["x"]), float(parameters[name]["y"]), 
                                                float(parameters[name]["a"]), parameters[name]["map"])
             elif ptype.find("Surface:") == 0:
+                surface_parameters.add(name)
                 if type(parameters[name]) == type("") or type(parameters[name]) == type(u""):
                     if not clone_param:
                         parameters = parameters.copy() #Avoid mutating the original dictionary
                         clone_param = True
                     parameters[name] = self.surfaces.get(parameters[name])
-                    surface_parameters.add(name)
             elif ptype.find("SurfaceObject:") == 0:
                 if type(parameters[name]) == type("") or type(parameters[name]) == type(u""):
                     if not clone_param:
@@ -1520,7 +1557,7 @@ class BlastWorld(object):
                 if type(pos[1]) == type(""):
                     v = [float(x.strip()) for x in pos[1].strip().strip("Pos()").strip().split(",")]
                     pos = (pos[0], BlastPos(v[0], v[1], v[2], v[3], v[4], v[5]))
-                surface = get_value(pos[0])
+                surface = get_value(sub[0])
                 pos = pos[1]
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("ADDOBJ", ("surface", surface.name), obj, pos))
@@ -1529,7 +1566,7 @@ class BlastWorld(object):
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("SCAN", ("surface", surface.name), val))
             else:
-                if debug: print "Update failed"
+                if debug: print "Update failed, invalid sub", sub
                 return None
 
         if not execute:
@@ -1549,6 +1586,7 @@ class BlastWorld(object):
                 self.clear_hash("robots")
                 v = self.robots[x[1][1]]
             elif x[1][0] == "surface":
+                self.clear_hash("surfaces")
                 v = self.surfaces[x[1][1]]
             else:
                 print "Bad transaction", x
@@ -1732,7 +1770,9 @@ class BlastWorld(object):
                 parameters[param][surf.name] = []
                 obj = None
                 if data[1].strip().find("robot.holders.") == 0:
-                    obj = self.objects[robot.holders[data[1].strip().split(".")[2]].uid]
+                    obj = robot.holders[data[1].strip().split(".")[2]]
+                    if obj:
+                        obj = self.objects[obj.uid]
                 if not obj:
                     break
 
@@ -1786,18 +1826,18 @@ class BlastWorld(object):
                                     collision = True
                                     break
                             if not collision:
-                                parameters[param][surf.name].append(p)
+                                parameters[param][surf.name].append((data[0], p))
                                 w = 1000000
                                 break
                         w = w + 1
 
-            parameters[param] = [ ([data[0],], parameters[param]), ]
+            parameters[param] = ([data[0],], parameters[param])
             
 
         for param, data in surfaceobject_parameters.iteritems():
             parameters[param] = {}
             for surf in parameters[data]:
-                parameters[param][surf] = [x for x in surf.objects]
+                parameters[param][surf.name] = [x for x in surf.objects]
             parameters[param] = ([data,], parameters[param])
         
         return action_type.planable, parameters
@@ -1810,9 +1850,9 @@ def make_table_top_world():
     world.append_surface(BlastSurface("table_1", 
                                       {"location": BlastPt(20.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
                                       world.types.get_surface("table"),))
-    world.append_surface(BlastSurface("table_2", 
-                                      {"location": BlastPt(30.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
-                                      world.types.get_surface("table")))
+    #world.append_surface(BlastSurface("table_2", 
+    #                                  {"location": BlastPt(30.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
+    #                                  world.types.get_surface("table")))
 
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
@@ -2056,15 +2096,21 @@ def pick_and_place_test():
     print '-'*130
     
     print world.enumerate_action("stair4", "table-place-left", {})
-    print world.take_action("stair4", "table-place-left", {"table": "table_1", "position": "table, Pos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0)"}, debug=True)
+    print world.take_action("stair4", "table-place-left", {"table": "table_1", "position": "table, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"}, debug=True)
     
     
     print '-'*130
-    print "                                                            SCAN"
+    print "                                                            POST-PLACE"
     print '-'*130
     print world.to_text()
     print '-'*130
     print world.take_action("stair4", "table-coffee-scan", {"table": "table_1"}, debug=True)
+    
+    print '-'*130
+    print "                                                            POST-SCAN"
+    print '-'*130
+    print world.to_text()
+    print '-'*130
 
 if __name__ == '__main__':
     #torso_test()
