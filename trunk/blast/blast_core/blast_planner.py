@@ -411,7 +411,7 @@ class BlastPlannableWorld:
     #End API actions ---------------------------        
 
 
-if __name__ == '__main__' and False:
+if __name__ == '__main__' and True:
     world = BlastPlannableWorld(blast_world.make_table_top_world())
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
@@ -422,7 +422,7 @@ if __name__ == '__main__' and False:
     world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
 
 
-if __name__ == '__main__' and True:
+if __name__ == '__main__' and False:
     world = BlastPlannableWorld(blast_world.make_test_world())
 
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
