@@ -267,7 +267,7 @@ class BlastManager:
                 self.implicit_plan[sh] = arg
                 self.on_plan_action()
         else:
-            update_db = lambda x: None
+            update_cb = lambda x: None
         res = self.world.plan_action(robot, action, parameters, execution_cb=update_cb)
         if res == None:
             print "Epic fail for", robot, "-->", action
