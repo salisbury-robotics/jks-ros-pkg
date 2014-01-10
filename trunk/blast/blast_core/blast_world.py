@@ -1756,11 +1756,11 @@ class BlastWorld(object):
         for param, data in location_parameters.iteritems():
             parameters[param] = {}
             for surf in parameters[data[0]]:
-                parameters[param][surf] = []
+                parameters[param][surf.name] = []
                 for loc, pt in surf.locations.iteritems():
                     if loc.find(data[1]) == 0:
                         if test_loc(pt, param):
-                            parameters[param][surf].append(pt)
+                            parameters[param][surf.name].append(pt)
             parameters[param] = ([data[0]], parameters[param])
 
 
