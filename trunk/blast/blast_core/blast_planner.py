@@ -17,7 +17,6 @@ class Planner:
         self.fail_debug = {}
         self.super_fail_debug = False
 
-
     def parameter_iter(self, param, keys = None):
         if keys == []: 
             yield {}
@@ -65,7 +64,66 @@ class Planner:
                 nxt = next_d.copy()
                 nxt[key] = value
                 yield nxt
+
         
+    def plan_hunt(self, robot, holder, object_type, wg = None):
+        print robot, holder, object_type
+
+        print "Trying to pick up pre-existing object..."
+        test_planner = Planner(self.worlds[0][0])
+        test_planner.world_good = lambda w: w.objects[w.robots[robot].holders[holder].uid].object_type.name == object_type \
+            if w.robots[robot].holders[holder] != None else False
+        if wg: test_planner.world_good = wg
+        plan_wg_r = test_planner.world_good
+        world, est_time, steps = test_planner.plan_print()
+
+        if world != None and est_time != None and steps != None:
+            return world, est_time, steps
+
+        #actions = world[0].get_scan_actions()[object_type]
+        
+        print "Nope! No object present, scanning..."
+
+        world_no_scan = self.worlds[0][0].copy()
+        world_no_scan.clear_scan()
+
+        last_scan_count = 0
+
+        last_world = world_no_scan
+        ics = last_world.consider_scan
+        last_world.consider_scan = True
+        last_world.clear_hash("surfaces")
+        last_time = 0
+        tsteps = []
+
+        while True:
+            test_planner = Planner(last_world)
+            test_planner.world_good = lambda w: w.scan_count(object_type) > last_scan_count
+            world, est_time, steps = test_planner.plan_print()
+            if world != None and est_time != None and steps != None:
+                last_scan_count = world.scan_count(object_type)
+                last_world = world
+                last_time = last_time + float(est_time)
+                tsteps.extend(steps)
+                tsteps.append((robot, None, {"world_good": plan_wg_r}))
+            else:
+                if last_world.equal(world_no_scan):
+                    return None
+                last_world.consider_scan = ics
+                last_world.clear_hash("surfaces")
+                return last_world, last_time, tsteps
+
+            
+
+        
+        #for obj, action_types in ot:
+                #Need a better way to schedule.
+        #    for a in action_types:
+        #        print a
+                #new_world = (world[0].copy(), world[1] + float(1000), world[2] + [(robot_name, None, {"object-type"})], world)
+                #self.worlds.append(new_world)
+
+
     def plan_recursive(self):
         for world in self.worlds:
             if self.world_good(world[0]):
@@ -100,6 +158,7 @@ class Planner:
 
 
             #print "-"*120
+            #print world[0].scan_count("coffee_cup")
             #for a in world[2]: print a
             #print world[0].to_text()
             #print "-"*120
@@ -255,17 +314,43 @@ class BlastPlannableWorld:
         c.real_world = False
         return c
 
+    #Documentation:
+    #plan_and_return = instantly execute, return immediately
+    #report_plan = at the end return the plan instead of True/None
+
+    def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
+        planner = Planner(self.world.copy())
+        world, est_time, steps = planner.plan_hunt(robot, holder, object_type, world_good)
+        self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
+
     def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
         planner.world_good = world_good
         planner.extra_goals = extra_goals
         world, est_time, steps = planner.plan_print()
+        self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
+
+    def exec_plan(self, world, est_time, steps, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         if plan_and_return:
             return world, est_time, steps
         if world != None and est_time != None and steps != None:
             print "Taking", len(steps), "steps"
             x = 0
             for step in steps:
+                if step[1] == None:
+                    print "REPLAN!!!", step
+                    
+                    planner = Planner(self.world.copy())
+                    planner.world_good = step[2]["world_good"]
+                    planner.extra_goals = step[2].get("extra_goals", {})
+                    n_world, n_est_time, n_steps = planner.plan_print()
+                    if n_world != None and n_est_time != None and n_steps != None:
+                        print "Plan worked!!!!", n_steps
+                        return self.exec_plan(n_world, n_est_time, n_steps, plan_and_return, report_plan, execution_cb)
+                    else:
+                        print "Replan failed, continuing default course."
+
+                    continue
                 execution_cb(steps[x:])
                 x = x + 1
                 print step[0], step[1], step[2]
@@ -404,6 +489,9 @@ class BlastPlannableWorld:
                     return None
             return True
         elif self.world.take_action(robot, action, parameters, True, debug):
+            if not self.action_callback(robot, action, parameters):
+                print "Action callback failed to work, this test may be broken."
+                return None
             return True
         else:
             print "Blast failed to take action"
@@ -412,14 +500,26 @@ class BlastPlannableWorld:
 
 
 if __name__ == '__main__' and True:
-    world = BlastPlannableWorld(blast_world.make_table_top_world())
+    world = BlastPlannableWorld(blast_world.make_table_top_world(False))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
+    def ac(r, a, p): #Test add the cups
+        if r == "stair4" and a == "table-coffee-scan":
+            cup = blast_world.BlastObject(world.world.types.get_object("coffee_cup"),
+                                          blast_world.BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
+            world.world.append_object(cup)
+            world.world.surfaces["table_1"].objects.append(blast_world.BlastObjectRef(cup.uid))
+            #world.clear_hash("surfaces")
+        return True
+
+    world.action_callback = ac
     
     print '-'*100
     print "Plan to pick up coffee cup"
     print '-'*100
-    world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
+    #world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
+
+    print world.plan_hunt("stair4", "cupholder", "coffee_cup")
 
 
 if __name__ == '__main__' and False:

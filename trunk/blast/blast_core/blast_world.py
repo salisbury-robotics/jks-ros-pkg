@@ -24,14 +24,16 @@ class BlastError(Exception):
 
 
 class BlastAction(object):
-    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate', 'changes', 'display', 'planable', 'user']
+    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate',
+                 'changes', 'display', 'planable', 'user']
 
     def to_dict(self):
         return {"name": self.name, "parameters": self.parameters, "condition": self.condition, 
                 "time_estimate": self.changes, "display": self.display, 
                 "planable": self.planable, 'user': self.user}
 
-    def __init__(self, name, parameters, condition, time_estimate, changes, display, planable = True, user = False): #Name must be robot_type.action
+    def __init__(self, name, parameters, condition, time_estimate, 
+                 changes, display, planable = True, user = False): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
@@ -51,29 +53,37 @@ class BlastAction(object):
             elif ptype.find("Location:") == 0:
                 vname = ptype[ptype.find(":")+1:].split(".")[0]
                 if not vname in self.parameters:
-                    raise BlastTypeError("Location parameter does not reference another parameter: " + pname + " -> " + vname)
+                    raise BlastTypeError("Location parameter does not reference "
+                                         + "another parameter: " + pname + " -> " + vname)
                 if self.parameters[vname].find("Surface:") != 0:
-                    raise BlastTypeError("Location parameter " + pname + " does not reference a surface type variable (" + vname + ")")
+                    raise BlastTypeError("Location parameter " + pname + " does not reference"
+                                         + " a surface type variable (" + vname + ")")
             elif ptype == "String":
                 if planable:
-                    raise BlastTypeError("Cannot plan with arbitary string type. Either declare action unplanable or add enumeration")
+                    raise BlastTypeError("Cannot plan with arbitary string type. Either "
+                                         + "declare action unplanable or add enumeration")
             elif ptype == "Object":
                 pass
             elif ptype.find("SurfaceObject:") == 0:
                 vname = ptype[ptype.find(":")+1:]
                 if not vname in self.parameters:
-                    raise BlastTypeError("SurfaceObject parameter does not reference another parameter: " + pname + " -> " + vname)
+                    raise BlastTypeError("SurfaceObject parameter does not reference "
+                                         + "another parameter: " + pname + " -> " + vname)
                 if self.parameters[vname].find("Surface:") != 0:
-                    raise BlastTypeError("SurfaceObject parameter " + pname + " does not reference a surface type variable (" + vname + ")")
+                    raise BlastTypeError("SurfaceObject parameter " + pname + " does not "
+                                         + "reference a surface type variable (" + vname + ")")
             elif ptype.find("Pos:") == 0:
                 vname = ptype[ptype.find(":")+1:].split(",")[0].strip()
                 if not vname in self.parameters:
-                    raise BlastTypeError("Pos parameter does not reference another parameter: " + pname + " -> " + vname)
+                    raise BlastTypeError("Pos parameter does not reference another "
+                                         + "parameter: " + pname + " -> " + vname)
                 if self.parameters[vname].find("Surface:") != 0:
-                    raise BlastTypeError("Pos parameter " + pname + " does not reference a surface type variable (" + vname + ")")
+                    raise BlastTypeError("Pos parameter " + pname + " does not reference "
+                                         + "a surface type variable (" + vname + ")")
                 #Fixme: the object variable could be bad
                 if len(ptype[ptype.find(":")+1:].split(",")) != 8:
-                    raise BlastTypeError("Pos parameter " + pname + " does not have 8 arguments for type (" + vname + ")")
+                    raise BlastTypeError("Pos parameter " + pname + " does not have 8"
+                                         + " arguments for type (" + vname + ")")
                 for f in ptype[ptype.find(":")+1:].split(",")[2:]:
                     try:
                         r = float(f.strip())
@@ -693,7 +703,7 @@ class BlastSurface(object):
         [c.scan.add(x) for x in self.scan]
         return c
 
-    def hash_update(self, hl, get_obj):
+    def hash_update(self, hl, get_obj, consider_scan):
         for name in self.locations_keysort:
             hl.update(name)
             self.locations[name].hash_update(hl)
@@ -719,6 +729,10 @@ class BlastSurface(object):
         self.objects.sort(cmpf)
         for o in self.objects:
             o.hash_update(hl, get_obj)
+
+        if consider_scan:
+            for ot in sorted(self.scan):
+                hl.update(ot)
 
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
@@ -764,7 +778,7 @@ class BlastMap(object):
         self.map_file = map_file
         self.ppm = ppm
 
-    def hash_update(self, hl, get_obj):
+    def hash_update(self, hl, get_obj, consider_scan):
         hl.update(self.map_file + str(self.ppm))
 
     def copy(self):
@@ -835,7 +849,7 @@ class BlastRobot(object):
                 copy.positions[name] = False
         return copy
 
-    def hash_update(self, hl, get_obj):
+    def hash_update(self, hl, get_obj, consider_scan):
         hl.update(self.name)
         hl.update(self.robot_type.name)
         self.location.hash_update(hl)
@@ -959,7 +973,7 @@ def paren_split(value, delim):
 class BlastWorld(object):
     __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'copy_on_write_optimize', 'sumh',
                  'maps_hash_state', 'surfaces_hash_state', 'robots_hash_state', 'objects_hash_state',
-                 'maps_keysort', 'surfaces_keysort', 'robots_keysort', 'objects_keysort']
+                 'maps_keysort', 'surfaces_keysort', 'robots_keysort', 'objects_keysort', 'consider_scan']
     def __init__(self, types):
         self.types = types
         self.maps = {}
@@ -975,7 +989,37 @@ class BlastWorld(object):
         self.surfaces_hash_state = None
         self.objects_hash_state = None
         self.sumh = None
+        self.consider_scan = False
         self.copy_on_write_optimize = True
+
+    def clear_scan(self):
+        for sn in self.surfaces_keysort:
+            if len(self.surfaces[sn].scan) != 0:
+                if self.copy_on_write_optimize:
+                    self.surfaces[sn] = self.surfaces[sn].copy()
+                self.surfaces[sn].scan = set()
+                self.clear_hash("surfaces")
+
+    def scan_count(self, ot):
+        c = 0
+        for name, surf in self.surfaces.iteritems():
+            if ot in surf.scan:
+                c = c + 1
+        return c
+
+
+    def get_scan_actions(self):
+        result_dir = {}
+        for at_name, at in self.types.actions.iteritems():
+            for var, value in at.changes.iteritems():
+                if var.find(".scan") != 0 and var.find(".") == var.find(".scan"):
+                    for ot in value.split(","):
+                        s = result_dir.get(ot, set())
+                        s.add(at_name)
+                        result_dir[ot] = s
+        return result_dir
+                    
+
 
     def copy_obj(self, uid):
         if self.copy_on_write_optimize and uid in self.objects:
@@ -999,6 +1043,7 @@ class BlastWorld(object):
         copy.objects_hash_state = self.objects_hash_state
         copy.robots_hash_state = self.robots_hash_state
         copy.sumh = self.sumh
+        copy.consider_scan = self.consider_scan
         return copy
     def append_map(self, mp):
         if mp.map in self.maps: raise BlastError("Duplicate map: " + mp.map)
@@ -1144,7 +1189,7 @@ class BlastWorld(object):
                 get_obj = lambda x: self.get_obj(x)
                 for name in keysort:
                     hl.update(str(name))
-                    arr[name].hash_update(hl, get_obj)
+                    arr[name].hash_update(hl, get_obj, self.consider_scan)
                 v = hl.digest()
                 self._set_hash(field, v)
             self.sumh = self.sumh + v
@@ -1842,7 +1887,7 @@ class BlastWorld(object):
         
         return action_type.planable, parameters
 
-def make_table_top_world():
+def make_table_top_world(make_objects = True):
     world = BlastWorld(make_test_types_world())
     clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", "maps/clarkcenterfirstfloor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloor)
@@ -1863,14 +1908,14 @@ def make_table_top_world():
     world.take_action("stair4", "tuck-both-arms", {}) #To debug with arms tucked.
     world.take_action("stair4", "move", {"end": BlastPt(20.742, 18.390, -2.737, clarkcenterfirstfloor.map)}) #To debug with arms tucked.
 
-
-    cup = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
-    world.append_object(cup)
-    world.surfaces["table_1"].objects.append(BlastObjectRef(cup.uid))
+    if make_objects:
+        cup = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
+        world.append_object(cup)
+        world.surfaces["table_1"].objects.append(BlastObjectRef(cup.uid))
     
-    cup2 = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
-    world.append_object(cup2)
-    world.surfaces["table_1"].objects.append(BlastObjectRef(cup2.uid))
+        cup2 = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
+        world.append_object(cup2)
+        world.surfaces["table_1"].objects.append(BlastObjectRef(cup2.uid))
     
     return world
     
@@ -2111,6 +2156,9 @@ def pick_and_place_test():
     print '-'*130
     print world.to_text()
     print '-'*130
+
+
+    print world.get_scan_actions()
 
 if __name__ == '__main__':
     #torso_test()
