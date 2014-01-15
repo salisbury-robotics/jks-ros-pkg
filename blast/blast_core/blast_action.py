@@ -27,66 +27,95 @@ class BlastActionExec:
         self._on_robot_change = on_robot_change
     
     def set_location(self, position, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).set_robot_location(self._robot, position.copy())
+            r = self._get_world(world).set_robot_location(self._robot, position.copy())
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
 
     def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).set_robot_holder(self._robot, holder, ot,
-                                                         require_preexisting_object)
+            r = self._get_world(world).set_robot_holder(self._robot, holder, ot,
+                                                        require_preexisting_object)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
 
     def robot_transfer_holder(self, from_holder, to_holder, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).robot_transfer_holder(self._robot, from_holder, to_holder)
+            r = self._get_world(world).robot_transfer_holder(self._robot, from_holder, to_holder)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
+
+    def get_robot_holder(self, holder, world = None):
+        r = None
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            r = self._get_world(world).get_robot_holder(self._robot, holder)
+        self._manager.world_unlock()
+        self._on_robot_change()
+        return r
+        
 
     def robot_pick_object(self, uid, to_holder, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).robot_pick_object(self._robot, uid, to_holder)
+            r = self._get_world(world).robot_pick_object(self._robot, uid, to_holder)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
         
     def robot_place_object(self, from_h, surface, pos, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).robot_place_object(self._robot, from_h, surface, pos)
+            r = self._get_world(world).robot_place_object(self._robot, from_h, surface, pos)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
         
     def add_surface_object(self, surface, object_type, pos, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).add_surface_object(surface, object_type, pos)
+            r = self._get_world(world).add_surface_object(surface, object_type, pos)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
 
     def set_robot_position(self, pos, val, world = None):
+        r = None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
             self._get_world(world).set_robot_position(self._robot, pos, val)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
 
     def surface_scan(self, surface, object_types, world = None):
+        r= None
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).surface_scan(surface, object_types)
+            r = self._get_world(world).surface_scan(surface, object_types)
         self._manager.world_unlock()
         self._on_robot_change()
+        return r
         
-    def plan_action(self, action, parameters, world = None):
+    def plan_action(self, action, parameters, world_limits, world = None):
         r = None
         if self._manager.get_current_guid() == self._guid:
-            r = self._manager.plan_action(self._robot, action, parameters, True)
+            wl = {}
+            if "robot-holders" in world_limits:
+                wl["robot-holders"] = {self._robot: world_limits["robot-holders"]}
+            r = self._manager.plan_action(self._robot, action, parameters, wl, True)
         print r
         if r == None:
             raise BlastRuntimeError("Planning to run action failed")
@@ -110,6 +139,7 @@ class BlastActionExec:
             self._manager.worlds[name] = self._get_world(world).copy()
             self._manager.action_worlds[self.guid] = self._manager.action_worlds.get(self.guid, []) + [name,]
         self._manager.world_unlock()
+        return True
 
     def get_surface(self, surface, world = None):
         if type(surface) != type(""):
@@ -178,8 +208,13 @@ class BlastActionExec:
                     world = None
                     action = result.strip().split(",")[1].strip()
                     parameters = json.loads(",".join(result.strip().split(",")[2:]))
+                world_limits = {}
+                if "world limits" in parameters: #note this contains a space so never found as param
+                    world_limits = parameters["world limits"]
+                if "parameter values" in parameters:
+                    parameters = parameters["parameter values"]
                 try:
-                    proc.stdin.write(str(self.plan_action(action, parameters, world)) + "\n")
+                    proc.stdin.write(str(self.plan_action(action, parameters, world_limits, world)) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
                     proc.stdin.write("None\n")
@@ -221,6 +256,15 @@ class BlastActionExec:
                     position = result.strip().split(",")[1].strip()
                     state = json.loads(",".join(result.strip().split(",")[2:]))
                 proc.stdin.write(str(self.set_robot_position(position, state, world)) + "\n")
+                proc.stdin.flush()
+            elif result.find("GET_ROBOT_HOLDER") == 0:
+                if result.strip().split(",")[0].strip() == "GET_ROBOT_HOLDER":
+                    world = result.strip().split(",")[1].strip()
+                    holder = result.strip().split(",")[2].strip()
+                else:
+                    world = None
+                    holder = result.strip().split(",")[1].strip()
+                proc.stdin.write(str(self.get_robot_holder(holder)) + "\n")
                 proc.stdin.flush()
             elif result.find("SET_ROBOT_HOLDER") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_HOLDER":
@@ -376,7 +420,7 @@ class BlastManager:
             print "Epic fail for", robot, "-->", action
             return False
         return True
-    def plan_action(self, robot, action, parameters, do_cb = False):
+    def plan_action(self, robot, action, parameters, world_limits, do_cb = False):
         if do_cb:
             sh = len(self.action_stack) - 1
             def update_cb(arg):
@@ -384,7 +428,7 @@ class BlastManager:
                 self.on_plan_action()
         else:
             update_cb = lambda x: None
-        res = self.world.plan_action(robot, action, parameters, execution_cb=update_cb)
+        res = self.world.plan_action(robot, action, parameters, world_limits, execution_cb=update_cb)
         if res == None:
             print "Failed to plan action", robot, "-->", action
             return None
@@ -409,7 +453,7 @@ class BlastManager:
 def test_main():
     man = BlastManager(["test_actions",], blast_world.make_test_world())
     man.plan_action("stair4", "coffee-run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
-                                             "shop": "clark_peets_coffee_shop"})
+                                             "shop": "clark_peets_coffee_shop"}, {})
 
 
 
@@ -419,7 +463,7 @@ def test_place():
     w.write("coffee_cup\n")
     w.close()
 
-    man = BlastManager(["test_actions",], blast_world.make_table_top_world(False))
+    man = BlastManager(["test_actions",], blast_world.make_table_top_world())
 
     print "-"*120
     print " "*60, "BEFORE PICK"
@@ -433,8 +477,10 @@ def test_place():
     print man.world.world.to_text()
     print "-"*120
 
-    man.plan_action("stair4", "unstash-cupholder", {})
-    man.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"})
+    #man.plan_action("stair4", "unstash-cupholder", {})
+    object_uid = man.world.world.robots["stair4"].holders["cupholder"].uid
+    man.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"},
+                    {"robot-holders": {"stair4": {"left-arm": object_uid}}})
 
     print "-"*120
     print " "*60, "AFTER PLACE"
@@ -442,6 +488,6 @@ def test_place():
     print "-"*120
 
 if __name__ == '__main__':
-    #test_main()
-    test_place()
+    test_main()
+    #test_place()
 
