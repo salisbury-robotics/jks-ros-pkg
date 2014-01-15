@@ -48,10 +48,38 @@ class BlastActionExec:
         self._manager.world_unlock()
         self._on_robot_change()
 
+    def robot_pick_object(self, uid, to_holder, world = None):
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            self._get_world(world).robot_pick_object(self._robot, uid, to_holder)
+        self._manager.world_unlock()
+        self._on_robot_change()
+        
+    def robot_place_object(self, from_h, surface, pos, world = None):
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            self._get_world(world).robot_place_object(self._robot, from_h, surface, pos)
+        self._manager.world_unlock()
+        self._on_robot_change()
+        
+    def add_surface_object(self, surface, object_type, pos, world = None):
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            self._get_world(world).add_surface_object(surface, object_type, pos)
+        self._manager.world_unlock()
+        self._on_robot_change()
+
     def set_robot_position(self, pos, val, world = None):
         self._manager.world_lock()
         if self._manager.get_current_guid() == self._guid:
             self._get_world(world).set_robot_position(self._robot, pos, val)
+        self._manager.world_unlock()
+        self._on_robot_change()
+
+    def surface_scan(self, surface, object_types, world = None):
+        self._manager.world_lock()
+        if self._manager.get_current_guid() == self._guid:
+            self._get_world(world).surface_scan(surface, object_types)
         self._manager.world_unlock()
         self._on_robot_change()
         
@@ -62,6 +90,15 @@ class BlastActionExec:
         print r
         if r == None:
             raise BlastRuntimeError("Planning to run action failed")
+        return r
+    
+    def plan_hunt(self, holder, object_type, world = None):
+        r = None
+        if self._manager.get_current_guid() == self._guid:
+            r = self._manager.plan_hunt(self._robot, holder, object_type, True)
+        print r
+        if r == None:
+            raise BlastRuntimeError("Planning to object hunt action failed")
         return r
 
     def create_world(self, new_world, world = None):
@@ -117,6 +154,21 @@ class BlastActionExec:
                 else:
                     proc.stdin.write("None\n")
                 proc.stdin.flush()
+            elif result.find("SURFACE_SCAN") == 0:
+                if result.strip().split(",")[0].strip() == "SURFACE_SCAN":
+                    world = result.strip().split(",")[1].strip()
+                    surface = result.strip().split(",")[2].strip()
+                    object_types = [str(x) for x in result.strip().split(",")[3:]]
+                else:
+                    world = None
+                    surface = result.strip().split(",")[1].strip()
+                    object_types = [str(x) for x in result.strip().split(",")[2:]]
+                res = self.get_surface(surface, world)
+                if res:
+                    proc.stdin.write(str(self.surface_scan(surface, object_types, world)) + "\n")
+                else:
+                    proc.stdin.write("None\n")
+                proc.stdin.flush()
             elif result.find("PLAN_ACTION") == 0:
                 if result.strip().split(",")[0].strip() == "PLAN_ACTION":
                     world = result.strip().split(",")[1].strip()
@@ -128,6 +180,21 @@ class BlastActionExec:
                     parameters = json.loads(",".join(result.strip().split(",")[2:]))
                 try:
                     proc.stdin.write(str(self.plan_action(action, parameters, world)) + "\n")
+                except BlastRuntimeError as ex:
+                    print "--- Runtime error ----", ex
+                    proc.stdin.write("None\n")
+                proc.stdin.flush()
+            elif result.find("PLAN_HUNT") == 0:
+                if result.strip().split(",")[0].strip() == "PLAN_HUNT":
+                    world = result.strip().split(",")[1].strip()
+                    holder = result.strip().split(",")[2].strip()
+                    object_type = json.loads(",".join(result.strip().split(",")[3:]))
+                else:
+                    world = None
+                    holder = result.strip().split(",")[1].strip()
+                    object_type = json.loads(",".join(result.strip().split(",")[2:]))
+                try:
+                    proc.stdin.write(str(self.plan_hunt(holder, object_type, world)) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
                     proc.stdin.write("None\n")
@@ -180,6 +247,53 @@ class BlastActionExec:
                     to_h = result.strip().split(",")[2].strip()
                 proc.stdin.write(str(self.robot_transfer_holder(from_h, to_h, world)) + "\n")
                 proc.stdin.flush()
+            elif result.find("ROBOT_PICK_OBJECT") == 0:
+                
+                if result.strip().split(",")[0].strip() == "ROBOT_PICK_OBJECT":
+                    world = result.strip().split(",")[1].strip()
+                    object_ref = result.strip().split(",")[2].strip()
+                    to_h = result.strip().split(",")[3].strip()
+                else:
+                    world = None
+                    object_ref = result.strip().split(",")[1].strip()
+                    to_h = result.strip().split(",")[2].strip()
+                object_ref = int(object_ref.strip("BlastObjectRef()")) #Remove down to uid
+                proc.stdin.write(str(self.robot_pick_object(object_ref, to_h, world)) + "\n")
+                proc.stdin.flush()
+                
+            elif result.find("ROBOT_PLACE_OBJECT") == 0:
+                if result.strip().split(",")[0].strip() == "ROBOT_PLACE_OBJECT":
+                    world = result.strip().split(",")[1].strip()
+                    from_h = result.strip().split(",")[2].strip()
+                    surface = result.strip().split(",")[3].strip()
+                    pos = [float(x.strip()) for x in result.strip().split(",")[4:]]
+                    pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+                else:
+                    world = None
+                    from_h = result.strip().split(",")[1].strip()
+                    surface = result.strip().split(",")[2].strip()
+                    pos = [float(x.strip()) for x in result.strip().split(",")[3:]]
+                    pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+                proc.stdin.write(str(self.robot_place_object(from_h, surface, pos, world)) + "\n")
+                proc.stdin.flush()
+
+            elif result.find("ADD_SURFACE_OBJECT") == 0:
+                if result.strip().split(",")[0].strip() == "ADD_SURFACE_OBJECT":
+                    world = result.strip().split(",")[1].strip()
+                    surface = result.strip().split(",")[2].strip()
+                    object_type = result.strip().split(",")[3].strip()
+                    pos = [float(x.strip()) for x in result.strip().split(",")[4:]]
+                    pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+                else:
+                    world = None
+                    surface = result.strip().split(",")[1].strip()
+                    object_type = result.strip().split(",")[2].strip()
+                    pos = [float(x.strip()) for x in result.strip().split(",")[3:]]
+                    pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+            
+                proc.stdin.write(str(self.add_surface_object(surface, object_type, pos, world)) + "\n")
+                proc.stdin.flush()
+                
             elif result.strip() == "TERMINATE":
                 break
             elif result.strip() == "ERROR":
@@ -252,6 +366,8 @@ class BlastManager:
             del self.action_worlds[self.get_current_guid()]
         self.action_stack.remove(exe)
         print "--- Done", action
+        #print self.world.world.to_text()
+        #print "--------"
         return True
         
 
@@ -270,15 +386,62 @@ class BlastManager:
             update_cb = lambda x: None
         res = self.world.plan_action(robot, action, parameters, execution_cb=update_cb)
         if res == None:
+            print "Failed to plan action", robot, "-->", action
+            return None
+        return res
+
+    def plan_hunt(self, robot, holder, object_type, do_cb = False):
+        if do_cb:
+            sh = len(self.action_stack) - 1
+            def update_cb(arg):
+                self.implicit_plan[sh] = arg
+                self.on_plan_action()
+        else:
+            update_cb = lambda x: None
+        res = self.world.plan_hunt(robot, holder, object_type, execution_cb=update_cb)
+        if res == None:
             print "Epic fail for", robot, "-->", action
             return None
         return res
+
 
 
 def test_main():
     man = BlastManager(["test_actions",], blast_world.make_test_world())
     man.plan_action("stair4", "coffee-run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
                                              "shop": "clark_peets_coffee_shop"})
+
+
+
+
+def test_place():
+    w = open("table_2_objects.txt", "w")
+    w.write("coffee_cup\n")
+    w.close()
+
+    man = BlastManager(["test_actions",], blast_world.make_table_top_world(False))
+
+    print "-"*120
+    print " "*60, "BEFORE PICK"
+    print man.world.world.to_text()
+    print "-"*120
+
+    man.plan_hunt("stair4", "cupholder", "coffee_cup")
+
+    print "-"*120
+    print " "*60, "AFTER PICK"
+    print man.world.world.to_text()
+    print "-"*120
+
+    man.plan_action("stair4", "unstash-cupholder", {})
+    man.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"})
+
+    print "-"*120
+    print " "*60, "AFTER PLACE"
+    print man.world.world.to_text()
+    print "-"*120
+
 if __name__ == '__main__':
-    test_main()
+    #test_main()
+    test_place()
 

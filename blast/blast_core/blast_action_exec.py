@@ -55,6 +55,41 @@ class BlastActionExec():
             raise BlastRuntimeError("Failed to plan")
         return res
 
+    
+    def plan_hunt(self, holder, object_type, world=None):
+        if world:
+            res = ipc_packet("PLAN_HUNT," + str(world) + "," + str(holder) + "," + str(object_type) + "\n")
+        else:
+            res = ipc_packet("PLAN_HUNT_NW," + str(holder) + "," + str(object_type) + "\n")
+        if res.strip() == "None": res = None
+        if res == None:
+            raise BlastRuntimeError("Failed to plan")
+        return res
+
+    def surface_add_object(self, surface, object_type, pos, world = None):
+        if type(pos) != type(""):
+            pos = pos.to_text()
+        pos = pos.strip().strip("BlastPos()").strip()
+        pos = ",".join([str(float(str(x).strip())) for x in pos.split(",")])
+        if world:
+            res = ipc_packet("ADD_SURFACE_OBJECT," + str(world) + "," + str(surface) + "," + str(object_type) + "," + pos + "\n")
+        else:
+            res = ipc_packet("ADD_SURFACE_OBJECT_NW," + str(surface) + "," + str(object_type) + "," + pos + "\n")
+        if res.strip() == "None": res = None
+        return res
+        
+
+    def surface_scan(self, surface, object_types, world=None):
+        if type(object_types) != type(""):
+            object_types = ",".join([str(x) for x in object_types])
+        if world:
+            res = ipc_packet("SURFACE_SCAN," + str(world) + "," + str(surface) + "," + str(object_types) + "\n")
+        else:
+            res = ipc_packet("SURFACE_SCAN_NW," + str(surface) + "," + str(object_types) + "\n")
+        if res.strip() == "None": res = None
+        return res
+        
+
     def set_robot_position(self, pos, val, world=None):
         if world:
             res = ipc_packet("SET_ROBOT_POSITION," + str(world) + "," + str(pos) + "," + self.json(val) + "\n")
@@ -81,6 +116,28 @@ class BlastActionExec():
         else:
             res = ipc_packet("ROBOT_TRANSFER_HOLDER_NW," 
                              + str(from_holder) + "," + str(to_holder) + "\n")
+        if res == "None": res = None
+        return res
+
+    def robot_pick_object(self, objectref, to_holder, world = None):
+        if world:
+            res = ipc_packet("ROBOT_PICK_OBJECT," + str(world) + "," 
+                             + str(objectref) + "," + str(to_holder) + "\n")
+        else:
+            res = ipc_packet("ROBOT_PICK_OBJECT_NW," 
+                             + str(objectref) + "," + str(to_holder) + "\n")
+        if res == "None": res = None
+        return res
+        
+    def robot_place_object(self, holder, position, world = None):
+        ps = ",".join([x.strip() for x in position.replace("Pos(", "").replace(")", "").split(",")])
+
+        if world:
+            res = ipc_packet("ROBOT_PLACE_OBJECT," + str(world) + "," 
+                             + str(holder) + "," + str(ps) + "\n")
+        else:
+            res = ipc_packet("ROBOT_PLACE_OBJECT_NW," 
+                             + str(holder) + "," + str(ps) + "\n")
         if res == "None": res = None
         return res
 
