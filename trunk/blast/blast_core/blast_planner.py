@@ -321,14 +321,14 @@ class BlastPlannableWorld:
     def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
         world, est_time, steps = planner.plan_hunt(robot, holder, object_type, world_good)
-        self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
+        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
 
     def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
         planner.world_good = world_good
         planner.extra_goals = extra_goals
         world, est_time, steps = planner.plan_print()
-        self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
+        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
 
     def exec_plan(self, world, est_time, steps, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         if plan_and_return:
@@ -397,6 +397,35 @@ class BlastPlannableWorld:
         self.world.robot_transfer_holder(robot, from_holder, to_holder)
         return True
     
+    def robot_pick_object(self, robot, uid, to_holder):
+        if not robot in self.world.robots:
+            print "Robot pick object invalid robot", robot
+            return False
+        if not uid in self.world.objects_keysort:
+            print "Robot pick object invalid object", uid, "for robot", robot
+            return False
+        if not to_holder in self.world.robots[robot].holders:
+            print "Robot pick object invalid holder", to_holder, "for robot", robot
+            return False
+        self.world.robot_pick_object(robot, uid, to_holder)
+        return True
+    
+    def robot_place_object(self, robot, from_holder, surface, pos):
+        if not robot in self.world.robots:
+            print "Robot place object invalid robot", robot
+            return False
+        if not surface in self.world.surfaces:
+            print "Robot place object invalid surface", surface, "for robot", robot
+            return False
+        if not from_holder in self.world.robots[robot].holders:
+            print "Robot place object invalid holder", to_holder, "for robot", robot
+            return False
+        if self.world.robots[robot].holders == None:
+            print "Robot place object empty holder", to_holder, "for robot", robot
+            return
+        self.world.robot_place_object(robot, from_holder, surface, pos)
+        return True
+    
     def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
         if not robot in self.world.robots:
             print "Set robot holder invalid robot", robot
@@ -444,12 +473,24 @@ class BlastPlannableWorld:
         if rb != None: rb = rb.to_dict()
         return rb
 
+    def surface_scan(self, surface, object_types):
+        if not surface in self.world.surfaces:
+            print "Invalid surface for scanning", surface
+            return False
+        return self.world.surface_scan(surface, object_types)
+
+    def add_surface_object(self, surface, object_type, pos):
+        if not surface in self.world.surfaces:
+            print "Invalid surface for object addition", surface
+            return False
+        return self.world.add_surface_object(surface, object_type, pos)
+        
+
     def plan_action(self, robot, action, parameters, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
         #FIXME: this can create problems if parameters is an extra element
         r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, 
                       {}, plan_and_return = plan_and_return, report_plan = True, 
                       execution_cb = lambda x: execution_cb(x + [(robot, action, parameters),]))
-        print "STUFFFFFFF", r
         if r != None:
             if include_action:
                 r[2].append((robot, action, parameters))
@@ -465,6 +506,8 @@ class BlastPlannableWorld:
         for name in parameters:
             if parameters[name].__class__ == blast_world.BlastSurface:
                 parameters[name] = parameters[name].name
+            elif parameters[name].__class__ == blast_world.BlastObjectRef:
+                parameters[name] = parameters[name].to_text()
             elif hasattr(parameters[name], "to_dict"):
                 parameters[name] = parameters[name].to_dict()
 
@@ -509,7 +552,7 @@ if __name__ == '__main__' and True:
                                           blast_world.BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
             world.world.append_object(cup)
             world.world.surfaces["table_1"].objects.append(blast_world.BlastObjectRef(cup.uid))
-            #world.clear_hash("surfaces")
+            world.world.clear_hash("surfaces")
         return True
 
     world.action_callback = ac
@@ -520,6 +563,12 @@ if __name__ == '__main__' and True:
     #world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
 
     print world.plan_hunt("stair4", "cupholder", "coffee_cup")
+
+
+    print '-'*100
+    print "Plan to put down coffee cup"
+    print '-'*100
+    print world.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"})
 
 
 if __name__ == '__main__' and False:

@@ -268,7 +268,7 @@ def make_test_actions():
                         [], planable = False, user = True),
 
 
-            BlastAction("pr2-cupholder.table-pick-left", 
+            BlastAction("pr2.table-pick-left", 
                         {"table": "Surface:table", "object": "SurfaceObject:table"}, #FIXME: motion/size limits + can't be too far back
                         
                         ("&&", ("contains", "robot.left-arm",  "None()"),
@@ -286,7 +286,7 @@ def make_test_actions():
 #            "robot.positions.right-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
 #                         }, []),
             
-            BlastAction("pr2-cupholder.table-place-left", 
+            BlastAction("pr2.table-place-left", 
                         {"table": "Surface:table", "position": "Pos:table, robot.holders.left-arm, 0.6602, 0, 0.762, 0, 0, 0"},
                         
                         ("&&", ("not", ("contains", "robot.left-arm", "None()")),
@@ -299,7 +299,7 @@ def make_test_actions():
                          }, []),
 
             
-            BlastAction("pr2-cupholder.table-coffee-scan", 
+            BlastAction("pr2.table-coffee-scan", 
                         {"table": "Surface:table"},
                         ("==", "robot.location", "table.locations.location"), "\"1\"",
                         {"table.scan": "coffee_cup,coffee_money_bag" }, []),
@@ -325,7 +325,7 @@ class BlastWorldTypes(object):
         self.surfaces[surface.name] = surface
     def get_surface(self, name):
         return self.surfaces.get(name, None)
-
+    
     def add_robot_type(self, robot):
         self.parameter_values_cache = {}
         if robot.name in self.robots: raise BlastTypeError("Duplicate robot type: " + robot.name)
@@ -816,7 +816,7 @@ class BlastObjectRef(object):
         get_obj(self.uid).hash_update(hl)
     def to_text(self):
         return "BlastObjectRef(" + str(self.uid) + ")"
-        
+    
 
 class BlastRobot(object):
     __slots__ = ['name', 'robot_type', 'location', 'holders', 'positions']
@@ -1019,8 +1019,16 @@ class BlastWorld(object):
                         result_dir[ot] = s
         return result_dir
                     
-
-
+    def add_surface_object(self, surface, object_type, pos):
+        if self.copy_on_write_optimize:
+            self.surfaces[surface] = self.surfaces[surface].copy()
+        obj_type = self.types.get_object(object_type)
+        obj = BlastObject(obj_type, pos, surface)
+        self.append_object(obj)
+        self.surfaces[surface].objects.append(BlastObjectRef(obj.uid))
+        self.gc_objects()  
+        self.clear_hash("surfaces")
+    
     def copy_obj(self, uid):
         if self.copy_on_write_optimize and uid in self.objects:
             self.objects[uid] = self.objects[uid].copy()
@@ -1099,7 +1107,6 @@ class BlastWorld(object):
             nobjects = []
             diff = False
             for obj in surface.objects:
-                #print obj
                 if obj.uid in self.objects_keysort:
                     if self.objects[obj.uid].parent == surface.name:
                         nobjects.append(obj)
@@ -1133,6 +1140,15 @@ class BlastWorld(object):
         elif key == "surfaces": return self.surfaces_hash_state
         elif key == "maps": return self.maps_hash_state
 
+    def surface_scan(self, surface, object_types):
+        s = self.surfaces[surface]
+        for ot in object_types:
+            s.scan.add(ot.strip())
+        if self.consider_scan:
+            self.clear_hash("surfaces")
+        return True
+
+
     def set_robot_position(self, robot, position, val):
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
@@ -1158,6 +1174,34 @@ class BlastWorld(object):
         self.robots[robot].holders[from_holder] = None
         self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
         self.clear_hash("robots")
+
+    def robot_pick_object(self, robot, uid, to_holder):
+        if self.copy_on_write_optimize:
+            self.robots[robot] = self.robots[robot].copy()
+
+        self.robots[robot].holders[to_holder] = BlastObjectRef(uid)
+        self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
+        self.gc_objects()
+        self.clear_hash("robots")
+        self.clear_hash("surfaces")
+
+        
+    def robot_place_object(self, robot, from_holder, surface, pos):
+        if self.copy_on_write_optimize:
+            self.robots[robot] = self.robots[robot].copy()
+            self.surfaces[surface] = self.surfaces[surface].copy()
+
+        uid = self.robots[robot].holders[from_holder].uid
+        self.robots[robot].holders[from_holder] = None
+        
+        self.objects[uid].parent = surface
+        self.objects[uid].position = pos.copy()
+        self.surfaces[surface].objects.append(BlastObjectRef(uid))
+        
+        self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
+        self.gc_objects()
+        self.clear_hash("robots")
+        self.clear_hash("surfaces")
 
     def set_robot_holder(self, robot, holder, object_type):
         if self.copy_on_write_optimize:
@@ -1603,6 +1647,9 @@ class BlastWorld(object):
                     v = [float(x.strip()) for x in pos[1].strip().strip("Pos()").strip().split(",")]
                     pos = (pos[0], BlastPos(v[0], v[1], v[2], v[3], v[4], v[5]))
                 surface = get_value(sub[0])
+                if surface.name != pos[0]:
+                    if debug: print "Invalid surface", surface.name, "not", pos[0]
+                    return None
                 pos = pos[1]
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("ADDOBJ", ("surface", surface.name), obj, pos))
@@ -1871,7 +1918,7 @@ class BlastWorld(object):
                                     collision = True
                                     break
                             if not collision:
-                                parameters[param][surf.name].append((data[0], p))
+                                parameters[param][surf.name].append((surf.name, p))
                                 w = 1000000
                                 break
                         w = w + 1
@@ -1895,9 +1942,9 @@ def make_table_top_world(make_objects = True):
     world.append_surface(BlastSurface("table_1", 
                                       {"location": BlastPt(20.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
                                       world.types.get_surface("table"),))
-    #world.append_surface(BlastSurface("table_2", 
-    #                                  {"location": BlastPt(30.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
-    #                                  world.types.get_surface("table")))
+    world.append_surface(BlastSurface("table_2", 
+                                      {"location": BlastPt(30.742, 18.390, -2.737, clarkcenterfirstfloor.map),},
+                                      world.types.get_surface("table")))
 
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
@@ -2141,7 +2188,7 @@ def pick_and_place_test():
     print '-'*130
     
     print world.enumerate_action("stair4", "table-place-left", {})
-    print world.take_action("stair4", "table-place-left", {"table": "table_1", "position": "table, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"}, debug=True)
+    print world.take_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"}, debug=True)
     
     
     print '-'*130
