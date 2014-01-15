@@ -440,6 +440,16 @@ class BlastPlannableWorld:
         self.world.set_robot_holder(robot, holder, object_type)
         return True
 
+    def get_robot_holder(self, robot, holder):
+        if not robot in self.world.robots:
+            print "Set robot holder invalid robot", robot
+            return False
+        if not holder in self.world.robots[robot].holders:
+            print "Set robot holder invalid holder", holder, "for robot", robot
+            return False
+        return self.world.get_robot_holder(robot, holder)
+    
+
     def set_robot_position(self, robot, position, val):
         if not robot in self.world.robots:
             print "Set robot position invalid robot", robot
@@ -486,9 +496,9 @@ class BlastPlannableWorld:
         return self.world.add_surface_object(surface, object_type, pos)
         
 
-    def plan_action(self, robot, action, parameters, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
+    def plan_action(self, robot, action, parameters, world_limits = {}, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
         #FIXME: this can create problems if parameters is an extra element
-        r = self.plan(lambda w: w.take_action(robot, action, parameters, False, False) != None, 
+        r = self.plan(lambda w: w.world_limit_check(world_limits) and w.take_action(robot, action, parameters, False, False) != None, 
                       {}, plan_and_return = plan_and_return, report_plan = True, 
                       execution_cb = lambda x: execution_cb(x + [(robot, action, parameters),]))
         if r != None:

@@ -44,8 +44,25 @@ class BlastActionExec():
         if res.find("SURFACE") == 0:
             return json.loads(res[len("SURFACE"):])
         return None
+
+    def get_robot_holder(self, holder, world=None):
+        if world:
+            res = ipc_packet("GET_ROBOT_HOLDER," + str(world) + "," + str(holder) + "\n").strip()
+        else:
+            res = ipc_packet("GET_ROBOT_HOLDER_NW," + str(holder) + "\n").strip()
+        if res == "None":
+            res = None
+        else:
+            try:
+                res = int(res)
+            except:
+                pass
+        return res
+        
     
-    def plan_action(self, action, parameters, world=None):
+    def plan_action(self, action, parameters, world_limits = None, world=None):
+        if world_limits != None:
+            parameters = {"parameter values": parameters, "world limits": world_limits}
         if world:
             res = ipc_packet("PLAN_ACTION," + str(world) + "," + str(action) + "," + self.json(parameters) + "\n")
         else:

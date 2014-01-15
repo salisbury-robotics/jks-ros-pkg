@@ -1035,6 +1035,29 @@ class BlastWorld(object):
     def get_obj(self, uid):
         return self.objects.get(uid)
 
+    def world_limit_check(self, limits):
+        if "robot-holders" in limits:
+            for robot_name, values in limits["robot-holders"].iteritems():
+                if not robot_name in self.robots:
+                    return False
+                for holder, set_as in values.iteritems():
+                    if not holder in self.robots[robot_name].holders:
+                        return False
+                    value = self.robots[robot_name].holders[holder]
+                    if set_as != None and value == None: return False
+                    if set_as == None and value != None: return False
+                    if set_as != None and value != None:
+                        if int(value.uid) != int(set_as):
+                            return False
+                    #We don't need to worry about the value == None and set_as == None case
+        
+        return True
+
+    def get_robot_holder(self, robot, holder):
+        a = self.robots[robot].holders[holder]
+        if a == None: return None
+        return a.uid
+
     def copy(self, copy_on_write_optimize = True):
         copy = BlastWorld(self.types)
         copy.copy_on_write_optimize = copy_on_write_optimize and self.copy_on_write_optimize
