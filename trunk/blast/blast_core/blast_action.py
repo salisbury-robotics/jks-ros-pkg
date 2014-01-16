@@ -115,6 +115,8 @@ class BlastActionExec:
             wl = {}
             if "robot-holders" in world_limits:
                 wl["robot-holders"] = {self._robot: world_limits["robot-holders"]}
+            if "robot-location" in world_limits:
+                wl["robot-location"] = {self._robot: world_limits["robot-location"]}
             r = self._manager.plan_action(self._robot, action, parameters, wl, True)
         print r
         if r == None:

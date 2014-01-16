@@ -498,8 +498,14 @@ class BlastPlannableWorld:
 
     def plan_action(self, robot, action, parameters, world_limits = {}, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
         #FIXME: this can create problems if parameters is an extra element
+
+        extras = {}
+        if "robot-location" in world_limits:
+            for robot, location in world_limits["robot-location"].iteritems():
+                extras["Pt"] = extras.get("Pt", [])
+                extras["Pt"].append(blast_world.BlastPt(location['x'], location['y'], location['a'], location['map']))
         r = self.plan(lambda w: w.world_limit_check(world_limits) and w.take_action(robot, action, parameters, False, False) != None, 
-                      {}, plan_and_return = plan_and_return, report_plan = True, 
+                      extras, plan_and_return = plan_and_return, report_plan = True, 
                       execution_cb = lambda x: execution_cb(x + [(robot, action, parameters),]))
         if r != None:
             if include_action:
