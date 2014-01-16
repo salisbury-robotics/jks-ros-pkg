@@ -4,15 +4,19 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
         BlastActionExec.__init__(self)
     def run(self, parameters):
 
-        #First step is to drive to the location of the person
-        #And pick up the coffee cup from them
-        print "-"*30, "Plan to person location", "-"*30
-        self.plan_action("move", {"end": parameters["person_location"] })
-
         #Grab the money bag of of the human
+        #Note that we drive to the human location by setting it as a world
+        #limit on the grab object action. Why do this instead of just driving
+        #to the human? Because if we drove, then what action would we run?
+        #The move action would fail if for some reason we were already at the
+        #current location (which could very well be the case). Further, once the
+        #robot reach the location, it could conceviably move to another before
+        #actually running the grab (although this is very unlikely).
         print "-"*30, "Grab money bag", "-"*30
-        self.plan_action("grab-object", {"tts-text": "Money Bag"})
+        self.plan_action("grab-object", {"tts-text": "Money Bag"},
+                         {"robot-location": parameters["person_location"]})
         self.set_robot_holder("left-arm", "coffee_money_bag")
+
         money_bag = self.get_robot_holder("left-arm") #Get the UID of the object
 
         #It is important for us to use world limit constraints. The reason
@@ -35,14 +39,10 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
 
         #Now that we have purchased the coffee cup, we can drive back to
         #the person and deliver the cup
-        print "-"*30, "Move to person location", "-"*30
-        self.plan_action("move", {"end": parameters["person_location"] }, 
-                         {"robot-holders": {"cupholder": coffee_cup}})
-
-
         print "-"*30, "Give out coffee", "-"*30
         self.plan_action("give-object", {"tts-text": "Coffee Cup"}, 
-                         {"robot-holders": {"cupholder": coffee_cup}})
+                         {"robot-holders": {"cupholder": coffee_cup},
+                          "robot-location": parameters["person_location"]})
 
 
         print "-"*30, "Tuck", "-"*30
