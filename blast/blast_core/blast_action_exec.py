@@ -44,6 +44,15 @@ class BlastActionExec():
         if res.find("SURFACE") == 0:
             return json.loads(res[len("SURFACE"):])
         return None
+    
+    def get_object(self, name, world=None):
+        if world:
+            res = ipc_packet("GET_OBJECT," + str(world) + "," + str(name) + "\n")
+        else:
+            res = ipc_packet("GET_OBJECT_NW," + str(name) + "\n")
+        if res.find("OBJECT") == 0:
+            return json.loads(res[len("OBJECT"):])
+        return None
 
     def get_robot_holder(self, holder, world=None):
         if world:
@@ -59,6 +68,24 @@ class BlastActionExec():
                 pass
         return res
         
+    def set_failure(self, mode):
+        res = ipc_packet("SET_FAILURE," + str(mode) + "\n").strip()
+        if res == "True":
+            res = True
+        else:
+            res = None
+        return res
+
+    def delete_surface_object(self, obj, world=None):
+        if world:
+            res = ipc_packet("DELETE_SURFACE_OBJECT," + str(world) + "," + str(obj) + "\n").strip()
+        else:
+            res = ipc_packet("DELETE_SURFACE_OBJECT_NW," + str(obj) + "\n").strip()
+        if res == "True":
+            res = True
+        else:
+            res = None
+        return res
     
     def plan_action(self, action, parameters, world_limits = None, world=None):
         if world_limits != None:
@@ -89,12 +116,20 @@ class BlastActionExec():
         pos = pos.strip().strip("BlastPos()").strip()
         pos = ",".join([str(float(str(x).strip())) for x in pos.split(",")])
         if world:
-            res = ipc_packet("ADD_SURFACE_OBJECT," + str(world) + "," + str(surface) + "," + str(object_type) + "," + pos + "\n")
+            res = ipc_packet("ADD_SURFACE_OBJECT," + str(world) + "," + str(surface) + "," + str(object_type) + "," + pos + "\n").strip()
         else:
-            res = ipc_packet("ADD_SURFACE_OBJECT_NW," + str(surface) + "," + str(object_type) + "," + pos + "\n")
+            res = ipc_packet("ADD_SURFACE_OBJECT_NW," + str(surface) + "," + str(object_type) + "," + pos + "\n").strip()
         if res.strip() == "None": res = None
         return res
         
+
+    def list_surface_objects(self, surface, world = None):
+        if world:
+            res = ipc_packet("LIST_SURFACE_OBJECTS," + str(world) + "," + str(surface) + "\n").strip()
+        else:
+            res = ipc_packet("LIST_SURFACE_OBJECTS_NW," + str(surface) + "\n").strip()
+        if res.strip() == "None": return None
+        return res.split(",")
 
     def surface_scan(self, surface, object_types, world=None):
         if type(object_types) != type(""):
