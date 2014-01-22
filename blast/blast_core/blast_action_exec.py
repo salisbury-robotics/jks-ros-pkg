@@ -217,7 +217,10 @@ except:
     print '-'*60
     traceback.print_exc(file=sys.stdout)
     print '-'*60
-    ipc_write_packet("ERROR\n")
+    try:
+        ipc_write_packet("ERROR\n")
+    except:
+        print "Failed to write error"
 
 
 

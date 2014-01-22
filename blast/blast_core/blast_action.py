@@ -206,6 +206,7 @@ class BlastActionExec:
         error = False
         while True:
             result = proc.stdout.readline()
+            #print result
             if type(result) != type(""):
                 print "Ignore packet", result
             elif result.find("DELETE_SURFACE_OBJECT") == 0:
@@ -300,12 +301,12 @@ class BlastActionExec:
             elif result.find("SET_FAILURE") == 0:
                 r = self.set_failure(result.split(",")[1].strip())
                 if r == None:
-                    return "None"
+                    r = "None"
                 elif r:
-                    return "True"
+                    r = "True"
                 else:
-                    return "False"
-                proc.stdin.write("None\n")
+                    r = "False"
+                proc.stdin.write(r + "\n")
                 proc.stdin.flush()
             elif result.find("SET_ROBOT_LOCATION") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_LOCATION":
@@ -488,11 +489,11 @@ class BlastManager:
         self.implicit_plan[len(self.action_stack)-1] = []
         
         exe.run(parameters)
+        fail = self.failure_modes.get(self.get_current_guid(), None)
         if self.get_current_guid() in self.action_worlds:
             for world in self.action_worlds[self.get_current_guid()]:
                 del self.worlds["action_" + str(self.get_current_guid()) + "_" + world]
             del self.action_worlds[self.get_current_guid()]
-        fail = self.failure_modes.get(self.get_current_guid(), None)
         self.action_stack.remove(exe)
         print "--- Done", action
         #print self.world.world.to_text()
@@ -537,21 +538,28 @@ class BlastManager:
 
 
 def test_main():
-    man = BlastManager(["test_actions",], blast_world.make_test_world())
-    man.plan_action("stair4", "coffee-run", {"person_location": blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor"), 
-                                             "shop": "clark_peets_coffee_shop"}, {})
-
-
-
+    import blast_world_test
+    man = BlastManager(["test_actions",], blast_world_test.make_test_world())
+    if not man.plan_action("stair4", "coffee-run", {"person_location": 
+                                                    blast_world.BlastPt(17.460, 38.323, -2.330,
+                                                                        "clarkcenterfirstfloor"), 
+                                                    "shop": "clark_peets_coffee_shop"}, {}):
+        return False
+    a = "c66ad51b77946fb8ac04e94a732e88297ce77fae9a7ae0bdb9768b06bccf2c953810ccc6c1bf70e02ac63b3"
+    a = a + "8145ce40509e7f579d13b347d085a3deb79df8e417fa7d2bd93a92d744e22058b29c0012b2f282516"
+    if a != man.world.world.get_hex_hash_state():
+        return False
+    return True
 
 def test_place():
+    import blast_world_test
     w = open("table_1_objects.txt", "w")
     w.close()
     w = open("table_2_objects.txt", "w")
     w.write("coffee_cup\n")
     w.close()
 
-    man = BlastManager(["test_actions",], blast_world.make_table_top_world())
+    man = BlastManager(["test_actions",], blast_world_test.make_table_top_world())
 
     print "-"*120
     print " "*60, "BEFORE PICK"
@@ -559,8 +567,7 @@ def test_place():
     print "-"*120
 
     if not man.plan_hunt("stair4", "cupholder", "coffee_cup"):
-        print "Dead"
-        return
+        return False
 
     print "-"*120
     print " "*60, "AFTER PICK"
@@ -569,15 +576,27 @@ def test_place():
 
     #man.plan_action("stair4", "unstash-cupholder", {})
     object_uid = man.world.world.robots["stair4"].holders["cupholder"].uid
-    man.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"},
-                    {"robot-holders": {"stair4": {"left-arm": object_uid}}})
+    print "Hold onto the uid of", object_uid
+    r = man.plan_action("stair4", "table-place-left", {"table": "table_1", 
+                                                       "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"},
+                        {"robot-holders": {"stair4": {"left-arm": object_uid}}})
+    if not r:
+        return False
 
     print "-"*120
     print " "*60, "AFTER PLACE"
     print man.world.world.to_text()
     print "-"*120
 
+    a = "937e356e0aebbd33554a3380547260698f20b9ca7dc2c6f23361598c994f85648b069fa200933a1f2a7c8f352"
+    a = a + "d13d8ca3db1b0a1dc50f28e238cd4177368f587817290159b54892eb02743b464ca71a606d13a1d"
+    if a != man.world.world.get_hex_hash_state():
+        print "Invalid state, failed test"
+        return False
+
+    return True
+
 if __name__ == '__main__':
-    #test_main()
-    test_place()
+    test_main()
+    #test_place()
 

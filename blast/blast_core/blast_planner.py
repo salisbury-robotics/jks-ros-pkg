@@ -586,9 +586,9 @@ class BlastPlannableWorld:
             return None
     #End API actions ---------------------------        
 
-
-if __name__ == '__main__' and True:
-    world = BlastPlannableWorld(blast_world.make_table_top_world(False))
+def coffee_hunt_test():
+    import blast_world_test
+    world = BlastPlannableWorld(blast_world_test.make_table_top_world(False))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
     def ac(r, a, p): #Test add the cups
@@ -607,43 +607,62 @@ if __name__ == '__main__' and True:
     print '-'*100
     #world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
 
-    print world.plan_hunt("stair4", "cupholder", "coffee_cup")
+    r = world.plan_hunt("stair4", "cupholder", "coffee_cup")
+    if not r: return False
+    print r
 
 
     print '-'*100
     print "Plan to put down coffee cup"
     print '-'*100
-    print world.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"})
+    r = world.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"})
+    if not r: return False
+    print r
+    return True
 
 
-if __name__ == '__main__' and False:
-    world = BlastPlannableWorld(blast_world.make_test_world())
+def run_test():
+    import blast_world_test
+    world = BlastPlannableWorld(blast_world_test.make_test_world())
 
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
     
     print '-'*100
     print "Plan to pick up bag"
     print '-'*100
-    world.plan_to_location("stair4", initial_pickup_point)
+    r = world.plan_to_location("stair4", initial_pickup_point)
+    if not r: return False
 
     print '-'*100
     print "Grab money bag"
     print '-'*100
-    world.take_action("stair4", "grab-object", {"tts-text": "Money Bag"})
-    world.set_robot_holder("stair4", "left-arm", "coffee_money_bag")
+    r = world.take_action("stair4", "grab-object", {"tts-text": "Money Bag"})
+    if not r: return False
+    r = world.set_robot_holder("stair4", "left-arm", "coffee_money_bag")
+    if not r: return False
 
     print '-'*100
     print "Plan to buy coffee"
     print '-'*100
-    world.plan_action("stair4", "buy-coffee", {"shop": "clark_peets_coffee_shop"})
+    r = world.plan_action("stair4", "buy-coffee", {"shop": "clark_peets_coffee_shop"})
+    if not r: return False
     
     print '-'*100
     print "Plan to return"
     print '-'*100
-    world.plan_to_location("stair4", initial_pickup_point)
+    r = world.plan_to_location("stair4", initial_pickup_point)
+    if not r: return False
     
     print '-'*100
     print "Give object back"
     print '-'*100
-    world.take_action("stair4", "unstash-cupholder", {})
-    world.take_action("stair4", "give-object", {"tts-text": "Coffee Cup"})
+    r = world.take_action("stair4", "unstash-cupholder", {})
+    if not r: return False
+    r = world.take_action("stair4", "give-object", {"tts-text": "Coffee Cup"})
+    if not r: return False
+    print r
+    return True
+
+if __name__ == '__main__':
+    #coffee_hunt_test()
+    run_test()
