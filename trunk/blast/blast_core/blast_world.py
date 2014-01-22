@@ -25,20 +25,21 @@ class BlastError(Exception):
 
 class BlastAction(object):
     __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate',
-                 'changes', 'display', 'planable', 'user']
+                 'changes', 'display', 'planable', 'user', 'failure_modes']
 
     def to_dict(self):
         return {"name": self.name, "parameters": self.parameters, "condition": self.condition, 
                 "time_estimate": self.changes, "display": self.display, 
-                "planable": self.planable, 'user': self.user}
+                "planable": self.planable, 'user': self.user, 'failure_modes': self.failure_modes}
 
     def __init__(self, name, parameters, condition, time_estimate, 
-                 changes, display, planable = True, user = False): #Name must be robot_type.action
+                 changes, display, planable = True, user = False, fm = {}): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
         self.display = display
         self.condition = condition
+        self.failure_modes = fm
 
         if "robot" in self.parameters:
             raise BlastTypeError("A parameter cannot be called 'robot' in " + name)
@@ -98,13 +99,16 @@ class BlastAction(object):
         self.time_estimate = time_estimate
         self.changes = changes
         
-        for var in self.changes:
-            if var != "robot.location" and var.find("robot.holders.") != 0 and var.find("robot.positions.") != 0 \
-                    and not (var.split(".")[0] in surface_parameters and var.split(".")[1].split("+")[0] == "objects") \
-                    and not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
-                raise BlastTypeError("Invalid variable set in " + name + ": " + var)
-            if not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
-                self.validate("Invalid expression for variable " + var + " in " + name, self.changes[var])
+        for mode, changes in [("success", self.changes),] + fm.items():
+            for var in changes:
+                if var != "robot.location" and var.find("robot.holders.") != 0 and var.find("robot.positions.") != 0 \
+                        and not (var.split(".")[0] in surface_parameters and var.split(".")[1].split("+")[0] == "objects") \
+                        and not (var.split(".")[0] in surface_parameters and var.split(".")[1].split("-")[0] == "objects") \
+                        and not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
+                    raise BlastTypeError("Invalid variable set in " + name + ": " + var + " for mode: " + mode)
+                if not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
+                    self.validate("Invalid expression for variable " + var + " in " + name + " for mode: " + mode,
+                                  changes[var])
 
         self.planable = planable
         self.user = user
@@ -276,7 +280,10 @@ def make_test_actions():
 
                         {"robot.holders.left-arm": "object",
                          "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
-                         }, []),
+                         }, [], fm = {"no_object": 
+                                      {"robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
+                                       "table.objects-0": "object",
+                                       }}),
             #BlastAction("pr2-cupholder.table-pick-right", 
             #            {"table": "Surface:table", "object": "SurfaceObject:table"},
             #            
@@ -577,6 +584,10 @@ class BlastPos(object):
     def copy(self):
         return BlastPos(self.x, self.y, self.z, self.rx, self.ry, self.rz)
 
+    def to_dict(self):
+        return {"x": self.x, "y": self.y, "z": self.z,
+                "rx": self.rx, "ry": self.ry, "rz": self.rz}
+
     def equal(self, other):
         if self == other: return True
         if not self or not other: return False
@@ -633,6 +644,12 @@ class BlastObject(object):
         global blast_object_id
         self.uid = blast_object_id
         blast_object_id = blast_object_id + 1
+
+    def to_dict(self):
+        p = None
+        if self.position: p = self.position.to_dict()
+        return {"object_type": self.object_type.name, "position": p,
+                "uid": self.uid, "parent": self.parent}
 
     def copy(self):
         if self.position:
@@ -702,6 +719,7 @@ class BlastSurface(object):
         c.objects = [x.copy() for x in self.objects]
         [c.scan.add(x) for x in self.scan]
         return c
+
 
     def hash_update(self, hl, get_obj, consider_scan):
         for name in self.locations_keysort:
@@ -882,7 +900,7 @@ class BlastRobot(object):
                     get_obj(value.uid).position = None
                     change = True
         return change
-
+    
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
         if not self or not other: return False
@@ -991,6 +1009,12 @@ class BlastWorld(object):
         self.sumh = None
         self.consider_scan = False
         self.copy_on_write_optimize = True
+
+    def delete_surface_object(self, obj):
+        if self.copy_on_write_optimize:
+            self.objects[obj] = self.objects[obj].copy()
+        self.objects[obj].parent = None
+        self.gc_objects()
 
     def clear_scan(self):
         for sn in self.surfaces_keysort:
@@ -1428,7 +1452,7 @@ class BlastWorld(object):
                     if not in_region: return False
             return True
     
-    def take_action(self, robot_name, action, parameters, execute = True, debug = False):
+    def take_action(self, robot_name, action, parameters, execute = True, debug = False, failure_mode = None):
         #Get the robot
         robot = self.robots.get(robot_name)
         if not robot:
@@ -1621,7 +1645,8 @@ class BlastWorld(object):
         transactions = []
         items_to_clone = {"robots": set(), "surfaces": set()}
         robots_to_reparent = []
-        for var, val in action_type.changes.iteritems():
+        
+        for var, val in action_type.failure_modes.get(failure_mode, action_type.changes).iteritems():
             sub = var.split(".")
             if debug: print var, "->", val
             if sub[0] == "robot":
@@ -1683,6 +1708,15 @@ class BlastWorld(object):
                 pos = pos[1]
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("ADDOBJ", ("surface", surface.name), obj, pos))
+            elif sub[0] in surface_parameters and len(sub) == 2 and sub[1].find("objects-") == 0:
+                obj = get_value(val)
+                surface = get_value(sub[0])
+                obj_s = self.get_obj(obj.uid).parent
+                if surface.name != obj_s:
+                    if debug: print "Invalid surface", surface.name, "not", obj_s
+                    return None
+                items_to_clone["surfaces"].add(surface.name)
+                transactions.append(("DELETEOBJ", ("surface", surface.name), obj))
             elif sub[0] in surface_parameters and len(sub) == 2 and sub[1] == "scan":
                 surface = get_value(sub[0])
                 items_to_clone["surfaces"].add(surface.name)
@@ -1726,6 +1760,12 @@ class BlastWorld(object):
                 obj.parent = v.name
                 obj.position = x[3]
                 v.objects.append(BlastObjectRef(obj.uid))
+            elif x[0] == "DELETEOBJ":
+                if self.copy_on_write_optimize:
+                    self.objects[x[2].uid] = self.objects[x[2].uid].copy()
+                obj = self.objects[x[2].uid]
+                obj.parent = None
+                obj.position = None
             elif x[0] == "SCAN":
                 [v.scan.add(t.strip()) for t in x[2].split(",")]
             else:

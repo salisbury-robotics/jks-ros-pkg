@@ -321,16 +321,21 @@ class BlastPlannableWorld:
     def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
         world, est_time, steps = planner.plan_hunt(robot, holder, object_type, world_good)
-        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
+        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb,
+                              lambda world, arobot, action, parameters: self.plan_hunt(robot, holder, object_type,
+                                                                                       world_good, plan_and_return,
+                                                                                       report_plan, execution_cb))
 
-    def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
+    def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False, execution_cb = lambda x: None,
+             failure_cb = lambda world, robot, action, parameters: False):
         planner = Planner(self.world.copy())
         planner.world_good = world_good
         planner.extra_goals = extra_goals
         world, est_time, steps = planner.plan_print()
-        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb)
+        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb, failure_cb)
 
-    def exec_plan(self, world, est_time, steps, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
+    def exec_plan(self, world, est_time, steps, plan_and_return = False, report_plan = False, 
+                  execution_cb = lambda x: None, failure_callback = lambda world, robot, action, parameters: False):
         if plan_and_return:
             return world, est_time, steps
         if world != None and est_time != None and steps != None:
@@ -354,9 +359,13 @@ class BlastPlannableWorld:
                 execution_cb(steps[x:])
                 x = x + 1
                 print step[0], step[1], step[2]
-                if not self.take_action(step[0], step[1], step[2]):
-                    print "FAILED"
+                r = self.take_action(step[0], step[1], step[2])
+                if r == None:
+                    print "EPICALLY FAILED"
                     return None
+                elif r == False:
+                    print "FAILED"
+                    return failure_callback(self.world.copy(), step[0], step[1], step[2])
             execution_cb([])
             #print world.to_text()
             if not self.real_world:
@@ -472,6 +481,18 @@ class BlastPlannableWorld:
         sur = self.world.surfaces.get(surface)
         if sur != None: sur = sur.to_dict()
         return sur
+    
+    def get_object(self, obje):
+        obj = self.world.objects.get(obje)
+        if obj != None: obj = obj.to_dict()
+        return obj
+
+    def delete_surface_object(self, obje):
+        obj = self.world.objects.get(obje)
+        if obj == None:
+            print "Surface delete object invalid object", obje
+            return False
+        return self.world.delete_surface_object(obje)
 
     def get_map(self, map):
         mp = self.world.maps.get(map)
@@ -529,14 +550,20 @@ class BlastPlannableWorld:
 
         if self.real_world:
             test_world = self.world.copy()
-            if test_world.take_action(robot, action, parameters, True, debug) == None:
+            if test_world.take_action(robot, action, parameters, False, debug) == None:
                 print "Attempted to take action in a state that was not desirable"
                 return None
             else:
-                if not self.action_callback(robot, action, parameters):
+                action_r = self.action_callback(robot, action, parameters)
+                if action_r == None:
                     print "Action callback failed to work, going to epic fail"
                     self.action_epic_fail_callback(robot, action, parameters)
                     return None
+                elif action_r == True:
+                    test_world.take_action(robot, action, parameters, True, debug)
+                else:
+                    print "Action failed in a predictable way"
+                    test_world.take_action(robot, action, parameters, True, debug, action_r)
                 if not test_world.equal(self.world, True): #Important to tolerate arm error
                     print "-"*60
                     print test_world.to_text()
@@ -546,6 +573,8 @@ class BlastPlannableWorld:
                     print "The output world differs, epic fail!"
                     self.action_epic_fail_callback(robot, action, parameters)
                     return None
+                if action_r != True:
+                    return False
             return True
         elif self.world.take_action(robot, action, parameters, True, debug):
             if not self.action_callback(robot, action, parameters):
