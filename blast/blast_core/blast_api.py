@@ -8,7 +8,7 @@ SECRET_KEY = 'flask_dev_key'
 SESSION_TIMEOUT = 10.0
 
 
-manager = blast_action.BlastManager(["test_actions"], blast_world.make_test_world())
+manager = None
 world_edit_lock = threading.Lock()
 WORLD_EDIT_EXECUTING_PLAN = "EXECUTING_PLAN"
 world_edit_session = None
@@ -661,16 +661,21 @@ class ManagerThread(threading.Thread):
                     alive = False
 
 
-mthread = ManagerThread()
-mthread.start()
+def run(a, w):
+    global manager
+    manager = blast_action.BlastManager(a, w)
+    mthread = ManagerThread()
+    mthread.start()
 
-app.run(debug=DEBUG, threaded=True)
-global_feed_alive = False
-mthread.alive = False
-mthread.join()
+    app.run(debug=DEBUG, threaded=True)
+    global_feed_alive = False
+    mthread.alive = False
+    mthread.join()
 
 
-
+if __name__ == '__main__':
+    import blast_world_test
+    run(["test_actions"], blast_world_test.make_test_world())
 
 
 
