@@ -303,7 +303,12 @@ class BlastPt(object):
         self.y = float(y)
         self.a = float(a)
         self.map = mid
+        self.wrap_angle()
 
+    def wrap_angle(self):
+        while self.a > +math.pi: self.a = self.a - math.pi * 2
+        while self.a < -math.pi: self.a = self.a + math.pi * 2
+        
     def to_dict(self):
         return {'x': self.x, 'y': self.y, 'a': self.a, 'map': self.map}
 
@@ -914,6 +919,7 @@ class BlastWorld(object):
         return r
 
     def gc_objects(self): #Delete unused objects
+        #print self.objects, self.objects_keysort
         objects = set()
         for robot in self.robots.itervalues():
             for obj in robot.holders.itervalues():
@@ -933,7 +939,7 @@ class BlastWorld(object):
                         #print "Remove", obj.uid, "for parent"
                         diff = True
                 else:
-                    #print "Remove", obj.uid, "for non-existence"
+                    #print "Remove", obj.uid, "for non-existence", type(self.objects_keysort[0]), type(obj.uid)
                     diff = True
             if diff:
                 self.surfaces[name] = surface.copy()

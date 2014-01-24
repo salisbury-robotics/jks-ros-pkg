@@ -154,7 +154,6 @@ class BlastActionExec:
         r = None
         if self._manager.get_current_guid() == self._guid:
             r = self._manager.plan_hunt(self._robot, holder, object_type, True)
-        print r
         if r == None:
             raise BlastRuntimeError("Planning to object hunt action failed")
         return r
@@ -287,11 +286,11 @@ class BlastActionExec:
                 if result.strip().split(",")[0].strip() == "PLAN_HUNT":
                     world = result.strip().split(",")[1].strip()
                     holder = result.strip().split(",")[2].strip()
-                    object_type = json.loads(",".join(result.strip().split(",")[3:]))
+                    object_type = result.strip().split(",")[3].strip()
                 else:
                     world = None
                     holder = result.strip().split(",")[1].strip()
-                    object_type = json.loads(",".join(result.strip().split(",")[2:]))
+                    object_type = result.strip().split(",")[2].strip()
                 try:
                     proc.stdin.write(str(self.plan_hunt(holder, object_type, world)) + "\n")
                 except BlastRuntimeError as ex:
