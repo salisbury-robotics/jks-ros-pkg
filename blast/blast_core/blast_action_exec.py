@@ -8,6 +8,13 @@ class BlastRuntimeError(Exception):
     def __str__(self):
         return repr(self.value)
 
+class BlastFindObjectError(Exception):
+    __slots__ = ['value']
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 #This is important so that no commands get sent
 #over stdout, avoiding problems with mixing log
 #data into IPC data. All log data goes into 
@@ -106,9 +113,12 @@ class BlastActionExec():
         else:
             res = ipc_packet("PLAN_HUNT_NW," + str(holder) + "," + str(object_type) + "\n")
         if res.strip() == "None": res = None
+        if res.strip() == "False": res = False
         if res == None:
             raise BlastRuntimeError("Failed to plan")
-        return res
+        if res == False:
+            raise BlastFindObjectError("Failed to find " + object_type + " and place it in " + holder)
+        return res.strip().split(",")[:-1], res.strip().split(",")[-1]
 
     def surface_add_object(self, surface, object_type, pos, world = None):
         if type(pos) != type(""):

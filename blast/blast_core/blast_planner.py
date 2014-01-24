@@ -111,8 +111,8 @@ class Planner:
                     return None
                 last_world.consider_scan = ics
                 last_world.clear_hash("surfaces")
+                tsteps.append((robot, None, "fail"))
                 return last_world, last_time, tsteps
-
             
 
         
@@ -321,10 +321,14 @@ class BlastPlannableWorld:
     def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
         world, est_time, steps = planner.plan_hunt(robot, holder, object_type, world_good)
-        return self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb,
-                              lambda world, arobot, action, parameters: self.plan_hunt(robot, holder, object_type,
-                                                                                       world_good, plan_and_return,
-                                                                                       report_plan, execution_cb))
+        w,o = self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb,
+                             lambda world, arobot, action, parameters: self.plan_hunt(robot, holder, object_type,
+                                                                                      world_good, plan_and_return,
+                                                                                      report_plan, execution_cb))
+        if not w: return False
+        orf = self.world.robots[robot].holders[holder]
+        if not orf: return None
+        return o[orf.uid]
 
     def plan(self, world_good, extra_goals, plan_and_return = False, report_plan = False, execution_cb = lambda x: None,
              failure_cb = lambda world, robot, action, parameters: False):
@@ -338,11 +342,14 @@ class BlastPlannableWorld:
                   execution_cb = lambda x: None, failure_callback = lambda world, robot, action, parameters: False):
         if plan_and_return:
             return world, est_time, steps
+
+        ol = {}
         if world != None and est_time != None and steps != None:
             print "Taking", len(steps), "steps"
             x = 0
             for step in steps:
                 if step[1] == None:
+                    if step[2] == "fail": return False
                     print "REPLAN!!!", step
                     
                     planner = Planner(self.world.copy())
@@ -359,6 +366,12 @@ class BlastPlannableWorld:
                 execution_cb(steps[x:])
                 x = x + 1
                 print step[0], step[1], step[2]
+
+                for uid in self.world.objects_keysort:
+                    if self.world.objects[uid].position:
+                        ol[uid] = (self.world.objects[uid].position, self.world.objects[uid].parent)
+                print ol
+
                 r = self.take_action(step[0], step[1], step[2])
                 if r == None:
                     print "EPICALLY FAILED"
@@ -380,9 +393,10 @@ class BlastPlannableWorld:
         else:
             print "FAILED!"
             return None
+
         if report_plan:
-            return world, est_time, steps
-        return True
+            return world, est_time, steps, ol
+        return True, ol
     
     def plan_to_location(self, robot, location):
         if self.world.robots[robot].location.equal(location):

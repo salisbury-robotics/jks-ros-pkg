@@ -145,7 +145,7 @@ def make_test_actions():
             BlastAction("pr2.table-coffee-scan", 
                         {"table": "Surface:table"},
                         ("==", "robot.location", "table.locations.location"), "\"1\"",
-                        {"table.scan": "coffee_cup,coffee_money_bag" }, []),
+                        {"table.scan": "coffee_cup,empty_ziplock_1L_bag" }, []),
             
             ]
     return test
@@ -163,7 +163,8 @@ def make_test_types_world():
                                             "bound_h": 0.15748},
                                            ))
     types_world.add_object_tag("coffee_cup", "cupholder_object")
-    types_world.add_object_type(ObjectType("coffee_money_bag", {}))
+    types_world.add_object_type(ObjectType("empty_ziplock_1L_bag", {"bound_d": 0.1, "bound_h": 0.01}))
+    types_world.add_object_type(ObjectType("coffee_money_bag", {"bound_d": 0.1, "bound_h": 0.01}))
     
     types_world.add_surface_type(SurfaceType("coffee_shop",
                                              {"default": {"default": True, "accessible": True}}))
@@ -299,7 +300,9 @@ def make_test_world():
     clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterpeetscoffee.pgm", 20.0)
     world.append_map(clarkcenterpeetscoffee)
                                  
-
+    world.append_surface(BlastSurface("salisbury_table", 
+                                      {"location": BlastPt(12.420, 39.077, 3.4165, clarkcenterfirstfloor.map),},
+                                      world.types.get_surface("table")))
     world.append_surface(BlastSurface("clarkfirstfloordoor", 
                                       {"in_entrance": BlastPt(21.280, 26.643, 0.334, clarkcenterfirstfloordoor.map),
                                        "in_exit": BlastPt(20.656, 18.456, 0.350, clarkcenterfirstfloor.map),
@@ -351,6 +354,10 @@ def make_test_world():
                                  world.types.get_surface("coffee_shop"))
     world.append_surface(coffee_pickup)
 
+    bag = BlastObject(world.types.get_object("empty_ziplock_1L_bag"), BlastPos(0.6602, 0.3, 0.762, 0.0, 0.0, 0.0), "salisbury_table")
+    world.surfaces["salisbury_table"].objects.append(BlastObjectRef(bag.uid))
+    world.append_object(bag)
+    
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
                         BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
@@ -358,6 +365,7 @@ def make_test_world():
     world.append_robot(stair4)
 
     world.take_action("stair4", "tuck-both-arms", {}) #To debug with arms tucked.
+    world.gc_objects()
     return world
 
 def run_test():
@@ -593,7 +601,7 @@ def pick_and_place_test():
 
 if __name__ == '__main__':
     #torso_test()
-    #run_test()
+    run_test()
     #elevator_test()
     #arms_test()
-    pick_and_place_test()
+    #pick_and_place_test()
