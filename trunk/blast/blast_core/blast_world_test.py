@@ -104,8 +104,11 @@ def make_test_actions():
                                    },
                         [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),],),
             BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
-                        "True()", "\"10000\"", {"robot.location": "person_location"}, 
-                        [], planable = False, user = True),
+                        "True()", "\"10000\"", {"robot.location": "False()"}, 
+                        [], planable = False, user = True, 
+                        fm = {"no-bag": {"robot.location": "False()",
+                                         },
+                              }),
 
 
             BlastAction("pr2.table-pick-left", 
@@ -354,9 +357,9 @@ def make_test_world():
                                  world.types.get_surface("coffee_shop"))
     world.append_surface(coffee_pickup)
 
-    bag = BlastObject(world.types.get_object("empty_ziplock_1L_bag"), BlastPos(0.6602, 0.3, 0.762, 0.0, 0.0, 0.0), "salisbury_table")
-    world.surfaces["salisbury_table"].objects.append(BlastObjectRef(bag.uid))
-    world.append_object(bag)
+    #bag = BlastObject(world.types.get_object("empty_ziplock_1L_bag"), BlastPos(0.6602, 0.3, 0.762, 0.0, 0.0, 0.0), "salisbury_table")
+    #world.surfaces["salisbury_table"].objects.append(BlastObjectRef(bag.uid))
+    #world.append_object(bag)
     
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),

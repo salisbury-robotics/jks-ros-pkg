@@ -502,10 +502,11 @@ class BlastManager:
         
 
     def take_action(self, robot, action, parameters, do_cb = False):
-        if self.world.take_action(robot, action, parameters) == None:
+        r = self.world.take_action(robot, action, parameters)
+        if r == None:
             print "Epic fail for", robot, "-->", action
-            return False
-        return True
+            return None
+        return r
     def plan_action(self, robot, action, parameters, world_limits, do_cb = False):
         if do_cb:
             sh = len(self.action_stack) - 1

@@ -183,7 +183,7 @@ class Planner:
                     #print robot_name, at, [x for x in self.parameter_iter(pv)]
                     for parameters in self.parameter_iter(pv):
                         self.actions_tested = self.actions_tested + 1
-                        change = world_clone.take_action(robot_name, at, parameters) 
+                        change, location_do_not_cares = world_clone.take_action(robot_name, at, parameters) 
                         #print robot.location, at, parameters, "->", change
                         if self.action_type_debug != False:
                             self.action_type_debug[at] = self.action_type_debug.get(at, 0) + 1
@@ -320,11 +320,17 @@ class BlastPlannableWorld:
 
     def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
         planner = Planner(self.world.copy())
-        world, est_time, steps = planner.plan_hunt(robot, holder, object_type, world_good)
-        w,o = self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb,
-                             lambda world, arobot, action, parameters: self.plan_hunt(robot, holder, object_type,
-                                                                                      world_good, plan_and_return,
-                                                                                      report_plan, execution_cb))
+        r = planner.plan_hunt(robot, holder, object_type, world_good)
+        if r == None: return None
+        world, est_time, steps = r
+        def rl(world, arobot, action, parameters):
+            return self.plan_hunt(robot, holder, object_type,
+                                  world_good, plan_and_return,
+                                  report_plan, execution_cb)
+        w = self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb, rl)
+        if not w: return False
+        if len(2) < 2: return False
+        w, o = w
         if not w: return False
         orf = self.world.robots[robot].holders[holder]
         if not orf: return None
@@ -341,15 +347,20 @@ class BlastPlannableWorld:
     def exec_plan(self, world, est_time, steps, plan_and_return = False, report_plan = False, 
                   execution_cb = lambda x: None, failure_callback = lambda world, robot, action, parameters: False):
         if plan_and_return:
-            return world, est_time, steps
+            return world, est_time, steps, None
 
         ol = {}
         if world != None and est_time != None and steps != None:
             print "Taking", len(steps), "steps"
             x = 0
             for step in steps:
+                execution_cb(steps[x:])
+                x = x + 1
+                
                 if step[1] == None:
-                    if step[2] == "fail": return False
+                    if step[2] == "fail": 
+                        execution_cb([])
+                        return False
                     print "REPLAN!!!", step
                     
                     planner = Planner(self.world.copy())
@@ -363,8 +374,6 @@ class BlastPlannableWorld:
                         print "Replan failed, continuing default course."
 
                     continue
-                execution_cb(steps[x:])
-                x = x + 1
                 print step[0], step[1], step[2]
 
                 for uid in self.world.objects_keysort:
@@ -569,15 +578,20 @@ class BlastPlannableWorld:
                 return None
             else:
                 action_r = self.action_callback(robot, action, parameters)
+                time_el = None
+                ldc = None
                 if action_r == None:
                     print "Action callback failed to work, going to epic fail"
                     self.action_epic_fail_callback(robot, action, parameters)
                     return None
                 elif action_r == True:
-                    test_world.take_action(robot, action, parameters, True, debug)
+                    time_el, ldc = test_world.take_action(robot, action, parameters, True, debug)
                 else:
                     print "Action failed in a predictable way"
-                    test_world.take_action(robot, action, parameters, True, debug, action_r)
+                    time_el, ldc = test_world.take_action(robot, action, parameters, True, debug, action_r)
+                if ldc != None:
+                    for robot in ldc:
+                        test_world.robots[robot].location = self.world.robots[robot].location.copy()
                 if not test_world.equal(self.world, True): #Important to tolerate arm error
                     print "-"*60
                     print test_world.to_text()
