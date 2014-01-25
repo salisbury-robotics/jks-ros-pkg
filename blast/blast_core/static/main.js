@@ -216,6 +216,14 @@ function call_feed(time) {
 	    } else {
 		load_physical_robot(data[3], false);
 	    }
+	} else if (data[2] == "notification") {
+	    var sep = data[3].indexOf(':');
+	    var type = data[3].substring(0, sep);
+	    var text = data[3].substring(sep + 1);
+	    var text_types = {'0': "Error", '1': "Warning", '2': "Done"};
+	    console.log(type);
+	    console.log(text);
+	    alert(text_types[type] + " -- " + text);
 	}
 	call_feed(data[0]);
     });

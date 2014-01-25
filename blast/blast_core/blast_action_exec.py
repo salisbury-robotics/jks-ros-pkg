@@ -101,7 +101,8 @@ class BlastActionExec():
             res = ipc_packet("PLAN_ACTION," + str(world) + "," + str(action) + "," + self.json(parameters) + "\n")
         else:
             res = ipc_packet("PLAN_ACTION_NW," + str(action) + "," + self.json(parameters) + "\n")
-        if res.strip() == "None": res = None
+        if type(res) == type(""):
+            if res.strip() == "None": res = None
         if res == None:
             raise BlastRuntimeError("Failed to plan")
         return res
@@ -113,7 +114,7 @@ class BlastActionExec():
         else:
             res = ipc_packet("PLAN_HUNT_NW," + str(holder) + "," + str(object_type) + "\n")
         if res.strip() == "None": res = None
-        if res.strip() == "False": res = False
+        elif res.strip() == "False": res = False
         if res == None:
             raise BlastRuntimeError("Failed to plan")
         if res == False:

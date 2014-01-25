@@ -100,6 +100,9 @@ class BlastAction(object):
 
         self.time_estimate = time_estimate
         self.changes = changes
+
+        if 'success' in fm:
+            raise BlastTypeError("A failure mode cannot be called 'success'")
         
         for mode, changes in [("success", self.changes),] + fm.items():
             for var in changes:
@@ -108,6 +111,9 @@ class BlastAction(object):
                         and not (var.split(".")[0] in surface_parameters and var.split(".")[1].split("-")[0] == "objects") \
                         and not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
                     raise BlastTypeError("Invalid variable set in " + name + ": " + var + " for mode: " + mode)
+                if var == "robot.location" and mode == "success" and planable \
+                        and (changes[var].strip() == "False()" or changes[var].strip() == "None()"):
+                    raise BlastTypeError("A planable action cannot define a free location for the robot.")
                 if not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
                     self.validate("Invalid expression for variable " + var + " in " + name + " for mode: " + mode,
                                   changes[var])
@@ -1223,18 +1229,20 @@ class BlastWorld(object):
             return True
     
     def take_action(self, robot_name, action, parameters, execute = True, debug = False, failure_mode = None):
+        location_do_not_cares = set()
+        
         #Get the robot
         robot = self.robots.get(robot_name)
         if not robot:
             if debug: print "Invalid robot:", robot_name
-            return None
+            return None, None
         
         #Get action type
         action_robot_type, action_type = self.types.get_action_for_robot(robot.robot_type, action)
         if not action_robot_type or not action_type:
             if debug:
                 print "Could not find the action type", action, "for", robot.robot_type
-            return None
+            return None, None
 
         #Ensure that we have all the proper parameters and convert strings to locations
         clone_param = False
@@ -1242,7 +1250,7 @@ class BlastWorld(object):
         for name, ptype in action_type.parameters.iteritems():
             if not name in parameters:
                 if debug: print "Parameter", name, "unspecified"
-                return None
+                return None, None
             if ptype == "Pt" or ptype.find("Location:") == 0:
                 if type(parameters[name]) == type({}):
                     if not clone_param:
@@ -1268,14 +1276,14 @@ class BlastWorld(object):
                             parameters[name] = int(parameters[name])
                         except:
                             if debug: print "Invalid parameter string:", parameters[name]
-                            return None
+                            return None, None
                         if not parameters[name] in self.objects:
                             if debug: print "Non-existant object:", parameters[name]
-                            return None
+                            return None, None
                         parameters[name] = BlastObjectRef(parameters[name])
                     else:
                         if debug: print "Invalid surface object:", parameters[name]
-                        return None
+                        return None, None 
                     
                 
 
@@ -1402,13 +1410,13 @@ class BlastWorld(object):
         if not assert_condition(action_type.condition):
             if debug: print "Condition returned false"
             if debug: assert_condition(action_type.condition, True)
-            return None
+            return None, None
     
         time_estimate = get_value(action_type.time_estimate)
         if debug: print "Time estimate:", time_estimate
         if time_estimate == None:
             if debug: print "Time estimate invalid"
-            return None
+            return None, None
 
         #Conditions met, everything is done. Now we just need to update the values
         #create a queue of transations then execute them
@@ -1423,14 +1431,14 @@ class BlastWorld(object):
                 items_to_clone["robots"].add(robot.name)
                 if not hasattr(robot, sub[1]):
                     if debug: print "Attempt to set invalid robot attribute", sub[1]
-                    return None
+                    return None, None
                 if type(val) == type([1,]):
                     v = [get_value(x) if x not in [None, False, True] and type(x) != type(0.01) else x for x in val]
                 else:
                     v = get_value(val)
                 if v == None:
                     if debug: print "Invalid value for set:", val
-                    return None
+                    return None, None
                 if sub[1] == "holders":
                     if BLAST_NONE.equal(v):
                         v = None
@@ -1440,13 +1448,13 @@ class BlastWorld(object):
                 elif sub[1] == "positions":
                     if not sub[2] in robot.positions:
                         if debug: print "Invalid position for robot", robot.name, sub
-                        return None
+                        return None, None
                     set_d = {}
                     if type(v) == type([1,]):
                         joint_names = robot.robot_type.position_variables[sub[2]][False][0]
                         if len(joint_names) != len(v):
                             if debug: print "Invalid number of joints for array based-update", sub[2]
-                            return None
+                            return None, None
                         for joint_name, value in zip(joint_names, v):
                             if value == None:
                                 set_d[joint_name] = robot.positions[sub[2]][joint_name]
@@ -1461,6 +1469,11 @@ class BlastWorld(object):
                         if debug: print "Invalid type for positions", v
                     if v != None and set_d != {}:
                         transactions.append(("VAL", ("robot", robot.name, "positions"), sub[2], set_d))
+                elif sub[1].strip() == "location":
+                    if (v != None and v != False and type(v) != BlastPrimitive):
+                        transactions.append(("SET", ("robot", robot.name), sub[1], v))
+                    else:
+                        location_do_not_cares.add(robot.name)
                 else:
                     transactions.append(("SET", ("robot", robot.name), sub[1], v))
             elif sub[0] in surface_parameters and len(sub) == 2 and sub[1].find("objects+") == 0:
@@ -1474,7 +1487,7 @@ class BlastWorld(object):
                 surface = get_value(sub[0])
                 if surface.name != pos[0]:
                     if debug: print "Invalid surface", surface.name, "not", pos[0]
-                    return None
+                    return None, None
                 pos = pos[1]
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("ADDOBJ", ("surface", surface.name), obj, pos))
@@ -1484,7 +1497,7 @@ class BlastWorld(object):
                 obj_s = self.get_obj(obj.uid).parent
                 if surface.name != obj_s:
                     if debug: print "Invalid surface", surface.name, "not", obj_s
-                    return None
+                    return None, None
                 items_to_clone["surfaces"].add(surface.name)
                 transactions.append(("DELETEOBJ", ("surface", surface.name), obj))
             elif sub[0] in surface_parameters and len(sub) == 2 and sub[1] == "scan":
@@ -1493,10 +1506,10 @@ class BlastWorld(object):
                 transactions.append(("SCAN", ("surface", surface.name), val))
             else:
                 if debug: print "Update failed, invalid sub", sub
-                return None
+                return None, None
 
         if not execute:
-            return time_estimate
+            return time_estimate, None
 
         if self.copy_on_write_optimize:
             for robot_name in items_to_clone["robots"]:
@@ -1547,7 +1560,7 @@ class BlastWorld(object):
                 self.clear_hash("robots")
         self.gc_objects()
 
-        return time_estimate
+        return time_estimate, location_do_not_cares
 
     def enumerate_action(self, robot_name, action, extra_goals, debug = False):
         #Get the robot

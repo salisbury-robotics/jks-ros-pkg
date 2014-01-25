@@ -477,20 +477,25 @@ def api_plan(target, world = None):
             locations.append(robot.location.copy())
         
         print "Planning...."
-        plan_to_world, time, steps = start_clone.plan(lambda w: w.equal(end.world, tolerant=True), 
-                                                      {"Pt": locations}, plan_and_return = True)
-        print "Result:", plan_to_world
-        print "Done", steps, time
-
+        r = start_clone.plan(lambda w: w.equal(end.world, tolerant=True), 
+                             {"Pt": locations}, plan_and_return = True)
+        if r != None:
+            plan_to_world, time, steps, ol = r
+            print "Result:", plan_to_world
+            print "Done", steps, time
+        else:
+            plan_to_world, time2, steps = (None, None, None)
         if plan_to_world != None:
             worked = True
             start.plan_steps[end].extend(steps)
             equal = True
 
             if (action_data):
-                plan_final_world, time2, steps = end.plan_action(action_data["robot"], action_data["action"].split(".")[-1], 
-                                                                 action_data["parameters"], include_action = True)
-                if plan_final_world != None:
+                r = end.plan_action(action_data["robot"], action_data["action"].split(".")[-1], 
+                                    action_data["parameters"], include_action = True)
+                if r != None:
+                    print r
+                    plan_final_world, time2, steps, ol = r
                     #Note - all of these steps need to be applied to the end world
                     start.plan_steps[end].extend(steps)
                 else:
@@ -504,8 +509,13 @@ def api_plan(target, world = None):
         equal = start_clone.world.equal(end.world, tolerant=True)
     
     if end in start.plan_steps:
-        p = [(x[0], x[1], x[2], True) for x in start.display_plan]
-        p = p + [(x[0], x[1], x[2], False) for x in start.plan_steps[end]]
+        def clean_p(at, p):
+            if at == None:
+                if p == "fail": return "fail"
+                return {}
+            return p
+        p = [(x[0], x[1], clean_p(x[1], x[2]), True) for x in start.display_plan]
+        p = p + [(x[0], x[1], clean_p(x[1], x[2]), False) for x in start.plan_steps[end]]
 
         if True:
             actions = {}
@@ -513,14 +523,22 @@ def api_plan(target, world = None):
                 if not robot in actions:
                     actions[robot] = {}
                 if not action in actions[robot]:
-                    rt, at = start.world.types.get_action_for_robot(start.world.robots[robot].robot_type, action)
-                    actions[robot][action] = {"display": at.display, "changes": at.changes }
+                    if action == None:
+                        actions[robot][None] = {"display": [], "changes": []}
+                    else:
+                        rt, at = start.world.types.get_action_for_robot(start.world.robots[robot].robot_type, action)
+                        actions[robot][action] = {"display": at.display, "changes": at.changes }
         else:
             actions = None
     else:
         actions = None
         p = None
     world_edit_lock.release()
+
+    print "p", p
+    print "equal", equal
+    print "worked", worked
+    print "actions", actions
 
     return return_json([p, equal, worked, actions])
 
@@ -592,6 +610,22 @@ def execute_plan(target):
     return return_json(True)
 
 
+NOTIFICATION_ERROR = 0
+NOTIFICATION_WARNING = 1
+NOTIFICIATON_FINISHED = 2
+
+
+notifications_lock = threading.Lock()
+notifications = []
+
+def notification(level, message):
+    notifications_lock.acquire()
+    notifications.append((level, message))
+    notifications_lock.release()
+    queue_load(None, "notification", str(level) + ":" + str(message))
+
+
+
 class ManagerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -612,7 +646,7 @@ class ManagerThread(threading.Thread):
             if level != []:
                 plan_out.extend(level[1:])
 
-        print "OUTPUT PLAN!!!!", plan_out
+        print "OUTPUT PLAN!!!!", plan_out, "FROM", plan
         manager.world.display_plan = plan_out
 
         world_edit_lock.release()
@@ -620,7 +654,7 @@ class ManagerThread(threading.Thread):
 
     def on_robot_change(self, robot):
         queue_load(None, "robot", robot)
-        time.sleep(3.0)
+        time.sleep(10.0)
 
     def run(self):
         global world_edit_session, world_edit_lock, manager
@@ -638,13 +672,23 @@ class ManagerThread(threading.Thread):
             world_edit_lock.release()
 
             if current_action:
+                self.on_plan_action()
                 try:
-                    time.sleep(3.0)
-                    manager.take_action(current_action[0], current_action[1], current_action[2])
+                    result = manager.take_action(current_action[0], current_action[1], current_action[2])
                 except:
                     import traceback
                     traceback.print_exc()
                     alive = False
+                    
+                failed = False
+                if result == False or result == None:
+                    failed = True
+                    is_epic = ""
+                    if result == None: is_epic = "This is an epic fail. "
+                    #Does not break whole plan, but generates a notification
+                    #FIXME: database should be updated here.
+                    notification(NOTIFICATION_ERROR, "Action " + current_action[1] + " failed for " 
+                                 + current_action[0] + ". " + is_epic + "Parameters: " + str(current_action[2]))
 
                 #Only remove here so that the display of the current plan
                 #won't be deleted until here
@@ -654,6 +698,9 @@ class ManagerThread(threading.Thread):
                 
                 queue_load(None, "robot", current_action[0])
                 self.on_plan_action()
+                if manager.world.current_plan == [] and not failed:
+                    #FIXME: smarter
+                    notification(NOTIFICIATON_FINISHED, "All tasks have been completed")
             else:
                 try:
                     time.sleep(0.1)
