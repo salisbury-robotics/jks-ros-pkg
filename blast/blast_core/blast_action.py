@@ -18,6 +18,25 @@ class BlastRuntimeError(Exception):
 def thunk():
     return
 
+def jsonload(strs):
+    r = json.loads(strs)
+    def clean(r):
+        if (type(r) == type({})):
+            c = {}
+            for k, v in r.iteritems():
+                c[str(k)] = clean(v)
+            return c
+        elif type(r) == type([]) or type(r) == type((0,1)):
+            return [clean(x) for x in r]
+        elif type(r) == type(1) or type(r) == type(0.1):
+            return r
+        elif r == False or r == True or r == None:
+            return r
+        return str(r)
+    return clean(r)
+
+
+
 class BlastActionExec:
     def __init__(self, robot, manager, guid, filenames, on_robot_change = thunk):
         self._robot = robot
@@ -205,7 +224,6 @@ class BlastActionExec:
         error = False
         while True:
             result = proc.stdout.readline()
-            #print result
             if type(result) != type(""):
                 print "Ignore packet", result
             elif result.find("DELETE_SURFACE_OBJECT") == 0:
@@ -266,11 +284,11 @@ class BlastActionExec:
                 if result.strip().split(",")[0].strip() == "PLAN_ACTION":
                     world = result.strip().split(",")[1].strip()
                     action = result.strip().split(",")[2].strip()
-                    parameters = json.loads(",".join(result.strip().split(",")[3:]))
+                    parameters = jsonload(",".join(result.strip().split(",")[3:]))
                 else:
                     world = None
                     action = result.strip().split(",")[1].strip()
-                    parameters = json.loads(",".join(result.strip().split(",")[2:]))
+                    parameters = jsonload(",".join(result.strip().split(",")[2:]))
                 world_limits = {}
                 if "world limits" in parameters: #note this contains a space so never found as param
                     world_limits = parameters["world limits"]
@@ -292,7 +310,7 @@ class BlastActionExec:
                     holder = result.strip().split(",")[1].strip()
                     object_type = result.strip().split(",")[2].strip()
                 try:
-                    proc.stdin.write(str(self.plan_hunt(holder, object_type, world)) + "\n")
+                    proc.stdin.write(",".join([str(x) for x in self.plan_hunt(holder, object_type, world)]) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
                     proc.stdin.write("None\n")
@@ -310,10 +328,10 @@ class BlastActionExec:
             elif result.find("SET_ROBOT_LOCATION") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_LOCATION":
                     world = result.strip().split(",")[1].strip()
-                    location = json.loads(",".join(result.strip().split(",")[2:]))
+                    location = jsonload(",".join(result.strip().split(",")[2:]))
                 else:
                     world = None
-                    location = json.loads(",".join(result.strip().split(",")[1:]))
+                    location = jsonload(",".join(result.strip().split(",")[1:]))
                 if self.set_location(location, world):
                     proc.stdin.write("True\n")
                 else:
@@ -323,11 +341,11 @@ class BlastActionExec:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_POSITION":
                     world = result.strip().split(",")[1].strip()
                     position = result.strip().split(",")[2].strip()
-                    state = json.loads(",".join(result.strip().split(",")[3:]))
+                    state = jsonload(",".join(result.strip().split(",")[3:]))
                 else:
                     world = None
                     position = result.strip().split(",")[1].strip()
-                    state = json.loads(",".join(result.strip().split(",")[2:]))
+                    state = jsonload(",".join(result.strip().split(",")[2:]))
                 proc.stdin.write(str(self.set_robot_position(position, state, world)) + "\n")
                 proc.stdin.flush()
             elif result.find("GET_ROBOT_HOLDER") == 0:
@@ -383,13 +401,13 @@ class BlastActionExec:
                     world = result.strip().split(",")[1].strip()
                     from_h = result.strip().split(",")[2].strip()
                     surface = result.strip().split(",")[3].strip()
-                    pos = [float(x.strip()) for x in result.strip().split(",")[4:]]
+                    pos = [float(str(x).strip()) for x in result.strip().split(",")[4:]]
                     pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
                 else:
                     world = None
                     from_h = result.strip().split(",")[1].strip()
                     surface = result.strip().split(",")[2].strip()
-                    pos = [float(x.strip()) for x in result.strip().split(",")[3:]]
+                    pos = [float(str(x).strip()) for x in result.strip().split(",")[3:]]
                     pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
                 proc.stdin.write(str(self.robot_place_object(from_h, surface, pos, world)) + "\n")
                 proc.stdin.flush()

@@ -329,7 +329,7 @@ class BlastPlannableWorld:
                                   report_plan, execution_cb)
         w = self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb, rl)
         if not w: return False
-        if len(2) < 2: return False
+        if len(w) < 2: return False
         w, o = w
         if not w: return False
         orf = self.world.robots[robot].holders[holder]
@@ -378,7 +378,7 @@ class BlastPlannableWorld:
 
                 for uid in self.world.objects_keysort:
                     if self.world.objects[uid].position:
-                        ol[uid] = (self.world.objects[uid].position, self.world.objects[uid].parent)
+                        ol[uid] = (uid, self.world.objects[uid].position, self.world.objects[uid].parent)
                 print ol
 
                 r = self.take_action(step[0], step[1], step[2])
@@ -548,7 +548,7 @@ class BlastPlannableWorld:
             for robot, location in world_limits["robot-location"].iteritems():
                 extras["Pt"] = extras.get("Pt", [])
                 extras["Pt"].append(blast_world.BlastPt(location['x'], location['y'], location['a'], location['map']))
-        r = self.plan(lambda w: w.world_limit_check(world_limits) and w.take_action(robot, action, parameters, False, False) != None, 
+        r = self.plan(lambda w: w.world_limit_check(world_limits) and w.take_action(robot, action, parameters, False, False)[0] != None, 
                       extras, plan_and_return = plan_and_return, report_plan = True, 
                       execution_cb = lambda x: execution_cb(x + [(robot, action, parameters),]))
         if r != None:
@@ -568,6 +568,8 @@ class BlastPlannableWorld:
                 parameters[name] = parameters[name].name
             elif parameters[name].__class__ == blast_world.BlastObjectRef:
                 parameters[name] = parameters[name].to_text()
+            elif type(parameters[name]) == type((0, 1)):
+                parameters[name] = tuple([str(x) for x in parameters[name]])
             elif hasattr(parameters[name], "to_dict"):
                 parameters[name] = parameters[name].to_dict()
 
