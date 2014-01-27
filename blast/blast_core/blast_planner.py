@@ -125,15 +125,18 @@ class Planner:
 
 
     def plan_recursive(self):
+
+        do_scans = False
+
         for world in self.worlds:
+            if world[0].consider_scan: do_scans = True
             if self.world_good(world[0]):
                 self.good_worlds.append(world)
                 if not self.time_limit:
                     self.time_limit = world[1]
                 if world[1] < self.time_limit:
                     self.time_limit = world[1]
-            
-
+        
 
         cached_types = {}
         cached_actions = {}
@@ -147,6 +150,7 @@ class Planner:
             #Find all valid actions
             action_types = []
             for name in world[0].types.actions.keys():
+                if world[0].types.actions[name].scan_only() and not do_scans: continue
                 if name.split(".")[0] in robot_types:
                     if not name.split(".")[1] in action_types:
                         action_types.append(name.split(".")[1])
