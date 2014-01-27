@@ -310,7 +310,11 @@ class BlastActionExec:
                     holder = result.strip().split(",")[1].strip()
                     object_type = result.strip().split(",")[2].strip()
                 try:
-                    proc.stdin.write(",".join([str(x) for x in self.plan_hunt(holder, object_type, world)]) + "\n")
+                    r = self.plan_hunt(holder, object_type, world)
+                    if r == False or r == None:
+                        proc.stdin.write(str(r) + "\n")
+                    else:
+                        proc.stdin.write(",".join([str(x) for x in r]) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
                     proc.stdin.write("None\n")
@@ -563,8 +567,8 @@ def test_main():
                                                                         "clarkcenterfirstfloor"), 
                                                     "shop": "clark_peets_coffee_shop"}, {}):
         return False
-    a = "c66ad51b77946fb8ac04e94a732e88297ce77fae9a7ae0bdb9768b06bccf2c953810ccc6c1bf70e02ac63b3"
-    a = a + "8145ce40509e7f579d13b347d085a3deb79df8e417fa7d2bd93a92d744e22058b29c0012b2f282516"
+    a = "0a74cbe0c1cd7804120143ffe687a63bf8baec2f00d11e47583d075b7b3fc0350a5bcf3be0a1e4d6977904"
+    a = a + "dde7e04531ac7662d74ade2749085a3deb79df8e417fa7d2bd93a92d744e22058b29c0012b2f282516"
     if a != man.world.world.get_hex_hash_state():
         return False
     return True
