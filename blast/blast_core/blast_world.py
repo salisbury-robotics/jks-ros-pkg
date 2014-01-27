@@ -1732,7 +1732,17 @@ class BlastWorld(object):
                 if not obj:
                     break
 
-                for initial_pos in data[2]:
+                extras = []
+                extras.extend(extra_goals.get("Pos:SN:" + surf.name + ":" + obj.object_type.name, []))
+                extras.extend(extra_goals.get("Pos:SU:" + surf.name + ":" + str(obj.uid), []))
+                extras.extend(extra_goals.get("Pos:TN:" + surf.surface_type.name + ":" + obj.object_type.name, []))
+                extras.extend(extra_goals.get("Pos:TU:" + surf.surface_type.name + ":" + str(obj.uid), []))
+                extras.extend(extra_goals.get("Pos:N:" + obj.object_type.name, []))
+                extras.extend(extra_goals.get("Pos:U:" + str(obj.uid), []))
+                extras.extend(extra_goals.get("Pos:S:" + surf.name, []))
+                extras.extend(extra_goals.get("Pos:T:" + surf.surface_type.name, []))
+
+                for initial_pos in data[2] + extras:
                     w = 0
                     #TODO: this does not handle rotation down properly
                     wx = obj.object_type.motion_limits["bound_d"] + 0.01

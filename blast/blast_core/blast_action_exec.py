@@ -153,6 +153,19 @@ class BlastActionExec():
         if res.strip() == "None": res = None
         return res
         
+    def plan_place(self, uid, surface, pos, world=None):
+        if world:
+            res = ipc_packet("PLAN_PLACE," + str(world) + "," + str(uid) + "," + str(surface) + "," + str(pos))
+        else:
+            res = ipc_packet("PLAN_PLACE_NW," + str(uid) + "," + str(surface) + "," + str(pos))
+        if res: res = res.strip().strip("()").strip()
+        if res == "None": res = None
+        elif res == "True": res = True
+        elif res == "False": res = False
+        if res == False or res == None:
+            raise BlastRuntimeError("Failed to plan")
+        return res
+        
 
     def set_robot_position(self, pos, val, world=None):
         if world:

@@ -547,6 +547,39 @@ class BlastPlannableWorld:
         return self.world.add_surface_object(surface, object_type, pos)
         
 
+    def plan_place(self, uid, surface, pos, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
+        extras = {}
+
+        uid = int(uid)
+        surface = str(surface)
+        if type(pos) != blast_world.BlastPos:
+            if type(pos) == type([]):
+                pos = [str(x).strip() for x in pos]
+            else:
+                pos = [x.strip().strip("''").strip() for x in str(pos).strip().strip("[]").split(",")]
+            if pos[0] != surface: return None
+            pos = [float(x) for x in pos[1:]]
+            pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+        if type(pos) != blast_world.BlastPos: return None
+        if not surface in self.world.surfaces: return None
+        if not uid in self.world.objects: return None
+        extras["Pos:SU:" + surface + ":" + str(uid)] = [pos,]
+
+        def check_world(w):
+            if not uid in w.objects:
+                return False
+            if w.objects[uid].parent != surface:
+                return False
+            if w.objects[uid].position == None:
+                return False
+            return w.objects[uid].position.equal(pos)
+
+        r = self.plan(lambda w: check_world(w),
+                      extras, plan_and_return = plan_and_return, report_plan = True, 
+                      execution_cb = lambda x: execution_cb(x))
+        return r
+                      
+
     def plan_action(self, robot, action, parameters, world_limits = {}, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
         #FIXME: this can create problems if parameters is an extra element
 
