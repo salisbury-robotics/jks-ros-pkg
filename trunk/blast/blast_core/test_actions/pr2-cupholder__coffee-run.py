@@ -3,6 +3,15 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
     def __init__(self):
         BlastActionExec.__init__(self)
     def run(self, parameters):
+        #Hunt down an empty ziplock bag so that we can have the bot grab it
+        #and bring it to the person. Save its location so we have good manners
+        #and put the object back where we found it.
+        try:
+            empty_uid, return_pos, surface = self.plan_hunt("left-arm", "empty_ziplock_1L_bag")
+        except BlastFindObjectError:
+            self.set_failure("no-bag")
+            return
+       
 
         #Grab the money bag of of the human
         #Note that we drive to the human location by setting it as a world
@@ -13,6 +22,9 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
         #robot reach the location, it could conceviably move to another before
         #actually running the grab (although this is very unlikely).
         print "-"*30, "Grab money bag", "-"*30
+        self.plan_action("give-object", {"tts-text": "Empty Bag"},
+                         {"robot-location": parameters["person_location"],
+                          "robot-holders": {"left-arm": empty_uid}})
         self.plan_action("grab-object", {"tts-text": "Money Bag"},
                          {"robot-location": parameters["person_location"]})
         self.set_robot_holder("left-arm", "coffee_money_bag")
@@ -38,13 +50,20 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
         coffee_cup = self.get_robot_holder("cupholder")
 
         #Now that we have purchased the coffee cup, we can drive back to
-        #the person and deliver the cup
+        #the person and deliver the cup and take back the empty bag
         print "-"*30, "Give out coffee", "-"*30
         self.plan_action("give-object", {"tts-text": "Coffee Cup"}, 
                          {"robot-holders": {"cupholder": coffee_cup},
                           "robot-location": parameters["person_location"]})
+        self.plan_action("grab-object", {"tts-text": "Empty Bag"},
+                         {"robot-location": parameters["person_location"]})
+        self.set_robot_holder("left-arm", "empty_ziplock_1L_bag")
+        empty_bag = self.get_robot_holder("left-arm")
 
+        
+        print "-"*30, "Replace Object", "-"*30
+        #Put back down the empty bag on the table so it can be reused.
+        self.plan_action("table-place-left", {"table": surface, "position": return_pos},
+                         {"robot-holders": {"left-arm": empty_bag}})
 
-        print "-"*30, "Tuck", "-"*30
-        self.plan_action("tuck-both-arms", {})
 set_action_exec(BlastPr2CoffeeRunActionExec)

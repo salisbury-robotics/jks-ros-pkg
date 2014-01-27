@@ -119,7 +119,8 @@ class BlastActionExec():
             raise BlastRuntimeError("Failed to plan")
         if res == False:
             raise BlastFindObjectError("Failed to find " + object_type + " and place it in " + holder)
-        return res.strip().split(",")[:-1], res.strip().split(",")[-1]
+        strs = [x.strip().replace("Pos", "").strip("()").strip() for x in res.strip().split(",")]
+        return int(strs[0]), strs[-1] + ",Pos(" + ",".join(strs[1:-1]) + ")", strs[-1]
 
     def surface_add_object(self, surface, object_type, pos, world = None):
         if type(pos) != type(""):
@@ -193,7 +194,12 @@ class BlastActionExec():
         return res
         
     def robot_place_object(self, holder, position, world = None):
-        ps = ",".join([x.strip() for x in position.replace("Pos(", "").replace(")", "").split(",")])
+        if type(position) == type([0, 1]) or position == type((1, 2)):
+            position = ",".join([str(x) for x in position])
+        ps = ",".join([str(x).strip() for x in position.strip().strip('[]()').strip().replace("Pos(", "").replace(")", "").split(",")])
+
+        print "_--" * 90
+        print position, holder
 
         if world:
             res = ipc_packet("ROBOT_PLACE_OBJECT," + str(world) + "," 

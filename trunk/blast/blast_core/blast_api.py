@@ -513,7 +513,10 @@ def api_plan(target, world = None):
             if at == None:
                 if p == "fail": return "fail"
                 return {}
-            return p
+            a = {}
+            for n, v in p.iteritems():
+                a[n] = str(v)
+            return a
         p = [(x[0], x[1], clean_p(x[1], x[2]), True) for x in start.display_plan]
         p = p + [(x[0], x[1], clean_p(x[1], x[2]), False) for x in start.plan_steps[end]]
 
@@ -654,7 +657,7 @@ class ManagerThread(threading.Thread):
 
     def on_robot_change(self, robot):
         queue_load(None, "robot", robot)
-        time.sleep(10.0)
+        time.sleep(1.0)
 
     def run(self):
         global world_edit_session, world_edit_lock, manager
