@@ -602,8 +602,9 @@ def pick_and_place_test():
 
 
     sc = world.get_scan_actions()
+    print "Scan actions", sc, "must include coffee_cup, empty_ziplock_1L_bag"
     if not "coffee_cup" in sc: return False
-    if not "coffee_money_bag" in sc: return False
+    if not "empty_ziplock_1L_bag" in sc: return False
     return True
 
 if __name__ == '__main__':

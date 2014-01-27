@@ -132,6 +132,8 @@ class Planner:
                     self.time_limit = world[1]
                 if world[1] < self.time_limit:
                     self.time_limit = world[1]
+            
+
 
         cached_types = {}
         cached_actions = {}
@@ -318,7 +320,7 @@ class BlastPlannableWorld:
     #plan_and_return = instantly execute, return immediately
     #report_plan = at the end return the plan instead of True/None
 
-    def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None):
+    def plan_hunt(self, robot, holder, object_type, world_good = None, plan_and_return = False, report_plan = False, execution_cb = lambda x: None, internal = False):
         planner = Planner(self.world.copy())
         r = planner.plan_hunt(robot, holder, object_type, world_good)
         if r == None: return None
@@ -326,10 +328,11 @@ class BlastPlannableWorld:
         def rl(world, arobot, action, parameters):
             return self.plan_hunt(robot, holder, object_type,
                                   world_good, plan_and_return,
-                                  report_plan, execution_cb)
+                                  report_plan, execution_cb, internal = True)
         w = self.exec_plan(world, est_time, steps, plan_and_return, report_plan, execution_cb, rl)
+        if internal: return w
         if not w: return False
-        if len(w) < 2: return False
+        if len(w) != 2: return False
         w, o = w
         if not w: return False
         orf = self.world.robots[robot].holders[holder]
@@ -601,6 +604,12 @@ class BlastPlannableWorld:
                     print self.world.to_text()
                     print "-"*60
                     print "The output world differs, epic fail!"
+                    print "-"*60, "delta", "-"*60
+                    for line_self, line_other in zip(test_world.to_text().split("\n"), self.world.to_text().split("\n")):
+                        if line_self.strip() != line_other.strip():
+                            print "correct:", line_self.strip()
+                            print "output:", line_other.strip()
+                    print "-"*60, "done", "-"*60
                     self.action_epic_fail_callback(robot, action, parameters)
                     return None
                 if action_r != True:
