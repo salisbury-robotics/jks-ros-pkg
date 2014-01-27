@@ -800,6 +800,7 @@ class BlastWorld(object):
             self.objects[obj] = self.objects[obj].copy()
         self.objects[obj].parent = None
         self.gc_objects()
+        return True
 
     def clear_scan(self):
         for sn in self.surfaces_keysort:
@@ -837,6 +838,7 @@ class BlastWorld(object):
         self.surfaces[surface].objects.append(BlastObjectRef(obj.uid))
         self.gc_objects()  
         self.clear_hash("surfaces")
+        return True
     
     def copy_obj(self, uid):
         if self.copy_on_write_optimize and uid in self.objects:

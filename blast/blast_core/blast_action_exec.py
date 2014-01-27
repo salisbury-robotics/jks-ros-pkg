@@ -77,10 +77,11 @@ class BlastActionExec():
         
     def set_failure(self, mode):
         res = ipc_packet("SET_FAILURE," + str(mode) + "\n").strip()
-        if res == "True":
-            res = True
-        else:
-            res = None
+        if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to set failure mode")
         return res
 
     def delete_surface_object(self, obj, world=None):
@@ -88,10 +89,11 @@ class BlastActionExec():
             res = ipc_packet("DELETE_SURFACE_OBJECT," + str(world) + "," + str(obj) + "\n").strip()
         else:
             res = ipc_packet("DELETE_SURFACE_OBJECT_NW," + str(obj) + "\n").strip()
-        if res == "True":
-            res = True
-        else:
-            res = None
+        if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to delete object")
         return res
     
     def plan_action(self, action, parameters, world_limits = None, world=None):
@@ -131,7 +133,11 @@ class BlastActionExec():
             res = ipc_packet("ADD_SURFACE_OBJECT," + str(world) + "," + str(surface) + "," + str(object_type) + "," + pos + "\n").strip()
         else:
             res = ipc_packet("ADD_SURFACE_OBJECT_NW," + str(surface) + "," + str(object_type) + "," + pos + "\n").strip()
-        if res.strip() == "None": res = None
+        if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to add surface object")
         return res
         
 
@@ -140,7 +146,11 @@ class BlastActionExec():
             res = ipc_packet("LIST_SURFACE_OBJECTS," + str(world) + "," + str(surface) + "\n").strip()
         else:
             res = ipc_packet("LIST_SURFACE_OBJECTS_NW," + str(surface) + "\n").strip()
-        if res.strip() == "None": return None
+        if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to list surface objects")
         return res.split(",")
 
     def surface_scan(self, surface, object_types, world=None):
@@ -173,6 +183,10 @@ class BlastActionExec():
         else:
             res = ipc_packet("SET_ROBOT_POSITION_NW," + str(pos) + "," + self.json(val) + "\n")
         if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to set robot position")
         return res
 
     def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
@@ -184,6 +198,10 @@ class BlastActionExec():
             res = ipc_packet("SET_ROBOT_HOLDER_NW," + str(holder) + "," 
                              + str(ot) + "," + str(require_preexisting_object) + "\n")
         if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to set robot holder")
         return res
 
     def robot_transfer_holder(self, from_holder, to_holder, world = None):
@@ -194,6 +212,10 @@ class BlastActionExec():
             res = ipc_packet("ROBOT_TRANSFER_HOLDER_NW," 
                              + str(from_holder) + "," + str(to_holder) + "\n")
         if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to transfer robot holder")
         return res
 
     def robot_pick_object(self, objectref, to_holder, world = None):
@@ -204,6 +226,10 @@ class BlastActionExec():
             res = ipc_packet("ROBOT_PICK_OBJECT_NW," 
                              + str(objectref) + "," + str(to_holder) + "\n")
         if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to pick object")
         return res
         
     def robot_place_object(self, holder, position, world = None):
@@ -221,6 +247,10 @@ class BlastActionExec():
             res = ipc_packet("ROBOT_PLACE_OBJECT_NW," 
                              + str(holder) + "," + str(ps) + "\n")
         if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to place object")
         return res
 
     def set_location(self, position, world = None):
@@ -230,6 +260,10 @@ class BlastActionExec():
         else:
             res = ipc_packet("SET_ROBOT_LOCATION_NW," + self.json(position) + "\n")
         if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to set location of object")
         return res
 
     def run(self):
