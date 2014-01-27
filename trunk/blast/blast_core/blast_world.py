@@ -34,6 +34,16 @@ class BlastAction(object):
                 "time_estimate": self.changes, "display": self.display, 
                 "planable": self.planable, 'user': self.user, 'failure_modes': self.failure_modes}
 
+    def scan_only(self):
+        for var in self.changes:
+            if len(var.split(".")) != 2:
+                return False
+            if var.split(".")[1] != "scan":
+                return False
+            if not var.split(".")[0] in self.parameters:
+                return False
+        return True
+
     def __init__(self, name, parameters, condition, time_estimate, 
                  changes, display, planable = True, user = False, fm = {}): #Name must be robot_type.action
         self.name = name
