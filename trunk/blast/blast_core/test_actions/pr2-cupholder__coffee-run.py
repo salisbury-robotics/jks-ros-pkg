@@ -62,8 +62,11 @@ class BlastPr2CoffeeRunActionExec(BlastActionExec):
 
         
         print "-"*30, "Replace Object", "-"*30
-        #Put back down the empty bag on the table so it can be reused.
-        self.plan_action("table-place-left", {"table": surface, "position": return_pos},
-                         {"robot-holders": {"left-arm": empty_bag}})
+        #Put back down the empty bag on the table so it can be reused. Note
+        #that we use plan_place here instead of directly planning the 
+        #table-place-object action. This is so that if in the future the bag
+        #may be picked up off of another surface it will still work for the
+        #return.
+        self.plan_place(empty_bag, surface, return_pos)
 
 set_action_exec(BlastPr2CoffeeRunActionExec)

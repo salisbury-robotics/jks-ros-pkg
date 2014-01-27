@@ -174,7 +174,15 @@ class BlastActionExec:
         if self._manager.get_current_guid() == self._guid:
             r = self._manager.plan_hunt(self._robot, holder, object_type, True)
         if r == None:
-            raise BlastRuntimeError("Planning to object hunt action failed")
+            raise BlastRuntimeError("Planning to object hunt object failed")
+        return r
+
+    def plan_place(self, uid, surface, place, world = None):
+        r = None
+        if self._manager.get_current_guid() == self._guid:
+            r = self._manager.plan_place(uid, surface, place, True)
+        if r == None:
+            raise BlastRuntimeError("Planning to place object failed")
         return r
 
     def create_world(self, new_world, world = None):
@@ -299,6 +307,26 @@ class BlastActionExec:
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
                     proc.stdin.write("None\n")
+                proc.stdin.flush()
+            elif result.find("PLAN_PLACE") == 0:
+                if result.strip().split(",")[0].strip() == "PLAN_PLACE":
+                    world = result.strip().split(",")[1].strip()
+                    uid = result.strip().split(",")[2].strip()
+                    surface = result.strip().split(",")[3].strip()
+                    pos = [x.strip().replace("Pos","").strip('()').strip() for x in result.strip().split(",")[4:]]
+                else:
+                    world = None
+                    uid = result.strip().split(",")[1].strip()
+                    surface = result.strip().split(",")[2].strip()
+                    pos = [x.strip().replace("Pos","").strip('()').strip() for x in result.strip().split(",")[3:]]
+                if pos[0] != surface:
+                    proc.stdin.write("None\n")
+                else:
+                    try:
+                        proc.stdin.write(str(self.plan_place(uid, surface, pos)) + "\n")
+                    except BlastRuntimeError as ex:
+                        print "--- Runtime error ----", ex
+                        proc.stdin.write("None\n")
                 proc.stdin.flush()
             elif result.find("PLAN_HUNT") == 0:
                 if result.strip().split(",")[0].strip() == "PLAN_HUNT":
@@ -542,6 +570,21 @@ class BlastManager:
             print "Failed to plan action", robot, "-->", action
             return None
         return res
+
+    def plan_place(self, uid, surface, pos, do_cb = False):
+        if do_cb:
+            sh = len(self.action_stack) - 1
+            def update_cb(arg):
+                self.implicit_plan[sh] = arg
+                self.on_plan_action()
+        else:
+            update_cb = lambda x: None
+        res = self.world.plan_place(uid, surface, pos, execution_cb=update_cb)
+        if res == None:
+            print "Epic fail for place", uid, "-->", surface, "at", pos
+            return None
+        return res
+
 
     def plan_hunt(self, robot, holder, object_type, do_cb = False):
         if do_cb:
