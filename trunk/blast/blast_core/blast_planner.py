@@ -607,7 +607,7 @@ class BlastPlannableWorld:
             if parameters[name].__class__ == blast_world.BlastSurface:
                 parameters[name] = parameters[name].name
             elif parameters[name].__class__ == blast_world.BlastObjectRef:
-                parameters[name] = parameters[name].to_text()
+                parameters[name] = parameters[name].uid
             elif type(parameters[name]) == type((0, 1)):
                 parameters[name] = tuple([str(x) for x in parameters[name]])
             elif hasattr(parameters[name], "to_dict"):

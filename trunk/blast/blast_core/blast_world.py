@@ -1279,11 +1279,16 @@ class BlastWorld(object):
                         clone_param = True
                     parameters[name] = self.surfaces.get(parameters[name])
             elif ptype.find("SurfaceObject:") == 0:
-                if type(parameters[name]) == type("") or type(parameters[name]) == type(u""):
+                if type(parameters[name]) == type("") or type(parameters[name]) == type(u"") or type(parameters[name]) == type(0):
                     if not clone_param:
                         parameters = parameters.copy() #Avoid mutating the original dictionary
                         clone_param = True
-                    if parameters[name].strip().find("BlastObjectRef(") == 0:
+                    if type(parameters[name]) == type(0):
+                        if not parameters[name] in self.objects:
+                            if debug: print "Non-existant object:", parameters[name]
+                            return None, None
+                        parameters[name] = BlastObjectRef(parameters[name])
+                    elif parameters[name].strip().find("BlastObjectRef(") == 0:
                         parameters[name] = parameters[name].split("(")[1].strip().strip(')').strip()
                         try:
                             parameters[name] = int(parameters[name])

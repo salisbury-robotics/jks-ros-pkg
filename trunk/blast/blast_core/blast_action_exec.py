@@ -17,8 +17,8 @@ class BlastFindObjectError(Exception):
 
 
     
-class BlastPos():
-    def __init__(self, rx = None, ry = None, rz = None, x = None, y = None, z = None, surface = None, jsond = None):
+class BlastPos(object):
+    def __init__(self, rx = None, ry = None, rz = None, x = None, y = None, z = None, surface = None, jsond = None, pos_string = None):
         self.rx, self.ry, self.rz = rx, ry, rz
         self.x, self.y, self.z = x, y, z
         self.surface = surface
@@ -26,17 +26,23 @@ class BlastPos():
             self.rx, self.ry, self.rz = jsond['rx'], jsond['ry'], jsond['rz']
             self.x, self.y, self.z = jsond['x'], jsond['y'], jsond['z']
             self.surface = jsond.get("surface", self.surface)
+        if pos_string:
+            ar = [s.strip() for s in pos_string.strip().strip("Pos()").split(",")]
+            self.x, self.y, self.z, self.rx, self.ry, self.rz = ar
         if self.rx: self.rx = float(self.rx)
         if self.ry: self.ry = float(self.ry)
         if self.rz: self.rz = float(self.rz)
         if self.x: self.x = float(self.x)
         if self.y: self.y = float(self.y)
         if self.z: self.z = float(self.z)
-
+        
     def __str__(self):
         return ",".join([str(x) for x in [self.surface, self.x, self.y, self.z, self.rx, self.ry, self.rz]])
+    def to_dict(self):
+        return {'x': self.x, 'y': self.y, 'z': self.z,
+                'rx': self.x, 'ry': self.ry, 'rz': self.rz}
 
-class BlastObject():
+class BlastObject(object):
     def __init__(self, uid = None, object_type = None, parent = None, pos = None, jsond = None):
         self.position = pos
         self.parent = parent
@@ -48,8 +54,37 @@ class BlastObject():
             self.uid = int(jsond['uid'])
             self.object_type = str(jsond['object_type'])
 
-#TODO: use objects for locations and surfaces.
-#{u'state': u'default', u'type': u'transparent_heavy_door', u'name': u'clarkfirstfloordoor', u'locations': {u'in_entrance': {u'y': 26.643, u'x': 21.28, u'a': 0.334, u'map': u'clarkcenterfirstfloordoor'}, u'out_exit': {u'y': 26.481, u'x': 21.221, u'a': -2.855, u'map': u'clarkcenterfirstfloordoor'}, u'out_entrance': {u'y': 18.39, u'x': 20.742, u'a': -2.737, u'map': u'clarkcenterfirstfloor'}, u'in_exit': {u'y': 18.456, u'x': 20.656, u'a': 0.35, u'map': u'clarkcenterfirstfloor'}}}
+class BlastLocation(object):
+    def __init__(self, x = None, y = None, a = None, mid = None, jsond = None):
+        self.x = x
+        self.y = y
+        self.a = a
+        self.mid = mid
+        if jsond:
+            self.x = jsond['x']
+            self.y = jsond['y']
+            self.a = jsond['a']
+            self.mid = str(jsond['map'])
+        if self.x: self.x = float(self.x)
+        if self.y: self.y = float(self.y)
+        if self.a: self.a = float(self.a)
+
+    def to_dict(self):
+        return {'x': self.x, 'y': self.y, 'a': self.a, 'map': self.mid}
+
+class BlastSurface(object):
+    def __init__(self, name = None, state = None, surface_type = None, locations = None, jsond = None):
+        self.name = name
+        self.state = state
+        self.surface_type = surface_type
+        self.locations = locations
+        if jsond:
+            self.name = str(jsond["name"])
+            self.state = str(jsond["state"])
+            self.surface_type = str(jsond["type"])
+            self.locations = {}
+            for name, loc in jsond["locations"].iteritems():
+                self.locations[str(name)] = BlastLocation(jsond = loc)
 
 #This is important so that no commands get sent
 #over stdout, avoiding problems with mixing log
@@ -72,6 +107,14 @@ def ipc_packet(packet):
     return r
 
 
+def check_type(var, typ):
+    if type(var) != typ:
+        raise BlastRuntimeError("Invalid type for variable: " + str(var) + " type is " +
+                                str(type(var)) + " and should be " + str(typ))
+
+def check_world(world):
+    pass
+
 class BlastActionExec():
     def __init__(self):
         pass
@@ -83,12 +126,14 @@ class BlastActionExec():
     #Returns None if the surface does not exist.
     #TODO: describe the content of the structure.
     def get_surface(self, name, world=None):
+        check_type(name, type(""))
+        check_world(world)
         if world:
             res = ipc_packet("GET_SURFACE," + str(world) + "," + str(name) + "\n")
         else:
             res = ipc_packet("GET_SURFACE_NW," + str(name) + "\n")
         if res.find("SURFACE") == 0:
-            return json.loads(res[len("SURFACE"):])
+            return BlastSurface(jsond = json.loads(res[len("SURFACE"):]))
         return None
 
             
@@ -96,6 +141,8 @@ class BlastActionExec():
     #Takes a name for a object and gets the resulting BlastObject
     #Returns None if the object does not exist.
     def get_object(self, uid, world=None):
+        check_type(uid, type(0))
+        check_world(world)
         if world:
             res = ipc_packet("GET_OBJECT," + str(world) + "," + str(uid) + "\n")
         else:
@@ -108,6 +155,8 @@ class BlastActionExec():
     #the name of the holder. Returns none if no object or invalid
     #holder, or the UID as an int.
     def get_robot_holder(self, holder, world=None):
+        check_type(holder, type(""))
+        check_world(world)
         if world:
             res = ipc_packet("GET_ROBOT_HOLDER," + str(world) + "," + str(holder) + "\n").strip()
         else:
@@ -125,6 +174,7 @@ class BlastActionExec():
     #of the action. Throws a BlastRuntimeError if the failure mode
     #is invalid or another problem occurs.
     def set_failure(self, mode):
+        check_type(mode, type(""))
         res = ipc_packet("SET_FAILURE," + str(mode) + "\n").strip()
         if res == "None": res = None
         if res == "True": res = True
@@ -138,6 +188,8 @@ class BlastActionExec():
     #cannot be deleted or does not exist in the first place. To delete
     #objects that are in the robot's holders, use set_robot_holder with None.
     def delete_surface_object(self, obj, world=None):
+        check_type(obj, type(0))
+        check_world(world)
         if world:
             res = ipc_packet("DELETE_SURFACE_OBJECT," + str(world) + "," + str(obj) + "\n").strip()
         else:
@@ -160,7 +212,23 @@ class BlastActionExec():
     #the holders. This is important if you want an action to take place with a very
     #specific holder.
     def plan_action(self, action, parameters, world_limits = None, world=None):
+        check_type(action, type(""))
+        check_type(parameters, type({}))
+        if world_limits != None: check_type(world_limits, type({}))
+        check_world(world)
+
+        parameters = parameters.copy()
+        for name, value in parameters.iteritems():
+            if type(value) == BlastPos or type(value) == BlastLocation:
+                parameters[name] = value.to_dict()
+
+
         if world_limits != None:
+            world_limits = world_limits.copy()
+            for name, value in world_limits.iteritems():
+                if type(value) == BlastPos or type(value) == BlastLocation:
+                    world_limits[name] = value.to_dict()
+            print world_limits
             parameters = {"parameter values": parameters, "world limits": world_limits}
         if world:
             res = ipc_packet("PLAN_ACTION," + str(world) + "," + str(action) + "," + self.json(parameters) + "\n")
@@ -181,6 +249,9 @@ class BlastActionExec():
     #in a matter that suggests an error with the system, and a BlastFindObjectError
     #if the object cannot actually be found.
     def plan_hunt(self, holder, object_type, world=None):
+        check_type(holder, type(""))
+        check_type(object_type, type(""))
+        check_world(world)
         if world:
             res = ipc_packet("PLAN_HUNT," + str(world) + "," + str(holder) + "," + str(object_type) + "\n")
         else:
@@ -199,10 +270,12 @@ class BlastActionExec():
     #name of the surface, the name of the object_type and the position.
     #Raises a BlastRuntimeError if it fails.
     def surface_add_object(self, surface, object_type, pos, world = None):
-        if type(pos) != type(""):
-            pos = pos.to_text()
-        pos = pos.strip().strip("BlastPos()").strip()
-        pos = ",".join([str(float(str(x).strip())) for x in pos.split(",")])
+        check_type(surface, type(""))
+        check_type(object_type, type(""))
+        check_type(pos, BlastPos)
+        check_world(world)
+        
+        pos = ",".join(str(pos).split(",")[1:]) #Get rid of the surface here.
         if world:
             res = ipc_packet("ADD_SURFACE_OBJECT," + str(world) + "," + str(surface) + "," + str(object_type) + "," + pos + "\n").strip()
         else:
@@ -218,6 +291,8 @@ class BlastActionExec():
     #surface and returns the list of UIDs as ints. Raises a
     #BlastRuntimeError if it fails.
     def list_surface_objects(self, surface, world = None):
+        check_type(surface, type(""))
+        check_world(world)
         if world:
             res = ipc_packet("LIST_SURFACE_OBJECTS," + str(world) + "," + str(surface) + "\n").strip()
         else:
@@ -234,8 +309,11 @@ class BlastActionExec():
     #a list of strings or a comma-seperated string. Raises a
     #BlastRuntimeError if it fails for any reason.
     def surface_scan(self, surface, object_types, world=None):
-        if type(object_types) != type(""):
+        check_type(surface, type(""))
+        check_world(world)
+        if type(object_types) == type([]) or type(object_types) == type((1,2)):
             object_types = ",".join([str(x) for x in object_types])
+        check_type(object_types, type(""))
         if world:
             res = ipc_packet("SURFACE_SCAN," + str(world) + "," + str(surface) + "," + str(object_types) + "\n")
         else:
@@ -251,6 +329,10 @@ class BlastActionExec():
     #the name of the surface, and the position on the surface. Raises
     #a BlastRuntimeError if it fails.
     def plan_place(self, uid, surface, pos, world=None):
+        check_type(uid, type(0))
+        check_type(surface, type(""))
+        check_type(pos, BlastPos)
+        check_world(world)
         if world:
             res = ipc_packet("PLAN_PLACE," + str(world) + "," + str(uid) + "," + str(surface) + "," + str(pos))
         else:
@@ -268,6 +350,9 @@ class BlastActionExec():
     #Takes the name of the position to set and the list of joint values. Raises a
     #BlastRuntimeError if it fails.
     def set_robot_position(self, pos, val, world=None):
+        check_type(pos, type(""))
+        #TODO: check val type
+        check_world(world)
         if world:
             res = ipc_packet("SET_ROBOT_POSITION," + str(world) + "," + str(pos) + "," + self.json(val) + "\n")
         else:
@@ -284,6 +369,10 @@ class BlastActionExec():
     #Note that this function replaces the object, changing its UID. If it fails, it raises
     #a BlastRuntimeError. #TODO: make function return object UID.
     def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
+        check_type(holder, type(""))
+        if ot != None: check_type(ot, type(""))
+        check_type(require_preexisting_object, type(False))
+        check_world(world)
         if ot == None: ot = "None()"
         if world:
             res = ipc_packet("SET_ROBOT_HOLDER," + str(world) + "," + str(holder) + "," 
@@ -302,6 +391,9 @@ class BlastActionExec():
     #of the first holder and the second holder, preserves object UID. Raises a
     #BlastRuntimeError if it fails for any reason, including an empty start.
     def robot_transfer_holder(self, from_holder, to_holder, world = None):
+        check_type(from_holder, type(""))
+        check_type(to_holder, type(""))
+        check_world(world)
         if world:
             res = ipc_packet("ROBOT_TRANSFER_HOLDER," + str(world) + "," 
                              + str(from_holder) + "," + str(to_holder) + "\n")
@@ -319,6 +411,9 @@ class BlastActionExec():
     #holder. The function takes the uid and the holder name and raises a
     #BlastRuntimeError if it fails for any reason.
     def robot_pick_object(self, objectref, to_holder, world = None):
+        check_type(objectref, type(0))
+        check_type(to_holder, type(""))
+        check_world(world)
         if world:
             res = ipc_packet("ROBOT_PICK_OBJECT," + str(world) + "," 
                              + str(objectref) + "," + str(to_holder) + "\n")
@@ -336,19 +431,21 @@ class BlastActionExec():
     #surface. This takes the holder and the position of the object (which
     #includes the surface). Raises a BlastRuntimeError if it fails.
     def robot_place_object(self, holder, position, world = None):
-        if type(position) == type([0, 1]) or position == type((1, 2)):
-            position = ",".join([str(x) for x in position])
-        ps = ",".join([str(x).strip() for x in position.strip().strip('[]()').strip().replace("Pos(", "").replace(")", "").split(",")])
+        check_type(holder, type(""))
+        check_type(position, BlastPos)
+        check_world(world)
+        #if type(position) == type([0, 1]) or position == type((1, 2)):
+        #    position = ",".join([str(x) for x in position])
+        #ps = ",".join([str(x).strip() for x in position.strip().strip('[]()').strip().replace("Pos(", "").replace(")", "").split(",")])
 
-        print "_--" * 90
         print position, holder
 
         if world:
             res = ipc_packet("ROBOT_PLACE_OBJECT," + str(world) + "," 
-                             + str(holder) + "," + str(ps) + "\n")
+                             + str(holder) + "," + str(position) + "\n")
         else:
             res = ipc_packet("ROBOT_PLACE_OBJECT_NW," 
-                             + str(holder) + "," + str(ps) + "\n")
+                             + str(holder) + "," + str(position) + "\n")
         if res == "None": res = None
         if res == "True": res = True
         if res == "False": res = False
@@ -359,11 +456,13 @@ class BlastActionExec():
     #Sets the location of the robot in the world. Takes the position and
     #raises a BlastRuntimeError on failure.
     def set_location(self, position, world = None):
+        check_type(position, BlastLocation)
+        check_world(world)
         if world:
             res = ipc_packet("SET_ROBOT_LOCATION," + str(world) + "," 
-                             + self.json(position) + "\n")
+                             + self.json(position.to_dict()) + "\n")
         else:
-            res = ipc_packet("SET_ROBOT_LOCATION_NW," + self.json(position) + "\n")
+            res = ipc_packet("SET_ROBOT_LOCATION_NW," + self.json(position.to_dict()) + "\n")
         if res == "None": res = None
         if res == "True": res = True
         if res == "False": res = False
@@ -378,7 +477,26 @@ def set_action_exec(ex):
     ex().run(parameters) #Nones for legacy
 
 try:
-    parameters = json.loads(sys.argv[2])
+    parameters_c = json.loads(sys.argv[2])
+    parameters = {}
+    for name, value in parameters_c.iteritems():
+        if type(value) == type(1) or type(value) == type(1.0) or type(value) == type(1L):
+            parameters[str(name)] = value
+        elif type(value) == type({}):
+            if "x" in value and "y" in value and "a" in value and "map" in value:
+                parameters[str(name)] = BlastLocation(jsond = value)
+            else:
+                raise Exception("Invalid parameter type for " + str(value))
+        elif type(value) == type([]):
+            #Is a position
+            if len(value) == 2:
+                parameters[str(name)] = BlastPos(surface = value[0], pos_string = value[1])
+            else:
+                raise Exception("Invalid parameter type for " + str(value))
+        elif type(value) == type("") or type(value) == type(u""):
+            parameters[str(name)] = str(value)
+        else:
+            raise Exception("Invalid parameter type for " + str(value))
     execfile(sys.argv[1])
     ipc_write_packet("TERMINATE\n")
 except:
