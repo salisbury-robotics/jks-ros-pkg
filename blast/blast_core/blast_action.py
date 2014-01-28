@@ -643,7 +643,7 @@ def test_place():
     object_uid = man.world.world.robots["stair4"].holders["cupholder"].uid
     print "Hold onto the uid of", object_uid
     r = man.plan_action("stair4", "table-place-left", {"table": "table_1", 
-                                                       "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"},
+                                                       "position": ("table_1", "Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)")},
                         {"robot-holders": {"stair4": {"left-arm": object_uid}}})
     if not r:
         return False
