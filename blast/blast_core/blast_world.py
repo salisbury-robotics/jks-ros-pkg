@@ -639,6 +639,9 @@ class BlastRobot(object):
             else:
                 self.positions[name] = False
 
+    def collide(self, other): #TODO actually compare
+        return other.location.equal(self.location)
+
     def copy(self):
         copy = BlastRobot(self.name, self.location.copy(), self.robot_type)
         copy.holders = self.holders.copy()
@@ -976,11 +979,13 @@ class BlastWorld(object):
         elif key == "objects": self.objects_hash_state = val
         elif key == "surfaces": self.surfaces_hash_state = val
         elif key == "maps": self.maps_hash_state = val
+        else: Exception("Bad hash name" + key)
     def _get_hash(self, key):
         if key == "robots": return self.robots_hash_state
         elif key == "objects": return self.objects_hash_state
         elif key == "surfaces": return self.surfaces_hash_state
         elif key == "maps": return self.maps_hash_state
+        else: Exception("Bad hash name" + key)
 
     def surface_scan(self, surface, object_types):
         s = self.surfaces[surface]

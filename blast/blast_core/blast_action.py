@@ -658,10 +658,44 @@ def test_place():
     if a != man.world.world.get_hex_hash_state():
         print "Invalid state, failed test"
         return False
+    return True
+
+def test_multi_robot():
+    import blast_world_test
+    man = BlastManager(["test_actions",], blast_world_test.make_table_top_world(False))
+
+
+    w = open("table_1_objects.txt", "w")
+    w.close()
+    w = open("table_2_objects.txt", "w")
+    w.write("coffee_cup\n")
+    w.write("coffee_cup\n")
+    w.close()
+
+    stair5 = blast_world.BlastRobot("stair5", 
+                                    blast_world.BlastPt(10.000, 40.957, 0.148, "clarkcenterfirstfloor"),
+                                    man.world.world.types.get_robot("pr2-cupholder"))
+    man.world.world.append_robot(stair5)
+    man.world.world.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
+
+    print man.world.world.to_text()
+
+    if not man.plan_hunt("stair4", "cupholder", "coffee_cup"):
+        return False
+
+
+    #print man.world.world.to_text()
+
+    #if not man.plan_hunt("stair5", "cupholder", "coffee_cup"):
+    #    return False
+
+    print man.world.world.to_text()
 
     return True
 
+
 if __name__ == '__main__':
-    test_main()
-    #test_place()
+    #print test_main()
+    #print test_place()
+    print test_multi_robot()
 

@@ -1,9 +1,11 @@
 
-import blast_world, time, json
+import blast_world, time, json, itertools
 
 class Planner:
     def __init__(self, initial_world):
-        self.worlds = [(initial_world, 0, [], None)]
+        t = {}
+        for name in initial_world.robots_keysort: t[name] = 0
+        self.worlds = [(initial_world, t, [], None)]
         self.world_good = lambda x: False
         self.planned_worlds = []
         self.good_worlds = []
@@ -124,7 +126,39 @@ class Planner:
                 #self.worlds.append(new_world)
 
 
+    def generate_equivalent_worlds(self, w):
+        yield w
+
+    def c(): #This does not seem to help, so it is commented. 
+        #Returns clones of worlds with robots swapped, so name of robot is invariant
+
+        rs = []
+        for i in xrange(0, len(w.robots_keysort)):
+            n1 = w.robots_keysort[i]
+            for k in xrange(i + 1, len(w.robots_keysort)):
+                n2 = w.robots_keysort[k]
+                if w.robots[n1].robot_type == w.robots[n2].robot_type:
+                    rs.append((n1, n2))
+        for r in xrange(1, len(rs) + 1):
+            for x in itertools.combinations(rs, r):
+                clone = w.copy()
+                for c in x:
+                    t = clone.robots[c[0]]
+                    clone.robots[c[0]] = clone.robots[c[1]]
+                    clone.robots[c[1]] = t
+                    clone.robots[c[0]] = clone.robots[c[0]].copy()
+                    clone.robots[c[0]].name = c[0]
+                    clone.robots[c[1]] = clone.robots[c[1]].copy()
+                    clone.robots[c[1]].name = c[1]
+                clone.clear_hash("robots")
+                yield clone
+
     def plan_recursive(self):
+
+        def smallest_t(t):
+            return min(t.itervalues())
+        def largest_t(t):
+            return max(t.itervalues())
 
         do_scans = False
 
@@ -132,10 +166,11 @@ class Planner:
             if world[0].consider_scan: do_scans = True
             if self.world_good(world[0]):
                 self.good_worlds.append(world)
+                t = smallest_t(world[1])
                 if not self.time_limit:
-                    self.time_limit = world[1]
-                if world[1] < self.time_limit:
-                    self.time_limit = world[1]
+                    self.time_limit = t
+                if t < self.time_limit:
+                    self.time_limit = t
         
 
         cached_types = {}
@@ -157,20 +192,24 @@ class Planner:
             cached_types[robot.name] = robot_types
             cached_actions[robot.name] = action_types
 
+        #Expansion proceeds by the following rules.
+        #1. The world state updates via work spaces. Two robots cannot
+        #   be operating in the same work space at the same time. A work
+        #   space is a surface.
+
         while self.worlds != []:
-            world = min(self.worlds, key = lambda x: x[1])
+            world = min(self.worlds, key = lambda x: smallest_t(x[1]))
             self.worlds.remove(world)
             self.planned_worlds.append(world)
 
-
             #print "-"*120
-            #print world[0].scan_count("coffee_cup")
+            #print world[0].scan_count("coffee_cup"), world[1]
             #for a in world[2]: print a
             #print world[0].to_text()
             #print "-"*120
 
             #Once we find a good world, we stop planning for worlds after that time
-            if self.time_limit != None and world[1] >= self.time_limit: break
+            if self.time_limit != None and smallest_t(world[1]) >= self.time_limit: break
             
             #Actually testing this world
             self.worlds_tested = self.worlds_tested + 1
@@ -182,6 +221,14 @@ class Planner:
                 #Now enumerate all possible actions
                 world_clone = world[0].copy()
                 #print robot_name, robot.location.to_text()
+
+                if world[1][robot_name] < largest_t(world[1]):
+                    new_time = world[1].copy()
+                    new_time[robot_name] = largest_t(world[1]) - world[1][robot_name]
+                    steps_c = [x for x in world[2]]
+                    steps_c.append()
+                    self.worlds.append((world[0], new_time, steps_c, world))
+
                 for at in action_types:
                     planable, pv = world_clone.enumerate_action(robot_name, at, self.extra_goals)
                     if not planable or pv == False:
@@ -227,11 +274,21 @@ class Planner:
                                         failed = True
                                     parent = parent[3]
                             if not failed:
-                                for world_cmp in self.worlds:
-                                    if world_cmp[0].equal_valid(world_clone):
-                                        failed = True
-                                        #print "Equal to another world to be tested"
-                                        break
+                                for c_name, c_robo in world_clone.robots.iteritems():
+                                    for c_name2, c_robo2 in world_clone.robots.iteritems():
+                                        if c_name != c_name2:
+                                            if c_robo.collide(c_robo2):
+                                                failed = True
+                                                break
+                                    if failed: break
+                            if not failed:
+                                for world_compare in self.generate_equivalent_worlds(world_clone):
+                                    for world_cmp in self.worlds:
+                                        if world_cmp[0].equal_valid(world_compare):
+                                            failed = True
+                                            #print "Equal to another world to be tested"
+                                            break
+                                    if failed: break
                             if not failed:
                                 for world_cmp in self.planned_worlds:
                                     if world_cmp[0].equal_valid(world_clone):
@@ -239,18 +296,21 @@ class Planner:
                                         #print "Equal to a previously tested world"
                                         break
                             if not failed:
-                                new_world = (world_clone, world[1] + float(change), world[2] + [(robot_name, at, parameters)], world)
+                                new_time = world[1].copy()
+                                new_time[robot_name] = new_time[robot_name] + float(change)
+
+                                new_world = (world_clone, new_time, world[2] + [(robot_name, at, parameters)], world)
                                 self.worlds.append(new_world)
                                 if self.world_good(world_clone):
                                     if self.time_limit == None:
-                                        self.time_limit = new_world[1]
+                                        self.time_limit = smallest_t(new_world[1])
                                     if self.time_limit > new_world[1]:
-                                        self.time_limit = new_world[1]
+                                        self.time_limit = smallest_t(new_world[1])
                                     self.good_worlds.append(new_world)
                             
                             world_clone = world[0].copy()
 
-        self.good_worlds.sort(key=lambda x: x[1])
+        self.good_worlds.sort(key=lambda x: smallest_t(x[1]))
         if self.good_worlds != []:
             def clean_actions(actions):
                 r = []
@@ -265,7 +325,7 @@ class Planner:
                             action_clean[param] = value
                     r.append((action[0], action[1], action_clean))
                 return r
-            return self.good_worlds[0][0], self.good_worlds[0][1], clean_actions(self.good_worlds[0][2])
+            return self.good_worlds[0][0], largest_t(self.good_worlds[0][1]), clean_actions(self.good_worlds[0][2])
         else:
             print "No world found"
         return None, None, None
@@ -739,6 +799,31 @@ def run_test():
     print r
     return True
 
+def multi_robot_test():
+    import blast_world_test
+    world = BlastPlannableWorld(blast_world_test.make_table_top_world())
+    
+    stair5 = blast_world.BlastRobot("stair5", 
+                                    blast_world.BlastPt(10.000, 40.957, 0.148, "clarkcenterfirstfloor"),
+                                    world.world.types.get_robot("pr2-cupholder"))
+    world.world.append_robot(stair5)
+    world.world.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
+
+    print "-"*180
+    print world.world.to_text()
+    print "-"*180
+
+    
+    r = world.plan_hunt("stair4", "cupholder", "coffee-_cup")
+
+    print "-"*180
+    print world.world.to_text()
+    print "-"*180
+    
+    return r
+    
+
 if __name__ == '__main__':
     #coffee_hunt_test()
-    run_test()
+    #run_test()
+    multi_robot_test()
