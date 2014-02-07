@@ -27,7 +27,7 @@ class BlastError(Exception):
 
 class BlastAction(object):
     __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate',
-                 'changes', 'display', 'planable', 'user', 'failure_modes']
+                 'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces']
 
     def to_dict(self):
         return {"name": self.name, "parameters": self.parameters, "condition": self.condition, 
@@ -45,12 +45,13 @@ class BlastAction(object):
         return True
 
     def __init__(self, name, parameters, condition, time_estimate, 
-                 changes, display, planable = True, user = False, fm = {}): #Name must be robot_type.action
+                 changes, display, workspaces, planable = True, user = False, fm = {}): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
         self.display = display
         self.condition = condition
+        self.workspaces = workspaces
         self.failure_modes = fm
 
         if "robot" in self.parameters:
@@ -639,8 +640,9 @@ class BlastRobot(object):
             else:
                 self.positions[name] = False
 
-    def collide(self, other): #TODO actually compare
-        return other.location.equal(self.location)
+    def collide(self, other, loc = None): #TODO actually compare
+        if not loc: loc = self.location
+        return other.location.equal(loc)
 
     def copy(self):
         copy = BlastRobot(self.name, self.location.copy(), self.robot_type)
@@ -1584,6 +1586,70 @@ class BlastWorld(object):
         self.gc_objects()
 
         return time_estimate, location_do_not_cares
+
+    #Note this function does not use any parameters of the world, just
+    #the types world. This is important for simulation reasons.
+    def get_workspaces(self, robot_name, action, parameters):
+        #Get the robot
+        robot = self.robots.get(robot_name)
+        if not robot:
+            print "Invalid robot:", robot_name
+            return None, None
+        
+        #Get action type
+        action_robot_type, action_type = self.types.get_action_for_robot(robot.robot_type, action)
+        if not action_robot_type or not action_type:
+            print "Could not find the action type", action, "for", robot.robot_type
+            return None, None
+        
+        result_dictionary = {}
+        result_array = []
+        for variable, locs in action_type.workspaces.iteritems():
+            if variable != None:
+                if not variable in parameters:
+                    print "Invalid workspace result:", variable, "not in parameters"
+                    return None, None
+                for loc in locs:
+                    loc_split = loc.split(".")
+                    if len(loc_split) == 3 and loc_split[0] in parameters and loc_split[1] == "locations":
+                        lfc = parameters[loc_split[0]]
+                        if type(lfc) != BlastSurface: lfc = self.surfaces[lfc]
+                        lf = lfc.locations[loc_split[2]]
+                        result_dictionary[lfc.name] = result_dictionary.get(lfc.name, [])
+                        result_dictionary[lfc.name].append(lf)
+                        result_array.append(lf)
+                    elif len(loc_split) == 1 and loc_split[0] in parameters:
+                        lfc = parameters[variable]
+                        if type(lfc) != BlastSurface: lfc = self.surfaces[lfc]
+                        
+                        lf = parameters[loc_split[0]]
+                        if type(lf) == dict:
+                            lf = BlastPt(lf['x'], lf['y'], lf['a'], lf['map'])
+                        if type(lf) != BlastPt:
+                            print "Direct parameter location failed", lf
+                            return None, None
+                        result_dictionary[lfc.name] = result_dictionary.get(variable, [])
+                        result_dictionary[lfc.name].append(lf)
+                        result_array.append(lf)
+                    else:
+                        print "Invalid workspace result:", loc, "is bad location"
+                        return None, None
+            else:
+                for loc in locs:
+                    if loc in parameters:
+                        result_array.append(parameters[loc])
+                    else:
+                        print "Invalid workspace result:", loc, "location is not in parameters"
+                        return None, None
+        return result_dictionary, result_array
+        
+    def robots_coliding(self):
+        for i in xrange(0, len(self.robots_keysort)):
+            r1 = self.robots[self.robots_keysort[i]]
+            for j in xrange(i + 1, len(self.robots_keysort)):
+                r2 = self.robots[self.robots_keysort[j]]
+                if r1.collide(r2): return True
+        return False
 
     def enumerate_action(self, robot_name, action, extra_goals, debug = False):
         #Get the robot
