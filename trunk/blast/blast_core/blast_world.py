@@ -1248,6 +1248,7 @@ class BlastWorld(object):
             return True
     
     def take_action(self, robot_name, action, parameters, execute = True, debug = False, failure_mode = None):
+        if debug: print robot_name, action, parameters
 
         location_do_not_cares = set()
         
