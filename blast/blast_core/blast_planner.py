@@ -704,7 +704,6 @@ class BlastPlan:
             first_step = False
 
         self.steps = steps
-        self.world.planning_lock.release()
         print "-"*30
         for i in steps:
             print i
@@ -712,6 +711,17 @@ class BlastPlan:
                 
         if self.needs_replan:
             return self.plan(gp = exec_gp)
+        self.world.plans_planned_count = self.world.plans_planned_count + 1
+        self.world.planning_lock.release()
+
+        #Wait until all plans have finished planning before moving on
+        #to start taking actions in the plan.
+        while True:
+            self.world.plans_lock.acquire()
+            target = len([x for x in self.world.plans if not x.done])
+            self.world.plans_lock.release()
+            if self.world.plans_planned_count >= target:
+                break
 
         #if self.world.real_world:
         #    raise Exception("Not implmented yet, will need to use semaphores here")
@@ -797,6 +807,7 @@ class BlastPlannableWorld:
     def order_replan(self):
         #Tell all the plans that they need to re-plan. Also delete all done plans.
         self.plans_lock.acquire()
+        self.plans_planned_count = 0
         self.plans = [x for x in self.plans if not x.done]
         self.plan_ids = set([int(x.uid) for x in self.plans])
         for plan in self.plans:
@@ -863,6 +874,10 @@ class BlastPlannableWorld:
         #because we cannot have action execution and build up
         #at the same time, but alas that is the price we pay.
         self.planning_lock = threading.Lock()
+
+        #Synchronization method to know when to restart execution
+        #after replanning events.
+        self.plans_planned_count = 0
 
         #This is the modification lock. When in place, no
         #modifications can be made to self.world. This is
