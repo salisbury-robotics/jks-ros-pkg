@@ -944,7 +944,9 @@ class BlastPlannableWorld:
     #Gets the current planning world, needs to be called with
     #planning_lock or bad things might happen.
     def get_planning_world(self):
+        self.lock.acquire()
         clone_world = self.world.copy()
+        self.lock.release()
         for robot, action in self.robot_current_actions.iteritems():
             if action != None:
                 raise Exception("Needs to be properly implemented")
@@ -999,136 +1001,189 @@ class BlastPlannableWorld:
         if self.world.robots[robot].location.equal(location):
             print "Already at location"
             return
-        return self.plan(lambda w: w.robots[robot].location.equal(location), 
+        return self.plan(lambda w, sw: w.robots[robot].location.equal(location), 
                          {"Pt": [location,]})
 
     
     #API actions ---------------------------
     def robot_transfer_holder(self, robot, from_holder, to_holder):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Set robot holder invalid robot", robot
+            self.lock.release()
             return False
         if not from_holder in self.world.robots[robot].holders:
             print "Set robot holder invalid holder", from_holder, "for robot", robot
+            self.lock.release()
             return False
         if not to_holder in self.world.robots[robot].holders:
             print "Set robot holder invalid holder", to_holder, "for robot", robot
+            self.lock.release()
             return False
         self.world.robot_transfer_holder(robot, from_holder, to_holder)
+        self.lock.release()
         return True
     
     def robot_pick_object(self, robot, uid, to_holder):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Robot pick object invalid robot", robot
+            self.lock.release()
             return False
         if not uid in self.world.objects_keysort:
             print "Robot pick object invalid object", uid, "for robot", robot
+            self.lock.release()
             return False
         if not to_holder in self.world.robots[robot].holders:
             print "Robot pick object invalid holder", to_holder, "for robot", robot
+            self.lock.release()
             return False
         self.world.robot_pick_object(robot, uid, to_holder)
+        self.lock.release()
         return True
     
     def robot_place_object(self, robot, from_holder, surface, pos):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Robot place object invalid robot", robot
+            self.lock.release()
             return False
         if not surface in self.world.surfaces:
             print "Robot place object invalid surface", surface, "for robot", robot
+            self.lock.release()
             return False
         if not from_holder in self.world.robots[robot].holders:
             print "Robot place object invalid holder", to_holder, "for robot", robot
+            self.lock.release()
             return False
         if self.world.robots[robot].holders == None:
             print "Robot place object empty holder", to_holder, "for robot", robot
+            self.lock.release()
             return
         self.world.robot_place_object(robot, from_holder, surface, pos)
+        self.lock.release()
         return True
     
     def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Set robot holder invalid robot", robot
+            self.lock.release()
             return False
         if not holder in self.world.robots[robot].holders:
             print "Set robot holder invalid holder", holder, "for robot", robot
+            self.lock.release()
             return False
         if require_preexisting_object:
             if self.world.robots[robot].holders[holder] == None:
                 print "Robot holder empty, set requires object for holder", holder, "for robot", robot
+                self.lock.release()
                 return False
         self.world.set_robot_holder(robot, holder, object_type)
+        self.lock.release()
         return True
 
     def get_robot_holder(self, robot, holder):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Set robot holder invalid robot", robot
+            self.lock.release()
             return False
         if not holder in self.world.robots[robot].holders:
             print "Set robot holder invalid holder", holder, "for robot", robot
+            self.lock.release()
             return False
+        self.lock.release()
         return self.world.get_robot_holder(robot, holder)
     
 
     def set_robot_position(self, robot, position, val):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Set robot position invalid robot", robot
+            self.lock.release()
             return False
         if not position in self.world.robots[robot].positions:
             print "Set robot holder invalid position", position, "for robot", robot
+            self.lock.release()
             return False
         self.world.set_robot_position(robot, position, val)
+        self.lock.release()
         return True
     
     def set_robot_location(self, robot, blast_pt):
+        self.lock.acquire()
         if not robot in self.world.robots:
             print "Set robot location invalid robot", robot
+            self.lock.release()
             return False
         self.world.set_robot_location(robot, blast_world.BlastPt(blast_pt['x'], blast_pt['y'],
                                                                  blast_pt['a'], blast_pt['map']))
+        self.lock.release()
         return True
 
     def get_surface(self, surface):
+        self.lock.acquire()
         sur = self.world.surfaces.get(surface)
         if sur != None: sur = sur.to_dict()
+        self.lock.release()
         return sur
     
     def get_object(self, obje):
+        self.lock.acquire()
         obj = self.world.objects.get(obje)
         if obj != None: obj = obj.to_dict()
+        self.lock.release()
         return obj
 
     def delete_surface_object(self, obje):
+        self.lock.acquire()
         obj = self.world.objects.get(obje)
         if obj == None:
             print "Surface delete object invalid object", obje
+            self.lock.release()
             return False
-        return self.world.delete_surface_object(obje)
+        r = self.world.delete_surface_object(obje)
+        self.lock.release()
+        return r
 
     def get_map(self, map):
+        self.lock.acquire()
         mp = self.world.maps.get(map)
         if mp != None: mp = mp.to_dict()
+        self.lock.release()
         return mp
     
     def get_robot(self, robot):
+        self.lock.acquire()
         rb = self.world.robots.get(robot)
         if rb != None: rb = rb.to_dict()
+        self.lock.release()
         return rb
 
     def surface_scan(self, surface, object_types):
+        self.lock.acquire()
         if not surface in self.world.surfaces:
             print "Invalid surface for scanning", surface
+            self.lock.release()
             return False
-        return self.world.surface_scan(surface, object_types)
+        r = self.world.surface_scan(surface, object_types)
+        self.lock.release()
+        return r
 
     def add_surface_object(self, surface, object_type, pos):
+        self.lock.acquire()
         if not surface in self.world.surfaces:
             print "Invalid surface for object addition", surface
+            self.lock.release()
             return False
-        return self.world.add_surface_object(surface, object_type, pos)
+        r = self.world.add_surface_object(surface, object_type, pos)
+        self.lock.release()
+        return r
         
 
     def plan_place(self, uid, surface, pos, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
+        #FIXME: OLD FASHIONED
         extras = {}
 
         uid = int(uid)
@@ -1303,13 +1358,14 @@ def run_test():
 
 def multi_robot_test():
     import blast_world_test
-    world = BlastPlannableWorld(blast_world_test.make_table_top_world(True))
+    world_i = blast_world_test.make_table_top_world(True)
     
     stair5 = blast_world.BlastRobot("stair5", 
                                     blast_world.BlastPt(10.000, 40.957, 0.148, "clarkcenterfirstfloor"),
-                                    world.world.types.get_robot("pr2-cupholder"))
-    world.world.append_robot(stair5)
-    world.world.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
+                                    world_i.types.get_robot("pr2-cupholder"))
+    world_i.append_robot(stair5)
+    world_i.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
+    world = BlastPlannableWorld(world_i)
 
     print "-"*180
     print world.world.to_text()
@@ -1326,6 +1382,6 @@ def multi_robot_test():
     
 
 if __name__ == '__main__':
-    print coffee_hunt_test()
-    #print run_test()
-    #multi_robot_test()
+    #print coffee_hunt_test()
+    print run_test()
+    #print multi_robot_test()
