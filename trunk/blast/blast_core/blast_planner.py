@@ -1,6 +1,13 @@
 
 import blast_world, time, json, itertools, hashlib, random, string, threading
 
+
+
+#### Planning process
+# 1. Plans are made from macro calls in the macro code structure
+# 2. Plans are then executed by the reasoner.
+#
+
 def all_combinations(c, min, len):
     for r in xrange(min, len + 1):
         for i in itertools.combinations(c, r):
@@ -72,6 +79,55 @@ class Planner(object):
     __slots__ = ['initial_world', 'worlds', 'world_good', 'planned_worlds', 'good_worlds',
                  'time_limit', 'worlds_tested', 'actions_tested', 'actions_finished', 'extra_goals', 
                  'action_type_debug', 'fail_debug', 'super_fail_debug', 'best_world', 'step_uid', 'extra_steps']
+
+    def compare_worlds(self, wa, wb):
+        if len(wa[1]) != len(wb[1]):
+            return False
+        for ac, bc in zip(wa[1], wb[1]):
+            a = ac[2]
+            b = bc[2]
+            if a[0] != b[0]: return False
+            if a[1] != b[1]: return False
+            if type(a[2]) != type(b[2]): return False
+            if type(a[2]) == str and a[2] != b[2]: return False
+            if type(a[2]) == type({}) and type(b[2]) == type({}):
+                if len(a[2]) != len(b[2]):
+                    return False
+                for k in a[2]:
+                    if not k in b[2]:
+                        return False
+                    if type(b[2][k]) != type(a[2][k]):
+                        return False
+                    if type(b[2][k]) == blast_world.BlastPt or type(b[2][k]) == blast_world.BlastPos:
+                        if not b[2][k].equal(a[2][k]):
+                            return False
+                    elif type(b[2][k]) == blast_world.BlastSurface:
+                        if b[2][k].name != a[2][k].name:
+                            return False
+                    elif type(b[2][k]) == tuple:
+                        if len(a[2][k]) != len(b[2][k]):
+                            return False
+                        if len(b[2][k]) == 2:
+                            if type(a[2][k][0]) == type("") and type(b[2][k][0]) == type("") \
+                                    and type(a[2][k][1]) == blast_world.BlastPos \
+                                    and type(b[2][k][1]) == blast_world.BlastPos:
+                                return False
+                    elif type(b[2][k]) == type({}) or type(b[2][k]) == type([]):
+                        raise Exception("Sucky value: " + str(b[2][k]))
+                    elif b[2][k] != a[2][k]:
+                        return False
+        return True
+    
+    def compare_workspaces(self, comp, c):
+        for name in c[0].keys():
+            if name in comp[0]:
+                return True
+        for loc in c[1]:
+            for loc_c in comp[1]:
+                if loc_c.equal(loc):
+                    return True
+        return False
+
     def __init__(self, initial_world):
         self.initial_world = initial_world
         self.worlds = [(initial_world, [])]
@@ -214,16 +270,6 @@ class Planner(object):
             cached_types[robot.name] = robot_types
             cached_actions[robot.name] = action_types
         
-        # This is simply an enumerated list of all possible actions. We
-        # then apply this to the entire loop.
-        all_possible_actions = []
-        n_robots = len(world[0].robots)
-        for robot_name, robot in world[0].robots.iteritems():
-            robot_types = cached_types[robot.name]
-            action_types = cached_actions[robot.name]
-            for at in action_types:
-                all_possible_actions.append((robot_name, at))
-
         #Expansion proceeds by the following rules.
         #1. The world state updates via work spaces. Two robots cannot
         #   be operating in the same work space at the same time. A work
@@ -271,54 +317,9 @@ class Planner(object):
             #To consider this more.
             skip_for_equality = False
             for plan in self.planned_worlds:
-                if len(plan[1]) == len(world[1]):
-                    eq = True
-                    for ac, bc in zip(world[1], plan[1]):
-                        a = ac[2]
-                        b = bc[2]
-                        if a[0] != b[0]: eq = False
-                        if a[1] != b[1]: eq = False
-                        if type(a[2]) != type(b[2]): eq = False
-                        if type(a[2]) == type("") and type(b[2]) == type(""): eq = False
-                        if type(a[2]) == type({}) and type(b[2]) == type({}) and eq:
-                            if len(a[2]) != len(b[2]): 
-                                eq = False
-                            else:
-                                for k in a[2]:
-                                    if not k in b[2]:
-                                        eq = False
-                                        break
-                                    if type(b[2][k]) != type(a[2][k]):
-                                        eq = False
-                                        break
-                                    if type(b[2][k]) == blast_world.BlastPt or type(b[2][k]) == blast_world.BlastPos:
-                                        if not b[2][k].equal(a[2][k]):
-                                            eq = False
-                                            break
-                                    elif type(b[2][k]) == blast_world.BlastSurface:
-                                        if b[2][k].name != a[2][k].name:
-                                            eq = False
-                                            break
-                                    elif type(b[2][k]) == tuple:
-                                        if len(a[2][k]) != len(b[2][k]):
-                                            eq = False
-                                            break
-                                        if len(b[2][k]) == 2:
-                                            if type(a[2][k][0]) == type("") and type(b[2][k][0]) == type("") \
-                                                    and type(a[2][k][1]) == blast_world.BlastPos \
-                                                    and type(b[2][k][1]) == blast_world.BlastPos:
-                                                eq = False
-                                                break
-                                    elif type(b[2][k]) == type({}) or type(b[2][k]) == type([]):
-                                        raise Exception("Sucky value: " + str(b[2][k]))
-                                    elif b[2][k] != a[2][k]:
-                                        eq = False
-                                        break
-                        if not eq: 
-                            break
-                    if eq:
-                        skip_for_equality = True
-                        break
+                if self.compare_worlds(plan, world):
+                    skip_for_equality = True
+                    break
             if skip_for_equality:
                 continue
 
@@ -404,19 +405,10 @@ class Planner(object):
                                 eps_before = step[0] + step[1] - start_t #If this is not < 0
                                 #print eps_after, eps_before
                                 if not step[0] >= start_t + change and not step[0] + step[1] <= start_t and type(step[2]) != type(""):
-                                    c = world_clone.get_workspaces(step[2][0], step[2][1], step[2][2])
-                                    for name in c[0].keys():
-                                        if name in comp[0]:
-                                            work_conflict = True
-                                            break
-                                    for loc in c[1]:
-                                        if work_conflict: break
-                                        for loc_c in comp[1]:
-                                            if loc_c.equal(loc):
-                                                work_conflict = True
-                                                break
+                                    if self.compare_workspaces(comp, world_clone.get_workspaces(step[2][0], step[2][1], step[2][2])):
+                                        work_conflict = True
+                                        break
                                 if work_conflict: break
-                            
                             if work_conflict:
                                 if debug: print "Failed for conflict"
                                 failed = True
