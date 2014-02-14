@@ -708,8 +708,10 @@ class BlastPlan:
         for i in steps:
             print i
         print "-"*30, "->"
-                
+        
         if self.needs_replan:
+            print "Instant replan"
+            self.world.planning_lock.release()
             return self.plan(gp = exec_gp)
         self.world.plans_planned_count = self.world.plans_planned_count + 1
         self.world.planning_lock.release()
@@ -722,9 +724,7 @@ class BlastPlan:
             self.world.plans_lock.release()
             if self.world.plans_planned_count >= target:
                 break
-
-        #if self.world.real_world:
-        #    raise Exception("Not implmented yet, will need to use semaphores here")
+            time.sleep(0.01)
 
         exec_gp = False
         while True:
@@ -763,9 +763,9 @@ class BlastPlan:
                     break
                 else:
                     action_in_queue = True
-                    self.world.robot_locks[robot].acquire()
-                    self.world.robot_queues[robot].append(action)
-                    self.world.robot_locks[robot].release()
+                    self.world.robot_locks[action.robot].acquire()
+                    self.world.robot_queues[action.robot].append(action)
+                    self.world.robot_locks[action.robot].release()
             self.world.planning_lock.release()
             
             while True:
@@ -1396,7 +1396,27 @@ def multi_robot_test():
     return r
     
 
+def overplan():
+    
+    import blast_world_test
+    world_i = blast_world_test.make_table_top_world(True)
+    
+    stair5 = blast_world.BlastRobot("stair5", 
+                                    blast_world.BlastPt(10.000, 40.957, 0.148, "clarkcenterfirstfloor"),
+                                    world_i.types.get_robot("pr2-cupholder"))
+    world_i.append_robot(stair5)
+    world_i.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
+    world = BlastPlannableWorld(world_i)
+
+    
+    r = world.plan_to_location("stair5", blast_world.BlastPt(15.000, 20.957, 0.148, "clarkcenterfirstfloor"))
+
+    
+    r = False
+    return r
+
 if __name__ == '__main__':
     #print coffee_hunt_test()
-    print run_test()
+    #print run_test()
     #print multi_robot_test()
+    print overplan()
