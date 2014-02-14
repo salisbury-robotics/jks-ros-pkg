@@ -777,7 +777,9 @@ class BlastPlan:
                     for step in queue:
                         if step.id.split("/")[0] == str(self.uid):
                             still_there = True
+                            break
                     self.world.robot_locks[robot].release()
+                    if still_there: break
 
                 if not self.world.real_world:
                     self.world.try_operate()
