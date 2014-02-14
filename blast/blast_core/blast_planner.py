@@ -38,8 +38,8 @@ def largest_t(t):
     return max(t.itervalues())
 
 class BlastPlanStep(object):
-    __slots__ = ['robot', 'action', 'parameters', 'initial_states', 'final_states', 'locs', 
-                 'id', 'gated_on']
+    __slots__ = ['robot', 'action', 'parameters', 'initial_states',
+                 'final_states', 'locs', 'id', 'gated_on']
 
     def __init__(self, robot, action, parameters, initial_states, final_states, locs, uid_blacklist, step_uid):
         if True:
@@ -716,6 +716,10 @@ class BlastPlan:
         self.world.plans_planned_count = self.world.plans_planned_count + 1
         self.world.planning_lock.release()
 
+        if self.world.no_exec_debug:
+            print "WARNING: No exec debug is set for testing only. If this is not a test this is a problem."
+            return True
+
         #Wait until all plans have finished planning before moving on
         #to start taking actions in the plan.
         while True:
@@ -818,7 +822,7 @@ class BlastPlannableWorld:
         
         #Wait for all plans to stop
         stuck = True
-        while stuck:
+        while stuck and not self.no_exec_debug:
             stuck = False
             for plan in self.plans:
                 if not plan.replan_ready:
@@ -861,6 +865,7 @@ class BlastPlannableWorld:
 
     def __init__(self, world):
         self.world = world
+        self.no_exec_debug = False #Used by tests with the actual plan info prevents execution of the test.
         self.real_world = False
         self.plan_steps = {}
         self.post_exec_world = None
@@ -1237,9 +1242,12 @@ class BlastPlannableWorld:
         #FIXME: this can create problems if parameters is an extra element
         extras = {}
         if "robot-location" in world_limits:
-            for robot, location in world_limits["robot-location"].iteritems():
+            for robot_name, location in world_limits["robot-location"].iteritems():
                 extras["Pt"] = extras.get("Pt", [])
-                extras["Pt"].append(blast_world.BlastPt(location['x'], location['y'], location['a'], location['map']))
+                if type(location) == blast_world.BlastPt:
+                    extras["Pt"].append(location)
+                else:
+                    extras["Pt"].append(blast_world.BlastPt(location['x'], location['y'], location['a'], location['map']))
 
         extra_steps = [ (robot, action, parameters), ]
         r = self.plan(lambda w, sw: w.world_limit_check(world_limits), 
@@ -1410,8 +1418,13 @@ def overplan():
     world_i.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
     world = BlastPlannableWorld(world_i)
 
+    world.no_exec_debug = True
     
     r = world.plan_to_location("stair5", blast_world.BlastPt(15.000, 20.957, 0.148, "clarkcenterfirstfloor"))
+    if not r: return False
+
+    r = world.plan_action("stair5", "tuck-both-arms", {}, {"robot-location": {"stair4": blast_world.BlastPt(20.000, 20.957, 0.148, "clarkcenterfirstfloor")}})
+    if not r: return False
 
     
     r = False

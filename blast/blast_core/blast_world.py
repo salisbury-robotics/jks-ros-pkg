@@ -870,7 +870,9 @@ class BlastWorld(object):
             for robot_name, value in limits["robot-location"].iteritems():
                 if not robot_name in self.robots:
                     return False
-                pt = BlastPt(value['x'], value['y'], value['a'], value['map'])
+                pt = value
+                if type(pt) != BlastPt:
+                    pt = BlastPt(value['x'], value['y'], value['a'], value['map'])
                 if not self.robots[robot_name].location.equal(pt):
                     return False
         
