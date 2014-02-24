@@ -3,12 +3,189 @@ import math
 import hashlib
 import json
 
+T_STEP = 1000 #'s of a second.
+
 if __name__ == '__main__': print "This is not intended to be a main file."
 
-#Permissions system
+#FIXME: Permissions system
+
+#CRITICAL NOTE: You cannot have "change" dependant on the state of
+#               surfaces or upon have the workspace be state depndant.
+#               They can be parameter dependant but nothing else.
+
 
 BLAST_INFINITY = 1e10 #For objects
 #FIXME: __ illegal in robot names
+
+class BlastCodeError(Exception):
+    __slots__ = ['value']
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+class BlastParameterPtr(object):
+    def __init__(self, parameter, prefix = None, postfix = None):
+        self.parameter = parameter
+        self.prefix = prefix
+        self.postfix = postfix
+    def __str__(self):
+        return "ParameterPtr(\"" + str(self.parameter) + "\")"
+    def __repr__(self): return self.__str__()
+
+
+
+class BlastCodeStep(object):
+    #Valid commands: STARTSUB, CALLSUB, GOTO, ENDSUB, IF, RETURN, FAIL, PLAN, SCAN, SCAN_STATE
+    #STARTSUB indicates the name of a subroutine. It takes an arbitrary set of parameters
+    #which are the names of types for the parameters of the subroutine. The main purpose of
+    #this command is that when we hit it we transform into another routine. Executing this
+    #command without a CALLSUB will cause the program to terminate in error.
+
+    #CALLSUB calls out to another subroutine (a STARTSUB label) and runs that subroutine.
+    #It sets a return_var to be a boolean with True or False based on failure of that
+    #subroutine. The subroutine returns True if it reaches a "RETURN" and returns false if
+    #it reaches a FAIL or if during runtime an action fails.
+
+    #GOTO simply has one argument, label, and jumps to that label which must be in the
+    #current subroutine.
+
+    #IF takes condition, label_true, and label_false. Condition is a set of tuples
+    #prefixed with <, >, >=, <=, ==, !=, &&, ||, or ! at 0th element. The other elements 
+    #are tuples or BlastParameterPtr objects. The arguments label_true and label_false 
+    #are steps to jump to in the current subroutine. If label_false is not set or is 
+    #None then the system will simply step forward into the next set of actions.
+
+    #ENDSUB represents the end of the current subroutine. If we get here we succeed.
+    #FAIL causes the current subroutine to fail.
+    #RETURN causes the current subroutine to succeed.
+    
+    #PLAN will plan out an action. Parameters are extra_steps, a set of (robot, action, 
+    #parameters), extra_goals, a set of extra values for parameters, and world_limits, 
+    #a set of constraints defined on the world. The system will first achieve a setup that 
+    #meets the world_limits, and then try to perform the extra steps. Remeber that that 
+    #PLAN failure during the planning phase are extremely costly (as the system will get 
+    #hung up waiting for them to finish) so please avoid this as much as possible. 
+    #Failures during replanning are not costly because the system will try to achieve 
+    #the planned goal first before anything else.
+    
+    #There is also another flag parameter which is assume_failure. If this is set, the
+    #planning process will always assume failure, and replan when the action hits. This
+    #should be used sparingly, but is for conditionally dependant actions, such as when
+    #hunting for objects. Generally you should never use this and using it in the store
+    #will flag your application for extra review.
+
+    #SCAN sets if we are considering scans and resets surface scan state. Note I 
+    #personally do not like scan state but consider it a necessary evil and will be
+    #getting rid of it as soon as I can. Using this flags you for extra review.
+    #It takes to parameters - one is 'consider' a boolean enabling or disabling
+    #scan state and the other is 'reset' a CSV string of things to reset.
+
+
+    def acceptable_parameters(self, s):
+        for param in self.parameters:
+            if str(param) not in s:
+                raise BlastCodeError("Parameter " + param + " is invalid for command " + self.command)
+
+    def copy(self, prefix = "", change_names = []):
+        pc = self.parameters.copy()
+        def rp(c):
+            print c, pc.get(c), pc.get(c) in change_names, change_names
+            if c in pc:
+                if pc[c] in change_names:
+                    pc[c] = prefix + pc[c]
+        if self.command == "IF":
+            rp("label_true")
+            rp("label_false")
+        elif self.command == "CALLSUB":
+            rp("sub")
+        elif self.command == "GOTO":
+            rp('label')
+
+        lb = None
+        if self.label: lb = prefix + self.label
+        return BlastCodeStep(lb, self.command, pc, self.return_var)
+
+    def __init__(self, label, command, parameters = {}, return_var = None):
+        self.label = label
+        self.command = str(command)
+        self.parameters = parameters
+        self.return_var = return_var
+        if command == "STARTSUB":
+            for pname, ptype in parameters.iteritems():
+                pass
+            if return_var != None:
+                raise BlastCodeError("STARTSUB has no return")
+            if type(label) != str:
+                raise BlastCodeError("Need a label for STARTSUB")
+            if label.strip() == "":
+                raise BlastCodeError("Need a label for STARTSUB")
+        elif command == "CALLSUB":
+            self.acceptable_parameters(['sub'])
+            if not "sub" in parameters:
+                raise BlastCodeError("Need 'sub' in parameters of CALLSUB")
+            parameters['sub'] = str(parameters["sub"]).strip()
+            if parameters["sub"] == "":
+                raise BlastCodeError("Need 'sub' to be non-empty for CALLSUB")
+        elif command == "GOTO":
+            self.acceptable_parameters(['label'])
+            if not "label" in parameters:
+                raise BlastCodeError("Need 'label' in parameters of GOTO")
+            parameters['label'] = str(parameters["label"]).strip()
+            if parameters["label"] == "":
+                raise BlastCodeError("Need 'label' to be non-empty for GOTO")
+        elif command == "RETURN":
+            self.acceptable_parameters([])
+        elif command == "FAIL":
+            self.acceptable_parameters([])
+        elif command == "ENDSUB":
+            self.acceptable_parameters([])
+        elif command == "PLAN":
+            self.acceptable_parameters(['world_limits', 'extra_steps', 'extra_goals', 'assume_failure'])
+            #TODO: work it out
+        elif command == "IF":
+            self.acceptable_parameters(['condition', 'label_true', 'label_false'])
+            #TODO: work it out
+        elif command == "SCAN":
+            self.acceptable_parameters(["reset", "consider"])
+        elif command == "SCAN_STATE":
+            self.acceptable_parameters(["types"])
+        elif command == "SCAN_MAX":
+            self.acceptable_parameters(["types"])
+        else:
+            raise BlastCodeError("Invalid command: '" + command + "'")
+            
+
+
+hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'robot': 'Robot', 'string': 'holder', 'object_types': 'string'}),
+        #Try to grab currently existing objects. This is assumed to fail
+        BlastCodeStep(None, "PLAN", {'world_limits': 
+                                     {'robot_holders': {BlastParameterPtr('robot'):
+                                                            {BlastParameterPtr('holder'): BlastParameterPtr('object_types', 'TYPES:')}}},
+                                     'assume_failure': True}, "plan_return"),
+        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': True}),
+
+        BlastCodeStep(None, 'SCAN', {'consider': True, "reset": BlastParameterPtr('object_types')}),
+
+        BlastCodeStep("scan_loop", 'SCAN_STATE', {'types': BlastParameterPtr('object_types')}, "n_scans_done"),
+        BlastCodeStep(None, 'SCAN_MAX', {'types': BlastParameterPtr('object_types')}, "n_scans_max"),
+        BlastCodeStep(None, "IF", {'condition': ('<=', BlastParameterPtr('n_scans_done'), BlastParameterPtr('n_scans_max')),
+                                   'label_true': 'scan_next', 'label_false': 'exit_function'}),
+        BlastCodeStep('scan_next', "PLAN", {'world_limits':
+                                                {'scans': [(BlastParameterPtr('object_types'), '>', 
+                                                           BlastParameterPtr('n_scans_max')),]}}, 'plan_return'),
+        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
+                                   'label_true': 'scan_loop', 'label_false': False}),
+        #End main loop
+        BlastCodeStep('exit_function', "PLAN", {'world_limits':
+                                                    {'scans': [(BlastParameterPtr('object_types'), '>', 
+                                                                BlastParameterPtr('n_scans_max')),]},
+                                                'assume_failure': True}, 'plan_return'),
+        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': True}),
+        BlastCodeStep(None, 'FAIL'),
+        BlastCodeStep(None, 'ENDSUB'),
+        ]
+
 
 class BlastTypeError(Exception):
     __slots__ = ['value']
@@ -188,13 +365,44 @@ class BlastAction(object):
 ################################################################
 
 class BlastWorldTypes(object):
-    __slots__ = ['surfaces', 'robots', 'objects', 'actions', 'parameter_values_cache']
+    __slots__ = ['surfaces', 'robots', 'objects', 'actions', 'parameter_values_cache', 'robot_action_cache', 'script', 'script_indexes']
     def __init__(self):
+        self.script = []
+        self.script_indexes = {}
         self.surfaces = {}
         self.robots = {}
         self.objects = {}
         self.actions = {}
         self.parameter_values_cache = {}
+        self.robot_action_cache = {}
+        self.add_script(hunt)
+
+    def enumerate_robot(self, robot):
+        rc = self.robot_action_cache.get(robot, None)
+        if rc != None:
+            return rc
+        types = set()
+        rt = self.robots[robot]
+        while rt:
+            types.add(rt.name)
+            rt = rt.parent
+        
+        actions = []
+        for name in self.actions:
+            rt = name.split(".")
+            if rt[0] in types:
+                actions.append(rt[1])
+        self.robot_action_cache[robot] = actions
+        return actions
+
+    def add_script(self, s):
+        for step in s:
+            i = len(self.script)
+            if step.label != None:
+                if step.label in self.script_indexes:
+                    raise BlastCodeError("Already have a label called '" + step.label + "'")
+                self.script_indexes[step.label] = i
+            self.script.append(step)
 
     def add_surface_type(self, surface):
         self.parameter_values_cache = {}
@@ -799,6 +1007,9 @@ class BlastWorld(object):
         self.sumh = None
         self.consider_scan = False
         self.copy_on_write_optimize = True
+
+    def enumerate_robot(self, robot):
+        return self.types.enumerate_robot(self.robots[robot].robot_type.name)
 
     def delete_surface_object(self, obj):
         if self.copy_on_write_optimize:
@@ -1445,6 +1656,8 @@ class BlastWorld(object):
         if time_estimate == None:
             if debug: print "Time estimate invalid"
             return None, None
+        time_estimate = int(math.ceil(float(time_estimate) * T_STEP))
+        if time_estimate < 1: time_estimate = 1
 
         #Conditions met, everything is done. Now we just need to update the values
         #create a queue of transations then execute them
