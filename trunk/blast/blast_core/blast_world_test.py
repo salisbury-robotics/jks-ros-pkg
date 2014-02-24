@@ -4,6 +4,7 @@ from blast_world import *
 def make_test_actions():
     test = [BlastAction("pr2.move", {"end": "Pt"},
                         ("&&", ("==", "robot.location.map", "end.map"),
+                         #("!=", "robot.location", "end"),
                          ("position", "robot.torso", [0.0,]),
                          ("position", "robot.left-arm", "tucked"),
                          ("position", "robot.right-arm", "tucked")),
