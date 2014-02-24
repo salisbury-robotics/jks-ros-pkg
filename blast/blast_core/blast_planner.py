@@ -1,8 +1,6 @@
 
 import blast_world, time, json, itertools, hashlib, random, string, threading
 
-
-
 #### Planning process
 # 1. Plans are made from macro calls in the macro code structure
 # 2. Plans are then executed by the reasoner.
