@@ -964,7 +964,17 @@ class BlastRobot(object):
                 "location": self.location.to_dict(),
                 "holders": r_holder, "positions": self.positions}
 
+paren_split_cache = {}
+
 def paren_split(value, delim):
+    if not delim in paren_split_cache:
+        paren_split_cache[delim] = {}
+    if not value in paren_split_cache[delim]:
+        paren_split_cache[delim][value] = paren_split_i(value, delim)
+    return paren_split_cache[delim][value]
+
+
+def paren_split_i(value, delim):
     subs = []
     cur = ""
     in_paren = 0
