@@ -365,7 +365,7 @@ class BlastAction(object):
 ################################################################
 
 class BlastWorldTypes(object):
-    __slots__ = ['surfaces', 'robots', 'objects', 'actions', 'parameter_values_cache', 'robot_action_cache', 'script', 'script_indexes']
+    __slots__ = ['surfaces', 'robots', 'objects', 'actions', 'parameter_values_cache', 'robot_action_cache', 'script', 'script_indexes', 'action_for_robot_cache']
     def __init__(self):
         self.script = []
         self.script_indexes = {}
@@ -375,6 +375,7 @@ class BlastWorldTypes(object):
         self.actions = {}
         self.parameter_values_cache = {}
         self.robot_action_cache = {}
+        self.action_for_robot_cache = {}
         self.add_script(hunt)
 
     def enumerate_robot(self, robot):
@@ -412,7 +413,9 @@ class BlastWorldTypes(object):
         return self.surfaces.get(name, None)
     
     def add_robot_type(self, robot):
+        self.action_for_robot_cache = {}
         self.parameter_values_cache = {}
+        self.robot_action_cache = {}
         if robot.name in self.robots: raise BlastTypeError("Duplicate robot type: " + robot.name)
         self.robots[robot.name] = robot
     def get_robot(self, name):
@@ -431,13 +434,20 @@ class BlastWorldTypes(object):
         return True
     
     def add_action_type(self, action):
+        self.action_for_robot_cache = {}
         self.parameter_values_cache = {}
+        self.robot_action_cache = {}
         if action.name in self.actions: raise BlastTypeError("Duplicate action type: " + action.name)
         self.actions[action.name] = action
     def get_action(self, name):
         return self.actions.get(name, None)
 
     def get_action_for_robot(self, robot_type, action):
+        cv = self.robot_action_cache.get(robot_type, None)
+        if cv:
+            cv = cv.get(action, None)
+            if cv:
+                return cv
         if type(robot_type) == type(""):
             action_robot_type = self.get_robot(robot_type)
         else:
@@ -449,6 +459,10 @@ class BlastWorldTypes(object):
                 action_robot_type = action_robot_type.parent
             elif not action_type:
                 return None, None
+
+        if not robot_type in self.robot_action_cache:
+            self.robot_action_cache[robot_type] = {}
+        self.robot_action_cache[robot_type][action] = (action_robot_type, action_type)
         return action_robot_type, action_type
 
 class SurfaceType(object):
@@ -832,13 +846,14 @@ class BlastObjectRef(object):
 
 class BlastRobot(object):
     __slots__ = ['name', 'robot_type', 'location', 'holders', 'positions']
-    def __init__(self, name, location, robot_type):
+    def __init__(self, name, location, robot_type, do_setup = True):
         self.name = name
         self.robot_type = robot_type
         self.location = location
         self.holders = {}
         self.positions = {}
-        for name in self.robot_type.holders:
+        if not do_setup: return
+        for name in self.robot_type.holders.iterkeys():
             self.holders[name] = None
         for name, d in self.robot_type.position_variables.iteritems():
             if d:
@@ -853,16 +868,12 @@ class BlastRobot(object):
         return other.location.equal(loc)
 
     def copy(self):
-        copy = BlastRobot(self.name, self.location.copy(), self.robot_type)
+        copy = BlastRobot(self.name, self.location.copy(), self.robot_type, do_setup = False)
         copy.holders = self.holders.copy()
-        copy.positions = {}
-        for name in self.positions:
+        copy.positions = self.positions.copy()
+        for name in self.positions.iterkeys():
             if self.positions[name]:
-                copy.positions[name] = {}
-                for joint in self.positions[name]:
-                    copy.positions[name][joint] = self.positions[name][joint]
-            else:
-                copy.positions[name] = False
+                copy.positions[name] = self.positions[name].copy()
         return copy
 
     def hash_update(self, hl, get_obj, consider_scan):
@@ -1374,7 +1385,7 @@ class BlastWorld(object):
 
 
     def robot_position_condition(self, robot, condition, debug, super_debug):
-        if condition[1].find("robot.") != 0:
+        if condition[1][0:len("robot.")] != "robot.":
             if debug: print "Invalid position type", condition[1]
             return None
         pos = condition[1].split(".")[1]
@@ -1391,12 +1402,12 @@ class BlastWorld(object):
         name_array = typ[False][0]
         tol_array = typ[False][1]
         goal_array = []
-        if type(condition[2]) == type(""):
+        if type(condition[2]) == str:
             if not condition[2] in typ:
                 if debug: print "Invalid pre-defined position state", condition[2]
                 return None 
             goal_array = typ[condition[2]]
-        elif type(condition[2]) == type([1,]):
+        elif type(condition[2]) == list:
             if len(condition[2]) != len(name_array):
                 if debug: print "Wrong length for goal array", condition[2], "for", name_array
                 return None
@@ -1406,13 +1417,13 @@ class BlastWorld(object):
             return None
 
         for name, goal, tol in zip(name_array, goal_array, tol_array):
-            if not (goal == False and type(goal) == type(True)):
-                if state[name] == False and type(state[name]) == type(True):
-                    if super_debug: print state[name], name, "failed"
-                    return False
-                if goal - tol > state[name] or goal + tol < state[name]:
-                    if super_debug: print name, goal, tol, state[name], "failed"
-                    return False
+            if goal == None: continue
+            if state[name] == False and type(state[name]) == bool:
+                if super_debug: print state[name], name, "failed"
+                return False
+            elif goal - tol > state[name] or goal + tol < state[name]:
+                if super_debug: print name, goal, tol, state[name], "failed"
+                return False
         return True
     
     def robot_contains_condition(self, robot, condition):
