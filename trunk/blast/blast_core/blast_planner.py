@@ -317,7 +317,7 @@ class Planner(object):
 
     def update_to_point(self, world, start, end):
         w_start = world[0].copy()
-        for action in world[1]:
+        for action in sorted(world[1], key=lambda x: x[0] + x[1]):
             if action[0] + action[1] > end: continue
             if action[0] + action[1] <= start: continue
             if type(action[2]) != tuple: continue
