@@ -315,16 +315,23 @@ class Planner(object):
 
         return hl.digest()
 
-    def get_next_worlds(self, world):
-        robot_last_times = world_times(world)
-        end_of_plan = smallest_t(robot_last_times)
+    def update_to_point(self, world, start, end):
         w_start = world[0].copy()
         for action in world[1]:
-            if action[0] + action[1] > end_of_plan: continue
+            if action[0] + action[1] > end: continue
+            if action[0] + action[1] <= start: continue
             if type(action[2]) != tuple: continue
             change, ldc = w_start.take_action(action[2][0], action[2][1], action[2][2])
             if change == None:
                 raise Exception("There should not be failing actions here. Those should be blocked by evaluate_world. " + str(action))
+        return w_start
+        
+
+    def get_next_worlds(self, world):
+        robot_last_times = world_times(world)
+        end_of_plan = smallest_t(robot_last_times)
+
+        w_start = self.update_to_point(world, 0, end_of_plan)
 
         #Try to generate new worlds based on robots. These new worlds could be duplicates, so de-duplication
         #must be done by the parent world.
