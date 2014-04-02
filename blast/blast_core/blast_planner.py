@@ -160,13 +160,12 @@ class Planner(object):
 
     #None = invalid world
     #False = not valid
-    def evaluate_world(self, world, blacklist = None, debug = False):
-
+    def evaluate_world(self, world, blacklist = None, debug = False, previous_world = None, previous_time = -1):
         w = world[0].copy() #Initial world
         time = 0
         
-        world[1].sort(key = lambda x: x[0])
-        world[2].sort(key = lambda x: x[0])
+        #world[1].sort(key = lambda x: x[0])
+        #world[2].sort(key = lambda x: x[0])
 
         is_valid = True
 
@@ -177,9 +176,18 @@ class Planner(object):
         w_state_hash = ""
         self.planned_worlds[w_state_hash] = self.planned_worlds.get(w_state_hash, set())
 
-        for action in sorted(world[1], key = lambda x: x[0] + x[1]):
+        action_l = sorted(world[1], key = lambda x: x[0] + x[1])
+
+        while action_l != []:
+            action = action_l[0]
+            action_l = action_l[1:]
+
+            lower_time_limit = action[0] + action[1]
+            upper_time_limit = 18446744073709551616L #Limit of long length = 2^64
+            if action_l != []:
+                upper_time_limit = action_l[0][0] + action_l[0][1]
             for state in world[2]:
-                if state[0] >= time and state[0] <= action[0]:
+                if state[0] >= lower_time_limit and state[1] < upper_time_limit:
                     if not self.check_plan_state(w, state[1]):
                         #If we have this invalid state in a time when we
                         #still can plan (a rough plan), we still can and
@@ -203,6 +211,7 @@ class Planner(object):
                 self.planned_worlds[w_state_hash] = self.planned_worlds.get(w_state_hash, set())
                 continue
             if type(action[2]) != tuple: continue
+
             time = action[0]
             change, ldc = w.take_action(action[2][0], action[2][1], action[2][2])
             if change == None:
@@ -245,17 +254,6 @@ class Planner(object):
                     return None
                 if debug: print "Declared invalid due to robot colision"
 
-
-        #Check any remaining states
-        for state in world[2]:
-            if state[0] >= time:
-                if not self.check_plan_state(w, state[1]):
-                    if state[0] <= end_of_plan:
-                        if debug: print "Declared unrecoverable due to remaining world state at t =", state[0]
-                        return None
-                    else:
-                        if debug: print "Declared invalid due to remaining world state at t =", state[0]
-                        return False
         #Worlds that are not complete cannot be true worlds
         #even though they could easily be made into such.
         #TODO, maybe not.
@@ -331,7 +329,7 @@ class Planner(object):
         robot_last_times = world_times(world)
         end_of_plan = smallest_t(robot_last_times)
 
-        w_start = self.update_to_point(world, 0, end_of_plan)
+        w_start = self.update_to_point(world, -1, end_of_plan)
 
         #Try to generate new worlds based on robots. These new worlds could be duplicates, so de-duplication
         #must be done by the parent world.
@@ -397,7 +395,7 @@ class Planner(object):
                         step = (robot_last_times[robot_name], change, (robot_name, action, parameters))
                         new_world = [world[0], sorted(world[1] + [step, ], key=lambda x: x[0]), 
                                      world[2], world[3]]
-                        if self.evaluate_world(new_world, blacklist = step) != None:
+                        if self.evaluate_world(new_world, blacklist = step, previous_world = w_start, previous_time = end_of_plan) != None:
                             yield new_world
                         else:
                             if debug: print "World evaluated to none"
@@ -450,7 +448,7 @@ class Planner(object):
 
         expanded_worlds = set()
 
-        while worlds != []:
+        while worlds != [] and not self.best_world:
             world = min(worlds, key = lambda x: lowest_t(x))
             worlds.remove(world)
 
@@ -460,7 +458,7 @@ class Planner(object):
             expanded_worlds.add(hworld)
 
             self.worlds_tested = self.worlds_tested + 1
-
+            
             for next_world in self.get_next_worlds(world):
                 hnext_world = self.hash_world(next_world)
                 if not hnext_world in expanded_worlds:
