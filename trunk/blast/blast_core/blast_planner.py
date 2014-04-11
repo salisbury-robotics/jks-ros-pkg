@@ -6,6 +6,54 @@ import blast_world, time, json, itertools, hashlib, random, string, threading
 # 2. Plans are then executed by the reasoner.
 #
 
+def parameter_iter(param, keys = None):
+    if keys == []: 
+        yield {}
+        return
+    if keys == None: 
+        deps = {}
+        #Sort the keys for dependencies
+        for key in param.iterkeys():
+            if type(param[key]) == type([]):
+                deps[key] = []
+            else:
+                deps[key] = param[key][0]
+        keys = []
+        while deps.keys() != []: #Loop through deps, using deps as a list of keys
+            k = deps.keys()
+            while k != []: #Crawl deps
+                key = k[0]
+                k = k[1:]
+                deps_met = True
+                for d in deps[key]: #Loop through remaining keys
+                    if not d in keys:
+                        deps_met = False
+                        break
+                if deps_met:
+                    keys.append(key)
+                    del deps[key]
+        keys.reverse()
+    if keys == []: 
+        yield {}
+        return 
+    key = keys[0]
+    keys = keys[1:]
+  
+    for next_d in parameter_iter(param, keys):
+        ls = param[key]
+        if type(ls) != type([]): #Handle dependent keys
+            #print ls
+            ls = ls[1]
+            for v in param[key][0]:
+                if type(next_d[v]) == blast_world.BlastSurface:
+                    ls = ls[next_d[v].name]
+                else:
+                    ls = ls[next_d[v]]
+        for value in ls:
+            nxt = next_d.copy()
+            nxt[key] = value
+            yield nxt
+
 
 def all_combinations(c, min, len):
     for r in xrange(min, len + 1):
@@ -26,827 +74,339 @@ def get_workspaces(actions, time):
                     surfaces[s].add(v)
     return surfaces
 
-def world_times(world):
-    times = {}
-    for robot in world[0].robots_keysort: times[robot] = 0
-    for step in world[1]:
-        r = step[2]
-        if type(r) == tuple: r = r[0]
-        times[r] = step[0] + step[1]
-    return times
-            
-def lowest_t(world):
-    return smallest_t(world_times(world))
-
-def smallest_t(t):
-    return min(t.itervalues())
-def largest_t(t):
-    return max(t.itervalues())
-
-class BlastPlanStep(object):
-    __slots__ = ['robot', 'action', 'parameters', 'initial_states',
-                 'final_states', 'locs', 'id', 'gated_on']
-
-    def __init__(self, robot, action, parameters, initial_states, final_states, locs, uid_blacklist, step_uid):
-        if True:
-            if len(initial_states) != len(final_states):
-                raise Exception("Cannot have wrong keys in states")
-            for i in initial_states:
-                if not i in final_states:
-                    raise Exception("Cannot have initial states in final states")
-        self.robot = robot
-        self.action = action
-        self.parameters = parameters
-        self.initial_states = initial_states
-        self.final_states = final_states
-        self.locs = locs
-        self.gated_on = set()
-        while True:
-            self.id = str(step_uid) + ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(10))
-            if not self.id in uid_blacklist:
-                break
-
-    def tuple(self):
-        return (self.robot, self.action, self.parameters, self.initial_states, self.final_states,
-                self.id)
-    def __str__(self):
-        return str(self.tuple())
-    def __repr__(self):
-        return str(self.tuple())
 
 class Planner(object):
-    __slots__ = ['initial_world', 'worlds', 'world_good', 'planned_worlds', 'good_worlds', 'code_exec',
-                 'time_limit', 'worlds_tested', 'actions_tested', 'actions_finished', 'extra_goals', 
-                 'action_type_debug', 'fail_debug', 'super_fail_debug', 'best_world', 'step_uid', 'extra_steps',
-                 'code_exec', 'total_time_limit']
-
-    def compare_worlds(self, wa, wb):
-        if len(wa[1]) != len(wb[1]):
-            return False
-        for ac, bc in zip(wa[1], wb[1]):
-            a = ac[2]
-            b = bc[2]
-            if a[0] != b[0]: return False
-            if a[1] != b[1]: return False
-            if type(a[2]) != type(b[2]): return False
-            if type(a[2]) == str and a[2] != b[2]: return False
-            if type(a[2]) == type({}) and type(b[2]) == type({}):
-                if len(a[2]) != len(b[2]):
-                    return False
-                for k in a[2]:
-                    if not k in b[2]:
-                        return False
-                    if type(b[2][k]) != type(a[2][k]):
-                        return False
-                    if type(b[2][k]) == blast_world.BlastPt or type(b[2][k]) == blast_world.BlastPos:
-                        if not b[2][k].equal(a[2][k]):
-                            return False
-                    elif type(b[2][k]) == blast_world.BlastSurface:
-                        if b[2][k].name != a[2][k].name:
-                            return False
-                    elif type(b[2][k]) == tuple:
-                        if len(a[2][k]) != len(b[2][k]):
-                            return False
-                        if len(b[2][k]) == 2:
-                            if type(a[2][k][0]) == type("") and type(b[2][k][0]) == type("") \
-                                    and type(a[2][k][1]) == blast_world.BlastPos \
-                                    and type(b[2][k][1]) == blast_world.BlastPos:
-                                return False
-                    elif type(b[2][k]) == type({}) or type(b[2][k]) == type([]):
-                        raise Exception("Sucky value: " + str(b[2][k]))
-                    elif b[2][k] != a[2][k]:
-                        return False
-        return True
-    
-    def compare_workspaces(self, comp, c):
-        for name in c[0].keys():
-            if name in comp[0]:
-                return True
-        for loc in c[1]:
-            for loc_c in comp[1]:
-                if loc_c.equal(loc):
-                    return True
-        return False
-
-    def __init__(self, initial_world, code_exec = []):
+    def __init__(self, initial_world, code_exc):
         self.initial_world = initial_world
-        self.worlds = [(initial_world, [], [], [x.copy() for x in code_exec])]
-        for w in self.worlds:
-            for prog in w[3]:
-                prog.execute(w[0])
-        self.world_good = lambda x: False
-        self.planned_worlds = {} #dictionary of sets for each plan state given the already run worlds.
-        self.good_worlds = []
-        self.time_limit = None
-        self.total_time_limit = None
-        self.worlds_tested = 0
-        self.actions_tested = 0
-        self.actions_finished = 0
-        self.step_uid = ""
-        self.extra_goals = {}
-        self.code_exec = None
+        self.code_exc = code_exc
 
-        self.action_type_debug = {}
-        self.fail_debug = {}
-        self.super_fail_debug = False
-
-        self.best_world = None
-
-    def check_plan_state(self, w, state):
-        if "world_limits" in state:
-            if not w.world_limit_check(state["world_limits"]):
-                return False
-        return True
-
-    #None = invalid world
-    #False = not valid
-    def evaluate_world(self, world, blacklist = None, debug = False, previous_world = None, previous_time = -1):
-        w = world[0].copy() #Initial world
-        time = 0
-        
-        #world[1].sort(key = lambda x: x[0])
-        #world[2].sort(key = lambda x: x[0])
-
-        is_valid = True
-
-        robot_last_times = world_times(world)
-        end_of_plan = smallest_t(robot_last_times)
-
-        w_state_ls = []
-        w_state_hash = ""
-        self.planned_worlds[w_state_hash] = self.planned_worlds.get(w_state_hash, set())
-
-        action_l = sorted(world[1], key = lambda x: x[0] + x[1])
-
-        while action_l != []:
-            action = action_l[0]
-            action_l = action_l[1:]
-
-            lower_time_limit = action[0] + action[1]
-            upper_time_limit = 18446744073709551616L #Limit of long length = 2^64
-            if action_l != []:
-                upper_time_limit = action_l[0][0] + action_l[0][1]
-            for state in world[2]:
-                if state[0] >= lower_time_limit and state[1] < upper_time_limit:
-                    if not self.check_plan_state(w, state[1]):
-                        #If we have this invalid state in a time when we
-                        #still can plan (a rough plan), we still can and
-                        #should plan based on this one. However, we can
-                        #never have a complete plan at this point.
-                        if action[0] < end_of_plan or time < end_of_plan:
-                            is_valid = False
-                            if debug: print "Made invalid by invalid state at t =", state[0]
-                        else:              
-                            if debug: print "Declared unrecoverable by invalid state at t =", state[0]
-                            return None
-            if type(action[2]) != str and type(action[2]) != tuple and blacklist != None:
-                w_state_ls.append(action)
-                hl = hashlib.sha224()
-                hs = {}
-                for t, c, s in w_state_ls:
-                    hs[s.uid] = s.get_hash_state()
-                for k in sorted(hs.keys()):
-                    hl.update(hs[k])
-                w_state_hash = hl.digest()
-                self.planned_worlds[w_state_hash] = self.planned_worlds.get(w_state_hash, set())
-                continue
-            if type(action[2]) != tuple: continue
-
-            time = action[0]
-            change, ldc = w.take_action(action[2][0], action[2][1], action[2][2])
-            if change == None:
-                #If we fail to execute an action after all the plans are made
-                #then we have an invalid plan because we cannot ever repair it.
-                if action[0] <= end_of_plan or True:
-                    if debug: print "Declared unrecoverable by action failure", action[2]
-                    return None
-                if debug: print "Declared invalid by action failure", action[2]
-                is_valid = False
+        self.point_plans = {}
 
 
-            #Test for workspace conflict. Sadly this needs to be done after computation
-            #of the action so we know the time the action takes.
-            work_conflict = False
-            comp = w.get_workspaces(action[2][0], action[2][1], action[2][2])
-            for step in world[1]:
-                if type(step[2]) != tuple: continue
-                if step == action: continue
-                if not step[0] >= action[0] + change and not step[0] + step[1] <= action[0]:
-                    if self.compare_workspaces(comp, w.get_workspaces(step[2][0], step[2][1], step[2][2])):
-                        #No good, a coliding world can't be allowed. There's no way to add
-                        #additional steps to get rid of the problem so we quit.
-                        is_valid = False
-                        if debug: print "Declared unrecoverable due to workspace overlap"
-                        return None
-            
-            #Blacklist stuff
-            if blacklist == action and blacklist != None:
-                if w.get_hash_state() in self.planned_worlds[w_state_hash]:
-                    return None
-                self.planned_worlds[w_state_hash].add(w.get_hash_state())
-
-            #Test for collision of two robots in the world, which means the world is invalid.
-            if w.robots_coliding():
-                is_valid = False
-                #This can actually be resolved if the new world is fixed by changes earlier on.
-                if action[0] <= end_of_plan:
-                    if debug: print "Declared unrecoverable due to robot colision"
-                    return None
-                if debug: print "Declared invalid due to robot colision"
-
-        #Worlds that are not complete cannot be true worlds
-        #even though they could easily be made into such.
-        #TODO, maybe not.
-        #if largest_t(robot_last_times) != end_of_plan:
-        #    return False
-        
-        #Now we have reached the end state
-        if is_valid:
-            for prog in world[3]:
-                if prog.failed(): 
-                    if debug: print "Declared unrecoverable due to program failure of", prog.uid
-                    return None
-            for prog in world[3]:
-                if not prog.succeeded(): 
-                    if debug: print "Declared invalid due to program still running", prog.uid
-                    return False
-            
-            plan_time = largest_t(robot_last_times)
-
-            last_times_nowait = {}
-            for a in world[1]:
-                if type(a[2]) == tuple:
-                    last_times_nowait[a[2][0]] = a[0] + a[1]
-            total_t = 0
-            for t in last_times_nowait.itervalues():
-                total_t = total_t + t
-            
-            #print "CANDIDATE", self.time_limit, plan_time, total_t
-            if self.time_limit == None or self.time_limit > plan_time:
-                self.time_limit = plan_time
-                self.total_time_limit = total_t
-                self.best_world = world
-                #print "BEST WORLD", world
-            if self.time_limit == plan_time and total_t < self.total_time_limit:
-                self.time_limit = plan_time
-                self.total_time_limit = total_t
-                self.best_world = world
-            return True
-        return False
-
-    def hash_world(self, world):
+    def motion_plan_state(self, robot_name, w):
         hl = hashlib.sha224()
-
-        #hl.update(world[0].get_hash_state()) #All the same for now, no need to waste CPU
-        for step in world[1]:
-            hl.update(str(step[0]) + str(step[1]))
-            if type(step[2]) == type(""):
-                hl.update("R" + step[2])
-            elif type(step[2]) == tuple:
-                hl.update("A" + str(step[2]))
-            else:
-                step[2].get_hash_state(hl)
-        for state in world[2]:
-            hl.update(str(state))
-        for prog in world[3]:
-            prog.get_hash_state(hl)
-
+        get_obj = lambda x: w.get_obj(x)
+        w.robots[robot_name].hash_update(hl, get_obj, False)
         return hl.digest()
 
-    def update_to_point(self, world, start, end):
-        w_start = world[0].copy()
-        for action in sorted(world[1], key=lambda x: x[0] + x[1]):
-            if action[0] + action[1] > end: continue
-            if action[0] + action[1] <= start: continue
-            if type(action[2]) != tuple: continue
-            change, ldc = w_start.take_action(action[2][0], action[2][1], action[2][2])
-            if change == None:
-                raise Exception("There should not be failing actions here. Those should be blocked by evaluate_world. " + str(action))
-        return w_start
-        
+    def get_cached_motion_plan(self, robot_type, start, end):
+        return self.point_plans[robot_type][start][end]
 
-    def get_next_worlds(self, world):
-        robot_last_times = world_times(world)
-        end_of_plan = smallest_t(robot_last_times)
+    def motion_plan(self, robot_name, start_w, end_w):
+        start = self.motion_plan_state(robot_name, start_w)
+        end = self.motion_plan_state(robot_name, end_w)
 
-        w_start = self.update_to_point(world, -1, end_of_plan)
+        robot_type = start_w.robots[robot_name].robot_type.name
 
-        #Try to generate new worlds based on robots. These new worlds could be duplicates, so de-duplication
-        #must be done by the parent world.
-        for robot_name, robot in w_start.robots.iteritems():
-            w_robot = w_start.copy()
-            next_action_time = None
-            for action in world[1]:
-                for tv in (action[0], action[0] + action[1]):
-                    if tv > robot_last_times[robot_name]:
-                        if not next_action_time: next_action_time = tv
-                        if tv < next_action_time: next_action_time = tv
-                if action[0] + action[1] <= end_of_plan: continue
-                if type(action[2]) != tuple: continue
-                r, change = w_robot.take_action(action[2][0], action[2][1], action[2][2])
-                if r == None:
-                    raise Exception("There should not be failing actions here. Those should be blocked by evaluate_world. " + str(action))
+        if not robot_type in self.point_plans:
+            self.point_plans[robot_type] = {}
+        if not start in self.point_plans[robot_type]:
+            self.point_plans[robot_type][start] = {}
+        if end in self.point_plans[robot_type][start]:
+            r = self.point_plans[robot_type][start][end]
+            return r[0], r[1], robot_type, start, end
 
-            pdata = [prog.get_next_plan(w_robot) for prog in world[3]]
+        #We actually need to plan from one to the other
+        #TODO: this should probably construct a world with no objects or other robots
+        #TODO: also, it may have problems with actions that depend on object presence
+        #      but do not move the objects. We should not allow that.
+        worlds = [(start_w, 0, [])]
+        planned_worlds = []
+        w_hash = {}
+        best_world = None
 
-            extra_goals = {}
-            for progdata in pdata:
-                if type(progdata) != dict: continue
-                if not 'extra_goals' in progdata: continue
-                for vtype, vals in progdata['extra_goals'].iteritems():
-                    extra_goals[vtype] = extra_goals.get(vtype, [])
-                    extra_goals[vtype].extend(vals)
-                
+        #TODO add all elements of end robot state
+        extra_goals = {'Pt': [end_w.robots[robot_name].location.copy(),]}
 
-            #Try generating the case where the robot just sits there until the next action on another robot
-            if next_action_time:
-                if next_action_time > robot_last_times[robot_name]:
-                    step = (robot_last_times[robot_name], next_action_time - robot_last_times[robot_name], robot_name)
-                    new_world = [world[0], sorted(world[1] + [step, ], key=lambda x: x[0]), 
-                                 world[2], world[3]]
-                    yield new_world
+        while worlds != []:
+            w = min(worlds, key = lambda x: x[1])
+            worlds.remove(w)
+            planned_worlds.append(w)
 
-            w_test = w_robot.copy()
-            #Now try all actions and all parameter combinations.
-            for action in w_robot.enumerate_robot(robot_name):
-                planable, plist = w_robot.enumerate_action(robot_name, action, extra_goals)
-                if not planable or not plist:
-                    continue
-                for parameters in self.parameter_iter(plist):
-                    self.actions_tested = self.actions_tested + 1
-                    change, location_do_not_cares = w_test.take_action(robot_name, action, parameters)
-                    debug = False #w_start.surfaces["clarkelevator"].locations["floor_3"].equal(parameters.get("outfloor", None))
-                    if self.action_type_debug != False:
-                        self.action_type_debug[action] = self.action_type_debug.get(action, 0) + 1
-                    if debug:
-                        print "action", robot_name, action, parameters
-                    if change == None: #failed
-                        if debug: print "Action failed to execute"
-                        #world_clone.take_action(robot_name, at, parameters, debug=True)  #Failed action print
-                        #print "Failed", at, parameters
-                        if self.fail_debug != False:
-                            self.fail_debug[action] = self.fail_debug.get(action, 0) + 1
-                        if self.super_fail_debug != False:
-                            self.super_fail_debug[action] = self.super_fail_debug.get(action, [])
-                            self.super_fail_debug[action].append(((world_test.copy(), world[1], world[2]), action, parameters))
-                    else: #Action succeeded.
-                        self.actions_finished = self.actions_finished + 1
-
-                        step = (robot_last_times[robot_name], change, (robot_name, action, parameters))
-                        new_world = [world[0], sorted(world[1] + [step, ], key=lambda x: x[0]), 
-                                     world[2], world[3]]
-                        if self.evaluate_world(new_world, blacklist = step, previous_world = w_start, previous_time = end_of_plan) != None:
-                            yield new_world
-                        else:
-                            if debug: print "World evaluated to none"
-                        w_test = w_robot.copy() #Reset for next one
-
-        #Try to update each of the progs.
-        for i in xrange(0, len(world[3])):
-            if world[3][i].done():
-                continue
-            c = world[3][i].copy()
-            new_world = [world[0], [x for x in world[1]], [x for x in world[2]], [x for x in world[3]]]
-            new_world[3][i] = c
-            r = c.execute(w_start)
-            #if c.get_hash_state() == world[3][i].get_hash_state(): continue
-            if r == True:
-                c.set_plan_executed(True)
-                new_world[1].append((end_of_plan, 0, c.copy()))
-                if self.evaluate_world(new_world) != None:
-                    yield new_world
-            if type(r) == dict:
-                do_steps = True
-                c.set_plan_executed(True)
-                extra_step_times = 0
-                if 'extra_steps' in r:
-                    for robot_name, action, parameters in r['extra_steps']:
-                        if end_of_plan != robot_last_times[robot_name]:
-                            do_steps = False
-                            break
-                if 'extra_steps' in r and do_steps:
-                    w_test = w_start.copy()
-                    for robot_name, action, parameters in r['extra_steps']:
-                        change, ldc = w_test.take_action(robot_name, action, parameters)
-                        if change == None:
-                            do_steps = False
-                            break
-                        extra_step_times = extra_step_times + change
-                        new_world[1].append((robot_last_times[robot_name], change, (robot_name, action, parameters)))
-                        robot_last_times[robot_name] = robot_last_times[robot_name] + change
-                    c.execute(w_test)
-                else:
-                    c.execute(w_start)
-                if do_steps:
-                    new_world[1].append((end_of_plan + extra_step_times, 0, c.copy()))  #After execution add this in
-                    new_world[2].append((end_of_plan, r))
-                    if self.evaluate_world(new_world) != None:
-                        yield new_world
-            
-    def expand(self):
-        worlds = [x for x in self.worlds]
-
-        expanded_worlds = set()
-
-        while worlds != [] and not self.best_world:
-            world = min(worlds, key = lambda x: lowest_t(x))
-            worlds.remove(world)
-
-            hworld = self.hash_world(world)
-            if hworld in expanded_worlds:
-                continue
-            expanded_worlds.add(hworld)
-
-            self.worlds_tested = self.worlds_tested + 1
-            
-            for next_world in self.get_next_worlds(world):
-                hnext_world = self.hash_world(next_world)
-                if not hnext_world in expanded_worlds:
-                    worlds.append(next_world)
-        print
-        print self.best_world
-
-    def parameter_iter(self, param, keys = None):
-        if keys == []: 
-            yield {}
-            return
-        if keys == None: 
-            deps = {}
-            #Sort the keys for dependencies
-            for key in param.iterkeys():
-                if type(param[key]) == type([]):
-                    deps[key] = []
-                else:
-                    deps[key] = param[key][0]
-            keys = []
-            while deps.keys() != []: #Loop through deps, using deps as a list of keys
-                k = deps.keys()
-                while k != []: #Crawl deps
-                    key = k[0]
-                    k = k[1:]
-                    deps_met = True
-                    for d in deps[key]: #Loop through remaining keys
-                        if not d in keys:
-                            deps_met = False
-                            break
-                    if deps_met:
-                        keys.append(key)
-                        del deps[key]
-            keys.reverse()
-        if keys == []: 
-            yield {}
-            return 
-        key = keys[0]
-        keys = keys[1:]
-  
-        for next_d in self.parameter_iter(param, keys):
-            ls = param[key]
-            if type(ls) != type([]): #Handle dependent keys
-                #print ls
-                ls = ls[1]
-                for v in param[key][0]:
-                    if type(next_d[v]) == blast_world.BlastSurface:
-                        ls = ls[next_d[v].name]
-                    else:
-                        ls = ls[next_d[v]]
-            for value in ls:
-                nxt = next_d.copy()
-                nxt[key] = value
-                yield nxt
-
-    def to_plan_seq(self, initial_world, target):
-        #FIXME: we need to deal with scans here, because we do not care
-        #about them right now.
-        w = initial_world.copy()
-
-        steps_clean = []
-
-        #We can assume here that the times are good.
-        if len(target[1]) > 0:
-            endtime = target[1][-1][0] + target[1][-1][1]
-        else:
-            endtime = 0
-        add = []
-        for step in self.extra_steps:
-            add.append((endtime, 1, step))
-            endtime = endtime + 1
-
-        for step in target[1] + add:
-            if type(step[2]) != type(""):
-                #Clean up the parameters
-                action_clean = {}
-                for param, value in step[2][2].iteritems():
-                    if value.__class__ == blast_world.BlastSurface:
-                        action_clean[param] = value.name
-                    elif value.__class__ == blast_world.BlastPt:
-                        action_clean[param] = value.to_dict()
-                    else:
-                        action_clean[param] = value
-
-                #Get the work spaces for the action. Note that there should be no work space
-                #conflicts here - those are banned by planning.
-                dictionary, locs = w.get_workspaces(step[2][0], step[2][1], action_clean)
-                
-                #Get the initial state of all surfaces used in the action
-                l_init_state = {}
-                for key in dictionary:
-                    hl = hashlib.sha224()
-                    get_obj = lambda x: w.get_obj(x)
-                    w.surfaces[key].hash_update(hl, get_obj, False)
-                    l_init_state[key] = hl.digest()
-                
-                #Trigger an action change, transfering to the next state.
-                change, ldc = w.take_action(step[2][0], step[2][1], action_clean)
-                if change == False or change == None:
-                    return None, None, None
-
-                #Store all the final sha224 state values.
-                l_final_state = {}
-                for key in dictionary:
-                    hl = hashlib.sha224()
-                    get_obj = lambda x: w.get_obj(x)
-                    w.surfaces[key].hash_update(hl, get_obj, False)
-                    l_final_state[key] = hl.digest()
-                
-                #create the plan step
-                uids = [x.id for x in steps_clean]
-                steps_clean.append(BlastPlanStep(step[2][0], step[2][1], action_clean, 
-                                                 l_init_state, l_final_state, locs, uids, self.step_uid))
-
-        print steps_clean
-        #Now we need to do gating of steps based on surface state. In the future we could try
-        #to prevent colision here too.
-        robot_lasts = {}
-        for step_i in xrange(1, len(steps_clean)):
-            surface_gates = {}
-            surface_stopped = set()
-            step_j = step_i
-            while step_j > 0:
-                step_j = step_j - 1
-                for s, v in steps_clean[step_i].initial_states.iteritems():
-                    if s in surface_stopped: continue
-                    if s in steps_clean[step_j].initial_states:
-                        if steps_clean[step_j].initial_states[s] == v:
-                            surface_gates[s] = steps_clean[step_j].id
-                        else:
-                            surface_stopped.add(s)
-            for key in surface_gates: steps_clean[step_i].gated_on.add(key)
-            #Add gating on all previous steps. This prevents the robot from executing
-            #actions out of order, which could lead to strange results.
-            if robot_lasts.get(steps_clean[step_i].robot, None) != None:
-                steps_clean[step_i].gated_on.add(robot_lasts[steps_clean[step_i].robot])
-            robot_lasts[steps_clean[step_i].robot] = steps_clean[step_i].id
-        return w, largest_t(world_times(target)), steps_clean
-        
-    def plan_print(self):
-        start_time = time.time()
-        self.expand()
-        print "Planning time:", time.time() - start_time, "seconds"
-
-        if self.best_world:
-            print "Estimated time", self.time_limit, "seconds (=", self.time_limit/60.0, "minutes)"
-            print "Steps (total of", len(self.best_world[1]), "actions)"
-            for i in self.best_world[1]:
-                print i
-        else:
-            print "Failed to find a plan"
-        if self.actions_tested == 0:
-            print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions"
-        else:
-            print "Tried", self.worlds_tested, "worlds and", self.actions_tested, "actions -", \
-                self.actions_finished, "finished (a", (self.actions_finished * 100.0) / self.actions_tested, "percent success rate)"
-        print "Fail debug", self.fail_debug
-        print "Action type debug", self.action_type_debug
-        if self.super_fail_debug:
-            print "Super fail debug"
-            for name, arr in self.super_fail_debug.iteritems():
-                print "Failed", name, "actions"
-                for fail in arr:
-                    print fail[0][0].to_text()
-                    print fail[0][0].robots["stair4"].location, fail
-
-        return False
-
-
-class BlastPlanGoal(object):
-    #Succeed and fail are labels. If they are None, the plan progresses - this is the predicted result.
-    #If they are True, the whole plan succeeds, if it is False the whole plan fails.
-    #world_good is a function of a world and start world that returns true if it is what we want
-    #force_replan is true if the action must be replaned. If it is "fail" then the action is
-    #             predicted to fail.
-    #extra_goals is an optional list of extra options based on type to functions.
-    #extra_steps is an optional list of extra PlanSteps to take at the end of the mission
-    #consider_scan is whether to care about scanning objects.
-    def __init__(self, name, succeed, fail, world_good, force_replan = False, extra_goals = {}, extra_steps = [], consider_scan = False):
-        self.name = name
-        self.succeed = succeed
-        self.fail = fail
-        self.world_good = world_good
-        self.force_replan = force_replan
-        self.extra_goals = extra_goals
-        self.extra_steps = extra_steps
-        self.consider_scan = consider_scan
-
-    def __str__(self):
-        return self.__repr__()
-    def tuple(self):
-        return (self.name, self.succeed, self.fail, self.world_good, self.force_replan, self.extra_goals, self.extra_steps, self.consider_scan)
-    def __repr__(self):
-        return str(self.tuple())
-
-
-class BlastPlan:
-    def __init__(self, world, uid, world_good = None, extra_goals = None, consider_scan = None, extra_steps = None, goals = None): #Failure replan returns new steps
-        self.world = world
-        self.uid = uid
-        self.goals = goals
-        self.steps = None
-        if goals == None:
-            self.goals = [BlastPlanGoal(None, True, False, world_good, force_replan=False, extra_goals = extra_goals,
-                                        extra_steps = extra_steps, consider_scan = consider_scan)]
-        print self.goals
-        self.needs_replan = True #Halt execution as soon as this is set
-        self.replan_ready = True
-        self.replan_gate = None #Wait until a replan is ordered. None = no replan, False == not ready, True == start replan
-        self.done = False
-
-    def plan(self, gp = 0):
-        print "-"*30
-        self.replan_ready = True
-        while self.replan_gate != True:
-            print "Waiting for replan gate", self.replan_gate
-            time.sleep(0.01)
-        
-        self.world.planning_lock.acquire()
-        self.replan_ready = False
-        self.replan_gate = None
-        self.needs_replan = False
-        steps = []
-        planning_world = self.world.get_planning_world()
-        replan_force = False
-        first_step = True
-        while True:
-            if gp >= len(self.goals):
-                break
-            steps.append(gp)
-            print self.goals[gp]
-            planning_world.consider_scan = self.goals[gp].consider_scan
-            planner = Planner(planning_world)
-            planner.step_uid = str(self.uid) + "/"
-            planner.world_good = self.goals[gp].world_good
-            planner.extra_goals = self.goals[gp].extra_goals
-            planner.extra_steps = self.goals[gp].extra_steps
-            world, add_est_time, add_steps = planner.plan_print()
-            replan_force = replan_force or self.goals[gp].force_replan
-            if self.goals[gp].force_replan and not first_step:
-                steps.append("REPLAN")
-            print "Result", world, add_est_time
-            if world == None and add_est_time == None and add_steps == None or (self.goals[gp].force_replan == "fail" and not first_step):
-                if world == None and add_est_time == None and add_steps == None:
-                    pass #Do not do anything
-                else:
-                    steps.extend(add_steps)
-                if  self.goals[gp].fail == False:
-                    steps.append("FAIL")
-                    if not replan_force: #If there's no way to replan the actions we are in a fail state, then fail
-                        self.world.planning_lock.release()
-                        return None, None, None
-                    break
-                elif self.goals[gp].fail == True:
-                    steps.append("SUCCEED")
-                    break
-                elif self.goals[gp].fail == None:
-                    gp = gp + 1
-                else:
-                    for gpc in xrange(0, len(self.goals)):
-                        if self.goals[gpc].name == self.goals[gp].fail:
-                            gp = gpc
-                            break
+            #Avoid already done worlds. If we get to one of the already
+            #done worlds but do it faster then we still plan
+            if not w[0].get_hash_state() in w_hash:
+                w_hash[w[0].get_hash_state()] = w[1]
+            if w_hash[w[0].get_hash_state()] >= w[1]:
+                w_hash[w[0].get_hash_state()] = w[1]
             else:
-                planning_world = world
-                steps.extend(add_steps)
-                if self.goals[gp].succeed == True:
-                    steps.append("SUCCEED")
-                    break
-                elif self.goals[gp].succeed == True:
-                    steps.append("FAIL")
-                    if not replan_force:
-                        self.world.planning_lock.release()
-                        return None, None, None
-                    break
-                elif self.goals[gp].succeed == None:
-                    gp = gp + 1
-                else:
-                    for gpc in xrange(0, len(self.succeed)):
-                        if self.goals[gpc].name == self.goals[gp].succeed:
-                            gp = gpc
-                            break
-            first_step = False
-
-        self.steps = steps
-        print "-"*30
-        for i in steps:
-            print i
-        print "-"*30, "->"
-        
-        if self.needs_replan:
-            print "Instant replan"
-            self.world.planning_lock.release()
-            return self.plan(gp = exec_gp)
-        self.world.plans_planned_count = self.world.plans_planned_count + 1
-        self.world.planning_lock.release()
-
-        if self.world.no_exec_debug:
-            print "WARNING: No exec debug is set for testing only. If this is not a test this is a problem."
-            return True
-
-        #Wait until all plans have finished planning before moving on
-        #to start taking actions in the plan.
-        while True:
-            self.world.plans_lock.acquire()
-            target = len([x for x in self.world.plans if not x.done])
-            self.world.plans_lock.release()
-            if self.world.plans_planned_count >= target:
-                break
-            time.sleep(0.01)
-
-        exec_gp = False
-        while True:
-            flag_replan = False
-            self.world.planning_lock.acquire()
-            if self.steps == []:
-                self.world.planning_lock.release()
-                break
-            action_in_queue = False
-            while self.steps != []:
-                action = self.steps[0]
-                self.steps = self.steps[1:]
-                if action == "REPLAN":
-                    flag_replan = True
-                    break
-                elif type(action) == int:
-                    exec_gp = action
-                    break
-                elif type(action) == str:
-                    if (action == "FAIL" or action == "SUCCEED") and action_in_queue:
-                        self.steps = [action,] + self.steps
-                        break
-                    elif action == "FAIL":
-                        print "We are done due to FAIL hardcoded in to sequence"
-                        self.done = True
-                        self.steps = []
-                        self.world.planning_lock.release()
-                        return False
-                    elif action == "SUCCEED":
-                        print "We are done due to SUCCEED hardcoded in to sequence"
-                        steps = self.steps
-                        self.steps = []
-                        self.done = True
-                        self.world.planning_lock.release()
-                        return True
-                    break
-                else:
-                    action_in_queue = True
-                    self.world.robot_locks[action.robot].acquire()
-                    self.world.robot_queues[action.robot].append(action)
-                    self.world.robot_locks[action.robot].release()
-            self.world.planning_lock.release()
+                continue #Already planned
             
-            while True:
-                if self.needs_replan:
-                    break
-                still_there = False
-                for robot, queue in self.world.robot_queues.iteritems():
-                    self.world.robot_locks[robot].acquire()
-                    for step in queue:
-                        if step.id.split("/")[0] == str(self.uid):
-                            still_there = True
-                            break
-                    self.world.robot_locks[robot].release()
-                    if still_there: break
+            if best_world:
+                if w[1] > best_world[1]: #Skip worlds that are after the fastest time to finish
+                    continue
+            if w[0].equal(end_w):
+                best_world = w
+            
+            for action in w[0].enumerate_robot(robot_name):
+                planable, plist = w[0].enumerate_action(robot_name, action, extra_goals)
+                if not planable: continue
+                if not plist: continue
+                for parameters in parameter_iter(plist):
+                    w_next = w[0].copy()
+                    change, location_do_not_cares = w_next.take_action(robot_name, action, parameters)
+                    if change == None:
+                        continue
+                    wn = (w_next, w[1] + change, w[2] + [(action, parameters, change), ])
+                    worlds.append(wn)
+                    
+        if best_world:
+            self.point_plans[robot_type][start][end] = (best_world[1], best_world[2])
+        else:
+            self.point_plans[robot_type][start][end] = (None, None)
+        r = self.point_plans[robot_type][start][end]
+        return r[0], r[1], robot_type, start, end
 
-                if not self.world.real_world:
-                    self.world.try_operate()
+    def test_motion_plan(self):
+        end_w = self.initial_world.copy()
+        end_w.robots["stair4"] = end_w.robots["stair4"].copy()
+        end_w.robots["stair4"].location = blast_world.BlastPt(0, 0, 0, "clarkcenterfirstfloor")
+        return self.motion_plan("stair4", self.initial_world, end_w)
 
-                if not still_there:
-                    break
 
-            if flag_replan:
-                print "Order a replan due to flagging for the requirement"
-                self.replan_ready = True
-                self.world.order_replan()
+    #Plan formats:
+    #(time, "EXEC", program_uid, end_state)
+    #(time, "ACTION", length, robot, action, parameters)    runs through [time, time+length)
+    #(time, "BLOCK", length, robot) runs through [time, time+length)
 
-            if self.needs_replan:
-                return self.plan(gp = exec_gp)
+    def plan_workspaces(self, plan):
+        ws = []
+        return ws
+
+
+    def generate_world(self, plan, at_time):
+        steps = []
+        for step in plan:
+            if step[1] == "ACTION":
+                if step[0] + step[2] <= at_time:
+                    steps.append(step)
+        steps.sort(key = lambda x: x[0] + x[2])
+        w = self.initial_world.copy()
+        for step in steps:
+            w.take_action(step[3], step[4], step[5])
+        return w
+
+
+    #Return a dictonary of lists of times expressed as
+    #[start_time, end_time] when robots are active
+    def plan_get_robot_active_times(self, plan, robots = None):
+        robot_action_times = {}
+        for step in plan:
+            if step[1] == "ACTION" or step[1] == "BLOCK": #Is an action
+                if not step[3] in robot_action_times:
+                    robot_action_times[step[3]] = []
+                merged = False
+                for rblock in robot_action_times[step[3]]:
+                    if merged: break
+                    if rblock[0] == step[0] + step[2]: #block starts at end
+                        rblock[0] = step[0]
+                        merged = True
+                    if rblock[1] == step[0]: #block is ends at start
+                        rblock[1] = step[0] + step[2]
+                        merged = True
+                if not merged:
+                    robot_action_times[step[3]].append([step[0], step[0] + step[2]])
+
+        for robot in self.initial_world.robots_keysort:
+            robot_action_times[robot] = robot_action_times.get(robot, [])
+        if robots != None:
+            rat = {}
+            for r in robots:
+                rat[r] = robot_action_times.get(r, [])
+            return rat
+        return robot_action_times
+
+    def merge_plans(self, plan_a, start_plan_a, plan_b, start_plan_b):
+        #Temporarily adjust the plans.
+        plan_a = [[s[0] + start_plan_a,] + list(s[1:]) for s in plan_a]
+        plan_b = [[s[0] + start_plan_b,] + list(s[1:]) for s in plan_b]
+
+        #Ensure we don't have robot overlap
+        for step_a in plan_a:
+            if step_a[1] != "ACTION" and step_a[1] != "BLOCK": continue
+            for step_b in plan_b:
+                if step_b[1] != "ACTION" and step_b[1] != "BLOCK": continue
+                if step_b[3] != step_a[3]: continue #Different robot
+                if step_a[0] + step_a[2] <= step_b[0]: continue #Step is before or they meet
+                if step_b[0] + step_b[2] <= step_a[0]: continue #Step is after or they meet
+                #print step_a, step_b
+                return None #We have two robots trying to do stuff at the same time
+
+        #TODO: check work space overlap
+
+        return sorted(plan_a + plan_b, key=lambda x: x[0])
+        
+    def plan_to_prog(self, plan, robots, start_time, goal):
+        worlds = [(start_time, plan), ]
+        planned_worlds = []
+
+        best_world = None
+        while worlds != []:
+            world = min(worlds, key=lambda x: x[0])
+            worlds.remove(world)
+            planned_worlds.append(world)
+
+            #print world
+            
+            #Update the time of the world - if all robots in use at
+            #the time t.
+            world[1].sort(key = lambda x: x[0])
+
+            #Find the end time of all current robot actions at the
+            #time specified
+            robot_action_times = self.plan_get_robot_active_times(world[1], robots)
+            min_times = {}
+            min_time = None
+            for robot in robot_action_times:
+                min_times[robot] = world[0]
+                for rblock in robot_action_times[robot]:
+                    if rblock[0] <= world[0] and world[0] < rblock[1]:
+                        if rblock[1] > min_times[robot]:
+                            min_times[robot] = rblock[1]
+                if not min_time: min_time = min_times[robot]
+                min_time = min(min_time, min_times[robot])
+
+            if best_world: #Avoid worlds after the best is found
+                if min_time > best_world[0]:
+                    continue
+
+            
+            w_start = self.generate_world(world[1], min_time)
+
+            #Check the world validity
+            world_is_valid = True
+            if 'world_limits' in goal:
+                if not w_start.world_limit_check(goal['world_limits']):
+                    world_is_valid = False
+
+            #TODO: try extra-steps here for validity, and also
+            #exit if good world. For multiple extra-steps this
+            #introduces a rule that we cannot edit the workspaces
+            #of any of the extra-step actions during this time.
+            world_new_plan = None
+            es_time = 0
+            if 'extra_steps' in goal and world_is_valid:
+                if len(goal['extra_steps']) != 1:
+                    raise Exception("We don't support multiple extra steps")
+
+                es_plan = []
+                es_time = 0
+                w_clone = w_start.copy()
+                for step in goal['extra_steps']:
+                    length, ldc = w_clone.take_action(step[0], step[1], step[2])
+                    es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
+                    es_time = es_time + length
                 
-        print "We are done with success due to reaching end of steps"
-        self.done = True
-        return True
+                world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
+                if world_new_plan == None:
+                    world_is_valid = False
+            
+            if world_is_valid:
+                if world_new_plan == None: world_new_plan = world[1]
+                if not best_world:
+                    best_world = (min_time + es_time, world_new_plan)
+                if min_time < best_world[0]:
+                    best_world = (min_time + es_time, world_new_plan)
 
+
+            #Find the next step for the world
+            next_time = None
+            for step in world[1]:
+                if step[0] > min_time:
+                    if next_time == None: next_time = step[0]
+                    if step[0] < next_time: next_time = step[0]
+                if step[1] == "ACTION":
+                    if step[0] + step[2] > min_time:
+                        if next_time == None: next_time = step[0] + step[2]
+                        if step[0] + step[2] < next_time: next_time = step[0] + step[2]
+            if next_time != None:
+                worlds.append((next_time, world[1]))
+
+            #Loop through the robots and expand all those that
+            #can do things at the min_time.
+            for robot in min_times:
+                if min_times[robot] != min_time: continue
+                
+                #For each robot, we have to try moving to the goal,
+                #then generate all other actions
+                if 'world_limits' in goal and 'robot-location' in goal['world_limits'] \
+                        and robot in goal['world_limits']['robot-location']:
+                    target_pos = goal['world_limits']['robot-location'][robot]
+                    w_end = w_start.copy()
+                    w_end.robots[robot] = w_end.robots[robot].copy()
+                    w_end.robots[robot].location = target_pos.copy()
+                    w_end.clear_hash("robots")
+                    motion_time, motion_plan, rt, start_hash, end_hash = self.motion_plan(robot, w_start, w_end)
+                    if motion_plan != None and motion_plan != []:
+                        mplan = []
+                        tmplan = 0
+                        for p in motion_plan:
+                            mplan.append([tmplan, "ACTION", p[2], robot, p[0], p[1]])
+                            tmplan = tmplan + p[2]
+
+                        new_plan = self.merge_plans(mplan, min_time, world[1], 0)
+                        if new_plan != None:
+                            worlds.append((min_time, new_plan))
+                        
+                
+        if best_world:
+            return best_world[1], best_world[0]
+
+        return None, None
+
+    def back_fill_plan(self, plan, robot):
+        time_blocks = []
+        for step in plan:
+            if (step[1] == "BLOCK" or step[1] == "ACTION") and step[3] == robot:
+                time_blocks.append((step[0], step[2]))
+        time_blocks.sort(key=lambda x: x[0])
+
+        last_block = (0, 0)
+        plan_clone = [x for x in plan]
+        for block in time_blocks:
+            gap = block[0] - last_block[0] - last_block[1]
+            if gap > 0:
+                plan_clone.append([last_block[0] + last_block[1], "BLOCK", gap, robot])
+            last_block = block
+
+        plan_clone.sort(key=lambda x: x[0])
+        return plan_clone
+
+    def plan_print(self):
+        code_exc = [c.copy() for c in self.code_exc]
+
+        plan = []
+
+        #Try to plan for each of the execs, use the first one, then fill until
+        #a plan is made.
+        for prog in code_exc:
+            prog_time = 0
+            while True:
+                plan.sort(key = lambda x: x[0])
+                goal = prog.execute(self.generate_world(plan, prog_time))
+                plan.append((prog_time, "EXEC", prog.uid, prog.get_hash_state()))
+                if type(goal) == dict:
+                    plan, prog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
+                    if plan == None and prog_time == None: #TODO: be smart about this case
+                        print "We failed to plan to"
+                        print goal
+                        return False
+                    for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
+                    prog.set_plan_executed(True)
+                elif goal == True or goal == False:
+                    break
+
+        print
+        print "Final plan steps:"
+        for i in plan:
+            print i
+        
+        return plan
+        
 
 
 class BlastCodeExec(object):
-    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed']
+    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots']
 
     def get_hash_state(self, hl = None):
         if not hl:
@@ -867,8 +427,9 @@ class BlastCodeExec(object):
         return c.execute(w)
         
 
-    def __init__(self, uid, code, labels = None, environments = None, plan_e = False):
+    def __init__(self, uid, code, robots, labels = None, environments = None, plan_e = False):
         self.uid = uid
+        self.robots = robots
         #Translate all the code
         self.code = code
         self.plan_executed = plan_e
@@ -891,7 +452,7 @@ class BlastCodeExec(object):
             self.environments = [[0, self.code, self.labels, {}],]
 
     def copy(self):
-        return BlastCodeExec(self.uid, self.code, self.labels, self.environments, self.plan_executed)
+        return BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed)
 
     def __str__(self):
         if self.done():
@@ -996,9 +557,9 @@ class BlastPlannableWorld:
         self.code_exec = []
         self.code_exec_uid = 0
 
-    def append_plan(self, code, wait_for_plan = True):
+    def append_plan(self, code, robots, wait_for_plan = True):
         self.lock.acquire()
-        exc = BlastCodeExec(self.code_exec_uid, code)
+        exc = BlastCodeExec(self.code_exec_uid, code, robots)
         self.code_exec_uid = self.code_exec_uid + 1
         self.code_exec.append(exc)
         self.needs_replan = True
@@ -1651,7 +1212,7 @@ def overplan():
                                                               'label_true': "success", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),
-                       ], False)
+                       ], ["stair5",], False)
     
     #Make stair5 tuck arms but order stair4 to move into position before it can happen
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {'world_limits': 
@@ -1665,7 +1226,7 @@ def overplan():
                                                               'label_true': "success", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),
-                       ], False)
+                       ], ["stair4", "stair5",], False)
 
     world.try_exec()
 
