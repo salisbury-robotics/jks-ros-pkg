@@ -204,7 +204,7 @@ class BlastError(Exception):
 
 class BlastAction(object):
     __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate',
-                 'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces']
+                 'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces', 'is_object_action']
 
     def to_dict(self):
         return {"name": self.name, "parameters": self.parameters, "condition": self.condition, 
@@ -230,6 +230,7 @@ class BlastAction(object):
         self.condition = condition
         self.workspaces = workspaces
         self.failure_modes = fm
+        self.is_object_action = False
 
         if "robot" in self.parameters:
             raise BlastTypeError("A parameter cannot be called 'robot' in " + name)
@@ -305,6 +306,8 @@ class BlastAction(object):
                 if not (var.split(".")[0] in surface_parameters and var.split(".")[1] == "scan"):
                     self.validate("Invalid expression for variable " + var + " in " + name + " for mode: " + mode,
                                   changes[var])
+                if var.find("robot.holders.") == 0 or var.split(".")[1] == "scan":
+                    self.is_object_action = True
 
         self.planable = planable
         self.user = user
