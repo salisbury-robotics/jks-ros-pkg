@@ -60,20 +60,6 @@ def all_combinations(c, min, len):
         for i in itertools.combinations(c, r):
             yield i
 
-def get_action_workspaces(robot, action, parameters):
-    return {}
-
-def get_workspaces(actions, time):
-    surfaces = {}
-    for action in action:
-        if action[0] <= time and action[0] + action[1] >= time and action[2]:
-            sr = get_action_workspaces(action[2][0], action[2][1], action[2][2])
-            for s, vs in sr.iteritems():
-                surfaces[s] = surfaces.get(s, set())
-                for v in vs:
-                    surfaces[s].add(v)
-    return surfaces
-
 
 class Planner(object):
     def __init__(self, initial_world, code_exc):
@@ -81,6 +67,23 @@ class Planner(object):
         self.code_exc = code_exc
 
         self.point_plans = {}
+
+    def get_action_workspaces(self, robot, action, parameters):
+        return self.initial_world.get_workspaces(robot, action, parameters)
+
+    def get_workspaces(self, actions, time):
+        surfaces = {None: set()}
+        for action in actions:
+            if action[1] != "ACTION": continue
+            if action[0] <= time and action[0] + action[2] > time:
+                sr, loc = self.get_action_workspaces(action[3], action[4], action[5])
+                for s, vs in sr.iteritems():
+                    surfaces[s] = surfaces.get(s, set())
+                    for v in vs:
+                        surfaces[s].add(v)
+                for l in loc:
+                    surfaces[None].add(l)
+        return surfaces
 
 
     def motion_plan_state(self, robot_name, w):
@@ -230,10 +233,29 @@ class Planner(object):
                 if step_a[0] + step_a[2] <= step_b[0]: continue #Step is before or they meet
                 if step_b[0] + step_b[2] <= step_a[0]: continue #Step is after or they meet
                 #print step_a, step_b
-                return None #We have two robots trying to do stuff at the same time
+                return None #We have a robot trying to do two actions at the same time
 
         #TODO: check work space overlap
-
+        times = set([])
+        for step in plan_a + plan_b:
+            times.add(step[0])
+            if step[1] == "ACTION" or step[1] == "BLOCK":
+                times.add(step[2])
+        times = list(times)
+        times.sort()
+        for timestep in times:
+            splan_a = self.get_workspaces(plan_a, timestep)
+            splan_b = self.get_workspaces(plan_b, timestep)
+            for plan_a_sn in splan_a.iterkeys():
+                if plan_a_sn != None:
+                    if plan_a_sn in splan_b: return None
+            for plan_b_sn in splan_a.iterkeys():
+                if plan_b_sn != None:
+                    if plan_b_sn in splan_a: return None
+            for item_a in splan_a[None]:
+                for item_b in splan_b[None]:
+                    if item_a.equal(item_b):
+                        return None
         return sorted(plan_a + plan_b, key=lambda x: x[0])
         
     def plan_to_prog(self, plan, robots, start_time, goal):
