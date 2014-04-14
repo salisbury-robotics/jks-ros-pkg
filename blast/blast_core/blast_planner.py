@@ -171,12 +171,8 @@ class Planner(object):
     #(time, "EXEC", program_uid, end_state)
     #(time, "ACTION", length, robot, action, parameters)    runs through [time, time+length)
     #(time, "BLOCK", length, robot) runs through [time, time+length)
-
-    def plan_workspaces(self, plan):
-        ws = []
-        return ws
-
-
+    
+    
     def generate_world(self, plan, at_time):
         steps = []
         for step in plan:
@@ -435,13 +431,13 @@ class BlastCodeExec(object):
             hl = hashlib.sha224()
             self.get_hash_state(hl)
             return hl.digest()
-        hl.update(str(self.uid) + str(id(self.code)))
+        hl.update(str(self.uid))
         if self.done():
             hl.update(str(self.environments))
             return
         hl.update(str(self.plan_executed))
         for e in self.environments:
-            hl.update(str(e))
+            hl.update(str((e[0], e[3])))
 
     def get_next_plan(self, w):
         c = self.copy()
