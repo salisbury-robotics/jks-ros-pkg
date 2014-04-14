@@ -365,11 +365,9 @@ class Planner(object):
                         new_plan = self.merge_plans(mplan, min_time, world[1], 0)
                         if new_plan != None:
                             worlds.append((min_time, new_plan))
-                        
-                
+        
         if best_world:
             return best_world[1], best_world[0]
-
         return None, None
 
     def back_fill_plan(self, plan, robot):
@@ -404,14 +402,17 @@ class Planner(object):
                 goal = prog.execute(self.generate_world(plan, prog_time))
                 plan.append((prog_time, "EXEC", prog.uid, prog.get_hash_state()))
                 if type(goal) == dict:
-                    plan, prog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
-                    if plan == None and prog_time == None: #TODO: be smart about this case
-                        print "We failed to plan to"
-                        print goal
-                        return False
+                    newplan, newprog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
+                    r = True
+                    if newplan == None and newprog_time == None:
+                        r = False
+                    else:
+                        plan = newplan
+                        prog_time = newprog_time
                     for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
-                    prog.set_plan_executed(True)
+                    prog.set_plan_executed(True, r)
                 elif goal == True or goal == False:
+                    print goal
                     break
 
         print
@@ -424,7 +425,7 @@ class Planner(object):
 
 
 class BlastCodeExec(object):
-    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots']
+    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res']
 
     def get_hash_state(self, hl = None):
         if not hl:
@@ -436,6 +437,7 @@ class BlastCodeExec(object):
             hl.update(str(self.environments))
             return
         hl.update(str(self.plan_executed))
+        hl.update(str(self.plan_res))
         for e in self.environments:
             hl.update(str((e[0], e[3])))
 
@@ -445,12 +447,13 @@ class BlastCodeExec(object):
         return c.execute(w)
         
 
-    def __init__(self, uid, code, robots, labels = None, environments = None, plan_e = False):
+    def __init__(self, uid, code, robots, labels = None, environments = None, plan_e = False, plan_r = False):
         self.uid = uid
         self.robots = robots
         #Translate all the code
         self.code = code
         self.plan_executed = plan_e
+        self.plan_res = plan_r
         if labels:
             self.labels = labels
         else:
@@ -470,7 +473,7 @@ class BlastCodeExec(object):
             self.environments = [[0, self.code, self.labels, {}],]
 
     def copy(self):
-        return BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed)
+        return BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res)
 
     def __str__(self):
         if self.done():
@@ -490,18 +493,26 @@ class BlastCodeExec(object):
         if type(p) == dict:
             o = {}
             for n, v in p.iteritems():
-                o[n] = self.paste_parameters(v, env)
+                o[self.paste_parameters(n, env)] = self.paste_parameters(v, env)
             return o
         if type(p) == list:
             return [self.paste_parameters(v, env) for v in p]
         if type(p) == tuple:
             return tuple([self.paste_parameters(v, env) for v in p])
         if type(p) == blast_world.BlastParameterPtr:
-            return env.get(p.parameter)
+            r = env.get(p.parameter)
+            if p.sub != None:
+                r = r.split(".")[p.sub]
+            if p.prefix != None:
+                r = p.prefix + str(r)
+            if p.postfix != None:
+                r = str(r) + p.postfix
+            return r
         return p
 
-    def set_plan_executed(self, p):
+    def set_plan_executed(self, p, plan_res = False):
         self.plan_executed = p
+        self.plan_res = plan_res
 
     def done(self):
         if self.environments == False or self.environments == True:
@@ -520,10 +531,11 @@ class BlastCodeExec(object):
         params = self.paste_parameters(ps.parameters, next_step[3])
         #print next_step
         #print params
+        #print ps.command, params
         if ps.command == "PLAN":
             if self.plan_executed:
                 if ps.return_var:
-                    next_step[3][ps.return_var] = self.plan_executed
+                    next_step[3][ps.return_var] = self.plan_res
                 self.plan_executed = False
                 next_step[0] = next_step[0] + 1
                 return self.execute(world)
@@ -552,7 +564,28 @@ class BlastCodeExec(object):
             if len(self.environments) == 1:
                 self.environments = (ps.command == "RETURN")
             else:
-                raise blast_world.BlastCodeError("Return is not yet supported for subroutines")
+                self.environments = self.environments[:-1]
+                substep = self.environments[-1][1][self.environments[-1][0]] #Find the CALLSUB
+                self.environments[-1][3][substep.return_var] = (ps.command == "RETURN") #Set return
+                self.environments[-1][0] = self.environments[-1][0] + 1 #Increment the instruction pointer
+            return self.execute(world)
+        elif ps.command == "CALLSUB":
+            sub = params['sub']
+            code = world.types.script
+            labels = world.types.script_indexes
+            if sub in next_step[2]:
+                code = next_step[1]
+                labels = next_step[2]
+            ptr = labels[sub]
+
+            startsub = code[ptr]
+
+            for name, ptype in startsub.parameters.iteritems():
+                if name not in ps.parameters:
+                    raise blast_world.BlastCodeError("Missing parameter '" + name + "'")
+            pc = params.copy()
+            del pc['sub']
+            self.environments.append([ptr + 1, code, labels, pc])
             return self.execute(world)
         else:
             raise blast_world.BlastCodeError("We don't support '" + ps.command + "'")
@@ -1192,18 +1225,30 @@ def multi_robot_test():
     world_i.take_action("stair5", "tuck-both-arms", {}) #To debug with arms tucked.
     world = BlastPlannableWorld(world_i)
 
-    print "-"*180
-    print world.world.to_text()
-    print "-"*180
+    #print "-"*180
+    #print world.world.to_text()
+    #print "-"*180
 
+    world.append_plan([blast_world.BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "coffee_cup",
+                                                                   'holder': 'stair4.cupholder'}, 'plan_return'),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                                                              'label_true': "success", 'label_false': 'failure'}),
+                       blast_world.BlastCodeStep("success", "RETURN"),
+                       blast_world.BlastCodeStep("failure", "FAIL"),],
+                      ["stair4", "stair5",], False)
     
-    r = world.plan_hunt("stair4", "cupholder", "coffee_cup")
+    #r = world.plan_hunt("stair4", "cupholder", "coffee_cup")
 
-    print "-"*180
-    print world.world.to_text()
-    print "-"*180
+    world.try_exec()
+
+    #print "-"*180
+    #print world.world.to_text()
+    #print "-"*180
     
-    return r
+    return False
+
+
+
     
 def overplan():
     
@@ -1261,5 +1306,5 @@ def overplan():
 if __name__ == '__main__':
     #print coffee_hunt_test()
     #print run_test()
-    #print multi_robot_test()
-    print overplan()
+    print multi_robot_test()
+    #print overplan()

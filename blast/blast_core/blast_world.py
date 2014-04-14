@@ -25,12 +25,15 @@ class BlastCodeError(Exception):
         return repr(self.value)
 
 class BlastParameterPtr(object):
-    def __init__(self, parameter, prefix = None, postfix = None):
+    def __init__(self, parameter, sub = None, prefix = None, postfix = None):
         self.parameter = parameter
+        self.sub = sub
         self.prefix = prefix
         self.postfix = postfix
     def __str__(self):
-        return "ParameterPtr(\"" + str(self.parameter) + "\")"
+        sub = ""
+        if self.sub != None: sub = ", " + str(self.sub)
+        return "ParameterPtr(\"" + str(self.parameter) + sub + "\")"
     def __repr__(self): return self.__str__()
 
 
@@ -121,7 +124,7 @@ class BlastCodeStep(object):
             if label.strip() == "":
                 raise BlastCodeError("Need a label for STARTSUB")
         elif command == "CALLSUB":
-            self.acceptable_parameters(['sub'])
+            #self.acceptable_parameters(['sub'], False)
             if not "sub" in parameters:
                 raise BlastCodeError("Need 'sub' in parameters of CALLSUB")
             parameters['sub'] = str(parameters["sub"]).strip()
@@ -157,14 +160,14 @@ class BlastCodeStep(object):
             
 
 
-hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'robot': 'Robot', 'string': 'holder', 'object_types': 'string'}),
+hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_types': 'string'}),
         #Try to grab currently existing objects. This is assumed to fail
         BlastCodeStep(None, "PLAN", {'world_limits': 
-                                     {'robot_holders': {BlastParameterPtr('robot'):
-                                                            {BlastParameterPtr('holder'): BlastParameterPtr('object_types', 'TYPES:')}}},
+                                     {'robot-holders': {BlastParameterPtr('holder', 0):
+                                                            {BlastParameterPtr('holder', 1): BlastParameterPtr('object_types', prefix='TYPES:')}}},
                                      'assume_failure': True}, "plan_return"),
-        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': True}),
-
+        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': 'win_hunt'}),
+        
         BlastCodeStep(None, 'SCAN', {'consider': True, "reset": BlastParameterPtr('object_types')}),
 
         BlastCodeStep("scan_loop", 'SCAN_STATE', {'types': BlastParameterPtr('object_types')}, "n_scans_done"),
@@ -175,14 +178,15 @@ hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'robot': 'Robot', 'string': '
                                                 {'scans': [(BlastParameterPtr('object_types'), '>', 
                                                            BlastParameterPtr('n_scans_max')),]}}, 'plan_return'),
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
-                                   'label_true': 'scan_loop', 'label_false': False}),
+                                   'label_true': 'scan_loop', 'label_false': 'fail_hunt'}),
         #End main loop
         BlastCodeStep('exit_function', "PLAN", {'world_limits':
                                                     {'scans': [(BlastParameterPtr('object_types'), '>', 
                                                                 BlastParameterPtr('n_scans_max')),]},
                                                 'assume_failure': True}, 'plan_return'),
-        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': True}),
-        BlastCodeStep(None, 'FAIL'),
+        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': 'win_hunt'}),
+        BlastCodeStep('fail_hunt', 'FAIL'),
+        BlastCodeStep('win_hunt', 'RETURN'),
         BlastCodeStep(None, 'ENDSUB'),
         ]
 
