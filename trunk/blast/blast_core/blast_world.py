@@ -168,7 +168,7 @@ hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_t
                                      'assume_failure': True}, "plan_return"),
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': 'win_hunt'}),
         
-        BlastCodeStep(None, 'SCAN', {'consider': True, "reset": BlastParameterPtr('object_types')}),
+        BlastCodeStep(None, 'SCAN', {"reset": BlastParameterPtr('object_types')}),
 
         BlastCodeStep("scan_loop", 'SCAN_STATE', {'types': BlastParameterPtr('object_types')}, "n_scans_done"),
         BlastCodeStep(None, 'SCAN_MAX', {'types': BlastParameterPtr('object_types')}, "n_scans_max"),
@@ -176,7 +176,7 @@ hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_t
                                    'label_true': 'scan_next', 'label_false': 'exit_function'}),
         BlastCodeStep('scan_next', "PLAN", {'world_limits':
                                                 {'scans': [(BlastParameterPtr('object_types'), '>', 
-                                                           BlastParameterPtr('n_scans_max')),]}}, 'plan_return'),
+                                                           BlastParameterPtr('n_scans_done')),]}}, 'plan_return'),
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
                                    'label_true': 'scan_loop', 'label_false': 'fail_hunt'}),
         #End main loop
@@ -1033,7 +1033,7 @@ class BlastWorld(object):
         self.surfaces_hash_state = None
         self.objects_hash_state = None
         self.sumh = None
-        self.consider_scan = False
+        self.consider_scan = True #TODO: turning this off might make things more efficient.
         self.copy_on_write_optimize = True
 
     def enumerate_robot(self, robot):
@@ -1046,12 +1046,12 @@ class BlastWorld(object):
         self.gc_objects()
         return True
 
-    def clear_scan(self):
+    def clear_scan(self, to_value = {}):
         for sn in self.surfaces_keysort:
             if len(self.surfaces[sn].scan) != 0:
                 if self.copy_on_write_optimize:
                     self.surfaces[sn] = self.surfaces[sn].copy()
-                self.surfaces[sn].scan = set()
+                self.surfaces[sn].scan = to_value.get(sn, set()).copy()
                 self.clear_hash("surfaces")
 
     def scan_count(self, ot):
@@ -1061,6 +1061,19 @@ class BlastWorld(object):
                 c = c + 1
         return c
 
+    def get_scan_actions_surfaces(self):
+        result_dir = {}
+        for at_name, at in self.types.actions.iteritems():
+            for var, value in at.changes.iteritems():
+                if var.find(".scan") != 0 and var.find(".") == var.find(".scan"):
+                    varname = var.split(".")[0]
+                    stype = at.parameters[varname].strip().split(":")[1].strip()
+                    result_dir[stype] = result_dir.get(stype, {})
+                    for ot in value.split(","):
+                        s = result_dir[stype].get(ot, set())
+                        s.add(at_name)
+                        result_dir[stype][ot] = s
+        return result_dir
 
     def get_scan_actions(self):
         result_dir = {}
@@ -1090,7 +1103,26 @@ class BlastWorld(object):
     def get_obj(self, uid):
         return self.objects.get(uid)
 
+    def get_scan_state(self):
+        ss = {}
+        for name, surface in self.surfaces.iteritems():
+            ss[name] = surface.scan.copy()
+        return ss
+
+    def count_surface_scans(self, ots):
+        count = 0
+        for name, surface in self.surfaces.iteritems():
+            good = True
+            for ot in ots:
+                if not ot in surface.scan:
+                    good = False
+            if good: count = count + 1
+        return count
     def world_limit_check(self, limits):
+        acceptable = set(["robot-holders", "robot-location", 'scans'])
+        for l in limits:
+            if l not in acceptable:
+                raise BlastCodeError("Bad limit parameter: " + str(l) + " in " + str(limits))
         if "robot-holders" in limits:
             for robot_name, values in limits["robot-holders"].iteritems():
                 if not robot_name in self.robots:
@@ -1114,7 +1146,17 @@ class BlastWorld(object):
                     pt = BlastPt(value['x'], value['y'], value['a'], value['map'])
                 if not self.robots[robot_name].location.equal(pt):
                     return False
-        
+        if "scans" in limits:
+            for s in limits['scans']:
+                if len(s) != 3:
+                    raise BlastCodeError("Invalid settings to scan limits for: " + str(s) + " need object type, (<,>,>=,<=,==) and number.")
+                val = self.count_surface_scans([p.strip() for p in s[0].split(",")])
+                cm = int(s[2])
+                if s[1] == '==' and (not (cm == val)): return False
+                if s[1] == '<=' and (not (cm <= val)): return False
+                if s[1] == '>=' and (not (cm >= val)): return False
+                if s[1] == '>' and (not (cm > val)): return False
+                if s[1] == '<' and (not (cm < val)): return False
         return True
 
     def get_robot_holder(self, robot, holder):

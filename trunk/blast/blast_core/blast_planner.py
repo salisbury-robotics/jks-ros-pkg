@@ -63,7 +63,7 @@ def all_combinations(c, min, len):
 
 class Planner(object):
     def __init__(self, initial_world, code_exc):
-        self.initial_world = initial_world
+        self.initial_world = initial_world.copy()
         self.code_exc = code_exc
 
         self.point_plans = {}
@@ -468,9 +468,9 @@ class BlastCodeExec(object):
             if environments == True or environments == False:
                 self.environments = environments
             else:
-                self.environments = [[gp, cb, lb, vs.copy()] for gp, cb, lb, vs in environments]
+                self.environments = [[gp, cb, lb, vs.copy(), sc.copy()] for gp, cb, lb, vs, sc in environments]
         else:
-            self.environments = [[0, self.code, self.labels, {}],]
+            self.environments = [[0, self.code, self.labels, {}, {}],]
 
     def copy(self):
         return BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res)
@@ -531,23 +531,57 @@ class BlastCodeExec(object):
         params = self.paste_parameters(ps.parameters, next_step[3])
         #print next_step
         #print params
-        #print ps.command, params
+        print ps.command, params
         if ps.command == "PLAN":
             if self.plan_executed:
                 if ps.return_var:
                     next_step[3][ps.return_var] = self.plan_res
                 self.plan_executed = False
                 next_step[0] = next_step[0] + 1
+                next_step[4] = world.get_scan_state() #Get the scan state out of the planner
                 return self.execute(world)
             else:
+                world.clear_scan(next_step[4]) #Set back the scan so planning runs with our scans
                 return params
         elif ps.command == "IF":
             def condition_eval(c):
                 if type(c) == bool:
                     return c
-                e = [condition_eval(x) for x in c[1:]]
-                print e
-            if condition_eval(params["condition"]):
+                if type(c) == int or type(c) == float or type(c) == long or type(c) == str:
+                    return c
+                if type(c) == tuple or type(c) == list:
+                    if len(c) == 0:
+                        raise blast_world.BlastCodeError("Invalid code condition: " + str(c))
+                    math_operators = {"<=": 2, ">=": 2, ">": 2, "<": 2, "==": -2, "+": -1, "-": 2, "/": 2, "*": -1}
+                    operators = math_operators.copy()
+                    if c[0] in operators:
+                        if operators[c[0]] >= 0:
+                            if len(c) != operators[c[0]] + 1:
+                                raise blast_world.BlastCodeError("Invalid code condition arguments to '" + c[0] 
+                                                                 + "': " + str(c) + " -> " + str(len(c)-1) 
+                                                                 + " should be " + str(operators[c[0]]))
+                        else:
+                            if len(c) < -operators[c[0]] + 1:
+                                raise blast_world.BlastCodeError("Invalid code condition arguments to '" + c[0] 
+                                                                 + "': " + str(c) + " -> " + str(len(c)-1) 
+                                                                 + " should be at least " + str(-operators[c[0]]))
+                        if c[0] in math_operators:
+                            for p in c[1:]:
+                                if not (type(p) == int or type(p) == float or type(p) == long):
+                                    raise blast_world.BlastCodeError("Invalid code condition arguments to '" + c[0] 
+                                                                     + "': must be int, float, or long: '" + str(p) + "'"
+                                                                     + " not " + str(type(p)))
+                        if c[0] == ">=": return c[1] >= c[2]
+                        if c[0] == "<=": return c[1] <= c[2]
+                        if c[0] == "<": return c[1] < c[2]
+                        if c[0] == ">": return c[1] > c[2]
+
+                        
+                raise blast_world.BlastCodeError("Invalid code condition: " + str(c))
+            cr = condition_eval(params["condition"])
+            if cr != True and cr != False:
+                raise blast_world.BlastCodeError("Invalid code condition result: " + str(c) + " returned " + str(cr))
+            if cr:
                 if params['label_true'] in next_step[2]:
                     next_step[0] = next_step[2][params['label_true']]
                 else:
@@ -569,6 +603,66 @@ class BlastCodeExec(object):
                 self.environments[-1][3][substep.return_var] = (ps.command == "RETURN") #Set return
                 self.environments[-1][0] = self.environments[-1][0] + 1 #Increment the instruction pointer
             return self.execute(world)
+        elif ps.command == "SCAN":
+            ot = params.get('reset', [])
+            if type(ot) != list and type(ot) != set:
+                ot = str(ot).split(",")
+            for surface, items in next_step[4].iteritems():
+                ni = []
+                change = False
+                for i in items:
+                    if i not in ot:
+                        ni.append(i)
+                    else:
+                        change = True
+                if change:
+                    next_step[4][surface] = set(items)
+            next_step[0] = next_step[0] + 1
+            return self.execute(world)
+        elif ps.command == "SCAN_STATE":
+            if not ps.return_var:
+                raise blast_world.BlastCodeError("SCAN_STATE has no return variable")
+            ot = params.get('types', [])
+            if type(ot) != list and type(ot) != set:
+                ot = str(ot).split(",")
+            scanned = 0
+            for surface, items in next_step[4].iteritems():
+                good = True
+                for oti in ot:
+                    if oti not in items: good = False
+                if good:
+                    scanned = scanned + 1
+            next_step[3][ps.return_var] = scanned
+            next_step[0] = next_step[0] + 1
+            return self.execute(world)
+        elif ps.command == "SCAN_MAX": #TODO: this returns all scannable surfaces, but some might be unscannable if a robot cannot access them
+            if not ps.return_var:
+                raise blast_world.BlastCodeError("SCAN_STATE has no return variable")
+            ot = params.get('types', [])
+            if type(ot) != list and type(ot) != set:
+                ot = str(ot).split(",")
+
+            sa = world.get_scan_actions_surfaces()
+            r = 0
+            for name, surface in world.surfaces.iteritems():
+                otf = set()
+                for robot in self.robots:
+                    ctype = world.robots[robot].robot_type
+                    while ctype:
+                        for otype, actions in sa.get(surface.surface_type.name, {}).iteritems():
+                            for action in actions:
+                                if action.split(".")[0] == ctype.name:
+                                    otf.add(otype)
+                        ctype = ctype.parent
+                good = True
+                for oti in ot:
+                    if oti not in otf:
+                        good = False
+                if good: r = r + 1
+    
+            next_step[3][ps.return_var] = r
+            next_step[0] = next_step[0] + 1
+            return self.execute(world)
         elif ps.command == "CALLSUB":
             sub = params['sub']
             code = world.types.script
@@ -585,7 +679,17 @@ class BlastCodeExec(object):
                     raise blast_world.BlastCodeError("Missing parameter '" + name + "'")
             pc = params.copy()
             del pc['sub']
-            self.environments.append([ptr + 1, code, labels, pc])
+            self.environments.append([ptr + 1, code, labels, pc, {}])
+            return self.execute(world)
+        elif ps.command == "GOTO":
+            sub = params['label']
+            code = world.types.script
+            labels = world.types.script_indexes
+            if sub in next_step[2]:
+                code = next_step[1]
+                labels = next_step[2]
+            ptr = labels[sub]
+            next_step[0] = ptr
             return self.execute(world)
         else:
             raise blast_world.BlastCodeError("We don't support '" + ps.command + "'")
