@@ -2,6 +2,7 @@
 import math
 import hashlib
 import json
+import cspsolver
 
 T_STEP = 1000 #'s of a second.
 
@@ -385,8 +386,11 @@ class BlastWorldTypes(object):
         self.action_for_robot_cache = {}
         self.add_script(hunt)
 
-    def enumerate_robot(self, robot):
-        rc = self.robot_action_cache.get(robot, None)
+    def enumerate_robot(self, robot, require_object = False):
+        if require_object == False:
+            rc = self.robot_action_cache.get(robot, None)
+        else:
+            rc = None
         if rc != None:
             return rc
         types = set()
@@ -396,11 +400,14 @@ class BlastWorldTypes(object):
             rt = rt.parent
         
         actions = []
-        for name in self.actions:
+        for name, at in self.actions.iteritems():
             rt = name.split(".")
             if rt[0] in types:
-                actions.append(rt[1])
-        self.robot_action_cache[robot] = actions
+                if require_object == False or at.is_object_action:
+                    if at.planable:
+                        actions.append(rt[1])
+        if require_object == False:
+            self.robot_action_cache[robot] = actions
         return actions
 
     def add_script(self, s):
@@ -737,6 +744,7 @@ class BlastSurface(object):
 
 
     def hash_update(self, hl, get_obj, consider_scan):
+        consider_scan = True #Hack
         for name in self.locations_keysort:
             hl.update(name)
             self.locations[name].hash_update(hl)
@@ -1036,8 +1044,8 @@ class BlastWorld(object):
         self.consider_scan = True #TODO: turning this off might make things more efficient.
         self.copy_on_write_optimize = True
 
-    def enumerate_robot(self, robot):
-        return self.types.enumerate_robot(self.robots[robot].robot_type.name)
+    def enumerate_robot(self, robot, require_object = False):
+        return self.types.enumerate_robot(self.robots[robot].robot_type.name, require_object = require_object)
 
     def delete_surface_object(self, obj):
         if self.copy_on_write_optimize:
@@ -1150,8 +1158,8 @@ class BlastWorld(object):
             for s in limits['scans']:
                 if len(s) != 3:
                     raise BlastCodeError("Invalid settings to scan limits for: " + str(s) + " need object type, (<,>,>=,<=,==) and number.")
-                val = self.count_surface_scans([p.strip() for p in s[0].split(",")])
-                cm = int(s[2])
+                cm = self.count_surface_scans([p.strip() for p in s[0].split(",")])
+                val = int(s[2])
                 if s[1] == '==' and (not (cm == val)): return False
                 if s[1] == '<=' and (not (cm <= val)): return False
                 if s[1] == '>=' and (not (cm >= val)): return False
@@ -1529,30 +1537,14 @@ class BlastWorld(object):
                             break
                     if not in_region: return False
             return True
-    
-    def take_action(self, robot_name, action, parameters, execute = True, debug = False, failure_mode = None):
-        if debug: print robot_name, action, parameters
 
-        location_do_not_cares = set()
-        
-        #Get the robot
-        robot = self.robots.get(robot_name)
-        if not robot:
-            if debug: print "Invalid robot:", robot_name
-            return None, None
-        
-        #Get action type
-        action_robot_type, action_type = self.types.get_action_for_robot(robot.robot_type, action)
-        if not action_robot_type or not action_type:
-            if debug:
-                print "Could not find the action type", action, "for", robot.robot_type
-            return None, None
-
+    def clean_parameters(self, action_type, parameters, debug, accept_unset = False):
         #Ensure that we have all the proper parameters and convert strings to locations
         clone_param = False
         surface_parameters = set()
         for name, ptype in action_type.parameters.iteritems():
             if not name in parameters:
+                if accept_unset: continue
                 if debug: print "Parameter", name, "unspecified"
                 return None, None
             if ptype == "Pt" or ptype.find("Location:") == 0:
@@ -1592,9 +1584,122 @@ class BlastWorld(object):
                         parameters[name] = BlastObjectRef(parameters[name])
                     else:
                         if debug: print "Invalid surface object:", parameters[name]
-                        return None, None 
-                    
-                
+                        return None, None
+        return parameters, surface_parameters
+
+    def action_robot_pose(self, robot_name, action, parameters):
+        debug = True
+        accept_unset = False
+        #Get the robot
+        robot = self.robots.get(robot_name)
+        if not robot:
+            if debug: print "Invalid robot:", robot_name
+            return None
+        
+        #Get action type
+        action_robot_type, action_type = self.types.get_action_for_robot(robot.robot_type, action)
+        if not action_robot_type or not action_type:
+            if debug:
+                print "Could not find the action type", action, "for", robot.robot_type
+            return None
+        
+        parameters, surface_parameters = self.clean_parameters(action_type, parameters, debug, accept_unset = True)
+        if parameters == None or surface_parameters == None: return None
+
+        csp_var = 0
+        csp = [("var_0", "==", True), ]
+
+        all_locations = [robot.location ]
+
+        for pname, ptype in action_type.parameters.iteritems():
+            if ptype == "Pt" or ptype.find("Location:") == 0:
+                #FIXME LOCATION
+                csp.append((pname, "==", all_locations))
+            elif ptype.find("Surface:") == 0:
+                st = ptype.split(":")[1]
+                ss = []
+                for n, s in self.surfaces.iteritems():
+                    if s.surface_type.name == st:
+                        ss.append(s)
+                csp.append((pname, "==", ss))
+            elif ptype.find("SurfaceObject:") == 0:
+                csp.append((pname, "surfaceobject", ptype.split(":")[1]))
+            elif ptype.find("Pos:") == 0:
+                txt = ptype.split(":")[1].split(",")
+                csp.append((pname, "pos", txt[0].strip(), txt[1].strip()))
+            else:
+                raise Exception("Invalid parameter type: " + str(ptype) + " for " + str(pname))
+            
+            
+
+        def eval_condition(c, csp, csp_var):
+            this_var = "var_" + str(csp_var)
+            csp_var = csp_var + 1
+            if c == "True()":
+                csp = csp + [(this_var, "==", True),]
+            elif type(c) == int or type(c) == float or type(c) == long or type(c) == bool or c == None:
+                csp = csp + [(this_var, "==", c),]
+            elif (c[0] == "contains" or c[0] == "exact-contains"
+                  or c[0] == "not-contains" or c[0] == "not-exact-contains"):
+                r = self.robot_contains_condition(robot, c)
+                csp = csp + [(this_var, "==", r),]
+            elif (c[0] == "&&" or c[0] == "||" or c[0] == "==" or c[0] == "!=" or c[0] == "not"):
+                opmap = {"&&": "&&", "||": "||", "==": "===", "!=": "!==", "not": "not"}
+                n = [this_var, opmap[c[0]]]
+                for i in xrange(1, len(c)):
+                    app_var, csp, csp_var = eval_condition(c[i], csp, csp_var)
+                    n.append(app_var)
+                csp = csp + [tuple(n), ]
+            elif c == "robot.location":
+                csp = csp + [(this_var, "==", "robot.location"),]
+            elif type(c) == str and c.split(".")[0] in action_type.parameters:
+                csp = csp + [tuple([this_var, "extract"] + c.split(".")),]
+            else:
+                raise Exception("Invalid condition: " + str(c))
+            return this_var, csp, csp_var
+            
+
+        this_var, csp, csp_var = eval_condition(action_type.condition, csp, csp_var)
+
+        #print robot_name, action, parameters
+        #for c in csp:
+        #    print c
+
+        output = []
+        for d in cspsolver.solvecsp(csp):
+            od = {}
+            pd = {}
+            for n in action_type.parameters:
+                od[n] = d[n][0]
+            for n in ['robot.location']:
+                if n in d:
+                    pd[n] = d[n][0]
+            output.append((od, pd))
+        
+        return output
+        
+
+    def take_action(self, robot_name, action, parameters, execute = True, debug = False, failure_mode = None):
+        if debug: print robot_name, action, parameters
+
+        location_do_not_cares = set()
+        
+        #Get the robot
+        robot = self.robots.get(robot_name)
+        if not robot:
+            if debug: print "Invalid robot:", robot_name
+            return None, None
+        
+        #Get action type
+        action_robot_type, action_type = self.types.get_action_for_robot(robot.robot_type, action)
+        if not action_robot_type or not action_type:
+            if debug:
+                print "Could not find the action type", action, "for", robot.robot_type
+            return None, None
+
+        
+        parameters, surface_parameters = self.clean_parameters(action_type, parameters, debug)
+        if parameters == None or surface_parameters == None: return None, None
 
         #Check all the conditions
         def get_value(value):
@@ -1792,6 +1897,8 @@ class BlastWorld(object):
                 pos = get_value(val.split(":")[1])
                 if type(pos) == type(""):
                     pos = (pos[0:pos.find(",")].strip(), pos[pos.find(",")+1:].strip())
+                if type(pos[1]) == False:
+                    pos = (pos[0], BlastPosIrr())
                 if type(pos[1]) == type(""):
                     v = [float(x.strip()) for x in pos[1].strip().strip("Pos()").strip().split(",")]
                     pos = (pos[0], BlastPos(v[0], v[1], v[2], v[3], v[4], v[5]))

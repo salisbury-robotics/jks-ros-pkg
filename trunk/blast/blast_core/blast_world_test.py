@@ -32,7 +32,7 @@ def make_test_actions():
                          "robot.holders.left-arm": "Object(\"coffee_cup\")"},
                         [("line", "robot.location", "shop.locations.end"),
                          ("icon", "shop.locations.end", "action_fs/pr2/buy-coffee/icon.png"), ],
-                        {"shop": ["shop.locations.end"]}),
+                        {"shop": ["shop.locations.end"]}, planable = False),
             BlastAction("pr2.door-blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance"),
                          ("position", "robot.torso", [0.3,]),
