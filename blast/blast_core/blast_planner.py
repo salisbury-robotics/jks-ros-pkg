@@ -182,7 +182,9 @@ class Planner(object):
         steps.sort(key = lambda x: x[0] + x[2])
         w = self.initial_world.copy()
         for step in steps:
-            w.take_action(step[3], step[4], step[5])
+            a, b = w.take_action(step[3], step[4], step[5])
+            #print step[3:], "->", a, b
+            if a == None and b == None: return None
         return w
 
 
@@ -215,7 +217,7 @@ class Planner(object):
             return rat
         return robot_action_times
 
-    def merge_plans(self, plan_a, start_plan_a, plan_b, start_plan_b):
+    def merge_plans(self, plan_a, start_plan_a, plan_b, start_plan_b, extra_step_a = None):
         #Temporarily adjust the plans.
         plan_a = [[s[0] + start_plan_a,] + list(s[1:]) for s in plan_a]
         plan_b = [[s[0] + start_plan_b,] + list(s[1:]) for s in plan_b]
@@ -231,7 +233,7 @@ class Planner(object):
                 #print step_a, step_b
                 return None #We have a robot trying to do two actions at the same time
 
-        #TODO: check work space overlap
+        #Check to ensure that the workspaces do not overlap
         times = set([])
         for step in plan_a + plan_b:
             times.add(step[0])
@@ -252,11 +254,49 @@ class Planner(object):
                 for item_b in splan_b[None]:
                     if item_a.equal(item_b):
                         return None
-        return sorted(plan_a + plan_b, key=lambda x: x[0])
+
+        #Figure out the details of the extra_action_a
+        merged_plan = sorted(plan_a + plan_b, key=lambda x: x[0])
+        if (extra_step_a):
+            if len(plan_a) > 0:
+                end_plan_a = max(plan_a, key=lambda x: x[0] + x[2])
+                end_plan_a = end_plan_a[0] + end_plan_a[2]
+            else:
+                end_plan_a = start_plan_a
+            #print "GEN"
+            w = self.generate_world(merged_plan, end_plan_a)
+            if not w: return None
+            #print extra_step_a
+            atime, b = w.take_action(extra_step_a[0], extra_step_a[1], extra_step_a[2])
+            if atime == None and b == None: return None
+            extra = [end_plan_a, "ACTION", atime] + extra_step_a
+            merged_plan.append(extra)
+            merged_plan.sort(key=lambda x: x[0])
+            #return self.merge_plans(plan_a + [extra, ], start_plan_a, plan_b, start_plan_b)
+
+        #Ensure that all actions actually can be executed. This often fails if we take an
+        #action that breaks the future world.
+        if len(merged_plan) > 0:
+            end = max(merged_plan, key=lambda x: x[0] + x[2])
+            end = end[0] + end[2]
+        else:
+            end = 0
+        if not self.generate_world(merged_plan, end):
+            return None
+        
+        return merged_plan
         
     def plan_to_prog(self, plan, robots, start_time, goal):
-        worlds = [(start_time, plan), ]
+        #Reset initial world hash, so that we are confident of it. This is not
+        #necessary but is a nice sanity insurance mechanism
+        [self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
+        self.initial_world.consider_scan = True
+        initial_hs = self.initial_world.get_hash_state()
+        
+
+        worlds = [(start_time, plan, False), ]
         planned_worlds = []
+        pw_hash = {}
 
         best_world = None
         while worlds != []:
@@ -264,8 +304,17 @@ class Planner(object):
             worlds.remove(world)
             planned_worlds.append(world)
 
-            #print world
-            
+            print 
+            print world[0]
+            for s in world[1]:
+                print s
+
+            #COMMENTED DEBUG = test if initial world has weird state
+            #[self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
+            #print "LOC", self.initial_world.robots["stair4"].location.to_text()
+            #if self.initial_world.get_hash_state() != initial_hs:
+            #    raise Exception("Something altered the initial world")
+
             #Update the time of the world - if all robots in use at
             #the time t.
             world[1].sort(key = lambda x: x[0])
@@ -288,8 +337,22 @@ class Planner(object):
                 if min_time > best_world[0]:
                     continue
 
-            
+            #Avoid duplications if we are a duplicate world later in time.
             w_start = self.generate_world(world[1], min_time)
+            if w_start == None:
+                print "Warning, world generation failed"
+                continue
+            [w_start.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
+            w_start.consider_scan = True
+            hs = w_start.get_hash_state()
+            if hs in pw_hash and not world[2]:
+                if pw_hash[hs] <= min_time:
+                    continue
+                if pw_hash[hs] > min_time:
+                    pw_hash[hs] = min_time
+            elif not hs in pw_hash:
+                pw_hash[hs] = min_time
+
 
             #Check the world validity
             world_is_valid = True
@@ -321,9 +384,16 @@ class Planner(object):
             
             if world_is_valid:
                 if world_new_plan == None: world_new_plan = world[1]
+                #If we have no best world, then this one is the best
                 if not best_world:
                     best_world = (min_time + es_time, world_new_plan)
-                if min_time < best_world[0]:
+                #If we have a best world and this one is better, then it is best
+                if min_time + es_time < best_world[0]:
+                    best_world = (min_time + es_time, world_new_plan)
+                #In the event of a tie, the one with less actions wins
+                if min_time + es_time == best_world[0] and \
+                        len(filter(lambda x: x[1] == "ACTION", best_world[1])) \
+                        > len(filter(lambda x: x[1] == "ACTION", world_new_plan)):
                     best_world = (min_time + es_time, world_new_plan)
 
 
@@ -338,7 +408,7 @@ class Planner(object):
                         if next_time == None: next_time = step[0] + step[2]
                         if step[0] + step[2] < next_time: next_time = step[0] + step[2]
             if next_time != None:
-                worlds.append((next_time, world[1]))
+                worlds.append((next_time, world[1], False))
 
             #Loop through the robots and expand all those that
             #can do things at the min_time.
@@ -364,7 +434,55 @@ class Planner(object):
 
                         new_plan = self.merge_plans(mplan, min_time, world[1], 0)
                         if new_plan != None:
-                            worlds.append((min_time, new_plan))
+                            worlds.append((min_time, new_plan, False))
+
+                #Deal with preparation for extra steps so we can execute them properly
+                if 'extra_steps' in goal:
+                    for step in goal['extra_steps']:
+                        if step[0] != robot: continue
+                        print w_start.action_robot_pose(step[0], step[1], step[2])
+                        #TODO actially do
+
+                #Loop through all actions possible
+                for action in w_start.enumerate_robot(robot, require_object = True):
+                    for parameters, state in w_start.action_robot_pose(robot, action, {}):
+                        #print action, parameters, state
+                        w_end = w_start.copy()
+                        for s, v in state.iteritems():
+                            if s == 'robot.location':
+                                w_end.robots[robot] = w_end.robots[robot].copy()
+                                w_end.robots[robot].location = v.copy()
+                                w_end.clear_hash("robots")
+                            else:
+                                raise Exception("Illegal state variable from action_robot_pose: " + s
+                                                + " in " + str(action) + " with " + str(parameters) 
+                                                + " requiring " + str(state))
+
+                        mplan = None
+                        tmplan = 0
+                        if w_end.equal(w_start):
+                            mplan = []
+                        else:
+                            motion_time, motion_plan, rt, start_hash, end_hash = self.motion_plan(robot, w_start, w_end)
+                            if motion_plan == None:
+                                mplan = None
+                            else:
+                                mplan = []
+                                tmplan = 0
+                                for p in motion_plan:
+                                    mplan.append([tmplan, "ACTION", p[2], robot, p[0], p[1]])
+                                    tmplan = tmplan + p[2]
+
+                        if mplan != None:
+                            #print mplan
+                            new_plan = self.merge_plans(mplan, min_time, world[1], 0, [robot, action, parameters])
+                            if new_plan != None:
+                               worlds.append((min_time, new_plan, False))
+                        
+                            
+                                
+
+                    
         
         if best_world:
             return best_world[1], best_world[0]
@@ -411,6 +529,7 @@ class Planner(object):
                         prog_time = newprog_time
                     for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
                     prog.set_plan_executed(True, r)
+                    print newplan
                 elif goal == True or goal == False:
                     print goal
                     break
