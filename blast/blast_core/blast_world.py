@@ -1126,6 +1126,9 @@ class BlastWorld(object):
                     good = False
             if good: count = count + 1
         return count
+
+
+    
     def world_limit_check(self, limits):
         acceptable = set(["robot-holders", "robot-location", 'scans'])
         for l in limits:
@@ -1142,7 +1145,10 @@ class BlastWorld(object):
                     if set_as != None and value == None: return False
                     if set_as == None and value != None: return False
                     if set_as != None and value != None:
-                        if int(value.uid) != int(set_as):
+                        if str(set_as).find("TYPES:") == 0:
+                            if self.get_obj(int(value.uid)).object_type.name not in set_as[len("TYPES:"):]:
+                                return False
+                        elif int(value.uid) != int(set_as):
                             return False
                     #We don't need to worry about the value == None and set_as == None case
         if "robot-location" in limits:
