@@ -285,6 +285,54 @@ class Planner(object):
             return None
         
         return merged_plan
+
+    def get_robot_min_times(self, mt, plan, robots):
+        robot_action_times = self.plan_get_robot_active_times(plan, robots)
+        min_times = {}
+        for robot in robot_action_times:
+            min_times[robot] = mt
+            for rblock in robot_action_times[robot]:
+                if rblock[0] <= mt and mt < rblock[1]:
+                    if rblock[1] > min_times[robot]:
+                        min_times[robot] = rblock[1]
+        return min_times
+        
+    def merge_motion_plan(self, w_start, w_end, robot, min_time, cplan, extra_step = None):
+        mplan = None
+        tmplan = 0
+        new_plan = None
+        if w_end.equal(w_start):
+            mplan = []
+        else:
+            motion_time, motion_plan, rt, start_hash, end_hash = self.motion_plan(robot, w_start, w_end)
+            if motion_plan == None:
+                mplan = None
+            else:
+                mplan = []
+                tmplan = 0
+                for p in motion_plan:
+                    mplan.append([tmplan, "ACTION", p[2], robot, p[0], p[1]])
+                    tmplan = tmplan + p[2]
+
+        if mplan != None:
+            #print mplan
+            new_plan = self.merge_plans(mplan, min_time, cplan, 0, extra_step)
+        return new_plan
+
+
+    def get_robot_pose_world(self, w_start, robot, action, parameters, state):
+        w_end = w_start.copy()
+        for s, v in state.iteritems():
+            if s == 'robot.location':
+                w_end.robots[robot] = w_end.robots[robot].copy()
+                w_end.robots[robot].location = v.copy()
+                w_end.clear_hash("robots")
+            else:
+                raise Exception("Illegal state variable from action_robot_pose: " + s
+                                + " in " + str(action) + " with " + str(parameters) 
+                                + " requiring " + str(state))
+        return w_end
+
         
     def plan_to_prog(self, plan, robots, start_time, goal):
         #Reset initial world hash, so that we are confident of it. This is not
@@ -304,10 +352,11 @@ class Planner(object):
             worlds.remove(world)
             planned_worlds.append(world)
 
-            print 
-            print world[0]
-            for s in world[1]:
-                print s
+            #COMMENTED DEBUG = print time and plan
+            #print 
+            #print world[0]
+            #for s in world[1]:
+            #    print s
 
             #COMMENTED DEBUG = test if initial world has weird state
             #[self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
@@ -321,14 +370,7 @@ class Planner(object):
 
             #Find the end time of all current robot actions at the
             #time specified
-            robot_action_times = self.plan_get_robot_active_times(world[1], robots)
-            min_times = {}
-            for robot in robot_action_times:
-                min_times[robot] = world[0]
-                for rblock in robot_action_times[robot]:
-                    if rblock[0] <= world[0] and world[0] < rblock[1]:
-                        if rblock[1] > min_times[robot]:
-                            min_times[robot] = rblock[1]
+            min_times = self.get_robot_min_times(world[0], world[1], robots)
 
             #Loop through the robots and expand all those that
             #can do things at the min_time.
@@ -361,14 +403,11 @@ class Planner(object):
                     if not w_start.world_limit_check(goal['world_limits']):
                         world_is_valid = False
 
-                #TODO: try extra-steps here for validity, and also
-                #exit if good world. For multiple extra-steps this
-                #introduces a rule that we cannot edit the workspaces
-                #of any of the extra-step actions during this time.
+                #Try to merge the extra-steps into the plan, if there are any
                 world_new_plan = None
                 es_time = 0
                 if 'extra_steps' in goal and world_is_valid:
-                    if len(goal['extra_steps']) != 1:
+                    if len(goal['extra_steps']) != 1: #TODO: causes issues with maining world state between actions
                         raise Exception("We don't support multiple extra steps")
 
                     es_plan = []
@@ -383,6 +422,8 @@ class Planner(object):
                     if world_new_plan == None:
                         world_is_valid = False
             
+
+                #If the world is valid, update the best_world
                 if world_is_valid:
                     if world_new_plan == None: world_new_plan = world[1]
                     #If we have no best world, then this one is the best
@@ -396,9 +437,10 @@ class Planner(object):
                             len(filter(lambda x: x[1] == "ACTION", best_world[1])) \
                             > len(filter(lambda x: x[1] == "ACTION", world_new_plan)):
                         best_world = (min_time + es_time, world_new_plan)
+                
                                 
-                #For each robot, we have to try moving to the goal,
-                #then generate all other actions
+                #For each robot, we have to try moving to the goal from world_limits.
+                #this is because it is relevant.
                 if 'world_limits' in goal and 'robot-location' in goal['world_limits'] \
                         and robot in goal['world_limits']['robot-location']:
                     target_pos = goal['world_limits']['robot-location'][robot]
@@ -406,60 +448,28 @@ class Planner(object):
                     w_end.robots[robot] = w_end.robots[robot].copy()
                     w_end.robots[robot].location = target_pos.copy()
                     w_end.clear_hash("robots")
-                    motion_time, motion_plan, rt, start_hash, end_hash = self.motion_plan(robot, w_start, w_end)
-                    if motion_plan != None and motion_plan != []:
-                        mplan = []
-                        tmplan = 0
-                        for p in motion_plan:
-                            mplan.append([tmplan, "ACTION", p[2], robot, p[0], p[1]])
-                            tmplan = tmplan + p[2]
-
-                        new_plan = self.merge_plans(mplan, min_time, world[1], 0)
-                        if new_plan != None:
-                            worlds.append((min_time, new_plan, False))
+                    new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1])
+                    if new_plan != None:
+                        worlds.append((min_time, new_plan, False))
+                    
 
                 #Deal with preparation for extra steps so we can execute them properly
                 if 'extra_steps' in goal:
                     for step in goal['extra_steps']:
                         if step[0] != robot: continue
-                        print w_start.action_robot_pose(step[0], step[1], step[2])
-                        #TODO actially do
+                        for parameters, state in w_start.action_robot_pose(step[0], step[1], step[2]):
+                            w_end = self.get_robot_pose_world(w_start, robot, step[1], parameters, state)
+                            new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, step[1], parameters])
+                            if new_plan != None:
+                                worlds.append((min_time, new_plan, False))
 
                 #Loop through all actions possible
                 for action in w_start.enumerate_robot(robot, require_object = True):
-                    for parameters, state in w_start.action_robot_pose(robot, action, {}):
-                        #print action, parameters, state
-                        w_end = w_start.copy()
-                        for s, v in state.iteritems():
-                            if s == 'robot.location':
-                                w_end.robots[robot] = w_end.robots[robot].copy()
-                                w_end.robots[robot].location = v.copy()
-                                w_end.clear_hash("robots")
-                            else:
-                                raise Exception("Illegal state variable from action_robot_pose: " + s
-                                                + " in " + str(action) + " with " + str(parameters) 
-                                                + " requiring " + str(state))
-
-                        mplan = None
-                        tmplan = 0
-                        if w_end.equal(w_start):
-                            mplan = []
-                        else:
-                            motion_time, motion_plan, rt, start_hash, end_hash = self.motion_plan(robot, w_start, w_end)
-                            if motion_plan == None:
-                                mplan = None
-                            else:
-                                mplan = []
-                                tmplan = 0
-                                for p in motion_plan:
-                                    mplan.append([tmplan, "ACTION", p[2], robot, p[0], p[1]])
-                                    tmplan = tmplan + p[2]
-
-                        if mplan != None:
-                            #print mplan
-                            new_plan = self.merge_plans(mplan, min_time, world[1], 0, [robot, action, parameters])
-                            if new_plan != None:
-                               worlds.append((min_time, new_plan, False))
+                    for parameters, state in w_start.action_robot_pose(robot, action, {}): 
+                        w_end = self.get_robot_pose_world(w_start, robot, action, parameters, state)
+                        new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, parameters])
+                        if new_plan != None:
+                            worlds.append((min_time, new_plan, False))
                         
                             
                                 
