@@ -294,7 +294,7 @@ class Planner(object):
         initial_hs = self.initial_world.get_hash_state()
         
 
-        worlds = [(start_time, plan, False), ]
+        worlds = [(start_time, plan), ]
         planned_worlds = []
         pw_hash = {}
 
@@ -323,98 +323,80 @@ class Planner(object):
             #time specified
             robot_action_times = self.plan_get_robot_active_times(world[1], robots)
             min_times = {}
-            min_time = None
             for robot in robot_action_times:
                 min_times[robot] = world[0]
                 for rblock in robot_action_times[robot]:
                     if rblock[0] <= world[0] and world[0] < rblock[1]:
                         if rblock[1] > min_times[robot]:
                             min_times[robot] = rblock[1]
-                if not min_time: min_time = min_times[robot]
-                min_time = min(min_time, min_times[robot])
-
-            if best_world: #Avoid worlds after the best is found
-                if min_time > best_world[0]:
-                    continue
-
-            #Avoid duplications if we are a duplicate world later in time.
-            w_start = self.generate_world(world[1], min_time)
-            if w_start == None:
-                print "Warning, world generation failed"
-                continue
-            [w_start.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
-            w_start.consider_scan = True
-            hs = w_start.get_hash_state()
-            if hs in pw_hash and not world[2]:
-                if pw_hash[hs] <= min_time:
-                    continue
-                if pw_hash[hs] > min_time:
-                    pw_hash[hs] = min_time
-            elif not hs in pw_hash:
-                pw_hash[hs] = min_time
-
-
-            #Check the world validity
-            world_is_valid = True
-            if 'world_limits' in goal:
-                if not w_start.world_limit_check(goal['world_limits']):
-                    world_is_valid = False
-
-            #TODO: try extra-steps here for validity, and also
-            #exit if good world. For multiple extra-steps this
-            #introduces a rule that we cannot edit the workspaces
-            #of any of the extra-step actions during this time.
-            world_new_plan = None
-            es_time = 0
-            if 'extra_steps' in goal and world_is_valid:
-                if len(goal['extra_steps']) != 1:
-                    raise Exception("We don't support multiple extra steps")
-
-                es_plan = []
-                es_time = 0
-                w_clone = w_start.copy()
-                for step in goal['extra_steps']:
-                    length, ldc = w_clone.take_action(step[0], step[1], step[2])
-                    es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
-                    es_time = es_time + length
-                
-                world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
-                if world_new_plan == None:
-                    world_is_valid = False
-            
-            if world_is_valid:
-                if world_new_plan == None: world_new_plan = world[1]
-                #If we have no best world, then this one is the best
-                if not best_world:
-                    best_world = (min_time + es_time, world_new_plan)
-                #If we have a best world and this one is better, then it is best
-                if min_time + es_time < best_world[0]:
-                    best_world = (min_time + es_time, world_new_plan)
-                #In the event of a tie, the one with less actions wins
-                if min_time + es_time == best_world[0] and \
-                        len(filter(lambda x: x[1] == "ACTION", best_world[1])) \
-                        > len(filter(lambda x: x[1] == "ACTION", world_new_plan)):
-                    best_world = (min_time + es_time, world_new_plan)
-
-
-            #Find the next step for the world
-            next_time = None
-            for step in world[1]:
-                if step[0] > min_time:
-                    if next_time == None: next_time = step[0]
-                    if step[0] < next_time: next_time = step[0]
-                if step[1] == "ACTION":
-                    if step[0] + step[2] > min_time:
-                        if next_time == None: next_time = step[0] + step[2]
-                        if step[0] + step[2] < next_time: next_time = step[0] + step[2]
-            if next_time != None:
-                worlds.append((next_time, world[1], False))
 
             #Loop through the robots and expand all those that
             #can do things at the min_time.
-            for robot in min_times:
-                if min_times[robot] != min_time: continue
+            for robot, min_time in min_times.iteritems():
+                if best_world: #Avoid worlds after the best is found
+                    if min_time > best_world[0]:
+                        continue
+
+                #Avoid duplications if we are a duplicate world later in time.
+                w_start = self.generate_world(world[1], min_time)
+                if w_start == None:
+                    print "Warning, world generation failed"
+                    continue
+                [w_start.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
+                w_start.consider_scan = True
+                hs = w_start.get_hash_state()
+                if hs in pw_hash and robot in pw_hash[hs]:
+                    if pw_hash[hs][robot] <= min_time:
+                        continue
+                    if pw_hash[hs][robot] > min_time:
+                        pw_hash[hs][robot] = min_time
+                else:
+                    pw_hash[hs] = pw_hash.get(hs, {})
+                    pw_hash[hs][robot] = min_time
+
+
+                #Check the world validity
+                world_is_valid = True
+                if 'world_limits' in goal:
+                    if not w_start.world_limit_check(goal['world_limits']):
+                        world_is_valid = False
+
+                #TODO: try extra-steps here for validity, and also
+                #exit if good world. For multiple extra-steps this
+                #introduces a rule that we cannot edit the workspaces
+                #of any of the extra-step actions during this time.
+                world_new_plan = None
+                es_time = 0
+                if 'extra_steps' in goal and world_is_valid:
+                    if len(goal['extra_steps']) != 1:
+                        raise Exception("We don't support multiple extra steps")
+
+                    es_plan = []
+                    es_time = 0
+                    w_clone = w_start.copy()
+                    for step in goal['extra_steps']:
+                        length, ldc = w_clone.take_action(step[0], step[1], step[2])
+                        es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
+                        es_time = es_time + length
                 
+                    world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
+                    if world_new_plan == None:
+                        world_is_valid = False
+            
+                if world_is_valid:
+                    if world_new_plan == None: world_new_plan = world[1]
+                    #If we have no best world, then this one is the best
+                    if not best_world:
+                        best_world = (min_time + es_time, world_new_plan)
+                    #If we have a best world and this one is better, then it is best
+                    if min_time + es_time < best_world[0]:
+                        best_world = (min_time + es_time, world_new_plan)
+                    #In the event of a tie, the one with less actions wins
+                    if min_time + es_time == best_world[0] and \
+                            len(filter(lambda x: x[1] == "ACTION", best_world[1])) \
+                            > len(filter(lambda x: x[1] == "ACTION", world_new_plan)):
+                        best_world = (min_time + es_time, world_new_plan)
+                                
                 #For each robot, we have to try moving to the goal,
                 #then generate all other actions
                 if 'world_limits' in goal and 'robot-location' in goal['world_limits'] \
