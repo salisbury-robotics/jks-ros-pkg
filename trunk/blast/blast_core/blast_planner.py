@@ -76,6 +76,7 @@ class Planner(object):
         for action in actions:
             if action[1] != "ACTION": continue
             if action[0] <= time and action[0] + action[2] > time:
+                #print time, action
                 sr, loc = self.get_action_workspaces(action[3], action[4], action[5])
                 for s, vs in sr.iteritems():
                     surfaces[s] = surfaces.get(s, set())
@@ -217,7 +218,7 @@ class Planner(object):
             return rat
         return robot_action_times
 
-    def merge_plans(self, plan_a, start_plan_a, plan_b, start_plan_b, extra_step_a = None):
+    def merge_plans(self, plan_a, start_plan_a, plan_b, start_plan_b, extra_step_a = None, debug = False):
         #Temporarily adjust the plans.
         plan_a = [[s[0] + start_plan_a,] + list(s[1:]) for s in plan_a]
         plan_b = [[s[0] + start_plan_b,] + list(s[1:]) for s in plan_b]
@@ -230,7 +231,7 @@ class Planner(object):
                 if step_b[3] != step_a[3]: continue #Different robot
                 if step_a[0] + step_a[2] <= step_b[0]: continue #Step is before or they meet
                 if step_b[0] + step_b[2] <= step_a[0]: continue #Step is after or they meet
-                #print step_a, step_b
+                if debug: print "Merge failed: robot conflict:", step_a, step_b
                 return None #We have a robot trying to do two actions at the same time
 
         #Check to ensure that the workspaces do not overlap
@@ -246,13 +247,18 @@ class Planner(object):
             splan_b = self.get_workspaces(plan_b, timestep)
             for plan_a_sn in splan_a.iterkeys():
                 if plan_a_sn != None:
-                    if plan_a_sn in splan_b: return None
-            for plan_b_sn in splan_a.iterkeys():
+                    if plan_a_sn in splan_b:
+                        if debug: print "Merge Failed: Workspace conflict at", timestep, "over surface", plan_a_sn
+                        return None
+            for plan_b_sn in splan_b.iterkeys():
                 if plan_b_sn != None:
-                    if plan_b_sn in splan_a: return None
+                    if plan_b_sn in splan_a: 
+                        if debug: print "Merge Failed: Workspace conflict at", timestep, "over surface", plan_b_sn
+                        return None
             for item_a in splan_a[None]:
                 for item_b in splan_b[None]:
                     if item_a.equal(item_b):
+                        if debug: print "Merge Failed: Workspace conflict at", timestep, "over", item_a.to_text()
                         return None
 
         #Figure out the details of the extra_action_a
@@ -265,10 +271,14 @@ class Planner(object):
                 end_plan_a = start_plan_a
             #print "GEN"
             w = self.generate_world(merged_plan, end_plan_a)
-            if not w: return None
+            if not w: 
+                if debug: print "Merge Failed: Failed to generate word for extra_step"
+                return None
             #print extra_step_a
             atime, b = w.take_action(extra_step_a[0], extra_step_a[1], extra_step_a[2])
-            if atime == None and b == None: return None
+            if atime == None and b == None: 
+                if debug: print "Merge Failed: Failed to run extra step", extra_step_a
+                return None
             extra = [end_plan_a, "ACTION", atime] + extra_step_a
             merged_plan.append(extra)
             merged_plan.sort(key=lambda x: x[0])
@@ -282,6 +292,7 @@ class Planner(object):
         else:
             end = 0
         if not self.generate_world(merged_plan, end):
+            if debug: print "Merge Failed: Failed to generate final world"
             return None
         
         return merged_plan
@@ -340,11 +351,27 @@ class Planner(object):
         [self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
         self.initial_world.consider_scan = True
         initial_hs = self.initial_world.get_hash_state()
-        
+
+        if False:
+            print
+            print
+            print
+            print '-'*100
+            print
+            print
+            for s in plan:
+                print s
+            print
 
         worlds = [(start_time, plan), ]
         planned_worlds = []
         pw_hash = {}
+
+        wl_uids = {}
+        if 'world_limits' in goal and 'place-objects' in goal['world_limits']:
+            for it in goal['world_limits']['place-objects']:
+                wl_uids[it['object'].uid] = it
+        
 
         best_world = None
         while worlds != []:
@@ -356,7 +383,7 @@ class Planner(object):
             #print 
             #print world[0]
             #for s in world[1]:
-            #    print s
+            #print s
 
             #COMMENTED DEBUG = test if initial world has weird state
             #[self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
@@ -414,13 +441,24 @@ class Planner(object):
                     es_time = 0
                     w_clone = w_start.copy()
                     for step in goal['extra_steps']:
+                        #print step
+                        #print w_clone.robots["stair4"].location.to_text(), w_clone.robots["stair4"].holders
                         length, ldc = w_clone.take_action(step[0], step[1], step[2])
+                        #print "Result -> ", length, ldc
+                        if length == None and ldc == None:
+                            es_plan = None
+                            break
                         es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
                         es_time = es_time + length
                 
-                    world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
-                    if world_new_plan == None:
+                    if es_plan == None:
                         world_is_valid = False
+                    else:
+                        #print "Attempt to merge in at", min_time, es_plan
+                        world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
+                        if world_new_plan == None:
+                            #print "Failed to merge"
+                            world_is_valid = False
             
 
                 #If the world is valid, update the best_world
@@ -451,6 +489,43 @@ class Planner(object):
                     new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1])
                     if new_plan != None:
                         worlds.append((min_time, new_plan, False))
+
+                #For each robot, we try setting down any items it is carrying that are placeable
+                if 'world_limits' in goal and 'place-objects' in goal['world_limits']:
+                    for action, locations in w_start.enumerate_robot_place(robot).iteritems():
+                        parameters = {}
+                        for l, params in locations.iteritems():
+                            if w_start.robots[robot].holders[l] == None:
+                                parameters = None
+                                break
+                            elif w_start.robots[robot].holders[l].uid in wl_uids:
+                                pos_t = wl_uids[w_start.robots[robot].holders[l].uid]
+
+                                surface = pos_t['surface']
+                                if type(surface) == blast_world.BlastSurface:
+                                    surface = surface.name
+                                pos = pos_t['position']
+                                #TODO: this can get weird here if pos is not a valid parameter
+
+                                if parameters.get(params[0], surface) != surface:
+                                    parameters = None #We would have to have two different surfaces
+                                    break
+                                parameters[params[0]] = surface
+                                
+                                if parameters.get(params[1], pos) != pos:
+                                    parameters = None #We would have to gave two different positions
+                                    break
+                                parameters[params[1]] = (w_start.surfaces[surface], pos)
+                            else: #There is an object, but it is wrong. This case may still help if setting two objects down at once.
+                                pass
+                                
+                        if parameters != None and parameters != {}:
+                            for nparam, state in w_start.action_robot_pose(robot, action, parameters): 
+                                w_end = self.get_robot_pose_world(w_start, robot, action, nparam, state)
+                                new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, nparam])
+                                if new_plan != None:
+                                    worlds.append((min_time, new_plan, False))
+                                
                     
 
                 #Deal with preparation for extra steps so we can execute them properly
@@ -465,9 +540,11 @@ class Planner(object):
 
                 #Loop through all actions possible
                 for action in w_start.enumerate_robot(robot, require_object = True):
+                    #print "Trying", action
                     for parameters, state in w_start.action_robot_pose(robot, action, {}): 
                         w_end = self.get_robot_pose_world(w_start, robot, action, parameters, state)
                         new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, parameters])
+                        #print parameters, state, "->", new_plan != None
                         if new_plan != None:
                             worlds.append((min_time, new_plan, False))
                         
@@ -533,10 +610,18 @@ class Planner(object):
         
         return plan
         
+class BlastCodeObjectPtr(object):
+    __slots__ = ['refc']
+    def __init__(self, refc):
+        self.refc = refc
 
+    def __str__(self):
+        return "BlastCodeObjectPtr(" + str(self.refc) + ")"
+    def __repr__(self):
+        return "BlastCodeObjectPtr(" + str(self.refc) + ")"
 
 class BlastCodeExec(object):
-    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res']
+    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res', 'object_codes']
 
     def get_hash_state(self, hl = None):
         if not hl:
@@ -565,6 +650,7 @@ class BlastCodeExec(object):
         self.code = code
         self.plan_executed = plan_e
         self.plan_res = plan_r
+        self.object_codes = []
         if labels:
             self.labels = labels
         else:
@@ -584,7 +670,9 @@ class BlastCodeExec(object):
             self.environments = [[0, self.code, self.labels, {}, {}],]
 
     def copy(self):
-        return BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res)
+        c = BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res)
+        c.object_codes = [x for x in self.object_codes]
+        return c
 
     def __str__(self):
         if self.done():
@@ -612,6 +700,11 @@ class BlastCodeExec(object):
             return tuple([self.paste_parameters(v, env) for v in p])
         if type(p) == blast_world.BlastParameterPtr:
             r = env.get(p.parameter)
+            if type(r) == BlastCodeObjectPtr:
+                r = self.object_codes[r.refc]
+                if type(r) == int:
+                    r = blast_world.BlastObjectRef(r)
+
             if p.sub != None:
                 r = r.split(".")[p.sub]
             if p.prefix != None:
@@ -801,6 +894,29 @@ class BlastCodeExec(object):
                 labels = next_step[2]
             ptr = labels[sub]
             next_step[0] = ptr
+            return self.execute(world)
+        elif ps.command == "GETOBJECT":
+            if type(params.get('holder', None)) != str:
+                raise blast_world.BlastCodeError("Holder must be specified for GETOBJECT as a string")
+            holder = params['holder'].split(".")
+            if len(holder) != 2:
+                raise blast_world.BlastCodeError("Holder for GETOBJECT should be robot.holder: " + params['holder'])
+            robot = holder[0]
+            holder = holder[1]
+            if not robot in world.robots:
+                raise blast_world.BlastCodeError("Holder for GETOBJECT should be robot.holder: " + params['holder'] + " - invalid robot: " + robot)
+            if not holder in world.robots[robot].holders:
+                raise blast_world.BlastCodeError("Holder for GETOBJECT should be robot.holder: " + params['holder'] + " - invalid holder: " + holder)
+
+            obj = world.robots[robot].holders[holder]
+            if obj != None:
+                obj = obj.uid
+            
+            n = len(self.object_codes)
+            self.object_codes.append(obj)
+
+            next_step[3][ps.return_var] = BlastCodeObjectPtr(n)
+            next_step[0] = next_step[0] + 1
             return self.execute(world)
         else:
             raise blast_world.BlastCodeError("We don't support '" + ps.command + "'")
@@ -1353,7 +1469,7 @@ class BlastPlannableWorldOld:
 
 def coffee_hunt_test():
     import blast_world_test
-    world = BlastPlannableWorld(blast_world_test.make_table_top_world(False))
+    world = BlastPlannableWorld(blast_world_test.make_table_top_world())
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
     def ac(r, a, p): #Test add the cups
@@ -1365,24 +1481,30 @@ def coffee_hunt_test():
             world.world.clear_hash("surfaces")
         return True
 
-    world.action_callback = ac
+    #world.action_callback = ac
     
-    print '-'*100
-    print "Plan to pick up coffee cup"
-    print '-'*100
-    #world.plan(lambda w: w.robots["stair4"].holders["cupholder"] != None, {})
+    world.append_plan([blast_world.BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "coffee_cup",
+                                                                   'holder': 'stair4.cupholder'}, 'plan_return'),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                                                              'label_true': "success", 'label_false': 'failure'}),
+                       blast_world.BlastCodeStep("success", "GETOBJECT", {'holder': 'stair4.cupholder'}, 'object_n'),
+                       #blast_world.BlastCodeStep(None, "PLAN", {'extra_steps': [("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"}),],
+                       #                                         }, 'plan_return'),
+                       blast_world.BlastCodeStep(None, "PLAN", {'world_limits': {'place-objects':
+                                                                                     [{'object': blast_world.BlastParameterPtr('object_n'),
+                                                                                       'surface': 'table_1',
+                                                                                       'position': 'Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)',
+                                                                                       }
+                                                                                      ],
+                                                                                 }}, 'plan_return'),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                                                              'label_true': "success2", 'label_false': 'failure'}),
+                       blast_world.BlastCodeStep("success2", "RETURN"),
+                       blast_world.BlastCodeStep("failure", "FAIL"),],
+                      ["stair4",], False)
 
-    r = world.plan_hunt("stair4", "cupholder", "coffee_cup")
-    if not r: return False
-    print r
+    world.try_exec()
 
-
-    print '-'*100
-    print "Plan to put down coffee cup"
-    print '-'*100
-    r = world.plan_action("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"})
-    if not r: return False
-    print r
     return True
 
 
@@ -1519,7 +1641,7 @@ def overplan():
     return r
 
 if __name__ == '__main__':
-    #print coffee_hunt_test()
+    print coffee_hunt_test()
     #print run_test()
-    print multi_robot_test()
+    #print multi_robot_test()
     #print overplan()

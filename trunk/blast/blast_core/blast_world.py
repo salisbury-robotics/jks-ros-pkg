@@ -147,6 +147,8 @@ class BlastCodeStep(object):
         elif command == "PLAN":
             self.acceptable_parameters(['world_limits', 'extra_steps', 'extra_goals', 'assume_failure'])
             #TODO: work it out
+        elif command == "GETOBJECT":
+            self.acceptable_parameters(['holder'])
         elif command == "IF":
             self.acceptable_parameters(['condition', 'label_true', 'label_false'])
             #TODO: work it out
@@ -654,6 +656,8 @@ class BlastPosIrr(object):
         if type(self) != type(other): return False
         if self.__class__ != other.__class__: return False
         return True
+    def hash_update(self, hl):
+        hl.update("PosIrr")
 
 blast_object_id = 0
 
@@ -760,6 +764,10 @@ class BlastSurface(object):
                     v = 1.0 / v
                 return int(v)
 
+            if type(oa.position) == BlastPosIrr and type(ob.position) == BlastPosIrr:
+                return a.uid - b.uid
+            if type(oa.position) == BlastPosIrr: return -1
+            if type(ob.position) == BlastPosIrr: return 1
             if (oa.position.x != ob.position.x): return ti(oa.position.x - ob.position.x)
             if (oa.position.y != ob.position.y): return ti(oa.position.y - ob.position.y)
             if (oa.position.z != ob.position.z): return ti(oa.position.z - ob.position.z)
@@ -855,6 +863,8 @@ class BlastObjectRef(object):
         return get_obj(self.uid).equal(other_get_obj(other.uid))
     def hash_update(self, hl, get_obj):
         get_obj(self.uid).hash_update(hl)
+    def __str__(self): return self.to_text()
+    def __repr__(self): return self.to_text()
     def to_text(self):
         return "BlastObjectRef(" + str(self.uid) + ")"
     
@@ -1130,7 +1140,7 @@ class BlastWorld(object):
 
     
     def world_limit_check(self, limits):
-        acceptable = set(["robot-holders", "robot-location", 'scans'])
+        acceptable = set(["robot-holders", "robot-location", 'scans', 'place-objects'])
         for l in limits:
             if l not in acceptable:
                 raise BlastCodeError("Bad limit parameter: " + str(l) + " in " + str(limits))
@@ -1171,6 +1181,42 @@ class BlastWorld(object):
                 if s[1] == '>=' and (not (cm >= val)): return False
                 if s[1] == '>' and (not (cm > val)): return False
                 if s[1] == '<' and (not (cm < val)): return False
+        if "place-objects" in limits:
+            for obj in limits['place-objects']:
+                objr = None
+                for n in obj:
+                    if not n in ["object", "surface", "position"]:
+                        raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " - " + n + " is not a valid atttribute")
+
+                if 'object' in obj:
+                    objr = obj['object']
+                    if type(objr) == BlastObjectRef:
+                        objr = objr.uid
+                    if type(objr) == int:
+                        objr = self.get_obj(objr)
+                else:
+                    raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " has no object tag")
+                if type(objr) != BlastObject:
+                    raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " object is not found to be an object")
+
+                if 'surface' in obj:
+                    surf = obj['surface']
+                    if type(surf) == BlastSurface: surf = surf.name
+                    if not objr.parent == surf:
+                        return False
+                
+                if 'position' in obj:
+                    pos = obj['position']
+                    if type(pos) == str:
+                        pos = pos.strip("ABCDEFGHIJKLMNOPQRSTUVWXYZ \t,\n\rabcdefghijklmnopqrstuvwxyz()[]{}_\+=;\"\'")
+                        pos = [float(x) for x in pos.split(",")]
+                        if len(pos) != 6:
+                            raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " has an invalid position string (need 6 values)")
+                        pos = BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+                    if type(pos) != BlastPos:
+                        raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " has an invalid position")
+                    if not pos.equal(objr.position):
+                        return False
         return True
 
     def get_robot_holder(self, robot, holder):
@@ -1330,7 +1376,6 @@ class BlastWorld(object):
         self.gc_objects()
         self.clear_hash("robots")
         self.clear_hash("surfaces")
-
         
     def robot_place_object(self, robot, from_holder, surface, pos):
         if self.copy_on_write_optimize:
@@ -1593,6 +1638,37 @@ class BlastWorld(object):
                         return None, None
         return parameters, surface_parameters
 
+    def enumerate_robot_place(self, robot_name):
+        res = {}
+        for action_name in self.enumerate_robot(robot_name):
+            rt = self.robots[robot_name].robot_type
+            while rt != None:
+                if (rt.name + "." + action_name) in self.types.actions:
+                    break
+                rt = rt.parent
+            at = self.types.actions[rt.name + "." + action_name]
+
+            rz = {}
+            for var, value in at.changes.iteritems():
+                if var.find("+") != -1:
+                    surface_p = var.split(".")[0].strip()
+                    pos_p = value.split(":")[1].strip()
+                    holder = value.split(":")[0].strip()
+                    if holder.find("robot.holders.") != 0:
+                        raise Exception("Invalid holder for object: " + var + " <-" + value)
+                    if surface_p not in at.parameters:
+                        raise Exception("Invalid surface for object: " + var + " <- " + value)
+                    if pos_p not in at.parameters:
+                        raise Exception("Invalid position for object: " + var + " <- " + value)
+                    holder = holder.split(".")[2].strip()
+                    if holder in rz:
+                        raise Exception("Double place from holder: " + var + " <- " + value)
+                    rz[holder] = (surface_p, pos_p)
+            if rz != {}:
+                res[action_name] = rz
+        return res
+
+
     def action_robot_pose(self, robot_name, action, parameters):
         debug = True
         accept_unset = False
@@ -1664,6 +1740,10 @@ class BlastWorld(object):
                 raise Exception("Invalid condition: " + str(c))
             return this_var, csp, csp_var
             
+        for param, value in parameters.iteritems():
+            csp.append((param, "==", [value,]))
+
+        #print csp
 
         this_var, csp, csp_var = eval_condition(action_type.condition, csp, csp_var)
 
@@ -1675,6 +1755,7 @@ class BlastWorld(object):
         for d in cspsolver.solvecsp(csp):
             od = {}
             pd = {}
+
             for n in action_type.parameters:
                 od[n] = d[n][0]
             for n in ['robot.location']:
@@ -1903,11 +1984,13 @@ class BlastWorld(object):
                 pos = get_value(val.split(":")[1])
                 if type(pos) == type(""):
                     pos = (pos[0:pos.find(",")].strip(), pos[pos.find(",")+1:].strip())
-                if type(pos[1]) == False:
+                if pos[1] == False:
                     pos = (pos[0], BlastPosIrr())
                 if type(pos[1]) == type(""):
                     v = [float(x.strip()) for x in pos[1].strip().strip("Pos()").strip().split(",")]
                     pos = (pos[0], BlastPos(v[0], v[1], v[2], v[3], v[4], v[5]))
+                if type(pos[0]) == BlastSurface:
+                    pos = (pos[0].name, pos[1])
                 surface = get_value(sub[0])
                 if surface.name != pos[0]:
                     if debug: print "Invalid surface", surface.name, "not", pos[0]
@@ -2208,7 +2291,9 @@ class BlastWorld(object):
                         obj = self.objects[obj.uid]
                 if not obj:
                     break
+                parameters[param][surf.name].append((surf.name, BlastPosIrr()))
 
+            if False:
                 extras = []
                 extras.extend(extra_goals.get("Pos:SN:" + surf.name + ":" + obj.object_type.name, []))
                 extras.extend(extra_goals.get("Pos:SU:" + surf.name + ":" + str(obj.uid), []))
