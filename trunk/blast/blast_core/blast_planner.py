@@ -6,6 +6,8 @@ import blast_world, time, json, itertools, hashlib, random, string, threading
 # 2. Plans are then executed by the reasoner.
 #
 
+tdb_outcome_counter = 0
+
 def parameter_iter(param, keys = None):
     if keys == []: 
         yield {}
@@ -33,6 +35,7 @@ def parameter_iter(param, keys = None):
                     keys.append(key)
                     del deps[key]
         keys.reverse()
+        #print "Keys none ->", keys
     if keys == []: 
         yield {}
         return 
@@ -108,6 +111,7 @@ class Planner(object):
             self.point_plans[robot_type][start] = {}
         if end in self.point_plans[robot_type][start]:
             r = self.point_plans[robot_type][start][end]
+            print "FAST RETURN"
             return r[0], r[1], robot_type, start, end
 
         #We actually need to plan from one to the other
@@ -139,14 +143,18 @@ class Planner(object):
             if best_world:
                 if w[1] > best_world[1]: #Skip worlds that are after the fastest time to finish
                     continue
-            if w[0].equal(end_w):
+            #if w[0].equal(end_w, tolerant=True):
+            #print w[0].robots[robot_name].location.to_text()
+            if w[0].robots[robot_name].location.equal(end_w.robots[robot_name].location):
                 best_world = w
             
             for action in w[0].enumerate_robot(robot_name):
                 planable, plist = w[0].enumerate_action(robot_name, action, extra_goals)
+                #print robot_name, action, "->", plist
                 if not planable: continue
-                if not plist: continue
+                if plist == None or plist == False: continue
                 for parameters in parameter_iter(plist):
+                    #print robot_name, action, "->", parameters
                     w_next = w[0].copy()
                     change, location_do_not_cares = w_next.take_action(robot_name, action, parameters)
                     if change == None:
@@ -176,16 +184,47 @@ class Planner(object):
     
     def generate_world(self, plan, at_time):
         steps = []
+        cxc = [c.copy() for c in self.code_exc]
+        prog_ord_max = 0
         for step in plan:
             if step[1] == "ACTION":
                 if step[0] + step[2] <= at_time:
                     steps.append(step)
-        steps.sort(key = lambda x: x[0] + x[2])
+            elif step[1] == "EXEC":
+                if step[0] <= at_time:
+                    prog_ord_max = max(prog_ord_max, step[4])
+                    steps.append(step)
+            elif step[1] == "SETPLAN":
+                if step[0] <= at_time:
+                    prog_ord_max = max(prog_ord_max, step[5])
+                    steps.append(step)
+        # (300 - ord(x)) S -> E -> A sorts so that SET, then EXEC, then ACTION
+        #for x in steps: print x, x[0], x[2] #, (x[0] + x[2])
+        prog_ord_m = 1
+        while prog_ord_max >= prog_ord_m:
+            prog_ord_m = prog_ord_m * 10
+        def sort_keys(x):
+            ftime = x[0]
+            if x[1] == "ACTION": ftime = ftime + x[2]
+            otype = (300 - ord(x[1][0]))
+            prog_ord = 0
+            if x[1] == "EXEC": prog_ord = x[4]
+            if x[1] == "SETPLAN": prog_ord = x[5]
+            return ftime * prog_ord_m * 1000 + prog_ord * 1000 + otype
+        steps.sort(key = sort_keys)
         w = self.initial_world.copy()
         for step in steps:
-            a, b = w.take_action(step[3], step[4], step[5])
-            #print step[3:], "->", a, b
-            if a == None and b == None: return None
+            if step[1] == "ACTION":
+                a, b = w.take_action(step[3], step[4], step[5])
+                #print step[3:], "->", a, b
+                if a == None and b == None: return None
+            elif step[1] == "EXEC":
+                cxc[step[2]].execute(w)
+                if cxc[step[2]].get_hash_state() != step[3]:
+                    raise Exception("Bad state for program: " + cxc[step[2]].to_text())
+                    return None
+            elif step[1] == "SETPLAN":
+                cxc[step[2]].set_plan_executed(step[3], step[4])
         return w
 
 
@@ -352,7 +391,9 @@ class Planner(object):
         self.initial_world.consider_scan = True
         initial_hs = self.initial_world.get_hash_state()
 
-        if False:
+        debug = True
+
+        if debug:
             print
             print
             print
@@ -361,6 +402,12 @@ class Planner(object):
             print
             for s in plan:
                 print s
+            print
+            print
+            if plan != []:
+                print self.generate_world(plan, plan[-1][0] + plan[-1][2]).to_text()
+            else:
+                print self.initial_world.to_text()
             print
 
         worlds = [(start_time, plan), ]
@@ -380,10 +427,11 @@ class Planner(object):
             planned_worlds.append(world)
 
             #COMMENTED DEBUG = print time and plan
-            #print 
-            #print world[0]
-            #for s in world[1]:
-            #print s
+            if debug:
+                print 
+                print world[0]
+                for s in world[1]:
+                    print s
 
             #COMMENTED DEBUG = test if initial world has weird state
             #[self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
@@ -404,6 +452,7 @@ class Planner(object):
             for robot, min_time in min_times.iteritems():
                 if best_world: #Avoid worlds after the best is found
                     if min_time > best_world[0]:
+                        if debug: print "Ignore time for too late", min_time, "for", robot
                         continue
 
                 #Avoid duplications if we are a duplicate world later in time.
@@ -416,6 +465,7 @@ class Planner(object):
                 hs = w_start.get_hash_state()
                 if hs in pw_hash and robot in pw_hash[hs]:
                     if pw_hash[hs][robot] <= min_time:
+                        if debug: print "Ignore time for duplication", min_time, "for", robot
                         continue
                     if pw_hash[hs][robot] > min_time:
                         pw_hash[hs][robot] = min_time
@@ -423,12 +473,14 @@ class Planner(object):
                     pw_hash[hs] = pw_hash.get(hs, {})
                     pw_hash[hs][robot] = min_time
 
+                #print min_time, "W_start", w_start.surfaces['salisbury_table'].objects
 
                 #Check the world validity
                 world_is_valid = True
                 if 'world_limits' in goal:
                     if not w_start.world_limit_check(goal['world_limits']):
                         world_is_valid = False
+                        if debug: print "World limits failed at", min_time
 
                 #Try to merge the extra-steps into the plan, if there are any
                 world_new_plan = None
@@ -440,6 +492,7 @@ class Planner(object):
                     es_plan = []
                     es_time = 0
                     w_clone = w_start.copy()
+                    #print min_time, "W_clone", w_clone.surfaces['salisbury_table'].objects
                     for step in goal['extra_steps']:
                         #print step
                         #print w_clone.robots["stair4"].location.to_text(), w_clone.robots["stair4"].holders
@@ -452,28 +505,33 @@ class Planner(object):
                         es_time = es_time + length
                 
                     if es_plan == None:
+                        if debug: print "Failed to merge extra-steps at", min_time
                         world_is_valid = False
                     else:
                         #print "Attempt to merge in at", min_time, es_plan
                         world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
                         if world_new_plan == None:
-                            #print "Failed to merge"
+                            if debug: print "Failed to merge extra-steps at", min_time
                             world_is_valid = False
             
 
                 #If the world is valid, update the best_world
                 if world_is_valid:
+                    print "World valid at", min_time + es_time
                     if world_new_plan == None: world_new_plan = world[1]
                     #If we have no best world, then this one is the best
                     if not best_world:
                         best_world = (min_time + es_time, world_new_plan)
+                        print "Is best by default"
                     #If we have a best world and this one is better, then it is best
                     if min_time + es_time < best_world[0]:
                         best_world = (min_time + es_time, world_new_plan)
+                        print "Is best by time"
                     #In the event of a tie, the one with less actions wins
                     if min_time + es_time == best_world[0] and \
                             len(filter(lambda x: x[1] == "ACTION", best_world[1])) \
                             > len(filter(lambda x: x[1] == "ACTION", world_new_plan)):
+                        print "Is best by action count"
                         best_world = (min_time + es_time, world_new_plan)
                 
                                 
@@ -488,10 +546,16 @@ class Planner(object):
                     w_end.clear_hash("robots")
                     new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1])
                     if new_plan != None:
+                        if debug: print "World limits move succeeded for", robot, "at", min_time
                         worlds.append((min_time, new_plan, False))
+                    else:
+                        if debug: print "World limits move failed for", robot, "at", min_time
+                else:
+                    if debug: print "No world limits move for", robot, "at", min_time
 
                 #For each robot, we try setting down any items it is carrying that are placeable
                 if 'world_limits' in goal and 'place-objects' in goal['world_limits']:
+                    if debug: print "Setting down objects for", robot, "at", min_time
                     for action, locations in w_start.enumerate_robot_place(robot).iteritems():
                         parameters = {}
                         for l, params in locations.iteritems():
@@ -524,29 +588,44 @@ class Planner(object):
                                 w_end = self.get_robot_pose_world(w_start, robot, action, nparam, state)
                                 new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, nparam])
                                 if new_plan != None:
+                                    if debug: print "Successfully set down object for", robot, "at", min_time
                                     worlds.append((min_time, new_plan, False))
+                else:
+                    if debug: print "No object setdown for", robot, "at", min_time
                                 
                     
 
                 #Deal with preparation for extra steps so we can execute them properly
                 if 'extra_steps' in goal:
                     for step in goal['extra_steps']:
-                        if step[0] != robot: continue
+                        if step[0] != robot: 
+                            if debug: print "Extra-step ", step, "is not for", robot, "at", min_time
+                            continue
+                        found = False
                         for parameters, state in w_start.action_robot_pose(step[0], step[1], step[2]):
                             w_end = self.get_robot_pose_world(w_start, robot, step[1], parameters, state)
-                            new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, step[1], parameters])
+                            new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1]) #, [robot, step[1], parameters])
                             if new_plan != None:
+                                if debug: print "Succesful extra-step preperation for", robot, "at", min_time
                                 worlds.append((min_time, new_plan, False))
+                            else:
+                                if debug: print "Unsuccesful extra-step preperation for", robot, "at", min_time
+                            found = True
+                        if not found and debug: print "Unable to succesfully prepare a pose for the extra step", step, "for", robot, "at", min_time
+                else:
+                    if debug: print "No extra-steps for", robot, "at", min_time
 
                 #Loop through all actions possible
                 for action in w_start.enumerate_robot(robot, require_object = True):
-                    #print "Trying", action
+                    if debug: print "Trying", action, "for", robot, "at", min_time
                     for parameters, state in w_start.action_robot_pose(robot, action, {}): 
                         w_end = self.get_robot_pose_world(w_start, robot, action, parameters, state)
                         new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, parameters])
                         #print parameters, state, "->", new_plan != None
                         if new_plan != None:
                             worlds.append((min_time, new_plan, False))
+                    else:
+                        if debug: print "No start state for this action"
                         
                             
                                 
@@ -584,10 +663,12 @@ class Planner(object):
         #a plan is made.
         for prog in code_exc:
             prog_time = 0
+            prog_ord = 0
             while True:
                 plan.sort(key = lambda x: x[0])
                 goal = prog.execute(self.generate_world(plan, prog_time))
-                plan.append((prog_time, "EXEC", prog.uid, prog.get_hash_state()))
+                plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord])
+                prog_ord = prog_ord + 1
                 if type(goal) == dict:
                     newplan, newprog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
                     r = True
@@ -598,9 +679,9 @@ class Planner(object):
                         prog_time = newprog_time
                     for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
                     prog.set_plan_executed(True, r)
-                    print newplan
+                    plan.append([prog_time, "SETPLAN", prog.uid, True, r, prog_ord])
+                    prog_ord = prog_ord + 1
                 elif goal == True or goal == False:
-                    print goal
                     break
 
         print
@@ -636,6 +717,16 @@ class BlastCodeExec(object):
         hl.update(str(self.plan_res))
         for e in self.environments:
             hl.update(str((e[0], e[3])))
+            
+    def to_text(self):
+        s = str(self.uid) + ","
+        if self.done():
+            s = s + (str(self.environments))
+            return s
+        s = s + (str(self.plan_executed)) + "," + (str(self.plan_res)) + ":\n"
+        for e in self.environments:
+            s = s + str((e[0], e[3])) + "\n"
+        return s
 
     def get_next_plan(self, w):
         c = self.copy()
@@ -699,6 +790,9 @@ class BlastCodeExec(object):
         if type(p) == tuple:
             return tuple([self.paste_parameters(v, env) for v in p])
         if type(p) == blast_world.BlastParameterPtr:
+            if not p.parameter in env:
+                raise blast_world.BlastCodeError("Invalid variable/parameter: " + str(p.parameter))
+                return
             r = env.get(p.parameter)
             if type(r) == BlastCodeObjectPtr:
                 r = self.object_codes[r.refc]
@@ -731,6 +825,9 @@ class BlastCodeExec(object):
         if self.environments == False or self.environments == True:
             return self.environments
         next_step = self.environments[-1]
+        if next_step[0] >= len(next_step[1]):
+            raise blast_world.BlastCodeError("Code segment ran with no return.")
+            return
         ps = next_step[1][next_step[0]]
         params = self.paste_parameters(ps.parameters, next_step[3])
         #print next_step
@@ -785,12 +882,12 @@ class BlastCodeExec(object):
             cr = condition_eval(params["condition"])
             if cr != True and cr != False:
                 raise blast_world.BlastCodeError("Invalid code condition result: " + str(c) + " returned " + str(cr))
-            if cr:
+            if cr == True and 'label_true' in params:
                 if params['label_true'] in next_step[2]:
                     next_step[0] = next_step[2][params['label_true']]
                 else:
                     raise blast_world.BlastCodeError("We tried to jump out in an if statement: " + params['label_true'])
-            elif 'label_false' in params:
+            elif cr == False and 'label_false' in params:
                 if params['label_false'] in next_step[2]:
                     next_step[0] = next_step[2][params['label_false']]
                 else:
@@ -916,6 +1013,28 @@ class BlastCodeExec(object):
             self.object_codes.append(obj)
 
             next_step[3][ps.return_var] = BlastCodeObjectPtr(n)
+            next_step[0] = next_step[0] + 1
+            return self.execute(world)
+        elif ps.command == "SETROBOTHOLDER":
+            if type(params.get('holder', None)) != str:
+                raise blast_world.BlastCodeError("Holder must be specified for SETROBOTHOLDER as a string")
+            holder = params['holder'].split(".")
+            if len(holder) != 2:
+                raise blast_world.BlastCodeError("Holder for GETOBJECT should be robot.holder: " + params['holder'])
+            robot = holder[0]
+            holder = holder[1]
+            if not robot in world.robots:
+                raise blast_world.BlastCodeError("Holder for GETOBJECT should be robot.holder: " + params['holder'] + " - invalid robot: " + robot)
+            if not holder in world.robots[robot].holders:
+                raise blast_world.BlastCodeError("Holder for GETOBJECT should be robot.holder: " + params['holder'] + " - invalid holder: " + holder)
+
+            if params.get('require-preexisting', False) == False or world.robots[robot].holders[holder] != None:
+                world.set_robot_holder(robot, holder, params['object-type'])
+                if ps.return_var != None:
+                    next_step[3][ps.return_var] = True
+            else:
+                if ps.return_var != None:
+                    next_step[3][ps.return_var] = False
             next_step[0] = next_step[0] + 1
             return self.execute(world)
         else:
@@ -1513,6 +1632,30 @@ def run_test():
     world = BlastPlannableWorld(blast_world_test.make_test_world())
 
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
+                       #Grab the bag
+    world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": initial_pickup_point}},
+                                                                "extra_steps": [("stair4", "grab-object", {"tts-text": "Money Bag"}),],}, "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+
+                       blast_world.BlastCodeStep(None, "SETROBOTHOLDER", {"holder": "stair4.left-arm", "require-preexisting": True,
+                                                                          "object-type": "coffee_money_bag"}),
+                       #Buy the coffee
+                       blast_world.BlastCodeStep(None, "PLAN", {"extra_steps": [("stair4", "buy-coffee", {"shop": "clark_peets_coffee_shop"}),],}, "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+
+                       #Return the bag
+                       blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": initial_pickup_point}},
+                                                                "extra_steps": [("stair4", "give-object", {"tts-text": "Coffee Cup"}),],}, "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       
+                       blast_world.BlastCodeStep(None, "RETURN"),
+                       blast_world.BlastCodeStep("failure", "FAIL")
+                       ], ["stair4",], False)
+    
+    
+    world.try_exec()
+
+def old_way():
     
     print '-'*100
     print "Plan to pick up bag"
@@ -1641,7 +1784,7 @@ def overplan():
     return r
 
 if __name__ == '__main__':
-    print coffee_hunt_test()
-    #print run_test()
+    #print coffee_hunt_test()
+    print run_test()
     #print multi_robot_test()
     #print overplan()
