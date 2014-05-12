@@ -21,6 +21,7 @@ BLAST_INFINITY = 1e10 #For objects
 class BlastCodeError(Exception):
     __slots__ = ['value']
     def __init__(self, value):
+
         self.value = value
     def __str__(self):
         return repr(self.value)
@@ -158,6 +159,8 @@ class BlastCodeStep(object):
             self.acceptable_parameters(["types"])
         elif command == "SCAN_MAX":
             self.acceptable_parameters(["types"])
+        elif command == "SETROBOTHOLDER":
+            self.acceptable_parameters(['require-preexisting', 'holder', 'object-type'])
         else:
             raise BlastCodeError("Invalid command: '" + command + "'")
             
@@ -659,17 +662,13 @@ class BlastPosIrr(object):
     def hash_update(self, hl):
         hl.update("PosIrr")
 
-blast_object_id = 0
-
 class BlastObject(object):
     __slots__ = ('object_type', 'position', 'parent', 'uid')
-    def __init__(self, object_type, pos, parent): #Note: if pos is None, parent is a robot
+    def __init__(self, object_type, pos, parent, blast_object_id): #Note: if pos is None, parent is a robot
         self.object_type = object_type
         self.position = pos
         self.parent = parent
-        global blast_object_id
         self.uid = blast_object_id
-        blast_object_id = blast_object_id + 1
 
     def to_dict(self):
         p = None
@@ -679,10 +678,9 @@ class BlastObject(object):
 
     def copy(self):
         if self.position:
-            r = BlastObject(self.object_type, self.position.copy(), self.parent)
+            r = BlastObject(self.object_type, self.position.copy(), self.parent, self.uid)
         else:
-            r = BlastObject(self.object_type, self.position, self.parent)
-        r.uid = self.uid
+            r = BlastObject(self.object_type, self.position, self.parent, self.uid)
         return r
     
     def hash_update(self, hl):
@@ -1035,7 +1033,7 @@ def paren_split_i(value, delim):
 class BlastWorld(object):
     __slots__ = ['types', 'maps', 'surfaces', 'robots', 'objects', 'copy_on_write_optimize', 'sumh',
                  'maps_hash_state', 'surfaces_hash_state', 'robots_hash_state', 'objects_hash_state',
-                 'maps_keysort', 'surfaces_keysort', 'robots_keysort', 'objects_keysort', 'consider_scan']
+                 'maps_keysort', 'surfaces_keysort', 'robots_keysort', 'objects_keysort', 'consider_scan', 'object_id']
     def __init__(self, types):
         self.types = types
         self.maps = {}
@@ -1053,6 +1051,7 @@ class BlastWorld(object):
         self.sumh = None
         self.consider_scan = True #TODO: turning this off might make things more efficient.
         self.copy_on_write_optimize = True
+        self.object_id = 0
 
     def enumerate_robot(self, robot, require_object = False):
         return self.types.enumerate_robot(self.robots[robot].robot_type.name, require_object = require_object)
@@ -1103,12 +1102,20 @@ class BlastWorld(object):
                         s.add(at_name)
                         result_dir[ot] = s
         return result_dir
+
+    def create_object(self):
+        r = self.object_id
+        self.object_id = self.object_id + 1
+        return r
                     
     def add_surface_object(self, surface, object_type, pos):
         if self.copy_on_write_optimize:
             self.surfaces[surface] = self.surfaces[surface].copy()
-        obj_type = self.types.get_object(object_type)
-        obj = BlastObject(obj_type, pos, surface)
+        if type(object_type) == ObjectType:
+            obj_type = object_type
+        else:
+            obj_type = self.types.get_object(object_type)
+        obj = BlastObject(obj_type, pos, surface, self.create_object())
         self.append_object(obj)
         self.surfaces[surface].objects.append(BlastObjectRef(obj.uid))
         self.gc_objects()  
@@ -1241,6 +1248,7 @@ class BlastWorld(object):
         copy.robots_hash_state = self.robots_hash_state
         copy.sumh = self.sumh
         copy.consider_scan = self.consider_scan
+        copy.object_id = self.object_id
         return copy
     def append_map(self, mp):
         if mp.map in self.maps: raise BlastError("Duplicate map: " + mp.map)
@@ -1399,7 +1407,8 @@ class BlastWorld(object):
             self.robots[robot] = self.robots[robot].copy()
         if object_type != None:
             obj_type = self.types.get_object(object_type)
-            obj = BlastObject(obj_type, None, robot + "." + holder)
+            if obj_type == None: raise Exception("No object type: " + object_type)
+            obj = BlastObject(obj_type, None, robot + "." + holder, self.create_object())
             self.append_object(obj)
             self.robots[robot].holders[holder] = BlastObjectRef(obj.uid)
         else:
@@ -1593,6 +1602,7 @@ class BlastWorld(object):
         #Ensure that we have all the proper parameters and convert strings to locations
         clone_param = False
         surface_parameters = set()
+        #print parameters, self.surfaces['salisbury_table'].objects
         for name, ptype in action_type.parameters.iteritems():
             if not name in parameters:
                 if accept_unset: continue
@@ -1709,6 +1719,9 @@ class BlastWorld(object):
             elif ptype.find("Pos:") == 0:
                 txt = ptype.split(":")[1].split(",")
                 csp.append((pname, "pos", txt[0].strip(), txt[1].strip()))
+            elif ptype == "String":
+                if not pname in parameters:
+                    raise Exception("String parameters must be specified")
             else:
                 raise Exception("Invalid parameter type: " + str(ptype) + " for " + str(pname))
             
@@ -1834,7 +1847,7 @@ class BlastWorld(object):
                     par = None
                     if len(vals) > 1: pos = vals[1]
                     if len(vals) > 2: par = vals[2]
-                    obj = BlastObject(self.types.get_object(vals[0]), pos, par)
+                    obj = BlastObject(self.types.get_object(vals[0]), pos, par, self.create_object())
                     self.append_object(obj)
                     val = BlastObjectRef(obj.uid)
                 elif func == "None": 

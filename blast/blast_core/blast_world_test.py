@@ -283,13 +283,8 @@ def make_table_top_world(make_objects = True):
     world.take_action("stair4", "move", {"end": BlastPt(20.742, 18.390, -2.737, clarkcenterfirstfloor.map)}) #To debug with arms tucked.
 
     if make_objects:
-        cup = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
-        world.append_object(cup)
-        world.surfaces["table_1"].objects.append(BlastObjectRef(cup.uid))
-    
-        cup2 = BlastObject(world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
-        world.append_object(cup2)
-        world.surfaces["table_1"].objects.append(BlastObjectRef(cup2.uid))
+        world.add_surface_object("table_1", world.types.get_object("coffee_cup"), BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0))
+        world.add_surface_object("table_1", world.types.get_object("coffee_cup"), BlastPos(0.4602, 0.0, 0.762, 0.0, 0.0, 0.0))
     
     return world
     
@@ -371,9 +366,7 @@ def make_test_world():
                                  world.types.get_surface("coffee_shop"))
     world.append_surface(coffee_pickup)
 
-    bag = BlastObject(world.types.get_object("empty_ziplock_1L_bag"), BlastPos(0.6602, 0.3, 0.762, 0.0, 0.0, 0.0), "salisbury_table")
-    world.surfaces["salisbury_table"].objects.append(BlastObjectRef(bag.uid))
-    world.append_object(bag)
+    world.add_surface_object("salisbury_table", world.types.get_object("empty_ziplock_1L_bag"), BlastPos(0.6602, 0.3, 0.762, 0.0, 0.0, 0.0))
     
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
