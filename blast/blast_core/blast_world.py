@@ -87,6 +87,12 @@ class BlastCodeStep(object):
     #scan state and the other is 'reset' a CSV string of things to reset.
 
 
+    def __repr__(self):
+        return str(self)
+    def __str__(self):
+        return "BlastCodeStep('" + str(self.label) + "', '" + str(self.command) + "', " \
+            + str(self.parameters) + ", '" + str(self.return_var) + "')"
+
     def acceptable_parameters(self, s):
         for param in self.parameters:
             if str(param) not in s:
@@ -474,7 +480,9 @@ class BlastWorldTypes(object):
         action_type = None
         while not action_type:
             action_type = self.get_action(action_robot_type.name + "." + action)
-            if action_robot_type.parent:
+            if action_type:
+                break
+            elif action_robot_type.parent:
                 action_robot_type = action_robot_type.parent
             elif not action_type:
                 return None, None
@@ -1053,6 +1061,48 @@ class BlastWorld(object):
         self.copy_on_write_optimize = True
         self.object_id = 0
 
+    def diff(self, other):
+        out = ""
+
+        get_obj = lambda x: self.get_obj(x)
+        other_get_obj = lambda x: other.get_obj(x)
+
+        for m in self.maps_keysort:
+            if m in other.maps:
+                if not self.maps[m].equal(other.maps[m], get_obj, other_get_obj):
+                    out = out + "Map " + m + " differs\n"
+            else:
+                out = out + "Map " + m + " is extra\n"
+        for m in other.maps_keysort:
+            if m not in self.maps:
+                out = out + "Map " + m + " is missing\n"
+
+
+
+        for r in self.robots_keysort:
+            if r in other.robots:
+                if not self.robots[r].equal(other.robots[r], get_obj, other_get_obj):
+                    out = out + "Robot " + r + " differs\n"
+            else:
+                out = out + "Robot " + r + " is extra\n"
+        for r in other.robots_keysort:
+            if r not in self.robots:
+                out = out + "Robot " + r + " is missing\n"
+
+
+        for s in self.surfaces_keysort:
+            if s in other.surfaces:
+                if not self.surfaces[s].equal(other.surfaces[s], get_obj, other_get_obj):
+                    out = out + "Surface " + s + " differs\n"
+            else:
+                out = out + "Surface " + s + " is extra\n"
+        for s in other.surfaces_keysort:
+            if s not in self.surfaces:
+                out = out + "Surface " + s + " is missing\n"
+
+        return out
+
+
     def enumerate_robot(self, robot, require_object = False):
         return self.types.enumerate_robot(self.robots[robot].robot_type.name, require_object = require_object)
 
@@ -1162,6 +1212,7 @@ class BlastWorld(object):
                     if set_as != None and value == None: return False
                     if set_as == None and value != None: return False
                     if set_as != None and value != None:
+                        if type(set_as) == BlastObjectRef: set_as = set_as.uid
                         if str(set_as).find("TYPES:") == 0:
                             if self.get_obj(int(value.uid)).object_type.name not in set_as[len("TYPES:"):]:
                                 return False
@@ -1796,6 +1847,9 @@ class BlastWorld(object):
             if debug:
                 print "Could not find the action type", action, "for", robot.robot_type
             return None, None
+
+        if action_type.time_estimate.strip() == "True()":
+            raise Exception("Tried to execute script action")
 
         
         parameters, surface_parameters = self.clean_parameters(action_type, parameters, debug)

@@ -6,7 +6,10 @@ import blast_world, time, json, itertools, hashlib, random, string, threading
 # 2. Plans are then executed by the reasoner.
 #
 
-tdb_outcome_counter = 0
+motion_plan_misses = 0
+motion_plan_hits = 0
+def bin_to_hex(hexdata):
+    return ''.join('%02x' % ord(byte) for byte in str(hexdata))
 
 def parameter_iter(param, keys = None):
     if keys == []: 
@@ -65,10 +68,11 @@ def all_combinations(c, min, len):
 
 
 class Planner(object):
+    __slots__ = ['initial_world', 'code_exc', 'point_plans', 'world_gen_tree']
     def __init__(self, initial_world, code_exc):
         self.initial_world = initial_world.copy()
         self.code_exc = code_exc
-
+        self.world_gen_tree = {}
         self.point_plans = {}
 
     def get_action_workspaces(self, robot, action, parameters):
@@ -100,6 +104,7 @@ class Planner(object):
         return self.point_plans[robot_type][start][end]
 
     def motion_plan(self, robot_name, start_w, end_w):
+        global motion_plan_hits, motion_plan_misses
         start = self.motion_plan_state(robot_name, start_w)
         end = self.motion_plan_state(robot_name, end_w)
 
@@ -111,14 +116,20 @@ class Planner(object):
             self.point_plans[robot_type][start] = {}
         if end in self.point_plans[robot_type][start]:
             r = self.point_plans[robot_type][start][end]
-            print "FAST RETURN"
+            #print "FAST RETURN"
+            motion_plan_hits = motion_plan_hits + 1
             return r[0], r[1], robot_type, start, end
+        motion_plan_misses = motion_plan_misses + 1
+
+        return self.actual_motion_plan(robot_name, robot_type, start, end, start_w, end_w)
+
+    def actual_motion_plan(self, robot_name, robot_type, start, end, start_w, end_w):
 
         #We actually need to plan from one to the other
         #TODO: this should probably construct a world with no objects or other robots
         #TODO: also, it may have problems with actions that depend on object presence
         #      but do not move the objects. We should not allow that.
-        worlds = [(start_w, 0, [])]
+        worlds = [(0, (start_w, 0, []))]
         planned_worlds = []
         w_hash = {}
         best_world = None
@@ -126,9 +137,13 @@ class Planner(object):
         #TODO add all elements of end robot state
         extra_goals = {'Pt': [end_w.robots[robot_name].location.copy(),]}
 
+        import heapq
+
         while worlds != []:
-            w = min(worlds, key = lambda x: x[1])
+            #w = heapq.heappop(worlds)[1]
+            w = min(worlds, key=lambda x: x[0])
             worlds.remove(w)
+            w = w[1]
             planned_worlds.append(w)
 
             #Avoid already done worlds. If we get to one of the already
@@ -159,7 +174,8 @@ class Planner(object):
                     change, location_do_not_cares = w_next.take_action(robot_name, action, parameters)
                     if change == None:
                         continue
-                    wn = (w_next, w[1] + change, w[2] + [(action, parameters, change), ])
+                    wn = (w[1] + change, (w_next, w[1] + change, w[2] + [(action, parameters, change), ]))
+                    #heapq.heappush(worlds, wn)
                     worlds.append(wn)
                     
         if best_world:
@@ -182,7 +198,7 @@ class Planner(object):
     #(time, "BLOCK", length, robot) runs through [time, time+length)
     
     
-    def generate_world(self, plan, at_time):
+    def generate_world(self, plan, at_time, do_optimize = True):
         steps = []
         cxc = [c.copy() for c in self.code_exc]
         prog_ord_max = 0
@@ -198,7 +214,12 @@ class Planner(object):
                 if step[0] <= at_time:
                     prog_ord_max = max(prog_ord_max, step[5])
                     steps.append(step)
-        # (300 - ord(x)) S -> E -> A sorts so that SET, then EXEC, then ACTION
+            elif step[1] == "LAUNCH":
+                if step[0] <= at_time:
+                    prog_ord_max = 0
+                    steps.append(step)
+                
+        # (300 - ord(x)) S -> L -> E -> A sorts so that SET, then EXEC, then ACTION
         #for x in steps: print x, x[0], x[2] #, (x[0] + x[2])
         prog_ord_m = 1
         while prog_ord_max >= prog_ord_m:
@@ -212,19 +233,78 @@ class Planner(object):
             if x[1] == "SETPLAN": prog_ord = x[5]
             return ftime * prog_ord_m * 1000 + prog_ord * 1000 + otype
         steps.sort(key = sort_keys)
-        w = self.initial_world.copy()
+        w = self.initial_world
+        need_clone = True
+        wgt = self.world_gen_tree
+        #print "---"
+
+        opt_debug = False #Debug optimization by comparing to un-optimized
+        ds = ""
+
         for step in steps:
+            #print step
+            uids = [c.uid for c in cxc]
+            uids.sort()
+            sstep = str(step) + str(uids)
+            if opt_debug: ds = ds + "\n" + sstep
+            if sstep in wgt and do_optimize:
+                w = wgt[sstep][1]
+                cxc = wgt[sstep][2]
+                wgt = wgt[sstep][0]
+                need_clone = True
+                continue
+            if need_clone:
+                w = w.copy()
+                cxc = [c.copy() for c in cxc]
+                need_clone = False
             if step[1] == "ACTION":
                 a, b = w.take_action(step[3], step[4], step[5])
                 #print step[3:], "->", a, b
                 if a == None and b == None: return None
             elif step[1] == "EXEC":
-                cxc[step[2]].execute(w)
-                if cxc[step[2]].get_hash_state() != step[3]:
-                    raise Exception("Bad state for program: " + cxc[step[2]].to_text())
+                cstep = None
+                for s in cxc:
+                    if s.uid == step[2]: cstep = s
+                if cstep == None: raise Exception("Invalid program: " + str(step[2]))
+                cstep.execute(w)
+                if cstep.get_hash_state() != step[3]:
+                    s = "Not specified"
+                    if len(step) > 5: s = step[5]
+                    raise Exception("Bad state for program (" + bin_to_hex(cstep.get_hash_state()) \
+                                        + "):\n" + cstep.to_text() + "\nGood state (" \
+                                        + bin_to_hex(step[3]) + "):\n" + s)
                     return None
             elif step[1] == "SETPLAN":
-                cxc[step[2]].set_plan_executed(step[3], step[4])
+                cstep = None
+                for s in cxc:
+                    if s.uid == step[2]: cstep = s
+                if cstep == None: raise Exception("Invalid program: " + str(step[2]))
+                cstep.set_plan_executed(step[3], step[4])
+            elif step[1] == "LAUNCH":
+                cstep = None
+                for s in cxc:
+                    if s.uid == step[2]: cstep = s
+                if cstep == None: #This is legitimate when we are planning for a program, we may have it in already.
+                    cxc.append(BlastCodeExec(step[2], step[3], step[4]))
+            else:
+                raise Exception("Invalid step: " + str(step))
+            if do_optimize:
+                wgt[sstep] = ({}, w.copy(), [c.copy() for c in cxc])
+                wgt = wgt[sstep][0]
+        if need_clone:
+            w = w.copy()
+            cxc = [c.copy() for c in cxc]
+            need_clone = False
+        #For debugging, comment and false. This tests if we get a different
+        #world as a result of optimization, which can happen if hashing is
+        #broken
+        if do_optimize and opt_debug:
+            wc = self.generate_world(plan, at_time, do_optimize = False)
+            if not wc.equal(w):
+                raise Exception("World differs at " + str(at_time) + ":" + ds
+                                + "\n---------- REAL ---------\n" + wc.to_text()
+                                + "\n---------- OPTO ---------\n" + w.to_text()
+                                + "\n---------- DIFF ---------\n" + w.diff(wc))
         return w
 
 
@@ -326,7 +406,7 @@ class Planner(object):
         #Ensure that all actions actually can be executed. This often fails if we take an
         #action that breaks the future world.
         if len(merged_plan) > 0:
-            end = max(merged_plan, key=lambda x: x[0] + x[2])
+            end = max(merged_plan, key=lambda x: x[0] + x[2] if x[1] == "ACTION" else x[0])
             end = end[0] + end[2]
         else:
             end = 0
@@ -391,21 +471,25 @@ class Planner(object):
         self.initial_world.consider_scan = True
         initial_hs = self.initial_world.get_hash_state()
 
-        debug = True
+        debug = False
 
         if debug:
             print
             print
             print
             print '-'*100
-            print
+            print goal
+            print start_time
+            print robots
             print
             for s in plan:
                 print s
             print
             print
             if plan != []:
-                print self.generate_world(plan, plan[-1][0] + plan[-1][2]).to_text()
+                et = plan[-1][0]
+                if plan[-1][0] == "ACTION" or plan[-1][0] == "BLOCK": et = et + plan[-1][2]
+                print self.generate_world(plan, et).to_text()
             else:
                 print self.initial_world.to_text()
             print
@@ -496,17 +580,61 @@ class Planner(object):
                     for step in goal['extra_steps']:
                         #print step
                         #print w_clone.robots["stair4"].location.to_text(), w_clone.robots["stair4"].holders
-                        length, ldc = w_clone.take_action(step[0], step[1], step[2])
-                        #print "Result -> ", length, ldc
-                        if length == None and ldc == None:
-                            es_plan = None
-                            break
-                        es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
-                        es_time = es_time + length
+                        action_robot_type, action_type = w_clone.types.get_action_for_robot(w_clone.robots[step[0]].robot_type, step[1])
+                        if action_type.time_estimate.strip() == "True()":
+                            if debug: print "SPECIAL PLAN!!!!"
+                            if debug: print "Initial time:", es_time + min_time
+                            p = step[2].copy()
+                            if 'sub' in p: raise Exception("We cannot have parameters called 'sub'.") #FIXME: should be compile time error
+                            if 'robot' in p: raise Exception("We cannot have parameters called 'robot'.")
+                            p['sub'] = "action__" + action_robot_type.name + "__" + step[1]
+                            p['robot'] = step[0]
+                            code = [blast_world.BlastCodeStep(None, "CALLSUB", p, "plan_return"),
+                                    blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                                                                           'label_true': "success", 'label_false': 'failure'}),
+                                    blast_world.BlastCodeStep("success", "RETURN"),
+                                    blast_world.BlastCodeStep("failure", "FAIL"),
+                                    ]
+
+                            #Figure out new UID
+                            n_prog_count = max([x.uid for x in self.code_exc])
+                            for sstep in world[1]:
+                                if sstep[1] == "LAUNCH":
+                                    n_prog_count = max(sstep[2], n_prog_count)
+                            uid = n_prog_count + 1
+                            lstep = [min_time, "LAUNCH", uid, code, [step[0],],]
+                            
+
+                            planner_child = Planner(self.initial_world, [c.copy() for c in self.code_exc] + [BlastCodeExec(uid, code,  [step[0],]),])
+                            planner_child.point_plans = self.point_plans #This speeds everything up.
+                            r = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time, initial_plan = world[1] + [lstep,])
+                            if debug: print "------------------>", r
+                            if r == None:
+                                es_plan = None
+                                break
+                            else:
+                                es_plan = "TOTAL_NEW"
+                                es_time = 0
+                                for sstep in r:
+                                    if sstep[1] == "EXEC" and sstep[2] == uid:
+                                        es_time = max(es_time, sstep[0])
+                                es_time = es_time - min_time
+                                if debug: print "Time", es_time
+                                world_new_plan = r
+                        else:
+                            length, ldc = w_clone.take_action(step[0], step[1], step[2])
+                            #print "Result -> ", length, ldc
+                            if length == None and ldc == None:
+                                es_plan = None
+                                break
+                            es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
+                            es_time = es_time + length
                 
                     if es_plan == None:
                         if debug: print "Failed to merge extra-steps at", min_time
                         world_is_valid = False
+                    elif es_plan == "TOTAL_NEW":
+                        if debug: print "Total new plan was a success at", min_time
                     else:
                         #print "Attempt to merge in at", min_time, es_plan
                         world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
@@ -517,21 +645,21 @@ class Planner(object):
 
                 #If the world is valid, update the best_world
                 if world_is_valid:
-                    print "World valid at", min_time + es_time
+                    if debug: print "World valid at", min_time + es_time
                     if world_new_plan == None: world_new_plan = world[1]
                     #If we have no best world, then this one is the best
                     if not best_world:
                         best_world = (min_time + es_time, world_new_plan)
-                        print "Is best by default"
+                        if debug: print "Is best by default"
                     #If we have a best world and this one is better, then it is best
                     if min_time + es_time < best_world[0]:
                         best_world = (min_time + es_time, world_new_plan)
-                        print "Is best by time"
+                        if debug: print "Is best by time"
                     #In the event of a tie, the one with less actions wins
                     if min_time + es_time == best_world[0] and \
                             len(filter(lambda x: x[1] == "ACTION", best_world[1])) \
                             > len(filter(lambda x: x[1] == "ACTION", world_new_plan)):
-                        print "Is best by action count"
+                        if debug: print "Is best by action count"
                         best_world = (min_time + es_time, world_new_plan)
                 
                                 
@@ -654,20 +782,23 @@ class Planner(object):
         plan_clone.sort(key=lambda x: x[0])
         return plan_clone
 
-    def plan_print(self):
+    def plan(self, limit_progs = None, start_prog_time = 0, initial_plan = []):
         code_exc = [c.copy() for c in self.code_exc]
 
-        plan = []
+        plan = [x for x in initial_plan]
 
         #Try to plan for each of the execs, use the first one, then fill until
         #a plan is made.
         for prog in code_exc:
-            prog_time = 0
+            if limit_progs:
+                if prog.uid not in limit_progs:
+                    continue
+            prog_time = start_prog_time
             prog_ord = 0
             while True:
                 plan.sort(key = lambda x: x[0])
                 goal = prog.execute(self.generate_world(plan, prog_time))
-                plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord])
+                plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord, prog.to_text()])
                 prog_ord = prog_ord + 1
                 if type(goal) == dict:
                     newplan, newprog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
@@ -682,7 +813,13 @@ class Planner(object):
                     plan.append([prog_time, "SETPLAN", prog.uid, True, r, prog_ord])
                     prog_ord = prog_ord + 1
                 elif goal == True or goal == False:
+                    if limit_progs and goal == False: #In limit progs
+                        return None
                     break
+        return plan
+    
+    def plan_print(self, limit_progs = None, start_prog_time = 0, initial_plan = []):
+        plan = self.plan(limit_progs = limit_progs, start_prog_time = start_prog_time, initial_plan = initial_plan)
 
         print
         print "Final plan steps:"
@@ -702,7 +839,7 @@ class BlastCodeObjectPtr(object):
         return "BlastCodeObjectPtr(" + str(self.refc) + ")"
 
 class BlastCodeExec(object):
-    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res', 'object_codes']
+    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res', 'object_codes', 'debug']
 
     def get_hash_state(self, hl = None):
         if not hl:
@@ -716,7 +853,20 @@ class BlastCodeExec(object):
         hl.update(str(self.plan_executed))
         hl.update(str(self.plan_res))
         for e in self.environments:
-            hl.update(str((e[0], e[3])))
+            hl.update(str(e[0]) + str(id(e[1])))
+            for dictionary in e[2:]:
+                for key in sorted(dictionary.keys()):
+                    t = type(dictionary[key])
+                    if t == set:
+                        hl.update(str(key) + ":")
+                        for s in sorted(dictionary[key]):
+                            hl.update(s + "|")
+                        hl.update(",")
+                        continue
+                    elif t != str and t != int and t != float and t != bool and t != blast_world.BlastPt and t != BlastCodeObjectPtr:
+                        raise Exception("Invalid type for dictionary key: " + \
+                                            str(type(dictionary[key])) + ": " + str(dictionary[key]))
+                    hl.update(str(key) + ":" + str(dictionary[key]) + ",")
             
     def to_text(self):
         s = str(self.uid) + ","
@@ -741,6 +891,7 @@ class BlastCodeExec(object):
         self.code = code
         self.plan_executed = plan_e
         self.plan_res = plan_r
+        self.debug = False
         self.object_codes = []
         if labels:
             self.labels = labels
@@ -830,9 +981,7 @@ class BlastCodeExec(object):
             return
         ps = next_step[1][next_step[0]]
         params = self.paste_parameters(ps.parameters, next_step[3])
-        #print next_step
-        #print params
-        print ps.command, params
+        if self.debug: print ps.command, params
         if ps.command == "PLAN":
             if self.plan_executed:
                 if ps.return_var:
@@ -975,9 +1124,12 @@ class BlastCodeExec(object):
 
             startsub = code[ptr]
 
+            if startsub.command != "STARTSUB":
+                raise blast_world.BlastCodeError("Subroutine calls a label that is not a subroutine: '" + sub + "'")
+
             for name, ptype in startsub.parameters.iteritems():
                 if name not in ps.parameters:
-                    raise blast_world.BlastCodeError("Missing parameter '" + name + "'")
+                    raise blast_world.BlastCodeError("Missing parameter for subroutine '" + name + "'")
             pc = params.copy()
             del pc['sub']
             self.environments.append([ptr + 1, code, labels, pc, {}])
@@ -1077,7 +1229,8 @@ class BlastPlannableWorld:
                     #Here is where we would try to interrupt the action
             if not still_running:
                 planner = Planner(self.world, [x.copy() for x in self.code_exec])
-                planner.plan_print()
+                pl = planner.plan_print()
+                print "Result -> ", pl
         self.lock.release()
         return
 
@@ -1655,44 +1808,26 @@ def run_test():
     
     world.try_exec()
 
-def old_way():
-    
-    print '-'*100
-    print "Plan to pick up bag"
-    print '-'*100
-    r = world.plan_to_location("stair4", initial_pickup_point)
-    if not r: return False
-    if not world.world.robots["stair4"].location.equal(initial_pickup_point): return False
+def coffee_run_exec():
+    import blast_world_test
+    world = BlastPlannableWorld(blast_world_test.make_test_world())
+    initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
+    rand_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloordoor")
+    world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": rand_point}}}, "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       blast_world.BlastCodeStep(None, "PLAN", 
+                                                 {"extra_steps": [("stair4", "coffee-run", 
+                                                                   {"shop": "clark_peets_coffee_shop",
+                                                                    "person_location": initial_pickup_point}),],},
+                                                 "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       
+                       blast_world.BlastCodeStep(None, "RETURN"),
+                       blast_world.BlastCodeStep("failure", "FAIL")
+                       ], ["stair4",], False)
 
-    print '-'*100
-    print "Grab money bag"
-    print '-'*100
-    r = world.take_action("stair4", "grab-object", {"tts-text": "Money Bag"})
-    if not r: return False
-    r = world.set_robot_holder("stair4", "left-arm", "coffee_money_bag")
-    if not r: return False
-
-    print '-'*100
-    print "Plan to buy coffee"
-    print '-'*100
-    r = world.plan_action("stair4", "buy-coffee", {"shop": "clark_peets_coffee_shop"})
-    if not r: return False
+    world.try_exec()
     
-    print '-'*100
-    print "Plan to return"
-    print '-'*100
-    r = world.plan_to_location("stair4", initial_pickup_point)
-    if not r: return False
-    
-    print '-'*100
-    print "Give object back"
-    print '-'*100
-    r = world.take_action("stair4", "unstash-cupholder", {})
-    if not r: return False
-    r = world.take_action("stair4", "give-object", {"tts-text": "Coffee Cup"})
-    if not r: return False
-    print r
-    return True
 
 def multi_robot_test():
     import blast_world_test
@@ -1785,6 +1920,11 @@ def overplan():
 
 if __name__ == '__main__':
     #print coffee_hunt_test()
-    print run_test()
+    #print run_test()
+    print coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
+
+    mpt = motion_plan_hits + motion_plan_misses
+    if mpt < 1: mpt = 1 #Avoid 0 div
+    print "Motion planed", mpt, "times, with", motion_plan_hits, "hits", motion_plan_hits * 1.0/mpt, "percent"
