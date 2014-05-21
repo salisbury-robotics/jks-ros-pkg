@@ -109,9 +109,9 @@ def make_test_actions():
                                    },
                         [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),], {},),
             BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
-                        "True()", "\"10000\"", {"robot.location": "False()",
-                                                "robot.positions.left-arm": False, 
-                                                "robot.positions.right-arm": False,}, 
+                        "True()", "True()", {"robot.location": "False()",
+                                             "robot.positions.left-arm": False, 
+                                             "robot.positions.right-arm": False,}, 
                         [], {}, planable = False, user = True, 
                         fm = {"no-bag": {"robot.location": "False()", 
                                          "robot.positions.left-arm": False, 
@@ -165,7 +165,84 @@ def make_test_actions():
                         {"table": ["table.locations.location",], },),
             
             ]
-    return test
+
+    code = [#Code for the action__pr2-cupholder__coffee-run = action pr2-cupholder.coffee-run. Parameters 'robot', 'shop' and 'person_location'
+            BlastCodeStep("action__pr2-cupholder__coffee-run", "STARTSUB", {'robot': 'robot', 'person_location': 'Pt'}),
+            BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "empty_ziplock_1L_bag",
+                                            'holder': BlastParameterPtr('robot', postfix = '.left-arm')},
+                          'action__pr2-cupholder__coffee-run__plan_return'), #FIXME: we need to store the result of the hunt: object and location
+
+            #Fail if we can't find the empty bag
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__coffee-run__failure"}),
+            #At this point, the bag is in the arm, so we need to get the type of bag.
+            BlastCodeStep(None, "GETOBJECT", {'holder': BlastParameterPtr('robot', postfix = '.left-arm')}, 
+                          "action__pr2-cupholder__coffee-run__empty_bag"),
+
+            #Now we give the human the bag
+            BlastCodeStep(None, "PLAN", {"world_limits": {"robot-holders": 
+                                                          {BlastParameterPtr("robot"):
+                                                               {"left-arm": BlastParameterPtr('action__pr2-cupholder__coffee-run__empty_bag')},},
+                                                          "robot-location": 
+                                                          {BlastParameterPtr('robot'): BlastParameterPtr('person_location')}},
+                                         "extra_steps": [(BlastParameterPtr('robot'), "give-object", {"tts-text": "Empty Bag"}),],}, 
+                          "action__pr2-cupholder__coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__coffee-run__failure"}),
+            #Now we get back the bag
+            BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": 
+                                                          {BlastParameterPtr('robot'): BlastParameterPtr('person_location')}},
+                                         "extra_steps": [(BlastParameterPtr('robot'), "grab-object", {"tts-text": "Money Bag"}),],}, 
+                          "action__pr2-cupholder__coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__coffee-run__failure"}),
+            
+            BlastCodeStep(None, "SETROBOTHOLDER", {"holder": BlastParameterPtr('robot', postfix = '.left-arm'),
+                                                   "require-preexisting": True, "object-type": "coffee_money_bag"}),
+            BlastCodeStep(None, "GETOBJECT", {'holder': BlastParameterPtr('robot', postfix = '.left-arm')}, 
+                          "action__pr2-cupholder__coffee-run__coffee_money_bag"),
+
+            #Go for the coffee shop
+            BlastCodeStep(None, "PLAN", {"world_limits": {"robot-holders": 
+                                                          {BlastParameterPtr("robot"):
+                                                               {"left-arm": BlastParameterPtr('action__pr2-cupholder__coffee-run__coffee_money_bag')},}
+                                                          },
+                                         "extra_steps": [(BlastParameterPtr('robot'), "buy-coffee", {"shop": BlastParameterPtr('shop')}),], },
+                          "action__pr2-cupholder__coffee-run__plan_return"),
+            BlastCodeStep(None, "GETOBJECT", {'holder': BlastParameterPtr('robot', postfix = '.left-arm')}, 
+                          "action__pr2-cupholder__coffee-run__coffee_cup"),
+
+            #Return the coffee to the human
+            BlastCodeStep(None, "PLAN", {"world_limits": {"robot-holders": 
+                                                          {BlastParameterPtr("robot"):
+                                                               {"left-arm": BlastParameterPtr('action__pr2-cupholder__coffee-run__coffee_cup')},},
+                                                          "robot-location": 
+                                                          {BlastParameterPtr('robot'): BlastParameterPtr('person_location')}},
+                                         "extra_steps": [(BlastParameterPtr('robot'), "give-object", {"tts-text": "Coffee Cup"}),],}, 
+                          "action__pr2-cupholder__coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__coffee-run__failure"}),
+            #Now we get back the bag
+            BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": 
+                                                          {BlastParameterPtr('robot'): BlastParameterPtr('person_location')}},
+                                         "extra_steps": [(BlastParameterPtr('robot'), "grab-object", {"tts-text": "Empty Bag"}),],}, 
+                          "action__pr2-cupholder__coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__coffee-run__failure"}),
+            
+            BlastCodeStep(None, "SETROBOTHOLDER", {"holder": BlastParameterPtr('robot', postfix = '.left-arm'),
+                                                   "require-preexisting": True, "object-type": "empty_ziplock_1L_bag"}),
+            BlastCodeStep(None, "GETOBJECT", {'holder': BlastParameterPtr('robot', postfix = '.left-arm')}, 
+                          "action__pr2-cupholder__coffee-run__coffee_money_bag"),
+
+            #TODO: set it down on the table
+                                                              
+
+            BlastCodeStep(None, "RETURN"),
+            BlastCodeStep("action__pr2-cupholder__coffee-run__failure", "FAIL"),
+            ]
+
+    return test, code
 
 
 def make_test_types_world():
@@ -255,7 +332,9 @@ def make_test_types_world():
     types_world.add_robot_type(RobotType("pr2-cupholder", {},
                                          {"cupholder": {}}, {}, types_world.get_robot("pr2")))
 
-    [types_world.add_action_type(x) for x in make_test_actions()]
+    a, c = make_test_actions()
+    [types_world.add_action_type(x) for x in a]
+    types_world.add_script(c)
     return types_world
 
 ###############################################################################
