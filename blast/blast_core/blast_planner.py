@@ -1,5 +1,6 @@
 
 import blast_world, time, json, itertools, hashlib, random, string, threading
+import heapq
 
 #### Planning process
 # 1. Plans are made from macro calls in the macro code structure
@@ -137,13 +138,9 @@ class Planner(object):
         #TODO add all elements of end robot state
         extra_goals = {'Pt': [end_w.robots[robot_name].location.copy(),]}
 
-        import heapq
 
         while worlds != []:
-            #w = heapq.heappop(worlds)[1]
-            w = min(worlds, key=lambda x: x[0])
-            worlds.remove(w)
-            w = w[1]
+            w = heapq.heappop(worlds)[1]
             planned_worlds.append(w)
 
             #Avoid already done worlds. If we get to one of the already
@@ -175,8 +172,7 @@ class Planner(object):
                     if change == None:
                         continue
                     wn = (w[1] + change, (w_next, w[1] + change, w[2] + [(action, parameters, change), ]))
-                    #heapq.heappush(worlds, wn)
-                    worlds.append(wn)
+                    heapq.heappush(worlds, wn)
                     
         if best_world:
             self.point_plans[robot_type][start][end] = (best_world[1], best_world[2])
