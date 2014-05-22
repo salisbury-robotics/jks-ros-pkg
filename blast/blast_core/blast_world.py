@@ -898,6 +898,16 @@ class BlastRobot(object):
         if not loc: loc = self.location
         return other.location.equal(loc)
 
+    def position_do_not_care(self, pos = None):
+        if pos == None:
+            for i in self.positions.iterkeys():
+                self.position_do_not_care(i)
+            return
+        p = self.positions[pos]
+        if p:
+            for k in p.iterkeys():
+                p[k] = False
+
     def copy(self):
         copy = BlastRobot(self.name, self.location.copy(), self.robot_type, do_setup = False)
         copy.holders = self.holders.copy()
@@ -2298,7 +2308,7 @@ class BlastWorld(object):
                 surfaceobject_parameters[param] = ptype.split(":")[1]
             elif ptype[0:len("Joint:")] == "Joint:":
                 
-                if param in self.types.parameter_values_cache:
+                if ptype in self.types.parameter_values_cache:
                     parameters[param] = self.types.parameter_values_cache[ptype]
                 else:
                     parameters[param] = []

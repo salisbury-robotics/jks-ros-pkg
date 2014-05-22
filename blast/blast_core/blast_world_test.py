@@ -159,7 +159,9 @@ def make_test_actions():
             
             BlastAction("pr2.table-coffee-scan", 
                         {"table": "Surface:table"},
-                        ("==", "robot.location", "table.locations.location"), "\"1\"",
+                        ("&&", ("==", "robot.location", "table.locations.location"),
+                         ("position", "robot.left-arm", "tucked"),
+                         ("position", "robot.right-arm", "tucked")), "\"1\"",
                         {"table.scan": "coffee_cup,empty_ziplock_1L_bag" },
                         [("icon", "robot.location", "action_fs/pr2/table-coffee-scan/icon.png"),],
                         {"table": ["table.locations.location",], },),
