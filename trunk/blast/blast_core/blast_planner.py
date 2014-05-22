@@ -106,6 +106,11 @@ class Planner(object):
 
     def motion_plan(self, robot_name, start_w, end_w):
         global motion_plan_hits, motion_plan_misses
+
+        #We actually need to plan from one to the other
+        #TODO: this should probably construct a world with no objects or other robots
+        #TODO: also, it may have problems with actions that depend on object presence
+        #      but do not move the objects. We should not allow that.
         start = self.motion_plan_state(robot_name, start_w)
         end = self.motion_plan_state(robot_name, end_w)
 
@@ -126,10 +131,6 @@ class Planner(object):
 
     def actual_motion_plan(self, robot_name, robot_type, start, end, start_w, end_w):
 
-        #We actually need to plan from one to the other
-        #TODO: this should probably construct a world with no objects or other robots
-        #TODO: also, it may have problems with actions that depend on object presence
-        #      but do not move the objects. We should not allow that.
         worlds = [(0, (start_w, 0, []))]
         planned_worlds = []
         w_hash = {}
@@ -145,19 +146,19 @@ class Planner(object):
 
             #Avoid already done worlds. If we get to one of the already
             #done worlds but do it faster then we still plan
-            if not w[0].get_hash_state() in w_hash:
-                w_hash[w[0].get_hash_state()] = w[1]
-            if w_hash[w[0].get_hash_state()] >= w[1]:
-                w_hash[w[0].get_hash_state()] = w[1]
+            hs = w[0].get_hash_state()
+            if not hs in w_hash:
+                w_hash[hs] = w[1]
+            if w_hash[hs] >= w[1]:
+                w_hash[hs] = w[1]
             else:
                 continue #Already planned
             
             if best_world:
                 if w[1] > best_world[1]: #Skip worlds that are after the fastest time to finish
                     continue
-            #if w[0].equal(end_w, tolerant=True):
+            if w[0].equal(end_w, tolerant=True):
             #print w[0].robots[robot_name].location.to_text()
-            if w[0].robots[robot_name].location.equal(end_w.robots[robot_name].location):
                 best_world = w
             
             for action in w[0].enumerate_robot(robot_name):
@@ -177,6 +178,9 @@ class Planner(object):
         if best_world:
             self.point_plans[robot_type][start][end] = (best_world[1], best_world[2])
         else:
+            print "Failed to plan"
+            print start_w.to_text(), "TO",
+            print end_w.to_text()
             self.point_plans[robot_type][start][end] = (None, None)
         r = self.point_plans[robot_type][start][end]
         return r[0], r[1], robot_type, start, end
@@ -448,15 +452,19 @@ class Planner(object):
 
     def get_robot_pose_world(self, w_start, robot, action, parameters, state):
         w_end = w_start.copy()
+        pos_set = set()
+        w_end.robots[robot] = w_end.robots[robot].copy()
         for s, v in state.iteritems():
             if s == 'robot.location':
-                w_end.robots[robot] = w_end.robots[robot].copy()
                 w_end.robots[robot].location = v.copy()
-                w_end.clear_hash("robots")
             else:
                 raise Exception("Illegal state variable from action_robot_pose: " + s
                                 + " in " + str(action) + " with " + str(parameters) 
                                 + " requiring " + str(state))
+        for p in w_end.robots[robot].positions.iterkeys():
+            if p not in pos_set:
+                w_end.robots[robot].position_do_not_care(p)
+        w_end.clear_hash("robots")
         return w_end
 
         
@@ -667,6 +675,7 @@ class Planner(object):
                     w_end = w_start.copy()
                     w_end.robots[robot] = w_end.robots[robot].copy()
                     w_end.robots[robot].location = target_pos.copy()
+                    w_end.robots[robot].position_do_not_care()
                     w_end.clear_hash("robots")
                     new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1])
                     if new_plan != None:
