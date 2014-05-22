@@ -457,6 +457,12 @@ class Planner(object):
         for s, v in state.iteritems():
             if s == 'robot.location':
                 w_end.robots[robot].location = v.copy()
+            elif len(s.split(".")) > 1 and s.split(".")[1] in w_end.robots[robot].positions:
+                n = s.split(".")[1]
+                d = {}
+                for x in zip(w_end.robots[robot].robot_type.position_variables[n][False][0], v):
+                    d[x[0]] = x[1]
+                w_end.robots[robot].positions[n] = d
             else:
                 raise Exception("Illegal state variable from action_robot_pose: " + s
                                 + " in " + str(action) + " with " + str(parameters) 
@@ -1746,7 +1752,7 @@ class BlastPlannableWorldOld:
 
 def coffee_hunt_test():
     import blast_world_test
-    world = BlastPlannableWorld(blast_world_test.make_table_top_world())
+    world = BlastPlannableWorld(blast_world_test.make_table_top_world(False))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
     def ac(r, a, p): #Test add the cups
@@ -1924,9 +1930,9 @@ def overplan():
     return r
 
 if __name__ == '__main__':
-    #print coffee_hunt_test()
+    print coffee_hunt_test()
     #print run_test()
-    print coffee_run_exec()
+    #print coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
 
