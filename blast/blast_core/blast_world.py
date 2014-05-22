@@ -1786,7 +1786,8 @@ class BlastWorld(object):
             else:
                 raise Exception("Invalid parameter type: " + str(ptype) + " for " + str(pname))
             
-            
+        
+        p_var_settings = []
 
         def eval_condition(c, csp, csp_var):
             this_var = "var_" + str(csp_var)
@@ -1806,6 +1807,17 @@ class BlastWorld(object):
                     app_var, csp, csp_var = eval_condition(c[i], csp, csp_var)
                     n.append(app_var)
                 csp = csp + [tuple(n), ]
+            elif c[0] == "position":
+                this_ivar = "var_" + str(csp_var)
+                csp_var = csp_var + 1
+                this_svar = "var_" + str(csp_var)
+                csp_var = csp_var + 1
+
+                
+                csp = csp + [(this_ivar, "==", c[1]),]
+                csp = csp + [(this_svar, "==", [len(p_var_settings),]),]
+                p_var_settings.append(c[2])
+                csp = csp + [(this_var, "===", this_ivar, this_svar),]
             elif c == "robot.location":
                 csp = csp + [(this_var, "==", "robot.location"),]
             elif type(c) == str and c.split(".")[0] in action_type.parameters:
@@ -1835,6 +1847,12 @@ class BlastWorld(object):
             for n in ['robot.location']:
                 if n in d:
                     pd[n] = d[n][0]
+            for name, vals in action_robot_type.position_variables.iteritems():
+                if "robot." + name in d:
+                    s = p_var_settings[d["robot." + name][0]]
+                    if type(s) != list:
+                        s = vals[s]
+                    pd["robot." + name] = s
             output.append((od, pd))
         
         return output
