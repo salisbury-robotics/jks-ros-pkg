@@ -1326,6 +1326,7 @@ class BlastPlannableWorld:
                     self.lock.acquire()
                     self.needs_replan = False
                     self.plan = pl
+                    self.old_plan.append([0, "REPLAN", (int(time.time() * 1000) + time_warp - start_time)])
                     start_time = int(time.time() * 1000)
                     time_warp = 0
 
@@ -1342,6 +1343,7 @@ class BlastPlannableWorld:
                 w = self.plan[0][0] - t
                 if w > 0:
                     print "Warping ", w, " ms ahead"
+                    self.old_plan.append([t, "WARP", w])
                     time_warp += w
 
             current_time = (int(time.time() * 1000) + time_warp - start_time)
@@ -1418,6 +1420,14 @@ class BlastPlannableWorld:
             if elapsed < 0.010:
                 time.sleep(0.010 - elapsed)
         return
+
+    def print_old(self):
+        print
+        print
+        print "Plan executed so far:"
+        for o in self.old_plan:
+            print o
+        print
 
     def action_overrun(self, r):
         print "Action on", r, "took too long. Cancelling."
@@ -1995,17 +2005,20 @@ def coffee_hunt_test():
     world = BlastPlannableWorld(blast_world_test.make_table_top_world(False))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
-    objects_to_add = {"table_1": 1, "table_2": 1}
+    objects_to_add = {"table_1": 1, "table_2": 1, "first_scan": None}
 
     def ac(r, a, p): #Test add the cups
+        tn = p.get("table", None)
+        if type(tn) == blast_world.BlastSurface: tn = tn.name
         if r == "stair4" and a == "table-coffee-scan":
-            tn = p.get("table", None)
-            if type(tn) == blast_world.BlastSurface: tn = tn.name
+            if not objects_to_add["first_scan"]:
+                objects_to_add["first_scan"] = tn
             if objects_to_add[tn] > 0:
                 world.world.add_surface_object(tn, "coffee_cup",
                                                blast_world.BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0))
                 objects_to_add[tn] -= 1
-        if r == "stair4" and a == "table-pick-left":
+        if r == "stair4" and a == "table-pick-left" and tn == objects_to_add["first_scan"]:
+            print "THERE IS NO OBJECT - THE PHANTOM CUP"
             return "no_object"
         if a == "table-place-left":
             time.sleep(30)
@@ -2035,6 +2048,8 @@ def coffee_hunt_test():
                       ["stair4",], False)
 
     world.run(True)
+
+    world.print_old()
 
     return True
 
