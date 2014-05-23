@@ -1,6 +1,6 @@
 
-import blast_world, time, json, itertools, hashlib, random, string, threading
-import heapq
+import blast_world, time, json, itertools, hashlib, random, string, threading, thread
+import heapq, traceback
 
 #### Planning process
 # 1. Plans are made from macro calls in the macro code structure
@@ -275,11 +275,12 @@ class Planner(object):
                                         + bin_to_hex(step[3]) + "):\n" + s)
                     return None
             elif step[1] == "SETPLAN":
-                cstep = None
-                for s in cxc:
-                    if s.uid == step[2]: cstep = s
-                if cstep == None: raise Exception("Invalid program: " + str(step[2]))
-                cstep.set_plan_executed(step[3], step[4])
+                if step[3] != None and step[4] != None:
+                    cstep = None
+                    for s in cxc:
+                        if s.uid == step[2]: cstep = s
+                    if cstep == None: raise Exception("Invalid program: " + str(step[2]))
+                    cstep.set_plan_executed(step[3], step[4])
             elif step[1] == "LAUNCH":
                 cstep = None
                 for s in cxc:
@@ -806,19 +807,24 @@ class Planner(object):
                     continue
             prog_time = start_prog_time
             prog_ord = 0
+            is_first_plan = True
             while True:
                 plan.sort(key = lambda x: x[0])
                 goal = prog.execute(self.generate_world(plan, prog_time))
-                plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord, prog.to_text()])
-                prog_ord = prog_ord + 1
+                plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord, prog.to_text(), goal])
+                prog_ord = prog_ord + 1 
                 if type(goal) == dict:
                     newplan, newprog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
                     r = True
                     if newplan == None and newprog_time == None:
                         r = False
+                        if not is_first_plan and goal.get("failure_force_replan", False) == True:
+                            plan.append([prog_time, "SETPLAN", prog.uid, None, None, prog_ord])
+                            prog_ord = prog_ord + 1
                     else:
                         plan = newplan
                         prog_time = newprog_time
+                    is_first_plan = False
                     for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
                     prog.set_plan_executed(True, r)
                     plan.append([prog_time, "SETPLAN", prog.uid, True, r, prog_ord])
@@ -1205,7 +1211,6 @@ class BlastCodeExec(object):
         raise blast_world.BlastCodeError("Command '" + ps.command + "' did not return a result, internal bug")
         
 
-
 class BlastPlannableWorld:
     def __init__(self, world, real_world = False):
         self.world = world
@@ -1216,10 +1221,37 @@ class BlastPlannableWorld:
         self.needs_replan = False
 
         self.robot_actions = {}
-        self.robot_action_queues = {}
+        self.robot_end_times = {}
+        self.robot_actions_cancelled = {}
+        self.plan = []
+        self.old_plan = []
+
+        #Action call back returns:
+        #False/None for epic failure.
+        #True for success
+        #String for plain failures.
+        #Exception generation is epic failure plus exception printed.
+
+        self.action_callback = lambda r, a, p: self.test_action_callback(r, a, p)
+
+        #Returns ignored. It is important that cancel callback is not
+        #called in a world lock, because during the shutdown process
+        #the cancel step could alter the world state.
+        self.cancel_callback = lambda r, f: self.test_cancel_callback(r, f)
         
         self.code_exec = []
+        self.finished_code = []
         self.code_exec_uid = 0
+
+        self.epic_fail_state = False
+
+    def test_action_callback(self, robot, action, parameters):
+        print "Test action callback:", robot, action, parameters
+        return True
+
+    def test_cancel_callback(self, robot, forced):
+        print "Default cancel callback for", robot, "forced?", forced
+        
 
     def append_plan(self, code, robots, wait_for_plan = True):
         self.lock.acquire()
@@ -1229,21 +1261,229 @@ class BlastPlannableWorld:
         self.needs_replan = True
         self.lock.release()
 
-    def try_exec(self):
-        self.lock.acquire()
-        if self.needs_replan:
-            still_running = False
-            for robot in self.world.robots_keysort:
-                self.robot_action_queues[robot] = []
-                if self.robot_actions.get(robot) != None:
-                    still_running = True
-                    #Here is where we would try to interrupt the action
-            if not still_running:
-                planner = Planner(self.world, [x.copy() for x in self.code_exec])
-                pl = planner.plan_print()
-                print "Result -> ", pl
-        self.lock.release()
+    def run(self, exit_when_done = False):
+        start_time = int(time.time() * 1000)
+        time_warp = 0
+        while not exit_when_done or self.code_exec != []:
+            step_time = time.time()
+            self.lock.acquire()
+            while self.epic_fail_state:
+                if exit_when_done: break
+                self.lock.release()
+                time.sleep(1.0)
+                self.lock.acquire()
+            if exit_when_done and self.epic_fail_state: 
+                self.lock.release()
+                break
+
+            if self.needs_replan:
+                still_running = False
+                tbc = set()
+                for robot in self.world.robots_keysort:
+                    if self.robot_actions.get(robot) != None:
+                        still_running = True
+                    if self.robot_actions_cancelled.get(robot, False):
+                        self.robot_actions_cancelled[robot] = True
+
+                if len(tbc) != 0:
+                    self.lock.release()
+                    for robot in tbc:
+                        self.cancel_callback(robot, False)
+                    self.lock.acquire()
+
+                if not still_running:
+                    plan_world = self.world.copy(copy_on_write_optimize = False)
+                    self.lock.release()
+                    planner = Planner(self.world, [x.copy() for x in self.code_exec])
+                    pl = planner.plan_print()
+
+
+                    print "Result -> ", pl
+                    print "Resuming execution..."
+                    print
+                    if pl == None or pl == False:
+                        pl = [] #TODO error
+                    
+                    prog_ord_max = 0
+                    plan_ord = []
+                    for step in pl:
+                        if step[1] == "EXEC":
+                            prog_ord_max = max(prog_ord_max, step[4] + 1)
+                            plan_ord.append([step[4] + 1, step])
+                        elif step[1] == "SETPLAN":
+                            prog_ord_max = max(prog_ord_max, step[5] + 1)
+                            plan_ord.append([step[5] + 1, step])
+                        else:
+                            plan_ord.append([-1, step])
+                    prog_ord_max += 3
+                    prog_ord_mul = 1
+                    while prog_ord_mul < prog_ord_max:
+                        prog_ord_mul *= 10
+                    plan_ord = [[prog_ord_max, x[1]] if x[0] < 0 else x for x in plan_ord]
+                    plan_ord.sort(key = lambda x: x[1][0] * prog_ord_mul + x[0])
+                    pl = [x[1] for x in plan_ord]
+
+                    self.lock.acquire()
+                    self.needs_replan = False
+                    self.plan = pl
+                    start_time = int(time.time() * 1000)
+                    time_warp = 0
+
+            #Simple solution - when all actions finish, then we warp ahead.
+            #In the future, we will switch to an action dependency graph model
+            #in which all actions execute based
+            warp = True
+            for r, v in self.robot_actions.iteritems():
+                if v != None:
+                    warp = False
+            
+            if warp and self.plan != []:
+                t = int(time.time() * 1000) + time_warp - start_time
+                w = self.plan[0][0] - t
+                if w > 0:
+                    print "Warping ", w, " ms ahead"
+                    time_warp += w
+
+            current_time = (int(time.time() * 1000) + time_warp - start_time)
+            #When a robot goes on for too long, it must be stopped
+            tbc = set()
+            for r, t in self.robot_actions.iteritems():
+                if v != None:
+                    if current_time >= self.robot_end_times[r] \
+                            and not self.robot_actions_cancelled[r]:
+                        tbc.add(r)
+                        self.robot_actions_cancelled[r] = True
+            if len(tbc) != 0:
+                self.needs_replan = True
+                self.lock.release()
+                for robot in tbc:
+                    self.cancel_callback(robot, False)
+                self.lock.acquire()
+                
+            while self.plan != [] and not self.needs_replan:
+                step = self.plan[0]
+                if step[0] >= current_time:
+                    break #All the rest is in the future
+                self.old_plan.append(step)
+                self.plan = self.plan[1:]
+                print "EXECUTE", step
+                if step[1] == "EXEC":
+                    uid = step[2]
+                    for prog in self.code_exec:
+                        if prog.uid == uid: break
+                    prog.execute(self.world)
+                    if prog.get_hash_state() != step[3]:
+                        s = "Not specified"
+                        if len(step) > 5: s = step[5]
+                        print ("Bad state for program (" + bin_to_hex(prog.get_hash_state()) \
+                                   + "):\n" + prog.to_text() + "\nGood state (" \
+                                   + bin_to_hex(step[3]) + "):\n" + s)
+                        
+                elif step[1] == "SETPLAN":
+                    if step[3] != None and step[4] != None:
+                        uid = step[2]
+                        for prog in self.code_exec:
+                            if prog.uid == uid: break
+                        prog.set_plan_executed(step[3], step[4])
+                    else:
+                        self.needs_replan = True
+                    
+                elif step[1] == "ACTION":
+                    if self.robot_actions.get(step[3], None) != None:
+                        print "ERRRROR", step[3], "is not stopped"
+                        self.robot_actions_cancelled[step[3]] = True
+                        self.needs_replan = True
+                        self.lock.release()
+                        self.cancel_callback(step[3], True)
+                        self.lock.acquire()
+                        self.needs_replan = True
+                    else:
+                        self.robot_actions[step[3]] = (step[3], step[4], step[5]) 
+                        self.robot_end_times[step[3]] = step[0] + step[2]
+                        self.robot_actions_cancelled[step[3]] = False
+                        thread.start_new_thread(lambda s, t, r, a, p: s.do_action(t, r, a, p),
+                                                (self, step[2], step[3], step[4], step[5]))
+
+            done_code = set()
+            for c in self.code_exec:
+                if c.done():
+                    print "Program finished:", c.uid
+                    done_code.add(c)
+            for c in done_code:
+                self.finished_code.append(c)
+                self.code_exec.remove(c)
+            
+            self.lock.release()
+            elapsed = time.time() - step_time
+            if elapsed < 0.010:
+                time.sleep(0.010 - elapsed)
         return
+
+    def action_overrun(self, r):
+        print "Action on", r, "took too long. Cancelling."
+        self.lock.acquire()
+        self.needs_replan = True
+        self.robot_actions_cancelled[r] = True
+        self.lock.release()
+        self.cancel_callback(r, True)
+
+    def epic_fail(self, r, a, p, rea):
+        self.epic_fail_state = True
+
+    def do_action(self, timelim, r, a, p):
+        print "Start action", r, a, p, "with limit", timelim, "ms"
+        self.lock.acquire()
+        internal_copy = self.world.copy(copy_on_write_optimize = False)
+        workspace_surfaces, workspace_points = internal_copy.get_workspaces(r, a, p)
+        self.lock.release()
+        print "Workspace is", workspace_surfaces, workspace_points
+        try:
+            acr = self.action_callback(r, a, p)
+        except:
+            print traceback.format_exc()
+            acr = False
+        print "Done action", r, a, p
+
+        self.lock.acquire()
+        if acr == False or acr == None: #Then the action failed
+            print "Action failed epically", r, a, p
+            self.epic_fail(r, a, p, "Callback failed epically")
+        else:
+            fm = None
+            if acr != True: 
+                print "Action failed", acr, "for", r, a, p
+                fm = acr
+                self.needs_replan = True
+            
+            if not self.real_world: #Debug action internally
+                atr, d = self.world.take_action(r, a, p, failure_mode = acr)
+                if atr == None or d == None:
+                    print "Action failed epically", r, a, p
+                    self.epic_fail(r, a, p, "Failed to run")
+
+            get_obj = lambda x: self.world.get_obj(x)
+            other_get_obj = lambda x: internal_copy.get_obj(x)
+            
+            atr, d = internal_copy.take_action(r, a, p, failure_mode = acr)
+            if atr == None or d == None:
+                print "Action failed epically", r, a, p
+                self.epic_fail(r, a, p, "Action verification simulation falsification")
+            
+            if not self.world.robots[r].equal(internal_copy.robots[r], get_obj, other_get_obj):
+                print "Action failed epically", r, a, p
+                self.epic_fail(r, a, p, "Robot " + r + " was not in correct state")
+            for s in workspace_surfaces:
+                if not self.world.surfaces[s].equal(internal_copy.surfaces[s], get_obj, other_get_obj):
+                    print "Action failed epically", r, a, p
+                    self.epic_fail(r, a, p, "Surface " + s + " was not in correct state")
+            
+            
+                
+            
+
+        self.robot_actions[r] = None
+        self.robot_actions_cancelled[r] = True
+        self.lock.release()
 
     
 
@@ -1755,16 +1995,24 @@ def coffee_hunt_test():
     world = BlastPlannableWorld(blast_world_test.make_table_top_world(False))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
+    objects_to_add = {"table_1": 1, "table_2": 1}
+
     def ac(r, a, p): #Test add the cups
         if r == "stair4" and a == "table-coffee-scan":
-            cup = blast_world.BlastObject(world.world.types.get_object("coffee_cup"),
-                                          blast_world.BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0), "table_1")
-            world.world.append_object(cup)
-            world.world.surfaces["table_1"].objects.append(blast_world.BlastObjectRef(cup.uid))
-            world.world.clear_hash("surfaces")
+            tn = p.get("table", None)
+            if type(tn) == blast_world.BlastSurface: tn = tn.name
+            if objects_to_add[tn] > 0:
+                world.world.add_surface_object(tn, "coffee_cup",
+                                               blast_world.BlastPos(0.6602, 0.0, 0.762, 0.0, 0.0, 0.0))
+                objects_to_add[tn] -= 1
+        if r == "stair4" and a == "table-pick-left":
+            return "no_object"
+        if a == "table-place-left":
+            time.sleep(30)
         return True
 
-    #world.action_callback = ac
+    world.action_default = True
+    world.action_callback = ac
     
     world.append_plan([blast_world.BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "coffee_cup",
                                                                    'holder': 'stair4.cupholder'}, 'plan_return'),
@@ -1786,7 +2034,7 @@ def coffee_hunt_test():
                        blast_world.BlastCodeStep("failure", "FAIL"),],
                       ["stair4",], False)
 
-    world.try_exec()
+    world.run(True)
 
     return True
 

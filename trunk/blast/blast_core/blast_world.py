@@ -152,7 +152,7 @@ class BlastCodeStep(object):
         elif command == "ENDSUB":
             self.acceptable_parameters([])
         elif command == "PLAN":
-            self.acceptable_parameters(['world_limits', 'extra_steps', 'extra_goals', 'assume_failure'])
+            self.acceptable_parameters(['world_limits', 'extra_steps', 'extra_goals', 'failure_force_replan'])
             #TODO: work it out
         elif command == "GETOBJECT":
             self.acceptable_parameters(['holder'])
@@ -175,27 +175,53 @@ class BlastCodeStep(object):
 hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_types': 'string'}),
         #Try to grab currently existing objects. This is assumed to fail
         BlastCodeStep(None, "PLAN", {'world_limits': 
-                                     {'robot-holders': {BlastParameterPtr('holder', 0):
-                                                            {BlastParameterPtr('holder', 1): BlastParameterPtr('object_types', prefix='TYPES:')}}},
-                                     'assume_failure': True}, "plan_return"),
+                                     {'robot-holders': {BlastParameterPtr('holder', 0): #ROBOT:
+                                                            {BlastParameterPtr('holder', 1): #HOLDER: OBJECT_TYPES
+                                                             BlastParameterPtr('object_types', prefix='TYPES:')},
+                                                        },
+                                      },
+                                     "failure_force_replan": True,
+                                     }, "plan_return"),
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': 'win_hunt'}),
         
         BlastCodeStep(None, 'SCAN', {"reset": BlastParameterPtr('object_types')}),
 
+        #This is the start of a loop over and over again to find objects
         BlastCodeStep("scan_loop", 'SCAN_STATE', {'types': BlastParameterPtr('object_types')}, "n_scans_done"),
         BlastCodeStep(None, 'SCAN_MAX', {'types': BlastParameterPtr('object_types')}, "n_scans_max"),
+
+        #If we achieve >= max_scan scans then we find that we can exit the loop
         BlastCodeStep(None, "IF", {'condition': ('<=', BlastParameterPtr('n_scans_done'), BlastParameterPtr('n_scans_max')),
-                                   'label_true': 'scan_next', 'label_false': 'exit_function'}),
+                                   'label_false': 'fail_hunt'}),
+
         BlastCodeStep('scan_next', "PLAN", {'world_limits':
                                                 {'scans': [(BlastParameterPtr('object_types'), '>', 
                                                            BlastParameterPtr('n_scans_done')),]}}, 'plan_return'),
+
+        #If we fail to scan, then we exit
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
-                                   'label_true': 'scan_loop', 'label_false': 'fail_hunt'}),
+                                   'label_false': 'fail_hunt'}),
+
+        #If we scanned hapily, then we try to pick up any objects that might have been found
+        BlastCodeStep(None, "PLAN", {'world_limits': 
+                                     {'robot-holders': {BlastParameterPtr('holder', 0): #ROBOT:
+                                                            {BlastParameterPtr('holder', 1): #HOLDER: OBJECT_TYPES
+                                                             BlastParameterPtr('object_types', prefix='TYPES:')},
+                                                        },
+                                      },
+                                     "failure_force_replan": True,
+                                     }, "plan_return"),
+
+
+        #If we did not find the object, then we can again, otherwise we win the hunt
+        BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
+                                   'label_true': 'win_hunt', 'label_false': 'scan_loop'}),
         #End main loop
         BlastCodeStep('exit_function', "PLAN", {'world_limits':
                                                     {'scans': [(BlastParameterPtr('object_types'), '>', 
-                                                                BlastParameterPtr('n_scans_max')),]},
-                                                'assume_failure': True}, 'plan_return'),
+                                                                BlastParameterPtr('n_scans_max')),],},
+                                                }, 'plan_return'),
+
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': 'win_hunt'}),
         BlastCodeStep('fail_hunt', 'FAIL'),
         BlastCodeStep('win_hunt', 'RETURN'),
