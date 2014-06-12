@@ -198,7 +198,7 @@ class Planner(object):
     #(time, "BLOCK", length, robot) runs through [time, time+length)
     
     
-    def generate_world(self, plan, at_time, do_optimize = True):
+    def generate_world(self, plan, at_time, do_optimize = True, ret_code_exc = False):
         steps = []
         cxc = [c.copy() for c in self.code_exc]
         prog_ord_max = 0
@@ -214,10 +214,6 @@ class Planner(object):
                 if step[0] <= at_time:
                     prog_ord_max = max(prog_ord_max, step[5])
                     steps.append(step)
-            elif step[1] == "LAUNCH":
-                if step[0] <= at_time:
-                    prog_ord_max = 0
-                    steps.append(step)
                 
         # (300 - ord(x)) S -> L -> E -> A sorts so that SET, then EXEC, then ACTION
         #for x in steps: print x, x[0], x[2] #, (x[0] + x[2])
@@ -227,7 +223,8 @@ class Planner(object):
         def sort_keys(x):
             ftime = x[0]
             if x[1] == "ACTION": ftime = ftime + x[2]
-            otype = (300 - ord(x[1][0]))
+            otype = 100 #(300 - ord(x[1][0]))
+            if x[1] == "ACTION": otype = 200
             prog_ord = 0
             if x[1] == "EXEC": prog_ord = x[4]
             if x[1] == "SETPLAN": prog_ord = x[5]
@@ -270,23 +267,29 @@ class Planner(object):
                 if cstep.get_hash_state() != step[3]:
                     s = "Not specified"
                     if len(step) > 5: s = step[5]
+                    for i in steps:
+                        print i
                     raise Exception("Bad state for program (" + bin_to_hex(cstep.get_hash_state()) \
                                         + "):\n" + cstep.to_text() + "\nGood state (" \
                                         + bin_to_hex(step[3]) + "):\n" + s)
                     return None
             elif step[1] == "SETPLAN":
-                if step[3] != None and step[4] != None:
-                    cstep = None
-                    for s in cxc:
-                        if s.uid == step[2]: cstep = s
-                    if cstep == None: raise Exception("Invalid program: " + str(step[2]))
-                    cstep.set_plan_executed(step[3], step[4])
-            elif step[1] == "LAUNCH":
                 cstep = None
                 for s in cxc:
                     if s.uid == step[2]: cstep = s
-                if cstep == None: #This is legitimate when we are planning for a program, we may have it in already.
-                    cxc.append(BlastCodeExec(step[2], step[3], step[4]))
+                if cstep == None: raise Exception("Invalid program: " + str(step[2]))
+                
+                if step[3] != None and step[4] != None:
+                    cstep.set_plan_executed(step[3], step[4])
+                elif step[3] == None and step[4] == None:
+                    pass #This forces a replan
+                elif step[3] == None and type(step[4]) == list:
+                    cstep.set_plan_code(step[4])
+                elif step[3] == None and step[4] == False:
+                    cstep.set_plan_code_done()
+                else:
+                    for s in steps: print s
+                    raise Exception("Weird program SETPLAN: " + str(step))
             else:
                 raise Exception("Invalid step: " + str(step))
             if do_optimize:
@@ -306,6 +309,8 @@ class Planner(object):
                                 + "\n---------- REAL ---------\n" + wc.to_text()
                                 + "\n---------- OPTO ---------\n" + w.to_text()
                                 + "\n---------- DIFF ---------\n" + w.diff(wc))
+        if ret_code_exc:
+            return [c.copy() for c in cxc]
         return w
 
 
@@ -475,7 +480,7 @@ class Planner(object):
         return w_end
 
         
-    def plan_to_prog(self, plan, robots, start_time, goal):
+    def plan_to_prog(self, plan, robots, start_time, goal, uid, prog_ord):
         #Reset initial world hash, so that we are confident of it. This is not
         #necessary but is a nice sanity insurance mechanism
         [self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
@@ -606,19 +611,15 @@ class Planner(object):
                                     blast_world.BlastCodeStep("success", "RETURN"),
                                     blast_world.BlastCodeStep("failure", "FAIL"),
                                     ]
+                                                        
+                            lstep = [min_time, "SETPLAN", uid, None, code, prog_ord]
+                            prog_ord = prog_ord + 1
+                            if prog_ord < 0: prog_ord = 1
 
-                            #Figure out new UID
-                            n_prog_count = max([x.uid for x in self.code_exc])
-                            for sstep in world[1]:
-                                if sstep[1] == "LAUNCH":
-                                    n_prog_count = max(sstep[2], n_prog_count)
-                            uid = n_prog_count + 1
-                            lstep = [min_time, "LAUNCH", uid, code, [step[0],],]
-                            
-
-                            planner_child = Planner(self.initial_world, [c.copy() for c in self.code_exc] + [BlastCodeExec(uid, code,  [step[0],]),])
+                            planner_child = Planner(self.initial_world, [c.copy() for c in self.code_exc])
                             planner_child.point_plans = self.point_plans #This speeds everything up.
-                            r = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time, initial_plan = world[1] + [lstep,])
+                            r = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time,
+                                                   initial_plan = world[1] + [lstep,], prog_ord = prog_ord)
                             if debug: print "------------------>", r
                             if r == None:
                                 es_plan = None
@@ -773,8 +774,8 @@ class Planner(object):
                     
         
         if best_world:
-            return best_world[1], best_world[0]
-        return None, None
+            return best_world[1], best_world[0], prog_ord
+        return None, None, None
 
     def back_fill_plan(self, plan, robot):
         time_blocks = []
@@ -794,8 +795,10 @@ class Planner(object):
         plan_clone.sort(key=lambda x: x[0])
         return plan_clone
 
-    def plan(self, limit_progs = None, start_prog_time = 0, initial_plan = []):
-        code_exc = [c.copy() for c in self.code_exc]
+    def plan(self, limit_progs = None, start_prog_time = 0, initial_plan = [], prog_ord = 0):
+        code_exc = self.generate_world(initial_plan, start_prog_time, ret_code_exc = True)
+        if code_exc == None:
+            raise Exception("Code exec could not be generated at plan start!")
 
         plan = [x for x in initial_plan]
 
@@ -806,7 +809,6 @@ class Planner(object):
                 if prog.uid not in limit_progs:
                     continue
             prog_time = start_prog_time
-            prog_ord = 0
             is_first_plan = True
             while True:
                 plan.sort(key = lambda x: x[0])
@@ -814,9 +816,9 @@ class Planner(object):
                 plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord, prog.to_text(), goal])
                 prog_ord = prog_ord + 1 
                 if type(goal) == dict:
-                    newplan, newprog_time = self.plan_to_prog(plan, prog.robots, prog_time, goal)
+                    newplan, newprog_time, newprog_ord = self.plan_to_prog(plan, prog.robots, prog_time, goal, prog.uid, prog_ord)
                     r = True
-                    if newplan == None and newprog_time == None:
+                    if newplan == None and newprog_time == None or newprog_ord == None:
                         r = False
                         if not is_first_plan and goal.get("failure_force_replan", False) == True:
                             plan.append([prog_time, "SETPLAN", prog.uid, None, None, prog_ord])
@@ -824,6 +826,7 @@ class Planner(object):
                     else:
                         plan = newplan
                         prog_time = newprog_time
+                        prog_ord = newprog_ord
                     is_first_plan = False
                     for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
                     prog.set_plan_executed(True, r)
@@ -833,6 +836,17 @@ class Planner(object):
                     if limit_progs and goal == False: #In limit progs
                         return None
                     break
+                elif goal == "PLAN":
+                    plan.append([prog_time, "SETPLAN", prog.uid, None, False, prog_ord])
+                    st = prog.set_plan_code_done()
+                    prog_ord = prog_ord + 1
+                    if limit_progs:
+                        if st:
+                            return plan
+                        else:
+                            return False
+                else:
+                    raise Exception("Invalid program return: " + goal)
         return plan
     
     def plan_print(self, limit_progs = None, start_prog_time = 0, initial_plan = []):
@@ -872,6 +886,9 @@ class BlastCodeExec(object):
         for e in self.environments:
             hl.update(str(e[0]) + str(id(e[1])))
             for dictionary in e[2:]:
+                if dictionary == True or dictionary == False:
+                    hl.update(str(dictionary))
+                    continue
                 for key in sorted(dictionary.keys()):
                     t = type(dictionary[key])
                     if t == set:
@@ -892,13 +909,22 @@ class BlastCodeExec(object):
             return s
         s = s + (str(self.plan_executed)) + "," + (str(self.plan_res)) + ":\n"
         for e in self.environments:
-            s = s + str((e[0], e[3])) + "\n"
+            s = s + str((e[0], e[3], "->", e[5])) + "\n"
         return s
 
     def get_next_plan(self, w):
         c = self.copy()
         c.set_plan_executed(False)
         return c.execute(w)
+
+    def generate_labels(self, code):
+        labels = {}
+        for i in xrange(0, len(code)):
+            if code[i].label:
+                if code[i].label in labels:
+                    raise blast_world.BlastCodeError("Duplicate label: " + code[i].label)
+                labels[code[i].label] = i
+        return labels
         
 
     def __init__(self, uid, code, robots, labels = None, environments = None, plan_e = False, plan_r = False):
@@ -913,20 +939,15 @@ class BlastCodeExec(object):
         if labels:
             self.labels = labels
         else:
-            self.labels = {}
-            for i in xrange(0, len(self.code)):
-                if self.code[i].label:
-                    if self.code[i].label in self.labels:
-                        raise blast_world.BlastCodeError("Duplicate label: " + self.code[i].label)
-                    self.labels[self.code[i].label] = i
+            self.labels = self.generate_labels(self.code)
 
         if environments != None:
             if environments == True or environments == False:
                 self.environments = environments
             else:
-                self.environments = [[gp, cb, lb, vs.copy(), sc.copy()] for gp, cb, lb, vs, sc in environments]
+                self.environments = [[gp, cb, lb, vs.copy(), sc.copy(), ic] for gp, cb, lb, vs, sc, ic in environments]
         else:
-            self.environments = [[0, self.code, self.labels, {}, {}],]
+            self.environments = [[0, self.code, self.labels, {}, {}, False],]
 
     def copy(self):
         c = BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res)
@@ -979,6 +1000,14 @@ class BlastCodeExec(object):
     def set_plan_executed(self, p, plan_res = False):
         self.plan_executed = p
         self.plan_res = plan_res
+
+    def set_plan_code(self, code):
+        self.environments.append([0, code, self.generate_labels(code), {}, {}, True])
+
+    def set_plan_code_done(self):
+        self.environments = self.environments[:-1]
+        substep = self.environments[-1][1][self.environments[-1][0]] #Find the CALLSUB
+        return self.environments[-1][3][substep.return_var]
 
     def done(self):
         if self.environments == False or self.environments == True:
@@ -1062,13 +1091,22 @@ class BlastCodeExec(object):
                 next_step[0] = next_step[0] + 1
             return self.execute(world)
         elif ps.command == "FAIL" or ps.command == "RETURN":
+            code_plan = self.environments[-1][5]
             if len(self.environments) == 1:
+                if code_plan:
+                    raise blast_world.BlastCodeError("Lowest runner was")
                 self.environments = (ps.command == "RETURN")
             else:
-                self.environments = self.environments[:-1]
-                substep = self.environments[-1][1][self.environments[-1][0]] #Find the CALLSUB
-                self.environments[-1][3][substep.return_var] = (ps.command == "RETURN") #Set return
-                self.environments[-1][0] = self.environments[-1][0] + 1 #Increment the instruction pointer
+                if not code_plan:
+                    self.environments = self.environments[:-1]
+                    substep = self.environments[-1][1][self.environments[-1][0]] #Find the CALLSUB
+                    self.environments[-1][3][substep.return_var] = (ps.command == "RETURN") #Set return
+                    self.environments[-1][0] = self.environments[-1][0] + 1 #Increment the instruction pointer
+                else:
+                    substep = self.environments[-2][1][self.environments[-2][0]]
+                    self.environments[-2][3][substep.return_var] = (ps.command == "RETURN") #Set return
+            if code_plan: #This allows us to properly terminate the subplan step
+                return "PLAN"
             return self.execute(world)
         elif ps.command == "SCAN":
             ot = params.get('reset', [])
@@ -1149,7 +1187,7 @@ class BlastCodeExec(object):
                     raise blast_world.BlastCodeError("Missing parameter for subroutine '" + name + "'")
             pc = params.copy()
             del pc['sub']
-            self.environments.append([ptr + 1, code, labels, pc, {}])
+            self.environments.append([ptr + 1, code, labels, pc, {}, False])
             return self.execute(world)
         elif ps.command == "GOTO":
             sub = params['label']
@@ -1217,6 +1255,8 @@ class BlastPlannableWorld:
         self.real_world = real_world
 
         self.lock = threading.Lock()
+
+        self.times_planned = 0
 
         self.needs_replan = False
 
@@ -1292,6 +1332,7 @@ class BlastPlannableWorld:
                     self.lock.acquire()
 
                 if not still_running:
+                    self.times_planned = self.times_planned + 1
                     plan_world = self.world.copy(copy_on_write_optimize = False)
                     planner = Planner(self.world, [x.copy() for x in self.code_exec])
                     self.lock.release()
@@ -1392,8 +1433,14 @@ class BlastPlannableWorld:
                         for prog in self.code_exec:
                             if prog.uid == uid: break
                         prog.set_plan_executed(step[3], step[4])
-                    else:
+                    elif step[3] == None and step[4] == None:
                         self.needs_replan = True
+                    elif step[3] == None and type(step[4]) == list:
+                        prog.set_plan_code(step[4])
+                    elif step[3] == None and step[4] == False:
+                        prog.set_plan_code_done()
+                    else:
+                        raise Exception("Invalid SETPLAN: " + str(step))
                     
                 elif step[1] == "ACTION":
                     if self.robot_actions.get(step[3], None) != None:
@@ -2111,7 +2158,32 @@ def coffee_run_exec():
 
     world.print_old()
 
+    print "Planned:", world.times_planned
     
+
+def 5x_coffee_run_exec():
+    import blast_world_test
+    world = BlastPlannableWorld(blast_world_test.make_test_world())
+    initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
+    rand_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloordoor")
+    world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": rand_point}}}, "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       blast_world.BlastCodeStep(None, "PLAN", 
+                                                 {"extra_steps": [("stair4", "5x_coffee-run", 
+                                                                   {"shop": "clark_peets_coffee_shop",
+                                                                    "person_location": initial_pickup_point}),],},
+                                                 "plan_return"),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       
+                       blast_world.BlastCodeStep(None, "RETURN"),
+                       blast_world.BlastCodeStep("failure", "FAIL")
+                       ], ["stair4",], False)
+
+    world.run(True)
+
+    world.print_old()
+
+    print "Planned:", world.times_planned
 
 def multi_robot_test():
     import blast_world_test
@@ -2205,7 +2277,7 @@ def overplan():
 if __name__ == '__main__':
     #print coffee_hunt_test()
     #print run_test()
-    print coffee_run_exec()
+    print 5x_coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
 
