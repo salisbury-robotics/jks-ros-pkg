@@ -269,6 +269,7 @@ class Planner(object):
                     if len(step) > 5: s = step[5]
                     for i in steps:
                         print i
+                        if i == step: print "THAT WAS IT"
                     raise Exception("Bad state for program (" + bin_to_hex(cstep.get_hash_state()) \
                                         + "):\n" + cstep.to_text() + "\nGood state (" \
                                         + bin_to_hex(step[3]) + "):\n" + s)
@@ -597,6 +598,8 @@ class Planner(object):
                         #print step
                         #print w_clone.robots["stair4"].location.to_text(), w_clone.robots["stair4"].holders
                         action_robot_type, action_type = w_clone.types.get_action_for_robot(w_clone.robots[step[0]].robot_type, step[1])
+                        if action_type == None:
+                            raise Exception("Invalid action type for extra step: " + str(step))
                         if action_type.time_estimate.strip() == "True()":
                             if debug: print "SPECIAL PLAN!!!!"
                             if debug: print "Initial time:", es_time + min_time
@@ -618,8 +621,8 @@ class Planner(object):
 
                             planner_child = Planner(self.initial_world, [c.copy() for c in self.code_exc])
                             planner_child.point_plans = self.point_plans #This speeds everything up.
-                            r = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time,
-                                                   initial_plan = world[1] + [lstep,], prog_ord = prog_ord)
+                            r, npo = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time,
+                                                        initial_plan = world[1] + [lstep,], prog_ord = prog_ord)
                             if debug: print "------------------>", r
                             if r == None:
                                 es_plan = None
@@ -627,6 +630,7 @@ class Planner(object):
                             else:
                                 es_plan = "TOTAL_NEW"
                                 es_time = 0
+                                prog_ord = npo
                                 for sstep in r:
                                     if sstep[1] == "EXEC" and sstep[2] == uid:
                                         es_time = max(es_time, sstep[0])
@@ -800,6 +804,10 @@ class Planner(object):
         if code_exc == None:
             raise Exception("Code exec could not be generated at plan start!")
 
+        #print len(initial_plan), prog_ord
+        #for i in code_exc:
+        #    print i.uid, ":", i.to_text()
+
         plan = [x for x in initial_plan]
 
         #Try to plan for each of the execs, use the first one, then fill until
@@ -834,7 +842,7 @@ class Planner(object):
                     prog_ord = prog_ord + 1
                 elif goal == True or goal == False:
                     if limit_progs and goal == False: #In limit progs
-                        return None
+                        return None, prog_ord
                     break
                 elif goal == "PLAN":
                     plan.append([prog_time, "SETPLAN", prog.uid, None, False, prog_ord])
@@ -842,15 +850,15 @@ class Planner(object):
                     prog_ord = prog_ord + 1
                     if limit_progs:
                         if st:
-                            return plan
+                            return plan, prog_ord
                         else:
-                            return False
+                            return False, prog_ord
                 else:
                     raise Exception("Invalid program return: " + goal)
-        return plan
+        return plan, prog_ord
     
     def plan_print(self, limit_progs = None, start_prog_time = 0, initial_plan = []):
-        plan = self.plan(limit_progs = limit_progs, start_prog_time = start_prog_time, initial_plan = initial_plan)
+        plan, po = self.plan(limit_progs = limit_progs, start_prog_time = start_prog_time, initial_plan = initial_plan)
 
         print
         print "Final plan steps:"
@@ -1175,6 +1183,9 @@ class BlastCodeExec(object):
             if sub in next_step[2]:
                 code = next_step[1]
                 labels = next_step[2]
+
+            if not sub in labels:
+                raise blast_world.BlastCodeError("Subroutine calls a label that is not present: '" + sub + "'")
             ptr = labels[sub]
 
             startsub = code[ptr]
@@ -2161,7 +2172,7 @@ def coffee_run_exec():
     print "Planned:", world.times_planned
     
 
-def 5x_coffee_run_exec():
+def five_coffee_run_exec():
     import blast_world_test
     world = BlastPlannableWorld(blast_world_test.make_test_world())
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
@@ -2169,7 +2180,7 @@ def 5x_coffee_run_exec():
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": rand_point}}}, "plan_return"),
                        blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
                        blast_world.BlastCodeStep(None, "PLAN", 
-                                                 {"extra_steps": [("stair4", "5x_coffee-run", 
+                                                 {"extra_steps": [("stair4", "five-coffee-run", 
                                                                    {"shop": "clark_peets_coffee_shop",
                                                                     "person_location": initial_pickup_point}),],},
                                                  "plan_return"),
@@ -2277,7 +2288,7 @@ def overplan():
 if __name__ == '__main__':
     #print coffee_hunt_test()
     #print run_test()
-    print 5x_coffee_run_exec()
+    print five_coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
 
