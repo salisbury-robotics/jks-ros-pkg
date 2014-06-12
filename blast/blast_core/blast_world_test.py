@@ -692,8 +692,8 @@ def pick_and_place_test():
     return True
 
 if __name__ == '__main__':
-    #torso_test()
-    run_test()
+    torso_test()
+    #run_test()
     #elevator_test()
     #arms_test()
     #pick_and_place_test()

@@ -1293,35 +1293,39 @@ class BlastPlannableWorld:
 
                 if not still_running:
                     plan_world = self.world.copy(copy_on_write_optimize = False)
-                    self.lock.release()
                     planner = Planner(self.world, [x.copy() for x in self.code_exec])
+                    self.lock.release()
                     pl = planner.plan_print()
 
-
-                    print "Result -> ", pl
+                    if type(pl) != list:
+                        print "Result -> ", pl
+                    else:
+                        print "Generated good plan"
                     print "Resuming execution..."
                     print
                     if pl == None or pl == False:
                         pl = [] #TODO error
                     
-                    prog_ord_max = 0
-                    plan_ord = []
-                    for step in pl:
-                        if step[1] == "EXEC":
-                            prog_ord_max = max(prog_ord_max, step[4] + 1)
-                            plan_ord.append([step[4] + 1, step])
-                        elif step[1] == "SETPLAN":
-                            prog_ord_max = max(prog_ord_max, step[5] + 1)
-                            plan_ord.append([step[5] + 1, step])
-                        else:
-                            plan_ord.append([-1, step])
-                    prog_ord_max += 3
-                    prog_ord_mul = 1
-                    while prog_ord_mul < prog_ord_max:
-                        prog_ord_mul *= 10
-                    plan_ord = [[prog_ord_max, x[1]] if x[0] < 0 else x for x in plan_ord]
-                    plan_ord.sort(key = lambda x: x[1][0] * prog_ord_mul + x[0])
-                    pl = [x[1] for x in plan_ord]
+                    #prog_ord_max = 0
+                    #plan_ord = []
+                    #for step in pl:
+                    #    if step[1] == "EXEC":
+                    #        prog_ord_max = max(prog_ord_max, step[4] + 1)
+                    #        plan_ord.append([step[4] + 1, step])
+                    #    elif step[1] == "SETPLAN":
+                    #        prog_ord_max = max(prog_ord_max, step[5] + 1)
+                    #        plan_ord.append([step[5] + 1, step])
+                    #    else:
+                    #        plan_ord.append([-1, step])
+                    #prog_ord_max += 3
+                    #prog_ord_mul = 1
+                    #while prog_ord_mul < prog_ord_max:
+                    #    prog_ord_mul *= 10
+                    #plan_ord = [[prog_ord_max, x[1]] if x[0] < 0 else x for x in plan_ord]
+                    #plan_ord.sort(key = lambda x: x[1][0] * prog_ord_mul + x[0])
+                    #for i in plan_ord:
+                    #    print i[1][0], prog_ord_mul, i[0], i[1]
+                    #pl = [x[1] for x in plan_ord]
 
                     self.lock.acquire()
                     self.needs_replan = False
@@ -1380,7 +1384,8 @@ class BlastPlannableWorld:
                         print ("Bad state for program (" + bin_to_hex(prog.get_hash_state()) \
                                    + "):\n" + prog.to_text() + "\nGood state (" \
                                    + bin_to_hex(step[3]) + "):\n" + s)
-                        
+                        self.needs_replan = True
+                        sys.exit(-1)
                 elif step[1] == "SETPLAN":
                     if step[3] != None and step[4] != None:
                         uid = step[2]
@@ -1405,6 +1410,8 @@ class BlastPlannableWorld:
                         self.robot_actions_cancelled[step[3]] = False
                         thread.start_new_thread(lambda s, t, r, a, p: s.do_action(t, r, a, p),
                                                 (self, step[2], step[3], step[4], step[5]))
+                else:
+                    raise Exception("Invalid plan step: " + str(step))
 
             done_code = set()
             for c in self.code_exec:
@@ -2100,7 +2107,10 @@ def coffee_run_exec():
                        blast_world.BlastCodeStep("failure", "FAIL")
                        ], ["stair4",], False)
 
-    world.try_exec()
+    world.run(True)
+
+    world.print_old()
+
     
 
 def multi_robot_test():
@@ -2193,9 +2203,9 @@ def overplan():
     return r
 
 if __name__ == '__main__':
-    print coffee_hunt_test()
+    #print coffee_hunt_test()
     #print run_test()
-    #print coffee_run_exec()
+    print coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
 
