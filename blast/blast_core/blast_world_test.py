@@ -108,6 +108,8 @@ def make_test_actions():
                                    #"robot.positions.right-arm": None
                                    },
                         [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),], {},),
+
+
             BlastAction("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "True()", {"robot.location": "False()",
                                              "robot.positions.left-arm": False, 
@@ -118,6 +120,18 @@ def make_test_actions():
                                          "robot.positions.right-arm": False,
                                          },
                               }),
+
+            BlastAction("pr2-cupholder.five-coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
+                        "True()", "True()", {"robot.location": "False()",
+                                             "robot.positions.left-arm": False, 
+                                             "robot.positions.right-arm": False,}, 
+                        [], {}, planable = False, user = True, 
+                        fm = {"no-bag": {"robot.location": "False()", 
+                                         "robot.positions.left-arm": False, 
+                                         "robot.positions.right-arm": False,
+                                         },
+                              }),
+
 
 
             BlastAction("pr2.table-pick-left", 
@@ -168,7 +182,52 @@ def make_test_actions():
             
             ]
 
-    code = [#Code for the action__pr2-cupholder__coffee-run = action pr2-cupholder.coffee-run. Parameters 'robot', 'shop' and 'person_location'
+    code = [#Code for the action__pr2-cupholder__five-coffee-run = action pr2-cupholder.five-coffee-run. Parameters 'robot', 'shop' and 'person_location'
+            BlastCodeStep("action__pr2-cupholder__five-coffee-run", "STARTSUB", {'robot': 'robot', 'person_location': 'Pt'}),
+            #Run once
+            BlastCodeStep(None, "PLAN", {"extra_steps": [(BlastParameterPtr('robot'), "coffee-run", 
+                                                          {"shop": BlastParameterPtr('shop'),
+                                                           "person_location": BlastParameterPtr('person_location')}),]},
+                          "action__pr2-cupholder__five-coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__five-coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__five-coffee-run__failure"}),
+            #Run twice
+            BlastCodeStep(None, "PLAN", {"extra_steps": [(BlastParameterPtr('robot'), "coffee-run", 
+                                                          {"shop": BlastParameterPtr('shop'),
+                                                           "person_location": BlastParameterPtr('person_location')}),]},
+                          "action__pr2-cupholder__five-coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__five-coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__five-coffee-run__failure"}),
+
+            BlastCodeStep(None, "RETURN"),
+            #Run thrice
+            BlastCodeStep(None, "PLAN", {"extra_steps": [(BlastParameterPtr('robot'), "coffee-run", 
+                                                          {"shop": BlastParameterPtr('shop'),
+                                                           "person_location": BlastParameterPtr('person_location')}),]},
+                          "action__pr2-cupholder__five-coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__five-coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__five-coffee-run__failure"}),
+            #Run quardic
+            BlastCodeStep(None, "PLAN", {"extra_steps": [(BlastParameterPtr('robot'), "coffee-run", 
+                                                          {"shop": BlastParameterPtr('shop'),
+                                                           "person_location": BlastParameterPtr('person_location')}),]},
+                          "action__pr2-cupholder__five-coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__five-coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__five-coffee-run__failure"}),
+            #Run last time
+            BlastCodeStep(None, "PLAN", {"extra_steps": [(BlastParameterPtr('robot'), "coffee-run", 
+                                                          {"shop": BlastParameterPtr('shop'),
+                                                           "person_location": BlastParameterPtr('person_location')}),]},
+                          "action__pr2-cupholder__five-coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__five-coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__five-coffee-run__failure"}),
+            
+            BlastCodeStep(None, "RETURN"),
+            BlastCodeStep("action__pr2-cupholder__five-coffee-run__failure", "FAIL"),
+            
+            
+            #Code for the action__pr2-cupholder__coffee-run = action pr2-cupholder.coffee-run. Parameters 'robot', 'shop' and 'person_location'
+        
             BlastCodeStep("action__pr2-cupholder__coffee-run", "STARTSUB", {'robot': 'robot', 'person_location': 'Pt'}),
             BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "empty_ziplock_1L_bag",
                                             'holder': BlastParameterPtr('robot', postfix = '.left-arm')},
