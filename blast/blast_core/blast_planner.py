@@ -480,7 +480,20 @@ class Planner(object):
         w_end.clear_hash("robots")
         return w_end
 
-        
+    #This function plans to a new world state as given as a goal by a program. This
+    #goal can include many fields, but mainly consists of extra_steps and world_limits.
+    #The world_limits are steps we take after we achieve a goal. The world_limits are
+    #conditions that must be true before we start extra_steps. Note that the world_limits
+    #are not garunteed to be true after we take the extra_steps.
+    #This function does a BFS plan out from the initial state taking all possible actions.
+    #it may recursively plan out for program actions, and also calls for motion planning.
+    #
+    #plan - is the current plan
+    #robots - is the list of names of robots which we plan on
+    #start_time - is the time in the planning process when we start
+    #goal - is the goal dictionary returned by the program
+    #uid - is the UID of the program to plan for
+    #prog_ord - is the ordinal number used for program step counting
     def plan_to_prog(self, plan, robots, start_time, goal, uid, prog_ord):
         #Reset initial world hash, so that we are confident of it. This is not
         #necessary but is a nice sanity insurance mechanism
@@ -511,18 +524,29 @@ class Planner(object):
                 print self.initial_world.to_text()
             print
 
+        #worlds is the list of possible BFS expansion points.
+        #planned_worlds is the list already planned worlds for duplicate pruning.
+        #pw_hash is a list of planned worlds for placement.
         worlds = [(start_time, plan), ]
         planned_worlds = []
         pw_hash = {}
 
+        #wl_uids is the uid list for object placement. Object placement is
+        #a tricky subject because objects are referenced based on location at
+        #the start of the program step. Getting the UIDs here ensures that the
+        #exact object is placed, not an equivalent one.
         wl_uids = {}
         if 'world_limits' in goal and 'place-objects' in goal['world_limits']:
             for it in goal['world_limits']['place-objects']:
                 wl_uids[it['object'].uid] = it
         
-
+        #best_world is our guess of the best possible result of the action.
+        #This is the world which meets the criteria but has the shortest
+        #possible time to get to. If None, then no suitable world was found.
         best_world = None
         while worlds != []:
+            #Find the world with the lowest time location and add it to the
+            #planned_worlds list.
             world = min(worlds, key=lambda x: x[0])
             worlds.remove(world)
             planned_worlds.append(world)
@@ -594,40 +618,47 @@ class Planner(object):
                     es_time = 0
                     w_clone = w_start.copy()
                     #print min_time, "W_clone", w_clone.surfaces['salisbury_table'].objects
+                    #Try to take each step
                     for step in goal['extra_steps']:
                         #print step
                         #print w_clone.robots["stair4"].location.to_text(), w_clone.robots["stair4"].holders
                         action_robot_type, action_type = w_clone.types.get_action_for_robot(w_clone.robots[step[0]].robot_type, step[1])
-                        if action_type == None:
+                        if action_type == None: #Action failed to load internally
                             raise Exception("Invalid action type for extra step: " + str(step))
-                        if action_type.time_estimate.strip() == "True()":
+                        if action_type.time_estimate.strip() == "True()": #action is a program action
+                            print "PLAN INTERNAL", action_type.name
                             if debug: print "SPECIAL PLAN!!!!"
                             if debug: print "Initial time:", es_time + min_time
+                            #Add the robot name and subroutine name to the action.
                             p = step[2].copy()
                             if 'sub' in p: raise Exception("We cannot have parameters called 'sub'.") #FIXME: should be compile time error
                             if 'robot' in p: raise Exception("We cannot have parameters called 'robot'.")
                             p['sub'] = "action__" + action_robot_type.name + "__" + step[1]
                             p['robot'] = step[0]
+                            #Define a simple program to call the subroutine with the parameters
                             code = [blast_world.BlastCodeStep(None, "CALLSUB", p, "plan_return"),
                                     blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
                                                                            'label_true': "success", 'label_false': 'failure'}),
                                     blast_world.BlastCodeStep("success", "RETURN"),
                                     blast_world.BlastCodeStep("failure", "FAIL"),
                                     ]
-                                                        
+                            #Add it to the program at the proper step
                             lstep = [min_time, "SETPLAN", uid, None, code, prog_ord]
                             prog_ord = prog_ord + 1
                             if prog_ord < 0: prog_ord = 1
-
+                            
+                            #Create a child planner and have it plan the action for the new world.
+                            #FIXME: this is not a true BFS expansion because we go for this first.
+                            #       we also do not force a time limit based on the best world.
                             planner_child = Planner(self.initial_world, [c.copy() for c in self.code_exc])
                             planner_child.point_plans = self.point_plans #This speeds everything up.
                             r, npo = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time,
                                                         initial_plan = world[1] + [lstep,], prog_ord = prog_ord)
                             if debug: print "------------------>", r
-                            if r == None:
+                            if r == None: #Internal plan failed, we can't actually run this action.
                                 es_plan = None
                                 break
-                            else:
+                            else: #Internal plan succeeded.
                                 es_plan = "TOTAL_NEW"
                                 es_time = 0
                                 prog_ord = npo
@@ -637,7 +668,7 @@ class Planner(object):
                                 es_time = es_time - min_time
                                 if debug: print "Time", es_time
                                 world_new_plan = r
-                        else:
+                        else: #We have a simple action, add it to the plan.
                             length, ldc = w_clone.take_action(step[0], step[1], step[2])
                             #print "Result -> ", length, ldc
                             if length == None and ldc == None:
@@ -646,12 +677,12 @@ class Planner(object):
                             es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
                             es_time = es_time + length
                 
-                    if es_plan == None:
+                    if es_plan == None: #We have failed to merge extra steps, world is invalud
                         if debug: print "Failed to merge extra-steps at", min_time
                         world_is_valid = False
-                    elif es_plan == "TOTAL_NEW":
+                    elif es_plan == "TOTAL_NEW": #We have a totally new plan, but it merged
                         if debug: print "Total new plan was a success at", min_time
-                    else:
+                    else: #We need to merge in extra-steps. TODO we should move this to the simple action step
                         #print "Attempt to merge in at", min_time, es_plan
                         world_new_plan = self.merge_plans(es_plan, min_time, world[1], 0)
                         if world_new_plan == None:
@@ -659,7 +690,7 @@ class Planner(object):
                             world_is_valid = False
             
 
-                #If the world is valid, update the best_world
+                #If the world is valid, update the best_world if it is faster
                 if world_is_valid:
                     if debug: print "World valid at", min_time + es_time
                     if world_new_plan == None: world_new_plan = world[1]
@@ -679,8 +710,8 @@ class Planner(object):
                         best_world = (min_time + es_time, world_new_plan)
                 
                                 
-                #For each robot, we have to try moving to the goal from world_limits.
-                #this is because it is relevant.
+                #For each robot, we have to try moving to the goal from world_limits,
+                #so that we can satisfy these goals.
                 if 'world_limits' in goal and 'robot-location' in goal['world_limits'] \
                         and robot in goal['world_limits']['robot-location']:
                     target_pos = goal['world_limits']['robot-location'][robot]
@@ -737,10 +768,10 @@ class Planner(object):
                                     worlds.append((min_time, new_plan, False))
                 else:
                     if debug: print "No object setdown for", robot, "at", min_time
-                                
-                    
-
+                
+                
                 #Deal with preparation for extra steps so we can execute them properly
+                #try to get the robots lined up to execute them
                 if 'extra_steps' in goal:
                     for step in goal['extra_steps']:
                         if step[0] != robot: 
@@ -760,7 +791,8 @@ class Planner(object):
                 else:
                     if debug: print "No extra-steps for", robot, "at", min_time
 
-                #Loop through all actions possible
+                #Loop through all actions possible that are not motion actions. For example
+                #pick and place.
                 for action in w_start.enumerate_robot(robot, require_object = True):
                     if debug: print "Trying", action, "for", robot, "at", min_time
                     for parameters, state in w_start.action_robot_pose(robot, action, {}): 
@@ -771,16 +803,16 @@ class Planner(object):
                             worlds.append((min_time, new_plan, False))
                     else:
                         if debug: print "No start state for this action"
-                        
-                            
-                                
-
-                    
         
+        #Return the best world.
         if best_world:
             return best_world[1], best_world[0], prog_ord
         return None, None, None
 
+    #This function fills up a plan with BLOCK times that prevent
+    #robot reuse. Fundementally this is an inefficiency in the
+    #planner in terms of resource use, but it prevents many
+    #plan from being generated that are not solvable.
     def back_fill_plan(self, plan, robot):
         time_blocks = []
         for step in plan:
@@ -820,31 +852,50 @@ class Planner(object):
             is_first_plan = True
             while True:
                 plan.sort(key = lambda x: x[0])
+                #Execute the program on the world at the current program time.
+                #Program time is defined as the time in the world the program is in
                 goal = prog.execute(self.generate_world(plan, prog_time))
+                #Append to the plan the execution of the program. This includes
+                #expected state and hash information.
                 plan.append([prog_time, "EXEC", prog.uid, prog.get_hash_state(), prog_ord, prog.to_text(), goal])
                 prog_ord = prog_ord + 1 
+                #Goal is the step returned by the program. There are many possibilities
+                #including an action planning goal or a sucess or failure.
                 if type(goal) == dict:
+                    #Try to plan to the program state desired.
                     newplan, newprog_time, newprog_ord = self.plan_to_prog(plan, prog.robots, prog_time, goal, prog.uid, prog_ord)
                     r = True
-                    if newplan == None and newprog_time == None or newprog_ord == None:
+                    if newplan == None and newprog_time == None or newprog_ord == None: #If we fail
                         r = False
+                        #In the event of failure, we simply need to force a replan. The program
+                        #author could specify this if we have a plan that might fail but hidden
+                        #state changes could fix. For example, we scan a surface as part of an
+                        #object hunt. Scanning actions assume that there are objects, so it will
+                        #always require replanning at that point. Fortunately we can force a replan.
+                        #It is important not to replan the first plan because there are no opportunities
+                        #for hidden world state change if we try to replan at that point. This would
+                        #therefore lead to an infinite loop.
                         if not is_first_plan and goal.get("failure_force_replan", False) == True:
                             plan.append([prog_time, "SETPLAN", prog.uid, None, None, prog_ord])
                             prog_ord = prog_ord + 1
-                    else:
+                    else: #If succeed
                         plan = newplan
                         prog_time = newprog_time
                         prog_ord = newprog_ord
+                    #After we are done, we need to block of robot times in gaps for
+                    #the plan, so that other plannings don't try to use those robots.
+                    #We clear the first plan, also add set_plan statement to the plan
+                    #so that execution happens properly.
                     is_first_plan = False
                     for robot in prog.robots: plan = self.back_fill_plan(plan, robot)
                     prog.set_plan_executed(True, r)
                     plan.append([prog_time, "SETPLAN", prog.uid, True, r, prog_ord])
                     prog_ord = prog_ord + 1
-                elif goal == True or goal == False:
+                elif goal == True or goal == False: #The whole program is done. Exit the loop
                     if limit_progs and goal == False: #In limit progs
                         return None, prog_ord
                     break
-                elif goal == "PLAN":
+                elif goal == "PLAN": #The program knows that when we get to this point, replanning will be needed.
                     plan.append([prog_time, "SETPLAN", prog.uid, None, False, prog_ord])
                     st = prog.set_plan_code_done()
                     prog_ord = prog_ord + 1
