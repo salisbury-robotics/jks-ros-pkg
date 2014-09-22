@@ -494,7 +494,8 @@ class Planner(object):
     #goal - is the goal dictionary returned by the program
     #uid - is the UID of the program to plan for
     #prog_ord - is the ordinal number used for program step counting
-    def plan_to_prog(self, plan, robots, start_time, goal, uid, prog_ord):
+    #end_time - absolute upper limit for the end time of the sequence
+    def plan_to_prog(self, plan, robots, start_time, goal, uid, prog_ord, end_time = None):
         #Reset initial world hash, so that we are confident of it. This is not
         #necessary but is a nice sanity insurance mechanism
         [self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
@@ -579,6 +580,10 @@ class Planner(object):
                     if min_time > best_world[0]:
                         if debug: print "Ignore time for too late", min_time, "for", robot
                         continue
+                if end_time: #Avoid worlds after the end time
+                    if min_time > end_time:
+                        if debug: print "Ignore end time too late", end_time, "for", robot
+                        continue
 
                 #Avoid duplications if we are a duplicate world later in time.
                 w_start = self.generate_world(world[1], min_time)
@@ -627,6 +632,9 @@ class Planner(object):
                             raise Exception("Invalid action type for extra step: " + str(step))
                         if action_type.time_estimate.strip() == "True()": #action is a program action
                             print "PLAN INTERNAL", action_type.name
+                            if action_type.name.find("five") != -1:
+                                for x in world[1]: print x
+                                print "END!!!!"
                             if debug: print "SPECIAL PLAN!!!!"
                             if debug: print "Initial time:", es_time + min_time
                             #Add the robot name and subroutine name to the action.
@@ -649,11 +657,14 @@ class Planner(object):
                             
                             #Create a child planner and have it plan the action for the new world.
                             #FIXME: this is not a true BFS expansion because we go for this first.
-                            #       we also do not force a time limit based on the best world.
                             planner_child = Planner(self.initial_world, [c.copy() for c in self.code_exc])
                             planner_child.point_plans = self.point_plans #This speeds everything up.
+                            etl = end_time
+                            if best_world:
+                                etl = best_world[0]
                             r, npo = planner_child.plan(limit_progs = [uid], start_prog_time = es_time + min_time,
-                                                        initial_plan = world[1] + [lstep,], prog_ord = prog_ord)
+                                                        initial_plan = world[1] + [lstep,], prog_ord = prog_ord,
+                                                        end_time = etl)
                             if debug: print "------------------>", r
                             if r == None: #Internal plan failed, we can't actually run this action.
                                 es_plan = None
@@ -831,7 +842,7 @@ class Planner(object):
         plan_clone.sort(key=lambda x: x[0])
         return plan_clone
 
-    def plan(self, limit_progs = None, start_prog_time = 0, initial_plan = [], prog_ord = 0):
+    def plan(self, limit_progs = None, start_prog_time = 0, initial_plan = [], prog_ord = 0, end_time = None):
         code_exc = self.generate_world(initial_plan, start_prog_time, ret_code_exc = True)
         if code_exc == None:
             raise Exception("Code exec could not be generated at plan start!")
@@ -852,6 +863,10 @@ class Planner(object):
             is_first_plan = True
             while True:
                 plan.sort(key = lambda x: x[0])
+                #Check if we have a time limit, and if so if we are over it
+                if end_time != None:
+                    if prog_time > end_time:
+                        return None, prog_ord
                 #Execute the program on the world at the current program time.
                 #Program time is defined as the time in the world the program is in
                 goal = prog.execute(self.generate_world(plan, prog_time))
@@ -863,7 +878,7 @@ class Planner(object):
                 #including an action planning goal or a sucess or failure.
                 if type(goal) == dict:
                     #Try to plan to the program state desired.
-                    newplan, newprog_time, newprog_ord = self.plan_to_prog(plan, prog.robots, prog_time, goal, prog.uid, prog_ord)
+                    newplan, newprog_time, newprog_ord = self.plan_to_prog(plan, prog.robots, prog_time, goal, prog.uid, prog_ord, end_time)
                     r = True
                     if newplan == None and newprog_time == None or newprog_ord == None: #If we fail
                         r = False
@@ -903,7 +918,7 @@ class Planner(object):
                         if st:
                             return plan, prog_ord
                         else:
-                            return False, prog_ord
+                            return None, prog_ord
                 else:
                     raise Exception("Invalid program return: " + goal)
         return plan, prog_ord
