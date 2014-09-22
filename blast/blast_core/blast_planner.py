@@ -197,7 +197,7 @@ class Planner(object):
     #(time, "ACTION", length, robot, action, parameters)    runs through [time, time+length)
     #(time, "BLOCK", length, robot) runs through [time, time+length)
     
-    
+    #Generate a world at a given time. Uses optimization to speed up world selection.
     def generate_world(self, plan, at_time, do_optimize = True, ret_code_exc = False):
         steps = []
         cxc = [c.copy() for c in self.code_exc]
