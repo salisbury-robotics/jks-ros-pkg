@@ -631,10 +631,6 @@ class Planner(object):
                         if action_type == None: #Action failed to load internally
                             raise Exception("Invalid action type for extra step: " + str(step))
                         if action_type.time_estimate.strip() == "True()": #action is a program action
-                            print "PLAN INTERNAL", action_type.name
-                            if action_type.name.find("five") != -1:
-                                for x in world[1]: print x
-                                print "END!!!!"
                             if debug: print "SPECIAL PLAN!!!!"
                             if debug: print "Initial time:", es_time + min_time
                             #Add the robot name and subroutine name to the action.
@@ -2352,9 +2348,9 @@ def overplan():
     return r
 
 if __name__ == '__main__':
-    #print coffee_hunt_test()
+    print coffee_hunt_test()
     #print run_test()
-    print five_coffee_run_exec()
+    #print five_coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
 
