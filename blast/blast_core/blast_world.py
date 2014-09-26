@@ -1097,6 +1097,16 @@ class BlastWorld(object):
         self.copy_on_write_optimize = True
         self.object_id = 0
 
+    def get_surface(self, sur):
+        return self.surfaces.get(sur, None)
+    def get_object(self, name):
+        return self.objects.get(name, None)
+    def get_map(self, mp):
+        return self.maps.get(mp, None)
+    def get_robot(self, rb):
+        return self.robots.get(rb, None)
+    
+
     def diff(self, other):
         out = ""
 
@@ -1143,6 +1153,9 @@ class BlastWorld(object):
         return self.types.enumerate_robot(self.robots[robot].robot_type.name, require_object = require_object)
 
     def delete_surface_object(self, obj):
+        if self.objects.get(obj) == None:
+            print "Surface delete object invalid object", obj
+            return False
         if self.copy_on_write_optimize:
             self.objects[obj] = self.objects[obj].copy()
         self.objects[obj].parent = None
@@ -1195,6 +1208,10 @@ class BlastWorld(object):
         return r
                     
     def add_surface_object(self, surface, object_type, pos):
+        if not surface in self.surfaces:
+            print "Invalid surface for object addition", surface
+            self.lock.release()
+            return False
         if self.copy_on_write_optimize:
             self.surfaces[surface] = self.surfaces[surface].copy()
         if type(object_type) == ObjectType:
@@ -1314,6 +1331,12 @@ class BlastWorld(object):
         return True
 
     def get_robot_holder(self, robot, holder):
+        if not robot in self.robots:
+            print "Set robot holder invalid robot", robot
+            return False
+        if not holder in self.robots[robot].holders:
+            print "Set robot holder invalid holder", holder, "for robot", robot
+            return False
         a = self.robots[robot].holders[holder]
         if a == None: return None
         return a.uid
@@ -1428,6 +1451,9 @@ class BlastWorld(object):
         else: Exception("Bad hash name" + key)
 
     def surface_scan(self, surface, object_types):
+        if not surface in self.surfaces:
+            print "Invalid surface for scanning", surface
+            return False
         s = self.surfaces[surface]
         for ot in object_types:
             s.scan.add(ot.strip())
@@ -1437,32 +1463,81 @@ class BlastWorld(object):
 
 
     def set_robot_position(self, robot, position, val):
+        if not robot in self.robots:
+            print "Set robot position invalid robot", robot
+            return False
+        if not position in self.robots[robot].positions:
+            print "Set robot position invalid position", position, "for robot", robot
+            return False
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
         if type(val) == type([]):
+            goal_len = len(self.robots[robot].robot_type.position_variables[position][False][0])
+            if goal_len != len(val):
+                print "Invalid number of joints for position ", position, \
+                    "for robot", robot, "need", goal_len, "got", len(val)
+                return False
             for name, v in zip(self.robots[robot].robot_type.position_variables[position][False][0], val):
                 if v != None:
                     self.robots[robot].positions[position][name] = float(v)
         elif type(val) == type({}):
             for name, v in val.iteritems():
+                if not name in self.robots[robot].positions[position]:
+                    print "Set robot position invalid joint", name, "for", position, "for robot", robot
+                    return False
+            for name, v in val.iteritems():
                 self.robots[robot].positions[position][name] = float(v)
         self.clear_hash("robots")
+        return True
     
     def set_robot_location(self, robot, blast_pt):
+        if not robot in self.robots:
+            print "Set robot location invalid robot", robot
+            return False
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
+        if type(blast_pt) == dict:
+            if not 'x' in blast_pt or not 'y' in blast_pt or not 'a' in blast_pt or not 'map' in blast_pt:
+                print "Invalid point dictionary"
+                return False
+            blast_pt = BlastPt(blast_pt['x'], blast_pt['y'],
+                               blast_pt['a'], blast_pt['map'])
         self.robots[robot].location = blast_pt.copy()
         self.clear_hash("robots")
+        return True
 
     def robot_transfer_holder(self, robot, from_holder, to_holder):
+        if not robot in self.robots:
+            print "Robot transfer holder invalid robot", robot
+            return False
+        if not from_holder in self.robots[robot].holders:
+            print "Robot transfer holder invalid holder", from_holder, "for robot", robot
+            return False
+        if not to_holder in self.robots[robot].holders:
+            print "Robot transfer holder invalid holder", to_holder, "for robot", robot
+            return False
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
         self.robots[robot].holders[to_holder] = self.robots[robot].holders[from_holder]
         self.robots[robot].holders[from_holder] = None
         self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
         self.clear_hash("robots")
+        return True
 
     def robot_pick_object(self, robot, uid, to_holder):
+        if not robot in self.robots:
+            print "Robot pick object invalid robot", robot
+            self.lock.release()
+            return False
+        if not uid in self.objects_keysort:
+            print "Robot pick object invalid object", uid, "for robot", robot
+            self.lock.release()
+            return False
+        if not to_holder in self.robots[robot].holders:
+            print "Robot pick object invalid holder", to_holder, "for robot", robot
+            self.lock.release()
+            return False
+        
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
 
@@ -1471,8 +1546,22 @@ class BlastWorld(object):
         self.gc_objects()
         self.clear_hash("robots")
         self.clear_hash("surfaces")
+        return True
         
     def robot_place_object(self, robot, from_holder, surface, pos):
+        if not robot in self.robots:
+            print "Robot place object invalid robot", robot
+            return False
+        if not surface in self.surfaces:
+            print "Robot place object invalid surface", surface, "for robot", robot
+            return False
+        if not from_holder in self.robots[robot].holders:
+            print "Robot place object invalid holder", to_holder, "for robot", robot
+            return False
+        if self.robots[robot].holders == None:
+            print "Robot place object empty holder", to_holder, "for robot", robot
+            return False
+        
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
             self.surfaces[surface] = self.surfaces[surface].copy()
@@ -1488,8 +1577,22 @@ class BlastWorld(object):
         self.gc_objects()
         self.clear_hash("robots")
         self.clear_hash("surfaces")
+        return True
 
-    def set_robot_holder(self, robot, holder, object_type):
+    def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = False):
+        if not robot in self.robots:
+            print "Set robot holder invalid robot", robot
+            self.lock.release()
+            return False
+        if not holder in self.robots[robot].holders:
+            print "Set robot holder invalid holder", holder, "for robot", robot
+            self.lock.release()
+            return False
+        if require_preexisting_object:
+            if self.robots[robot].holders[holder] == None:
+                print "Robot holder empty, set requires object for holder", holder, "for robot", robot
+                self.lock.release()
+                return False
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
         if object_type != None:
@@ -1503,6 +1606,7 @@ class BlastWorld(object):
         self.gc_objects()
         self.robots[robot].reparent_objects(lambda x: self.get_obj(x), lambda x: self.copy_obj(x))
         self.clear_hash("robots")
+        return True
     
     def clear_hash(self, key):
         self._set_hash(key, None)

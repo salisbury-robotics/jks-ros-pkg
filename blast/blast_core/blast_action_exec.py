@@ -201,20 +201,16 @@ class BlastActionExec():
             raise BlastRuntimeError("Failed to delete object")
         return res
     
-    #Plans and executes an action. It takes the name of the action as a string,
-    #the parameters for the action as a dictionary (of strings, and ints) and an 
-    #optional dictionary of contraints called "world_limits". The function will 
-    #plan out all the actions to get to the first point where the desired action 
-    #can be executed, and the plan can be arbitrarily large. In addition, at this
-    #point all world_limits will be satisfied and the action will run. The
-    #world_limits include "robot-location" which is a location and "robot-holders"
-    #which is a dictionary keyed by holder name of object uids that have to be in
-    #the holders. This is important if you want an action to take place with a very
-    #specific holder.
-    def plan_action(self, action, parameters, world_limits = None, world=None):
+    #Executes an action immediately. It takes the name of the action as a string,
+    #the parameters for the action as a dictionary (of strings, and ints). The
+    #action takes place in the context of the current action, so the parent action
+    #is responsible for the time taken by the child. This is generally used as a
+    #tool to execute e.g. the move to arbitrary location actions as a component of
+    #the global, more complex action.
+    def take_action(self, action, parameters, world=None):
         check_type(action, type(""))
         check_type(parameters, type({}))
-        if world_limits != None: check_type(world_limits, type({}))
+        #if world_limits != None: check_type(world_limits, type({}))
         check_world(world)
 
         parameters = parameters.copy()
@@ -223,21 +219,21 @@ class BlastActionExec():
                 parameters[name] = value.to_dict()
 
 
-        if world_limits != None:
-            world_limits = world_limits.copy()
-            for name, value in world_limits.iteritems():
-                if type(value) == BlastPos or type(value) == BlastLocation:
-                    world_limits[name] = value.to_dict()
-            print world_limits
-            parameters = {"parameter values": parameters, "world limits": world_limits}
+        #if world_limits != None:
+        #    world_limits = world_limits.copy()
+        #    for name, value in world_limits.iteritems():
+        #        if type(value) == BlastPos or type(value) == BlastLocation:
+        #            world_limits[name] = value.to_dict()
+        #    print world_limits
+        #    parameters = {"parameter values": parameters, "world limits": world_limits}
         if world:
-            res = ipc_packet("PLAN_ACTION," + str(world) + "," + str(action) + "," + self.json(parameters) + "\n")
+            res = ipc_packet("TAKE_ACTION," + str(world) + "," + str(action) + "," + self.json(parameters) + "\n")
         else:
-            res = ipc_packet("PLAN_ACTION_NW," + str(action) + "," + self.json(parameters) + "\n")
+            res = ipc_packet("TAKE_ACTION_NW," + str(action) + "," + self.json(parameters) + "\n")
         if type(res) == type(""):
             if res.strip() == "None": res = None
         if res == None:
-            raise BlastRuntimeError("Failed to plan")
+            raise BlastRuntimeError("Failed to take action")
         return res
 
     #Plans a hunt for an object of a given type. This causes the robot to iterate
@@ -248,6 +244,7 @@ class BlastActionExec():
     #prior surface of the object. It raises a BlastRuntimeError if planning fails
     #in a matter that suggests an error with the system, and a BlastFindObjectError
     #if the object cannot actually be found.
+    #TODO remove
     def plan_hunt(self, holder, object_type, world=None):
         check_type(holder, type(""))
         check_type(object_type, type(""))
@@ -328,6 +325,7 @@ class BlastActionExec():
     #Plans to set down an object on a surface. Takes the UID of the object,
     #the name of the surface, and the position on the surface. Raises
     #a BlastRuntimeError if it fails.
+    #TODO remove
     def plan_place(self, uid, surface, pos, world=None):
         check_type(uid, type(0))
         check_type(surface, type(""))

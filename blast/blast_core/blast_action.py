@@ -1,6 +1,6 @@
 import blast_world
 import blast_planner
-import os, sys, subprocess, json
+import os, sys, subprocess, json, time, threading
 
 blast_action_exec_d = {}
 def set_action_exec(robot_type, action_type, item):
@@ -35,6 +35,22 @@ def jsonload(strs):
         return str(r)
     return clean(r)
 
+def json_prepare(dt):
+    if type(dt) == list:
+        return [json_prepare(x) for x in dt]
+    if type(dt) == dict:
+        c = {}
+        for k, v in dt.iteritems():
+            c[json_prepare(k)] = json_prepare(v)
+        return c
+    if type(dt) == blast_world.BlastSurface:
+        return dt.name
+    if type(dt) == blast_world.BlastPt:
+        return dt.to_dict()
+    if type(dt) == blast_world.BlastObjectRef:
+        return dt.uid
+    return dt
+
 
 
 class BlastActionExec:
@@ -50,32 +66,43 @@ class BlastActionExec:
             self._manager.failure_modes[self._guid] = mode
             return True
         return None
+
+    def _get_manager_world(self, world):
+        if world != None:
+            raise Exception("Not yet. Infact, this should probably be removed")
+        w = self._manager.world.world
+        self._manager.world.lock.acquire()
+        return w
+
+    def _release_manager_world(self, world):
+        if world != None:
+            raise Exception("Not yet. Infact, this should probably be removed")
+        w = self._manager.world.world
+        self._manager.world.lock.release()
+        
     
     def set_location(self, position, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).set_robot_location(self._robot, position.copy())
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        w.set_robot_location(self._robot, position.copy())
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
 
     def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).set_robot_holder(self._robot, holder, ot,
-                                                        require_preexisting_object)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.set_robot_holder(self._robot, holder, ot,
+                               require_preexisting_object)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
 
     def robot_transfer_holder(self, from_holder, to_holder, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).robot_transfer_holder(self._robot, from_holder, to_holder)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.robot_transfer_holder(self._robot, from_holder, to_holder)      
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
 
@@ -83,16 +110,17 @@ class BlastActionExec:
         r = ""
         if not surface in self._manager._get_world(world).world.surfaces:
             return None
-        r = ",".join( ["BlastObjectRef(" + str(x.uid) + ")" for x in \
-                           self._manager._get_world(world).world.surfaces[surface].objects] )
+        w = self._get_manager_world(world)
+        r = ",".join( ["BlastObjectRef(" + str(x.uid) + ")" \
+                           for x in w.surfaces[surface].objects] )
+        self._release_manager_world(world)
         return r
 
     def get_robot_holder(self, holder, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).get_robot_holder(self._robot, holder)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.get_robot_holder(self._robot, holder)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
 
@@ -103,73 +131,68 @@ class BlastActionExec:
         except:
             return None
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).delete_surface_object(obj)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.delete_surface_object(obj)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
     
     def robot_pick_object(self, uid, to_holder, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).robot_pick_object(self._robot, uid, to_holder)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.robot_pick_object(self._robot, uid, to_holder)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
         
     def robot_place_object(self, from_h, surface, pos, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).robot_place_object(self._robot, from_h, surface, pos)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.robot_place_object(self._robot, from_h, surface, pos)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
         
     def add_surface_object(self, surface, object_type, pos, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).add_surface_object(surface, object_type, pos)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.add_surface_object(surface, object_type, pos)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
 
     def set_robot_position(self, pos, val, world = None):
         r = None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            self._get_world(world).set_robot_position(self._robot, pos, val)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.set_robot_position(self._robot, pos, val)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
 
     def surface_scan(self, surface, object_types, world = None):
         r= None
-        self._manager.world_lock()
-        if self._manager.get_current_guid() == self._guid:
-            r = self._get_world(world).surface_scan(surface, object_types)
-        self._manager.world_unlock()
+        w = self._get_manager_world(world)
+        r = w.surface_scan(surface, object_types)
+        self._release_manager_world(world)
         self._on_robot_change()
         return r
         
-    def plan_action(self, action, parameters, world_limits, world = None):
+    def take_action(self, action, parameters, world_limits, world = None):
         r = None
-        if self._manager.get_current_guid() == self._guid:
-            wl = {}
-            if "robot-holders" in world_limits:
-                wl["robot-holders"] = {self._robot: world_limits["robot-holders"]}
-            if "robot-location" in world_limits:
-                wl["robot-location"] = {self._robot: world_limits["robot-location"]}
-            r = self._manager.plan_action(self._robot, action, parameters, wl, True)
+        
+            #wl = {}
+            #if "robot-holders" in world_limits:
+            #    wl["robot-holders"] = {self._robot: world_limits["robot-holders"]}
+            #if "robot-location" in world_limits:
+            #    wl["robot-location"] = {self._robot: world_limits["robot-location"]}
+        r = self._manager.take_action(self._robot, action, parameters)
         print r
         if r == None:
             raise BlastRuntimeError("Planning to run action failed")
         return r
     
     def plan_hunt(self, holder, object_type, world = None):
+        raise Exception("We need to remove this")
         r = None
         if self._manager.get_current_guid() == self._guid:
             r = self._manager.plan_hunt(self._robot, holder, object_type, True)
@@ -178,6 +201,7 @@ class BlastActionExec:
         return r
 
     def plan_place(self, uid, surface, place, world = None):
+        raise Exception("We need to remove this")
         r = None
         if self._manager.get_current_guid() == self._guid:
             r = self._manager.plan_place(uid, surface, place, True)
@@ -186,6 +210,7 @@ class BlastActionExec:
         return r
 
     def create_world(self, new_world, world = None):
+        raise Exception("We need to remove this")
         if type(new_world) != type(""):
             raise BlastRuntimeError("new_world name must be a string")
         self._manager.world_lock()
@@ -197,22 +222,25 @@ class BlastActionExec:
         return True
 
     def get_surface(self, surface, world = None):
+        w = self._get_manager_world(world)
         if type(surface) != type(""):
             surface = surface.name
-        return self._get_world(world).get_surface(surface)
-
-    def _get_world(self, world):
-        if world == None: return self._manager.worlds[None]
-        name = "action_" + str(self.guid) + "_" + new_world
-        return self._manager.worlds[name]
+        s = w.get_surface(surface)
+        if s: s = s.to_dict()
+        self._release_manager_world(world)
+        return s
 
     def get_object(self, obj, world = None):
+        w = self._get_manager_world(world)
         obj = obj.strip().strip("BlastObjectRef()").strip()
         try:
             obj = int(obj)
         except:
             return None
-        return self._get_world(world).get_object(obj)
+        o = w.get_object(obj)
+        if o: o = o.to_dict()
+        self._release_manager_world(world)
+        return o
     
     def run(self, parameters):
         py_file = None
@@ -225,13 +253,14 @@ class BlastActionExec:
         if not py_file:
             raise BlastRuntimeError("No file for action with options " + str(self._filenames) 
                                     + " in directories " + str(self._manager.directories))
-        proc = subprocess.Popen(['python', "blast_action_exec.py", py_file, json.dumps(parameters)],
+        proc = subprocess.Popen(['python', "blast_action_exec.py", py_file, json.dumps(json_prepare(parameters))],
                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=sys.stdout)
         message = None
 
         error = False
         while True:
             result = proc.stdout.readline()
+            print result
             if type(result) != type(""):
                 print "Ignore packet", result
             elif result.find("DELETE_SURFACE_OBJECT") == 0:
@@ -256,7 +285,7 @@ class BlastActionExec:
                     obj = result.strip().split(",")[1].strip()
                 res = self.get_object(obj, world)
                 if res:
-                    proc.stdin.write("OBJECT" + json.dumps(res).replace("\n", "\\n") + "\n")
+                    proc.stdin.write("OBJECT" + json.dumps(json_prepare(res)).replace("\n", "\\n") + "\n")
                 else:
                     proc.stdin.write("None\n")
                 proc.stdin.flush()
@@ -269,7 +298,7 @@ class BlastActionExec:
                     surface = result.strip().split(",")[1].strip()
                 res = self.get_surface(surface, world)
                 if res:
-                    proc.stdin.write("SURFACE" + json.dumps(res).replace("\n", "\\n") + "\n")
+                    proc.stdin.write("SURFACE" + json.dumps(json_prepare(res)).replace("\n", "\\n") + "\n")
                 else:
                     proc.stdin.write("None\n")
                 proc.stdin.flush()
@@ -288,8 +317,8 @@ class BlastActionExec:
                 else:
                     proc.stdin.write("None\n")
                 proc.stdin.flush()
-            elif result.find("PLAN_ACTION") == 0:
-                if result.strip().split(",")[0].strip() == "PLAN_ACTION":
+            elif result.find("TAKE_ACTION") == 0:
+                if result.strip().split(",")[0].strip() == "TAKE_ACTION":
                     world = result.strip().split(",")[1].strip()
                     action = result.strip().split(",")[2].strip()
                     parameters = jsonload(",".join(result.strip().split(",")[3:]))
@@ -297,13 +326,8 @@ class BlastActionExec:
                     world = None
                     action = result.strip().split(",")[1].strip()
                     parameters = jsonload(",".join(result.strip().split(",")[2:]))
-                world_limits = {}
-                if "world limits" in parameters: #note this contains a space so never found as param
-                    world_limits = parameters["world limits"]
-                if "parameter values" in parameters:
-                    parameters = parameters["parameter values"]
                 try:
-                    proc.stdin.write(str(self.plan_action(action, parameters, world_limits, world)) + "\n")
+                    proc.stdin.write(str(self.take_action(action, parameters, world)) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
                     proc.stdin.write("None\n")
@@ -497,26 +521,30 @@ class BlastManager:
             oefc(r, a, p)
             sys.exit(1)
         self.world.action_epic_fail_callback = efc
-        self.action_stack = []
+        self.actions_running = []
         self.action_guid = 0
         self.action_worlds = {}
         self.failure_modes = {}
         self.worlds = {None: self.world}
+        self.is_stopped = False
 
-        self.implicit_plan = []
+        #Start running. Don't put code after here
+        def runthread():
+            self.world.run()
+        self.worldthread = threading.Thread(target=runthread)
+        self.worldthread.daemon = True
+        self.worldthread.start()
+
+    def __del__(self):
+        self.stop()
+    def stop(self):
+        self.is_stopped = True
+        for name, world in self.worlds.iteritems():
+            world.stop()
 
 
-
-    def world_lock(self):
-        pass
-    def world_unlock(self):
-        pass
-    def get_current_guid(self):
-        try:
-            return self.action_stack[-1]._guid
-        except:
-            return None
-        
+    def take_action(self, robot, action, parameters):
+        return self.on_action_take(robot, action, parameters)
 
     def on_action_take(self, robot, action, parameters):
         print "Action!", robot, action, parameters
@@ -529,34 +557,25 @@ class BlastManager:
         print "--- Exec action", robot, "-->", action, parameters
         def rc():
             self.on_robot_change(robot)
-        exe = BlastActionExec(robot, self, self.action_guid, action_exec, rc)
+        my_guid = self.action_guid
+        exe = BlastActionExec(robot, self, my_guid, action_exec, rc)
         self.action_guid = self.action_guid + 1
-        self.action_stack.append(exe)
-        
-        while len(self.implicit_plan) < len(self.action_stack):
-            self.implicit_plan.append([])
-        self.implicit_plan[len(self.action_stack)-1] = []
+        self.actions_running.append(exe)
         
         exe.run(parameters)
-        fail = self.failure_modes.get(self.get_current_guid(), None)
-        if self.get_current_guid() in self.action_worlds:
-            for world in self.action_worlds[self.get_current_guid()]:
-                del self.worlds["action_" + str(self.get_current_guid()) + "_" + world]
-            del self.action_worlds[self.get_current_guid()]
-        self.action_stack.remove(exe)
-        print "--- Done", action
+        fail = self.failure_modes.get(my_guid, None)
+        #if self.get_current_guid() in self.action_worlds:
+        #    for world in self.action_worlds[self.get_current_guid()]:
+        #        del self.worlds["action_" + str(self.get_current_guid()) + "_" + world]
+        #    del self.action_worlds[self.get_current_guid()]
+        self.actions_running.remove(exe)
+        print "--- Done", action, "Fail State:", fail
         #print self.world.world.to_text()
         #print "--------"
-        if fail: return fail
+        if fail != False and fail != None: return fail
+        print "Return true"
         return True
-        
-
-    def take_action(self, robot, action, parameters, do_cb = False):
-        r = self.world.take_action(robot, action, parameters)
-        if r == None:
-            print "Epic fail for", robot, "-->", action
-            return None
-        return r
+    
     def plan_action(self, robot, action, parameters, world_limits, do_cb = False):
         if do_cb:
             sh = len(self.action_stack) - 1
@@ -565,7 +584,7 @@ class BlastManager:
                 self.on_plan_action()
         else:
             update_cb = lambda x: None
-        res = self.world.plan_action(robot, action, parameters, world_limits, execution_cb=update_cb)
+        res = self.world.plan_action(robot, action, parameters, world_limits) #, execution_cb=update_cb)
         if res == None:
             print "Failed to plan action", robot, "-->", action
             return None
@@ -600,16 +619,34 @@ class BlastManager:
             return None
         return res
 
+    def get_program_state(self, program):
+        return self.world.get_program_state(program)
+    
+    def wait_for_program(self, program):
+        while True:
+            ps = self.world.get_program_state(program)
+            if ps != None:
+                return ps
+            time.sleep(0.01)
+
 
 
 def test_main():
     import blast_world_test
     man = BlastManager(["test_actions",], blast_world_test.make_test_world())
-    if not man.plan_action("stair4", "coffee-run", {"person_location": 
-                                                    blast_world.BlastPt(17.460, 38.323, -2.330,
-                                                                        "clarkcenterfirstfloor"), 
-                                                    "shop": "clark_peets_coffee_shop"}, {}):
+    prog_id = man.plan_action("stair4", "coffee-run", {"person_location": 
+                                                       blast_world.BlastPt(17.460, 38.323, -2.330,
+                                                                           "clarkcenterfirstfloor"), 
+                                                       "shop": "clark_peets_coffee_shop"}, {})
+    if prog_id == None:
+        print "Failed to plan", prog_id
+        man.stop()
         return False
+    if man.wait_for_program(prog_id) == False:
+        print "Action execution failed"
+        man.stop()
+        return False
+    man.stop()
     a = "0a74cbe0c1cd7804120143ffe687a63bf8baec2f00d11e47583d075b7b3fc0350a5bcf3be0a1e4d6977904"
     a = a + "dde7e04531ac7662d74ade2749085a3deb79df8e417fa7d2bd93a92d744e22058b29c0012b2f282516"
     if a != man.world.world.get_hex_hash_state():
@@ -695,7 +732,7 @@ def test_multi_robot():
 
 
 if __name__ == '__main__':
-    #print test_main()
+    print test_main()
     #print test_place()
-    print test_multi_robot()
+    #print test_multi_robot()
 
