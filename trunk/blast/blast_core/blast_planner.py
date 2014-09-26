@@ -2,6 +2,8 @@
 import blast_world, time, json, itertools, hashlib, random, string, threading, thread
 import heapq, traceback
 
+#FIXME what if we leave referenced objects on a surface, they could be lost.
+
 #### Planning process
 # 1. Plans are made from macro calls in the macro code structure
 # 2. Plans are then executed by the reasoner.
@@ -1324,19 +1326,33 @@ class BlastCodeExec(object):
 
 class BlastPlannableWorld:
     def __init__(self, world, real_world = False):
+        #Blast wrold
         self.world = world
+        
+        #In the Real World (TM) action_callback is assumed to have modified the state of the world.
+        #this is counter to simulation worlds where action callback is assumed to have done nothing.
         self.real_world = real_world
 
+        #Used to lock the world. The world must be locked when we update it or change it.
+        #Also used when actions are stopped or started.
         self.lock = threading.Lock()
 
+        #Counter for number of times planed
         self.times_planned = 0
 
+        #This is set to true when the plan breaks. No new actions should be started and the system
+        #will wait until all actions are finished, attempting to cancel existing ones, until it works.
         self.needs_replan = False
 
+        #The current actions running on the robots
         self.robot_actions = {}
+        #The time limits for the robot actions
         self.robot_end_times = {}
+        #Flagging system for robot action canceling
         self.robot_actions_cancelled = {}
+        #The current plan steps
         self.plan = []
+        #Old plan steps built up for history view
         self.old_plan = []
 
         #Action call back returns:
@@ -1344,18 +1360,27 @@ class BlastPlannableWorld:
         #True for success
         #String for plain failures.
         #Exception generation is epic failure plus exception printed.
-
         self.action_callback = lambda r, a, p: self.test_action_callback(r, a, p)
+
+        #Called when the action fails epically. Return ignored
+        self.action_epic_fail_callback = lambda r, a, p: None
 
         #Returns ignored. It is important that cancel callback is not
         #called in a world lock, because during the shutdown process
         #the cancel step could alter the world state.
         self.cancel_callback = lambda r, f: self.test_cancel_callback(r, f)
-        
-        self.code_exec = []
-        self.finished_code = []
-        self.code_exec_uid = 0
 
+        #The list all currently running programs
+        self.code_exec = []
+        #List of completed programs for historical purposes
+        self.finished_code = []
+        #State of exited programs
+        self.code_exit_state = {}
+        #Current UID for programs. Incremented every time we add a new program.
+        self.code_exec_uid = 0
+        #True if we should exit out of the system when we are done.
+        self.is_stopped = False
+        #True if we have failed epically and need the user to bail us out.
         self.epic_fail_state = False
 
     def test_action_callback(self, robot, action, parameters):
@@ -1365,22 +1390,35 @@ class BlastPlannableWorld:
     def test_cancel_callback(self, robot, forced):
         print "Default cancel callback for", robot, "forced?", forced
         
+    def stop(self):
+        self.is_stopped = True
 
     def append_plan(self, code, robots, wait_for_plan = True):
         self.lock.acquire()
         exc = BlastCodeExec(self.code_exec_uid, code, robots)
+        ret_uid = self.code_exec_uid
         self.code_exec_uid = self.code_exec_uid + 1
         self.code_exec.append(exc)
         self.needs_replan = True
         self.lock.release()
+        return ret_uid
+
+    def get_program_state(self, uid):
+        if uid in self.code_exit_state:
+            return self.code_exit_state[uid]
+        for i in self.code_exec:
+            if i.uid == uid:
+                return None
+        return None
 
     def run(self, exit_when_done = False):
         start_time = int(time.time() * 1000)
         time_warp = 0
-        while not exit_when_done or self.code_exec != []:
+        while (not exit_when_done or self.code_exec != []) and not self.is_stopped:
             step_time = time.time()
             self.lock.acquire()
             while self.epic_fail_state:
+                if self.is_stopped: return
                 if exit_when_done: break
                 self.lock.release()
                 time.sleep(1.0)
@@ -1540,6 +1578,7 @@ class BlastPlannableWorld:
                     done_code.add(c)
             for c in done_code:
                 self.finished_code.append(c)
+                self.code_exit_state[c.uid] = c.succeeded()
                 self.code_exec.remove(c)
             
             self.lock.release()
@@ -1565,6 +1604,7 @@ class BlastPlannableWorld:
         self.cancel_callback(r, True)
 
     def epic_fail(self, r, a, p, rea):
+        self.action_epic_fail_callback(r, a, p)
         self.epic_fail_state = True
 
     def do_action(self, timelim, r, a, p):
@@ -1577,13 +1617,14 @@ class BlastPlannableWorld:
         try:
             acr = self.action_callback(r, a, p)
         except:
+            print "The action callback threw an exception - epic fail!"
             print traceback.format_exc()
             acr = False
-        print "Done action", r, a, p
+        print "Done action result", acr, "for", r, a, p
 
         self.lock.acquire()
         if acr == False or acr == None: #Then the action failed
-            print "Action failed epically", r, a, p
+            print "Action failed epically with", acr, "for", r, a, p
             self.epic_fail(r, a, p, "Callback failed epically")
         else:
             fm = None
@@ -1595,7 +1636,7 @@ class BlastPlannableWorld:
             if not self.real_world: #Debug action internally
                 atr, d = self.world.take_action(r, a, p, failure_mode = acr)
                 if atr == None or d == None:
-                    print "Action failed epically", r, a, p
+                    print "Action failed epically we could not run the action in a non-real world", r, a, p
                     self.epic_fail(r, a, p, "Failed to run")
 
             get_obj = lambda x: self.world.get_obj(x)
@@ -1603,15 +1644,23 @@ class BlastPlannableWorld:
             
             atr, d = internal_copy.take_action(r, a, p, failure_mode = acr)
             if atr == None or d == None:
-                print "Action failed epically", r, a, p
+                print "Action failed epically due to verification simulation falsification", r, a, p
                 self.epic_fail(r, a, p, "Action verification simulation falsification")
             
-            if not self.world.robots[r].equal(internal_copy.robots[r], get_obj, other_get_obj):
-                print "Action failed epically", r, a, p
+            if not self.world.robots[r].equal(internal_copy.robots[r], get_obj, other_get_obj, tolerant = True):
+                print "Action failed epically because it did not update robot", r, "for", r, a, p
+                print "We wanted to have"
+                print internal_copy.robots[r].to_text()
+                print "But instead we got"
+                print self.world.robots[r].to_text()
                 self.epic_fail(r, a, p, "Robot " + r + " was not in correct state")
             for s in workspace_surfaces:
                 if not self.world.surfaces[s].equal(internal_copy.surfaces[s], get_obj, other_get_obj):
-                    print "Action failed epically", r, a, p
+                    print "Action failed epically because it did not update surface", s, "for", r, a, p
+                    print "We wanted to have"
+                    print internal_copy.surfaces[s].to_text()
+                    print "But instead we got"
+                    print self.world.surfaces[s].to_text()
                     self.epic_fail(r, a, p, "Surface " + s + " was not in correct state")
             
             
@@ -1622,510 +1671,19 @@ class BlastPlannableWorld:
         self.robot_actions_cancelled[r] = True
         self.lock.release()
 
-    
-
-
-
-
-
-
-
-#This world implements action queues and the like. It also does action
-#gating so things execute in order.
-
-class BlastPlannableWorldOld:
-    def order_replan(self):
-        #Tell all the plans that they need to re-plan. Also delete all done plans.
-        self.plans_lock.acquire()
-        self.plans_planned_count = 0
-        self.plans = [x for x in self.plans if not x.done]
-        self.plan_ids = set([int(x.uid) for x in self.plans])
-        for plan in self.plans:
-            plan.replan_gate = False
-            plan.needs_replan = True
-        
-        #Wait for all plans to stop
-        stuck = True
-        while stuck and not self.no_exec_debug:
-            stuck = False
-            for plan in self.plans:
-                if not plan.replan_ready:
-                    stuck = True
-                    break
-            if stuck:
-                print "Waiting for replan_ready"
-                time.sleep(0.01)
-        #Now all plans should be waiting for the replan_gate triggers
-
-        #Cancel all actions
-        self.planning_lock.acquire()
-        for robot in self.world.robots_keysort:
-            self.robot_locks[robot].acquire()
-            self.robot_queues[robot] = []
-            #TODO --> We should attempt to interrupt the current action here when we implment that.
-            self.robot_locks[robot].release()
-        self.planning_lock.release()
-
-        #Wait for the actions to stop
-        stuck = True
-        while stuck:
-            stuck = False
-            for robot in self.world.robots_keysort:
-                if self.robot_current_actions[robot] != None:
-                    stuck = True
-                    break
-            if stuck:
-                print "Waiting for a robot to finish"
-                time.sleep(0.01)
-        self.plans_lock.release()
-
-        #Now we can release the replan gates. Note that this causes an all-out free-for all
-        #for the lock, so the plans get executed in random order. In the future we may not
-        #want this because we want to prioritize plans.
-        for plan in self.plans:
-            plan.replan_gate = True
-
-
-
-    def __init__(self, world):
-        self.world = world
-        self.no_exec_debug = False #Used by tests with the actual plan info prevents execution of the test.
-        self.real_world = False
-        self.plan_steps = {}
-        self.post_exec_world = None
-        self.action_callback = lambda r, a, p: True
-        def action_e_fail(r, a, p): 
-            print "Action failed epically", r, "-->", a
-            print "With parameters: ", p
-        self.action_epic_fail_callback = action_e_fail
-
-        #When the planning lock is in place, no actions can
-        #be started. This is so the planner can plan with a
-        #fixed world. Unfortunately this makes things slow
-        #because we cannot have action execution and build up
-        #at the same time, but alas that is the price we pay.
-        self.planning_lock = threading.Lock()
-
-        #Synchronization method to know when to restart execution
-        #after replanning events.
-        self.plans_planned_count = 0
-
-        #This is the modification lock. When in place, no
-        #modifications can be made to self.world. This is
-        #important to prevent e.g. two actions from 
-        #conflicting and crashing the system.
-        self.lock = threading.Lock()
-
-        #The queue of "PlanStep" objects for the robots. Note 
-        #that all events here have a planning event that 
-        #introduced them associated so they can be unplanned 
-        #in the event of a failure.
-        self.robot_queues = {}
-
-        #The locks for the robot queues. You can't modify a 
-        #robot's queue unless you lock it, so we don't have 
-        #issues with list append and delete at the same time 
-        #(list-based race conditions).
-        self.robot_locks = {}
-
-        #This is a list of the actions currently being 
-        #executed by each of the robots as a plan step.
-        #Note that this is used if we need to build the
-        #planning world.
-        self.robot_current_actions = {}
-
-        #Zero out all the variables.
-        for robot in self.world.robots_keysort:
-            self.robot_current_actions[robot] = None
-            self.robot_queues[robot] = []
-            self.robot_locks[robot] = threading.Lock()
-
-        #The n of the current planning event. This unique
-        #ID counts up and allows cancelation of the plan.
-        self.n_planning_event = 0
-
-        #This is the list of currently executing plans.
-        self.plans_lock = threading.Lock()
-        self.plans = []
-        self.plan_ids = set()
-
-        #This is a list of all the executed actions
-        self.executed_lock = threading.Lock()
-        self.executed = []
-        self.executed_ids = set()
-
-    def try_operate(self):
-        self.plans_lock.acquire()
-        self.plans = [x for x in self.plans if not x.done]
-        self.plan_ids = set([int(x.uid) for x in self.plans])
-        self.plans_lock.release()
-
-        self.executed_lock.acquire()
-        for x in self.executed: self.executed_ids.add(x) #TODO: memory leak
-        self.executed = [x for x in self.executed if int(x.id.split("/")[0]) in self.plan_ids]
-        self.executed_lock.release()
-
-        self.planning_lock.acquire()
-        for robot in self.world.robots_keysort:
-            dorel = True
-            self.robot_locks[robot].acquire()
-            if self.robot_current_actions[robot] == None and len(self.robot_queues[robot]) > 0:
-                step = self.robot_queues[robot][0]
-                failed = False
-                for gate in step.gated_on:
-                    if not gate in self.executed_ids:
-                        failed = True
-                        break
-                if not failed:
-                    self.robot_current_actions[robot] = step
-                    self.robot_queues[robot] = self.robot_queues[robot][1:]
-                    self.robot_locks[robot].release()
-                    dorel = False
-                    self.take_action(robot, step.action, step.parameters) #Nulls current action when done
-            if dorel:
-                self.robot_locks[robot].release()
-        self.planning_lock.release()
-        
-        
-    #Gets the current planning world, needs to be called with
-    #planning_lock or bad things might happen.
-    def get_planning_world(self):
-        self.lock.acquire()
-        clone_world = self.world.copy()
-        self.lock.release()
-        for robot, action in self.robot_current_actions.iteritems():
-            if action != None:
-                raise Exception("Needs to be properly implemented")
-        return clone_world
-
-    def copy(self):
-        #FIXME: this could use a lot of work. This whole process
-        #needs to be re-thought
-        raise Exception("Need to work on this it is a possible source of bugs.")
-        c = BlastPlannableWorld(self.world.copy())
-        c.real_world = False
-        return c
-
-    def plan_hunt(self, robot, holder, object_type, world_good = lambda w: True):
-        def world_has_object(w, sw):
-            if w.robots[robot].holders[holder] != None:
-                o = w.objects[w.robots[robot].holders[holder].uid]
-                if o.object_type.name == object_type:
-                    return world_good(w)
-            return False
-        def world_scan_inc(w, sw):
-            return w.scan_count(object_type) > sw.scan_count(object_type)
-
-        goals = [ BlastPlanGoal(None, True, None, world_has_object),
-                  BlastPlanGoal("Scan", None, "Last-Check", world_scan_inc, consider_scan = True),
-                  BlastPlanGoal(None, True, "Scan", world_has_object, force_replan = "fail"),
-                  BlastPlanGoal("Last-Check", True, False, world_has_object, force_replan = True),
-                  ]
-        
-
-        self.plans_lock.acquire()
-        plan = BlastPlan(self, self.next_plan(), goals = goals)
-        self.plans.append(plan)
-        self.plans_lock.release()
-        self.order_replan()
-        return plan.plan()
-        
-    def next_plan(self):
-        scp = self.n_planning_event = self.n_planning_event + 1
-        return scp - 1
-
-    def plan(self, world_good, extra_goals = {}, extra_steps = []):
-        self.plans_lock.acquire()
-        plan = BlastPlan(self, self.next_plan(), world_good, extra_goals, False, extra_steps)
-        self.plans.append(plan)
-        self.plans_lock.release()
-        self.order_replan()
-        return plan.plan()
-
-
-    def plan_to_location(self, robot, location):
-        if self.world.robots[robot].location.equal(location):
-            print "Already at location"
-            return
-        return self.plan(lambda w, sw: w.robots[robot].location.equal(location), 
-                         {"Pt": [location,]})
+    def plan_action(self, robot, action, parameters, world_limits):
+        #FIXME: this does not add extra goals, so it is very possible to have impossible actions
+        action_uid = self.append_plan([blast_world.BlastCodeStep(None, "PLAN", {'world_limits': world_limits,
+                                                                                'extra_steps': [(robot, action, parameters),],
+                                                                                'extra_goals': {}}, 'plan_return'),
+                                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                                                                              'label_true': "success", 'label_false': 'failure'}),
+                                       blast_world.BlastCodeStep("success", "RETURN"),
+                                       blast_world.BlastCodeStep("failure", "FAIL"),
+                                       ], [robot,], False)
+        return action_uid
 
     
-    #API actions ---------------------------
-    def robot_transfer_holder(self, robot, from_holder, to_holder):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Set robot holder invalid robot", robot
-            self.lock.release()
-            return False
-        if not from_holder in self.world.robots[robot].holders:
-            print "Set robot holder invalid holder", from_holder, "for robot", robot
-            self.lock.release()
-            return False
-        if not to_holder in self.world.robots[robot].holders:
-            print "Set robot holder invalid holder", to_holder, "for robot", robot
-            self.lock.release()
-            return False
-        self.world.robot_transfer_holder(robot, from_holder, to_holder)
-        self.lock.release()
-        return True
-    
-    def robot_pick_object(self, robot, uid, to_holder):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Robot pick object invalid robot", robot
-            self.lock.release()
-            return False
-        if not uid in self.world.objects_keysort:
-            print "Robot pick object invalid object", uid, "for robot", robot
-            self.lock.release()
-            return False
-        if not to_holder in self.world.robots[robot].holders:
-            print "Robot pick object invalid holder", to_holder, "for robot", robot
-            self.lock.release()
-            return False
-        self.world.robot_pick_object(robot, uid, to_holder)
-        self.lock.release()
-        return True
-    
-    def robot_place_object(self, robot, from_holder, surface, pos):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Robot place object invalid robot", robot
-            self.lock.release()
-            return False
-        if not surface in self.world.surfaces:
-            print "Robot place object invalid surface", surface, "for robot", robot
-            self.lock.release()
-            return False
-        if not from_holder in self.world.robots[robot].holders:
-            print "Robot place object invalid holder", to_holder, "for robot", robot
-            self.lock.release()
-            return False
-        if self.world.robots[robot].holders == None:
-            print "Robot place object empty holder", to_holder, "for robot", robot
-            self.lock.release()
-            return
-        self.world.robot_place_object(robot, from_holder, surface, pos)
-        self.lock.release()
-        return True
-    
-    def set_robot_holder(self, robot, holder, object_type, require_preexisting_object = True):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Set robot holder invalid robot", robot
-            self.lock.release()
-            return False
-        if not holder in self.world.robots[robot].holders:
-            print "Set robot holder invalid holder", holder, "for robot", robot
-            self.lock.release()
-            return False
-        if require_preexisting_object:
-            if self.world.robots[robot].holders[holder] == None:
-                print "Robot holder empty, set requires object for holder", holder, "for robot", robot
-                self.lock.release()
-                return False
-        self.world.set_robot_holder(robot, holder, object_type)
-        self.lock.release()
-        return True
-
-    def get_robot_holder(self, robot, holder):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Set robot holder invalid robot", robot
-            self.lock.release()
-            return False
-        if not holder in self.world.robots[robot].holders:
-            print "Set robot holder invalid holder", holder, "for robot", robot
-            self.lock.release()
-            return False
-        self.lock.release()
-        return self.world.get_robot_holder(robot, holder)
-    
-
-    def set_robot_position(self, robot, position, val):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Set robot position invalid robot", robot
-            self.lock.release()
-            return False
-        if not position in self.world.robots[robot].positions:
-            print "Set robot holder invalid position", position, "for robot", robot
-            self.lock.release()
-            return False
-        self.world.set_robot_position(robot, position, val)
-        self.lock.release()
-        return True
-    
-    def set_robot_location(self, robot, blast_pt):
-        self.lock.acquire()
-        if not robot in self.world.robots:
-            print "Set robot location invalid robot", robot
-            self.lock.release()
-            return False
-        self.world.set_robot_location(robot, blast_world.BlastPt(blast_pt['x'], blast_pt['y'],
-                                                                 blast_pt['a'], blast_pt['map']))
-        self.lock.release()
-        return True
-
-    def get_surface(self, surface):
-        self.lock.acquire()
-        sur = self.world.surfaces.get(surface)
-        if sur != None: sur = sur.to_dict()
-        self.lock.release()
-        return sur
-    
-    def get_object(self, obje):
-        self.lock.acquire()
-        obj = self.world.objects.get(obje)
-        if obj != None: obj = obj.to_dict()
-        self.lock.release()
-        return obj
-
-    def delete_surface_object(self, obje):
-        self.lock.acquire()
-        obj = self.world.objects.get(obje)
-        if obj == None:
-            print "Surface delete object invalid object", obje
-            self.lock.release()
-            return False
-        r = self.world.delete_surface_object(obje)
-        self.lock.release()
-        return r
-
-    def get_map(self, map):
-        self.lock.acquire()
-        mp = self.world.maps.get(map)
-        if mp != None: mp = mp.to_dict()
-        self.lock.release()
-        return mp
-    
-    def get_robot(self, robot):
-        self.lock.acquire()
-        rb = self.world.robots.get(robot)
-        if rb != None: rb = rb.to_dict()
-        self.lock.release()
-        return rb
-
-    def surface_scan(self, surface, object_types):
-        self.lock.acquire()
-        if not surface in self.world.surfaces:
-            print "Invalid surface for scanning", surface
-            self.lock.release()
-            return False
-        r = self.world.surface_scan(surface, object_types)
-        self.lock.release()
-        return r
-
-    def add_surface_object(self, surface, object_type, pos):
-        self.lock.acquire()
-        if not surface in self.world.surfaces:
-            print "Invalid surface for object addition", surface
-            self.lock.release()
-            return False
-        r = self.world.add_surface_object(surface, object_type, pos)
-        self.lock.release()
-        return r
-        
-
-    def plan_place(self, uid, surface, pos, plan_and_return = False, include_action = False, execution_cb = lambda x: None):
-        #FIXME: OLD FASHIONED
-        extras = {}
-
-        uid = int(uid)
-        surface = str(surface)
-        if type(pos) != blast_world.BlastPos:
-            if type(pos) == type([]):
-                pos = [str(x).strip() for x in pos]
-            else:
-                pos = [x.strip().strip("''").strip() for x in str(pos).strip().strip("[]").split(",")]
-            if pos[0] != surface: return None
-            pos = [float(x) for x in pos[1:]]
-            pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
-        if type(pos) != blast_world.BlastPos: return None
-        if not surface in self.world.surfaces: return None
-        if not uid in self.world.objects: return None
-        extras["Pos:SU:" + surface + ":" + str(uid)] = [pos,]
-
-        def check_world(w):
-            if not uid in w.objects:
-                return False
-            if w.objects[uid].parent != surface:
-                return False
-            if w.objects[uid].position == None:
-                return False
-            return w.objects[uid].position.equal(pos)
-
-        r = self.plan(lambda w: check_world(w),
-                      extras, plan_and_return = plan_and_return, report_plan = True, 
-                      execution_cb = lambda x: execution_cb(x))
-        return r
-                      
-
-    def plan_action(self, robot, action, parameters, world_limits = {}):
-        #FIXME: this can create problems if parameters is an extra element
-        extras = {}
-        if "robot-location" in world_limits:
-            for robot_name, location in world_limits["robot-location"].iteritems():
-                extras["Pt"] = extras.get("Pt", [])
-                if type(location) == blast_world.BlastPt:
-                    extras["Pt"].append(location)
-                else:
-                    extras["Pt"].append(blast_world.BlastPt(location['x'], location['y'], location['a'], location['map']))
-
-        extra_steps = [ (robot, action, parameters), ]
-        r = self.plan(lambda w, sw: w.world_limit_check(world_limits), 
-                      extra_goals = extras, extra_steps = extra_steps)
-        #if r != None:
-            #if include_action:
-                #r[2].append((robot, action, parameters))
-            #if not plan_and_return:
-            #    worked = self.take_action(robot, action, parameters)
-            #    if not worked:
-            #        return None #This really shouldn't happen, because the action is tested.
-            #execution_cb([])
-        return r   
-
-    def take_action(self, robot, action, parameters, debug = True):
-        parameters = parameters.copy()
-
-        def done():
-            self.executed_lock.acquire()
-            self.robot_locks[robot].acquire()
-            if self.robot_current_actions[robot]:
-                self.executed.append(self.robot_current_actions[robot])
-                self.executed_ids.add(self.robot_current_actions[robot].id)
-                self.robot_current_actions[robot] = None
-            self.robot_locks[robot].release()
-            self.executed_lock.release()
-        
-        for name in parameters:
-            if parameters[name].__class__ == blast_world.BlastSurface:
-                parameters[name] = parameters[name].name
-            elif parameters[name].__class__ == blast_world.BlastObjectRef:
-                parameters[name] = parameters[name].uid
-            elif type(parameters[name]) == type((0, 1)):
-                parameters[name] = tuple([str(x) for x in parameters[name]])
-            elif hasattr(parameters[name], "to_dict"):
-                parameters[name] = parameters[name].to_dict()
-
-        if self.real_world:
-            done()
-            raise Exception("Not yet.")
-        elif self.world.take_action(robot, action, parameters, True, debug):
-            if not self.action_callback(robot, action, parameters):
-                print "Action callback failed to work, this test may be broken."
-                done()
-                return None
-            done()
-            return True
-        else:
-            print "Blast failed to take action"
-            done()
-            return None
-        done()
-    
-    #End API actions ---------------------------        
 
 def coffee_hunt_test():
     import blast_world_test

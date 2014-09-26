@@ -7,21 +7,22 @@ class BlastPr2BuyCoffeeActionExec(BlastActionExec):
 
         cs = self.get_surface(parameters["shop"])
 
-        print "+"*30, "Move to start", "+"*30
-        self.plan_action("move", {"end": cs.locations["start"] },
-                         {"robot-holders": {"left-arm": money_bag}, })
+        #print "+"*30, "Move to start", "+"*30
+        #self.plan_action("move", {"end": cs.locations["start"] },
+        #                 {"robot-holders": {"left-arm": money_bag}, })
 
         print "+"*30, "Move to end", "+"*30
-        self.plan_action("move", {"end": cs.locations["end"] },
-                         {"robot-holders": {"left-arm": money_bag}, })
+        #self.plan_action("move", {"end": cs.locations["end"] },
+        #                 {"robot-holders": {"left-arm": money_bag}, })
+        self.set_location(cs.locations["end"])
 
         print "+"*30, "Give money", "+"*30
-        self.plan_action("give-object", {"tts-text": "Money Bag"},
-                         {"robot-holders": {"left-arm": money_bag},
-                          "robot-location": cs.locations["end"], })
+        self.take_action("give-object", {"tts-text": "Money Bag"})
+        #                {"robot-holders": {"left-arm": money_bag},
+        #                 "robot-location": cs.locations["end"], })
         
         print "+"*30, "Grab object", "+"*30
-        self.plan_action("grab-object", {"tts-text": "Coffee Cup"},
-                         {"robot-location": cs.locations["end"], })
+        self.take_action("grab-object", {"tts-text": "Coffee Cup"})
+        #                         {"robot-location": cs.locations["end"], })
         self.set_robot_holder("left-arm", "coffee_cup")
 set_action_exec(BlastPr2BuyCoffeeActionExec)
