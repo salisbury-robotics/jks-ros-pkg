@@ -763,6 +763,7 @@ function update_select(nst, ns) {
 	});
 	
 	$.getJSON("/plan/plan", function(plan) {
+	    return;
 	    var edit_idx = 1;
 
 	    $('#edit-nothing').children().each(function(i) {
