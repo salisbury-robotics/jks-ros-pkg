@@ -9,9 +9,6 @@ SESSION_TIMEOUT = 10.0
 
 
 manager = None
-world_edit_lock = threading.Lock()
-WORLD_EDIT_EXECUTING_PLAN = "EXECUTING_PLAN"
-world_edit_session = None
 
 
 
@@ -135,7 +132,7 @@ class AcquireWorld(object):
 
 def acquire_world(world, edit = False):
     #print world
-    global login_sessions, login_sessions_lock, manager, world_edit_session
+    global login_sessions, login_sessions_lock, manager
     if debug_locks: print "Lock sessions start"
     login_sessions_lock.acquire()
     if debug_locks: print "Lock sessions done"
@@ -151,7 +148,7 @@ def acquire_world(world, edit = False):
         if debug_locks: print "Lock manager start"
         manager.world.lock.acquire()
         if debug_locks: print "Lock manager done"
-        if world_edit_session != str(session["sid"]) and edit:
+        if not manager.world.can_edit(str(session["sid"])) and edit:
             manager.world.lock.release()
             return None
         return AcquireWorld(manager.world.world, edit, manager.world.lock)
@@ -216,7 +213,7 @@ permissions = ["view", "edit", "plan"]
 
 
 def clean_sessions():
-    global login_sessions, login_sessions_lock, world_edit_session
+    global login_sessions, login_sessions_lock
     bad_sessions = []
     if debug_locks: print "Lock sessions start"
     login_sessions_lock.acquire()
@@ -225,12 +222,7 @@ def clean_sessions():
     for sid in login_sessions:
         if login_sessions[sid]["last_update"] + SESSION_TIMEOUT < clean_time:
             print "Kill session", sid
-            #FIXME!!!!
-            #if world_edit_session == sid:
-            #    world_edit_lock.acquire()
-            #    if world_edit_session == sid:
-            #        world_edit_session = None
-            #    world_edit_lock.release()
+            manager.clear_editor(str(sid))
             bad_sessions.append(sid)
 
     for sid in bad_sessions:
@@ -270,7 +262,7 @@ app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 @app.route('/session', methods=["PUT", "GET"])
 def session_manage():
-    global login_sessions, login_sessions_lock, world_edit_session
+    global login_sessions, login_sessions_lock
     if request.method == "PUT":
         if debug_locks: print "Lock sessions start"
         login_sessions_lock.acquire()
@@ -294,9 +286,10 @@ def session_manage():
         login_sessions[str(session["sid"])]["last_update"] = time.time()
         login_sessions_lock.release()
         clean_sessions()
-        ew = world_edit_session #Copy to avoid race conditions so no locking
-        return return_json({"sessions": len(login_sessions), "edit_world": ew != None,
-                            "edit_other_session": ew != str(session["sid"]) })
+        e = manager.world.is_editor(str(session["sid"]))
+        return return_json({"sessions": len(login_sessions),
+                            "edit_world": e == True,
+                            "edit_other_session": e == False})
     else:
         return "false"
     
@@ -528,27 +521,23 @@ def action_type(world = None, robot_type = None, action_type = None):
 
 @app.route('/edit_world', methods=["GET", "PUT"])
 def edit_world(world = None, robot = None):
-    global world_edit_session
-    if not get_user_permission(session, "edit"): return permission_error(request, "edit")
     if request.method == "GET":
-        ew = edit_world_session
-        return return_json(rw == str(session["sid"]))
+        if not get_user_permission(session, "view"): return permission_error(request, "view")
+        return return_json(manager.world.is_editor(str(session["sid"])))
     elif request.method == "PUT":
+        if not get_user_permission(session, "edit"): return permission_error(request, "edit")
         state = json.loads(request.data)
-        world_edit_lock.acquire()
-        if world_edit_session == None and state == True:
-            world_edit_session = str(session["sid"])
-            world_edit_lock.release()
+        if state == True:
+            r = manager.world.set_editor(str(session["sid"]), True)
             queue_load(None, "edit-world", None)
-            return return_json(True)
-        elif world_edit_session == str(session["sid"]) and state == False:
-            world_edit_session = None
-            world_edit_lock.release()
+            return return_json(r)
+        elif state == False:
+            r = manager.world.clear_editor(str(session["sid"]))
             queue_load(None, "edit-world", None)
-            return return_json(True)
-        world_edit_lock.release()
+            return return_json(r)
         queue_load(None, "edit-world", None)
         return return_json(False)
+    if not get_user_permission(session, "view"): return permission_error(request, "view")
     return return_json(False)
 
 @app.route('/world', methods=["GET", "PUT"])
@@ -757,14 +746,15 @@ def get_feed(start):
         for step in feed:
             if step[0] > start and (step[4] == None or step[4] == str(session["sid"])):
                 feed_lock.release()
+                print step
                 return return_json(step)
         feed_lock.release()
-        break
         time.sleep(0.1)
     return return_json(None)
 
 @app.route('/execute_plan/<target>', methods=["POST"])
 def execute_plan(target):
+    return False
     global world_edit_session, world_edit_lock
     if not get_user_permission(session, "plan"): return permission_error(request, "plan")
     world_edit_lock.acquire()
@@ -821,91 +811,6 @@ def notification(level, message):
     notifications_lock.release()
     queue_load(None, "notification", str(level) + ":" + str(message))
 
-
-
-class ManagerThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.alive = True
-        manager.on_robot_change = lambda robot: self.on_robot_change(robot)
-        manager.on_plan_action = lambda: self.on_plan_action()
-        pass
-
-    def on_plan_action(self):
-        raise Exception("NOPE")
-        world_edit_lock.acquire()
-        plan = [manager.world.current_plan,] +  [x for x in manager.implicit_plan]
-        plan_out = []
-        for level in plan:
-            if level != []:
-                plan_out.append(level[0])
-        plan.reverse()
-        for level in plan:
-            if level != []:
-                plan_out.extend(level[1:])
-
-        print "OUTPUT PLAN!!!!", plan_out, "FROM", plan
-        manager.world.display_plan = plan_out
-
-        world_edit_lock.release()
-        queue_load(None, "plan", None)
-
-    def on_robot_change(self, robot):
-        raise Exception("NOPE")
-        queue_load(None, "robot", robot)
-        time.sleep(1.0)
-
-    def run(self):
-        raise Exception("NOPE")
-        global world_edit_session, world_edit_lock, manager
-        while self.alive:
-            world_edit_lock.acquire()
-            current_action = None
-            if manager.world.current_plan != []:
-                world_edit_session = WORLD_EDIT_EXECUTING_PLAN
-                current_action = manager.world.current_plan[0]
-            else:
-                manager.world.post_exec_world = None
-                if world_edit_session == WORLD_EDIT_EXECUTING_PLAN:
-                    world_edit_session = None
-                    queue_load(None, "edit-world", None)
-            world_edit_lock.release()
-
-            if current_action:
-                self.on_plan_action()
-                try:
-                    result = manager.take_action(current_action[0], current_action[1], current_action[2])
-                except:
-                    import traceback
-                    traceback.print_exc()
-                    alive = False
-                    
-                failed = False
-                if result == False or result == None:
-                    failed = True
-                    is_epic = ""
-                    if result == None: is_epic = "This is an epic fail. "
-                    #Does not break whole plan, but generates a notification
-                    #FIXME: database should be updated here.
-                    notification(NOTIFICATION_ERROR, "Action " + current_action[1] + " failed for " 
-                                 + current_action[0] + ". " + is_epic + "Parameters: " + str(current_action[2]))
-
-                #Only remove here so that the display of the current plan
-                #won't be deleted until here
-                world_edit_lock.acquire()
-                manager.world.current_plan = manager.world.current_plan[1:]
-                world_edit_lock.release()
-                
-                queue_load(None, "robot", current_action[0])
-                self.on_plan_action()
-                if manager.world.current_plan == [] and not failed:
-                    #FIXME: smarter
-                    notification(NOTIFICIATON_FINISHED, "All tasks have been completed")
-            else:
-                try:
-                    time.sleep(0.1)
-                except:
-                    alive = False
 
 
 def run(a, w):

@@ -101,6 +101,9 @@ $('#edit-world').click(function() {
     if (edit_world_action !== null) {
 	update_select(null, null);
 	$.putJSON("/edit_world", edit_world_action, function(data) { 
+	    if (!data) {
+		alert("Could not edit the world.");
+	    }
 	    update_session();
 	});
     }
