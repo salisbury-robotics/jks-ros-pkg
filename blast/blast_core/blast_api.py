@@ -820,6 +820,8 @@ def run(a, w):
     #mthread.start()
 
     app.run(debug=DEBUG, threaded=True)
+    print "Terminating"
+    queue_load(None, "terminate", None)
     global_feed_alive = False
     manager.stop()
     #mthread.alive = False

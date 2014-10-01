@@ -227,6 +227,12 @@ function call_feed(time) {
 	    console.log(type);
 	    console.log(text);
 	    alert(text_types[type] + " -- " + text);
+	} else if (data[2] == "terminate") {
+	    //Just exit out, so we do not call the feed again. The server shutdown.
+	    //TODO: display a message?
+	    return;
+	} else {
+	    alert("Invalid message from server: " + data[2]);
 	}
 	call_feed(data[0]);
     });
