@@ -1382,6 +1382,50 @@ class BlastPlannableWorld:
         self.is_stopped = False
         #True if we have failed epically and need the user to bail us out.
         self.epic_fail_state = False
+        #This is not null if we have someone editing the world. If that is true,
+        #the world will not allow actions to be taken.
+        self.editor = False
+        self.editor_lock = threading.Lock()
+
+    def set_editor(self, editor, only_if_empty = False):
+        self.editor_lock.acquire()
+        if self.editor != None and not only_if_empty:
+            r = (self.editor == editor)
+            self.editor_lock.release()
+            return r
+        self.editor = editor
+        self.editor_lock.release()
+        return True
+
+    def is_editor(self, editor):
+        self.editor_lock.acquire()
+        r = (self.editor == editor)
+        if r == False and self.editor == None:
+            r = None
+        self.editor_lock.release()
+        return r
+
+    def clear_editor(self, editor):
+        self.editor_lock.acquire()
+        r = False
+        if self.editor == editor:
+            self.editor = None
+            r = True
+        self.editor_lock.release()
+        return r
+
+    def can_edit(self, editor):
+        #World should be locked for this
+        self.editor_lock.acquire()
+        if self.editor != editor: 
+            self.editor_lock.release()
+            return False
+        for rname, act in self.robot_actions.iteritems():
+            if act != None:
+                self.editor_lock.release()
+                return False
+        self.editor_lock.release()
+        return True
 
     def test_action_callback(self, robot, action, parameters):
         print "Test action callback:", robot, action, parameters
@@ -1398,8 +1442,11 @@ class BlastPlannableWorld:
         exc = BlastCodeExec(self.code_exec_uid, code, robots)
         ret_uid = self.code_exec_uid
         self.code_exec_uid = self.code_exec_uid + 1
-        self.code_exec.append(exc)
-        self.needs_replan = True
+        if self.editor != None:
+            self.post_edit_code_exec.append(exc)
+        else:
+            self.code_exec.append(exc)
+            self.needs_replan = True
         self.lock.release()
         return ret_uid
 
@@ -1417,6 +1464,12 @@ class BlastPlannableWorld:
         while (not exit_when_done or self.code_exec != []) and not self.is_stopped:
             step_time = time.time()
             self.lock.acquire()
+            if self.editor == None and self.post_edit_code_exec != []:
+                for i in self.post_edit_code_exec:
+                    self.code_exec.append(exc)
+                self.post_edit_code_exec = []
+                self.needs_replan = True
+
             while self.epic_fail_state:
                 if self.is_stopped: return
                 if exit_when_done: break
