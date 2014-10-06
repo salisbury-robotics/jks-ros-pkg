@@ -1384,14 +1384,18 @@ class BlastPlannableWorld:
         self.epic_fail_state = False
         #This is not null if we have someone editing the world. If that is true,
         #the world will not allow actions to be taken.
-        self.editor = False
+        self.editor = None
         self.editor_lock = threading.Lock()
+        #A queue of code execs to run when editing stops
+        self.post_edit_code_exec = []
 
-    def set_editor(self, editor, only_if_empty = False):
+    def set_editor(self, editor, only_if_empty = False, return_update = False):
         self.editor_lock.acquire()
         if self.editor != None and not only_if_empty:
             r = (self.editor == editor)
             self.editor_lock.release()
+            if return_update and r:
+                return "PRESET"
             return r
         self.editor = editor
         self.editor_lock.release()
@@ -1443,6 +1447,7 @@ class BlastPlannableWorld:
         ret_uid = self.code_exec_uid
         self.code_exec_uid = self.code_exec_uid + 1
         if self.editor != None:
+            print "Saving to edit buffer due to", self.editor
             self.post_edit_code_exec.append(exc)
         else:
             self.code_exec.append(exc)
@@ -1465,7 +1470,7 @@ class BlastPlannableWorld:
             step_time = time.time()
             self.lock.acquire()
             if self.editor == None and self.post_edit_code_exec != []:
-                for i in self.post_edit_code_exec:
+                for exc in self.post_edit_code_exec:
                     self.code_exec.append(exc)
                 self.post_edit_code_exec = []
                 self.needs_replan = True
@@ -1726,6 +1731,8 @@ class BlastPlannableWorld:
 
     def plan_action(self, robot, action, parameters, world_limits):
         #FIXME: this does not add extra goals, so it is very possible to have impossible actions
+        print "WL", world_limits
+        print "ES", [(robot, action, parameters),]
         action_uid = self.append_plan([blast_world.BlastCodeStep(None, "PLAN", {'world_limits': world_limits,
                                                                                 'extra_steps': [(robot, action, parameters),],
                                                                                 'extra_goals': {}}, 'plan_return'),
