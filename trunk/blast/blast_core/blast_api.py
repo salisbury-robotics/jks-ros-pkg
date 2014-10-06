@@ -53,17 +53,19 @@ def get_world(world):
 
 debug_locks = False
 
-
+THUNK = lambda: True
 class AcquireWorld(object):
-    def __init__(self, world, edit, lock):
+    def __init__(self, world, edit, lock, on_exit_function = THUNK):
         self.world = world
         self.edit = edit
         self.lock = lock
         self.dead = False
+        self.on_exit_function = on_exit_function #Called after lock release
 
     def release(self):
         self.dead = True
         self.lock.release()
+        self.on_exit_function()
     def __del__(self):
         self.release()
 
@@ -130,8 +132,10 @@ class AcquireWorld(object):
         self.world.set_robot_position(*args, **kwargs)
     
 
-def acquire_world(world, edit = False):
+def acquire_world(world, edit = False, temporary_edit = False):
     #print world
+    if temporary_edit: edit = True
+    clear = THUNK
     global login_sessions, login_sessions_lock, manager
     if debug_locks: print "Lock sessions start"
     login_sessions_lock.acquire()
@@ -145,13 +149,22 @@ def acquire_world(world, edit = False):
 
     if world == None:
         login_sessions_lock.release()
+        if temporary_edit:
+            r = manager.world.set_editor(str(session["sid"]), True, return_update = True)
+            if not r:
+                return None
+            if r != "PRESET":
+                print "Clear preset"
+                clear = lambda: manager.world.clear_editor(str(session["sid"]))
+
         if debug_locks: print "Lock manager start"
         manager.world.lock.acquire()
         if debug_locks: print "Lock manager done"
         if not manager.world.can_edit(str(session["sid"])) and edit:
+            print "We cannot edit the initial world"
             manager.world.lock.release()
             return None
-        return AcquireWorld(manager.world.world, edit, manager.world.lock)
+        return AcquireWorld(manager.world.world, edit, manager.world.lock, clear)
 
     #print login_sessions
     w = login_sessions[str(session["sid"])]["worlds"].get(world)
@@ -222,7 +235,7 @@ def clean_sessions():
     for sid in login_sessions:
         if login_sessions[sid]["last_update"] + SESSION_TIMEOUT < clean_time:
             print "Kill session", sid
-            manager.clear_editor(str(sid))
+            manager.world.clear_editor(str(sid))
             bad_sessions.append(sid)
 
     for sid in bad_sessions:
@@ -287,9 +300,11 @@ def session_manage():
         login_sessions_lock.release()
         clean_sessions()
         e = manager.world.is_editor(str(session["sid"]))
-        return return_json({"sessions": len(login_sessions),
-                            "edit_world": e == True,
-                            "edit_other_session": e == False})
+        r = {"sessions": len(login_sessions),
+             "edit_world": e == True,
+             "edit_other_session": e == False}
+        print r, e
+        return return_json(r)
     else:
         return "false"
     
@@ -425,6 +440,9 @@ def api_robot_holder(world = None, robot = None, holder = None):
     elif request.method == "POST" and world == None: perm = "edit"
     else: return permission_error(request, "INVALID")
     if not get_user_permission(session, perm): return permission_error(request, perm)
+    w = acquire_world(world, edit = (request.method == "POST"))
+    if not w: return error_world(world)
+    
     if request.method == "GET":
         robot = get_world(world).get_robot(robot)
         if robot != None and holder == None: robot = sorted(robot["holders"].keys())
@@ -483,17 +501,21 @@ def api_robot_position(world = None, robot = None, position = None):
     return None
 
 @app.route('/robot/<robot>/type', methods=["GET"])
-def api_robot_type(world = None, robot = None):
+def api_robot__type(world = None, robot = None):
     if not get_user_permission(session, "view"): return permission_error(request, "view")
-    robot = get_world(world).get_robot(robot)
-    if robot != None: robot = get_world(world).world.types.robots.get(robot["robot_type"], None)
+    w = acquire_world(world)
+    if not w: return error_world(world)
+    robot = w.get_robot(robot)
+    if robot != None: robot = w.types.robots.get(robot["robot_type"], None)
     if robot != None: robot = robot.to_dict()
     return return_json(robot)
 
 @app.route('/robot_type/<robot>', methods=["GET"])
 def api_robot_type(world = None, robot = None):
     if not get_user_permission(session, "view"): return permission_error(request, "view")
-    robot = get_world(world).world.types.robots.get(robot, None)
+    w = acquire_world(world)
+    if not w: return error_world(world)
+    robot = w.types.robots.get(robot, None)
     if robot != None: robot = robot.to_dict()
     return return_json(robot)
 
@@ -502,19 +524,21 @@ def api_robot_type(world = None, robot = None):
 @app.route('/action_type', methods=["GET"])
 def action_type(world = None, robot_type = None, action_type = None):
     if not get_user_permission(session, "view"): return permission_error(request, "view")
+    w = acquire_world(world)
+    if not w: return error_world(world)
     if action_type and robot_type:
-        return return_json(get_world(world).world.types.actions[robot_type + "." + action_type].to_dict())
+        return return_json(w.types.actions[robot_type + "." + action_type].to_dict())
     
     rts = None
     if robot_type:
         rts = []
-        rt = get_world(world).world.types.robots.get(robot_type, None)
+        rt = w.types.robots.get(robot_type, None)
         while rt:
             rts.append(rt.name)
             rt = rt.parent
 
     ats = []
-    for name, action in get_world(world).world.types.actions.iteritems():
+    for name, action in w.types.actions.iteritems():
         if rts == None or name.split(".")[0] in rts:
             ats.append(name.split(".") + [action.user,])
     return return_json(ats)
@@ -583,18 +607,66 @@ def api_world(world = None):
     return r
 
 
-@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
-@app.route('/plan/<target>', methods=["GET", "PUT", "DELETE"])
+def rm_unicode(t):
+    if t == True or t == False or t == None:
+        return t
+    if type(t) == int or type(t) == long or type(t) == int:
+        return t
+    if type(t) == unicode or type(t) == str:
+        return str(t)
+    if type(t) == dict:
+        r = {}
+        for k, v in t.iteritems():
+            r[rm_unicode(k)] = rm_unicode(v)
+        return r
+    if type(t) == list or type(t) == tuple:
+        return [rm_unicode(x) for x in t]
+    raise Exception("Could not clean: " + type(t))
+
+#@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
+@app.route('/plan/<target>', methods=["GET", "PUT"])
 def api_plan(target, world = None):
-    return "null" #return_json(None)
-    global login_sessions, login_sessions_lock
-    if request.method == "PUT" or request.method == "DELETE": 
+    if request.method == "PUT": 
         if not get_user_permission(session, "plan"): return permission_error(request, "plan")
     else:
         if not get_user_permission(session, "view"): return permission_error(request, "view")
 
-    world_edit_lock.acquire()
+    if request.method == "PUT":
+        try:
+            action_data = json.loads(request.data)
+        except:
+            return return_json(None)
+        #try:
+        action_data = rm_unicode(action_data)
+        #except:
+        #    print "Could not remove unicode"
+        #    return return_json(None)
 
+        if target == None:
+            return return_json(None)
+        print "Acquire target world", target
+        wend = acquire_world(target)
+        if not wend: return error_world(target)
+        if action_data == None:
+            return return_json(None)
+        print "Planning action!"
+        ptc = {}
+        for n, v in action_data["parameters"].iteritems():
+            if type(v) == dict:
+                if "x" in v and "y" in v and "a" in v and "map" in v:
+                    ptc[n] = blast_world.BlastPt(v['x'], v['y'], v['a'], v['map'])
+                else:
+                    ptc[n] = v
+            else:
+                ptc[n] = v
+        r = manager.world.plan_action(action_data["robot"], 
+                                      action_data["action"].split(".")[-1], 
+                                      ptc, {})
+        print "Finished action", r
+        return return_json(r)
+    return "{}"
+
+def a():
     #if world_edit_session != None:
     #    world_edit_lock.release()
     #    return "false"
@@ -738,7 +810,12 @@ def queue_load(w, typ, item, for_user = None):
 
 @app.route('/feed/<start>')
 def get_feed(start):
-    start = float(start)
+    if "sid" not in session:
+        return return_json(None)
+    try:
+        start = float(start)
+    except:
+        return return_json(None)
     while global_feed_alive:
         #if debug_locks: print "Feed lock start"
         feed_lock.acquire()
@@ -811,11 +888,15 @@ def notification(level, message):
     notifications_lock.release()
     queue_load(None, "notification", str(level) + ":" + str(message))
 
+def on_robot_change(robot):
+    queue_load(None, "robot", robot)
+    time.sleep(1.0)
 
 
 def run(a, w):
     global manager
     manager = blast_action.BlastManager(a, w)
+    manager.on_robot_change = on_robot_change
     #mthread = ManagerThread()
     #mthread.start()
 
