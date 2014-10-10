@@ -111,3 +111,39 @@ div.edit-item-2 {
     font-size: 16px;
     text-align: center;
 }
+
+
+div.plan-success {
+    border: 0px;
+    background-color: #2ECC71;
+    color: #FFF;
+    padding: 5px;   
+}
+div.plan-failure {
+    border: 0px;
+    background-color: #E74C3C;
+    color: #FFF;
+    padding: 5px;   
+}
+div.plan-running {
+    border: 0px;
+    background-color: #3EDC81;
+    color: #FFF;
+    padding: 5px;   
+}
+div.plan-queue {
+    border: 0px;
+    background-color: #AAC;
+    color: #FFF;
+    padding: 5px;   
+}
+
+
+div.currently-planning {
+    border: 0px;
+    padding: 5px;   
+    color: #FFF;
+    font-size: 16px;
+    background-color: #E74C3C;
+    text-align: center;
+}

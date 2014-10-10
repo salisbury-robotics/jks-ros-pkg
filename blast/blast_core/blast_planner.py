@@ -498,6 +498,7 @@ class Planner(object):
     #prog_ord - is the ordinal number used for program step counting
     #end_time - absolute upper limit for the end time of the sequence
     def plan_to_prog(self, plan, robots, start_time, goal, uid, prog_ord, end_time = None):
+        print plan, goal
         #Reset initial world hash, so that we are confident of it. This is not
         #necessary but is a nice sanity insurance mechanism
         [self.initial_world.clear_hash(x) for x in ['robots', 'surfaces', 'objects', 'maps']]
@@ -942,7 +943,7 @@ class BlastCodeObjectPtr(object):
         return "BlastCodeObjectPtr(" + str(self.refc) + ")"
 
 class BlastCodeExec(object):
-    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res', 'object_codes', 'debug']
+    __slots__ = ['uid', 'code', 'labels', 'environments', 'plan_executed', 'robots', 'plan_res', 'object_codes', 'debug', 'description']
 
     def get_hash_state(self, hl = None):
         if not hl:
@@ -999,7 +1000,7 @@ class BlastCodeExec(object):
         return labels
         
 
-    def __init__(self, uid, code, robots, labels = None, environments = None, plan_e = False, plan_r = False):
+    def __init__(self, uid, code, robots, labels = None, environments = None, plan_e = False, plan_r = False, description = "Undescribed"):
         self.uid = uid
         self.robots = robots
         #Translate all the code
@@ -1008,6 +1009,7 @@ class BlastCodeExec(object):
         self.plan_res = plan_r
         self.debug = False
         self.object_codes = []
+        self.description = description
         if labels:
             self.labels = labels
         else:
@@ -1022,7 +1024,7 @@ class BlastCodeExec(object):
             self.environments = [[0, self.code, self.labels, {}, {}, False],]
 
     def copy(self):
-        c = BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res)
+        c = BlastCodeExec(self.uid, self.code, self.robots, self.labels, self.environments, self.plan_executed, self.plan_res, self.description)
         c.object_codes = [x for x in self.object_codes]
         return c
 
@@ -1370,6 +1372,9 @@ class BlastPlannableWorld:
         #the cancel step could alter the world state.
         self.cancel_callback = lambda r, f: self.test_cancel_callback(r, f)
 
+        #Called when the program state is changed
+        self.on_program_changed = lambda: None
+
         #The list all currently running programs
         self.code_exec = []
         #List of completed programs for historical purposes
@@ -1388,6 +1393,13 @@ class BlastPlannableWorld:
         self.editor_lock = threading.Lock()
         #A queue of code execs to run when editing stops
         self.post_edit_code_exec = []
+        #List of programs that need to be stopped
+        self.cancel_programs = set()
+        #True if the system is planning
+        self.is_planning = False
+    
+    def get_is_planning(self):
+        return self.is_planning
 
     def set_editor(self, editor, only_if_empty = False, return_update = False):
         self.editor_lock.acquire()
@@ -1441,9 +1453,70 @@ class BlastPlannableWorld:
     def stop(self):
         self.is_stopped = True
 
-    def append_plan(self, code, robots, wait_for_plan = True):
+    def get_programs(self):
+        p = []
         self.lock.acquire()
-        exc = BlastCodeExec(self.code_exec_uid, code, robots)
+        for i in self.finished_code:
+            r = "success"
+            if self.code_exit_state[i.uid] == False:
+                r = "failure"
+            p.append((i.uid, r, i.description))
+        for i in self.code_exec:
+            p.append((i.uid, "running", i.description))
+        for i in self.post_edit_code_exec:
+            p.append((i.uid, "queue", i.description))
+        self.lock.release()
+        return p
+
+    def get_plan(self):
+        self.lock.acquire()
+        nprevious_steps = len(self.old_plan)
+        def clean_json(x):
+            if type(x) == dict:
+                r = {}
+                for k, v in x.iteritems():
+                    r[clean_json(k)] = clean_json(v)
+                return r
+            elif type(x) == list or type(x) == tuple:
+                return [clean_json(x) for x in x]
+            elif type(x) == blast_world.BlastPt:
+                return x.to_dict()
+            elif type(x) == blast_world.BlastSurface:
+                return x.name
+            elif type(x) == str or type(x) == unicode:
+                is_strange = False
+                for i in x:
+                    if i >= 'A' and i <= 'Z': continue
+                    if i >= 'a' and i <= 'z': continue
+                    if i >= '0' and i <= '9': continue
+                    if i in ['_', '-', '/', '\\', '+', '-', '!', '@',
+                             '#', '$', '%', '^', '&', '*', '(', ')',
+                             '"', ';', ':', '<', '>', ',', '.', '?',
+                             "'", '{', '}', '[', ']', '|', ' ', '\t']: continue
+                    is_strange = True
+                if is_strange:
+                    return "EXOTIC_STRING"
+            elif type(x) == blast_world.BlastObjectRef:
+                return {'object_ref': x.uid}
+            return x
+        plan = [clean_json(x) for x in self.plan]
+        current = {}
+        for k, v in self.robot_actions.iteritems():
+            current[clean_json(k)] = clean_json(v)
+        self.lock.release()
+        print nprevious_steps, plan, current
+        return nprevious_steps, plan, current
+
+    def cancel_program(self, uid):
+        self.lock.acquire()
+        self.cancel_programs.add(uid)
+        self.needs_replan = True
+        self.lock.release()
+        return True
+
+    def append_plan(self, code, robots, description = "Unknown, appended"):
+        self.lock.acquire()
+        exc = BlastCodeExec(self.code_exec_uid, code, robots, description = description)
         ret_uid = self.code_exec_uid
         self.code_exec_uid = self.code_exec_uid + 1
         if self.editor != None:
@@ -1501,6 +1574,8 @@ class BlastPlannableWorld:
                     self.lock.acquire()
 
                 if not still_running:
+                    self.is_planning = True
+                    self.on_program_changed()
                     self.times_planned = self.times_planned + 1
                     plan_world = self.world.copy(copy_on_write_optimize = False)
                     planner = Planner(self.world, [x.copy() for x in self.code_exec])
@@ -1543,6 +1618,8 @@ class BlastPlannableWorld:
                     self.old_plan.append([0, "REPLAN", (int(time.time() * 1000) + time_warp - start_time)])
                     start_time = int(time.time() * 1000)
                     time_warp = 0
+                    self.is_planning = False
+                    self.on_program_changed()
 
             #Simple solution - when all actions finish, then we warp ahead.
             #In the future, we will switch to an action dependency graph model
@@ -1620,10 +1697,12 @@ class BlastPlannableWorld:
                         self.cancel_callback(step[3], True)
                         self.lock.acquire()
                         self.needs_replan = True
+                        self.on_program_changed()
                     else:
                         self.robot_actions[step[3]] = (step[3], step[4], step[5]) 
                         self.robot_end_times[step[3]] = step[0] + step[2]
                         self.robot_actions_cancelled[step[3]] = False
+                        self.on_program_changed()
                         thread.start_new_thread(lambda s, t, r, a, p: s.do_action(t, r, a, p),
                                                 (self, step[2], step[3], step[4], step[5]))
                 else:
@@ -1638,6 +1717,8 @@ class BlastPlannableWorld:
                 self.finished_code.append(c)
                 self.code_exit_state[c.uid] = c.succeeded()
                 self.code_exec.remove(c)
+            if len(done_code) > 0:
+                self.on_program_changed()
             
             self.lock.release()
             elapsed = time.time() - step_time
@@ -1731,8 +1812,9 @@ class BlastPlannableWorld:
 
     def plan_action(self, robot, action, parameters, world_limits):
         #FIXME: this does not add extra goals, so it is very possible to have impossible actions
-        print "WL", world_limits
-        print "ES", [(robot, action, parameters),]
+        #print "WL", world_limits
+        #print "ES", [(robot, action, parameters),]
+        desc = str(robot) + ": " + str(action) #TODO: we may want to sumarize the parameters
         action_uid = self.append_plan([blast_world.BlastCodeStep(None, "PLAN", {'world_limits': world_limits,
                                                                                 'extra_steps': [(robot, action, parameters),],
                                                                                 'extra_goals': {}}, 'plan_return'),
@@ -1740,7 +1822,7 @@ class BlastPlannableWorld:
                                                                               'label_true': "success", 'label_false': 'failure'}),
                                        blast_world.BlastCodeStep("success", "RETURN"),
                                        blast_world.BlastCodeStep("failure", "FAIL"),
-                                       ], [robot,], False)
+                                       ], [robot,], desc)
         return action_uid
 
     
@@ -1790,7 +1872,7 @@ def coffee_hunt_test():
                                                               'label_true': "success2", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success2", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),],
-                      ["stair4",], False)
+                      ["stair4",])
 
     world.run(True)
 
@@ -1822,7 +1904,7 @@ def run_test():
                        
                        blast_world.BlastCodeStep(None, "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL")
-                       ], ["stair4",], False)
+                       ], ["stair4",])
     
     
     world.try_exec()
@@ -1843,7 +1925,7 @@ def coffee_run_exec():
                        
                        blast_world.BlastCodeStep(None, "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL")
-                       ], ["stair4",], False)
+                       ], ["stair4",])
 
     world.run(True)
 
@@ -1868,7 +1950,7 @@ def five_coffee_run_exec():
                        
                        blast_world.BlastCodeStep(None, "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL")
-                       ], ["stair4",], False)
+                       ], ["stair4",])
 
     world.run(True)
 
@@ -1897,7 +1979,7 @@ def multi_robot_test():
                                                               'label_true': "success", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),],
-                      ["stair4", "stair5",], False)
+                      ["stair4", "stair5",])
     
     #r = world.plan_hunt("stair4", "cupholder", "coffee_cup")
 
@@ -1937,7 +2019,7 @@ def overplan():
                                                               'label_true': "success", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),
-                       ], ["stair5",], False)
+                       ], ["stair5",])
     
     #Make stair5 tuck arms but order stair4 to move into position before it can happen
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {'world_limits': 
@@ -1951,7 +2033,7 @@ def overplan():
                                                               'label_true': "success", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),
-                       ], ["stair4", "stair5",], False)
+                       ], ["stair4", "stair5",])
 
     world.try_exec()
 

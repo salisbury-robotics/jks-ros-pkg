@@ -624,8 +624,9 @@ def rm_unicode(t):
     raise Exception("Could not clean: " + type(t))
 
 #@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
+@app.route('/plan', methods=["GET", "PUT"])
 @app.route('/plan/<target>', methods=["GET", "PUT"])
-def api_plan(target, world = None):
+def api_plan(target = None, world = None):
     if request.method == "PUT": 
         if not get_user_permission(session, "plan"): return permission_error(request, "plan")
     else:
@@ -664,7 +665,17 @@ def api_plan(target, world = None):
                                       ptc, {})
         print "Finished action", r
         return return_json(r)
-    return "{}"
+
+    if target != None:
+        return return_json(None)
+
+    #Get all current programs
+    programs = manager.world.get_programs()
+    previous_plan_length, plan, current_plan = manager.world.get_plan()
+    
+    return return_json({'programs': programs, 'is_planning': manager.world.get_is_planning(),
+                        'previous_plan_length': previous_plan_length, 'plan': plan,
+                        'current_plan': current_plan})
 
 def a():
     #if world_edit_session != None:
@@ -892,11 +903,15 @@ def on_robot_change(robot):
     queue_load(None, "robot", robot)
     time.sleep(1.0)
 
+def on_program_change():
+    queue_load(None, "plan", None)
+
 
 def run(a, w):
     global manager
     manager = blast_action.BlastManager(a, w)
     manager.on_robot_change = on_robot_change
+    manager.world.on_program_changed = on_program_change
     #mthread = ManagerThread()
     #mthread.start()
 
