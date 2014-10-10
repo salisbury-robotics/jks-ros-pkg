@@ -209,7 +209,8 @@ function call_feed(time) {
 	if (data[1] == null && data[2] == "plan" && data[3] == null) {
 	    //Reload null select
 	    if (selected_type == null && selected == null) {
-		update_select(null, null);
+		//update_select(null, null);
+		update_plan();
 	    }
 	} else if (data[1] == null && data[2] == "edit-world" && data[3] == null) {
 	    update_session();
@@ -771,179 +772,223 @@ function update_select(nst, ns) {
 	    }
 	});
 	
-	$.getJSON("/plan/plan", function(plan) {
-	    return;
-	    var edit_idx = 1;
-
-	    $('#edit-nothing').children().each(function(i) {
-		if (!$(this).attr('id')) {
-		    $(this).remove();
-		}
-	    });
-	    
-	    var edit_idx = 1;
-	    for (var robot in robots) {
-		var robot = robots[robot];
-		edit_idx++;
-		if (edit_idx > 2) { edit_idx = 1; }
-		$('<div class="edit-item-' + edit_idx + '">' + robot.data.name + '</div>')
-		    .insertBefore($('#map-items-buffer')).data('robot', robot.data.name)
-		    .click(function() {
-			if (is_editting_world) {
-			    update_select("edit-robot", $(this).data('robot'));
-			} else {
-			    update_select("plan-robot", $(this).data('robot'));
-			}
-		    });
-	    }
-	    
-	    $('#edit-nothing').children().each(function(i) {
-		if (!$(this).attr('id')) {
-		    $(this).remove();
-		}
-	    });
-	
-	    for (var i in plan_divs) {
-		plan_divs[i].remove();
-	    }
-	    plan_divs = [];
-	    if (plan != null) {
-		
-		var robot_locations = {};
-		for (var robot in robots) {
-		    robot_locations[robot] = robots[robot].data.location;
-		}
-
-		var fixed_actions = 0;
-
-		for (var action_i in plan[0]) {
-		    var action = plan[0][action_i];
-
-		    for (var step_i in plan[3][action[0]][action[1]].display) {
-			var step = plan[3][action[0]][action[1]].display[step_i];
-			if (step[0] == "line") {
-			    var startl = action[2][step[1]];
-			    if (step[1] == "robot.location") {
-				startl = robot_locations[robot];
-			    }
-			    var endl = action[2][step[2]];
-			    if (step[2] == "robot.location") {
-				endl = robot_locations[robot];
-			    }
-			    if (endl && startl) {
-				if (endl.map != current_map_data.map) { endl = null; }
-				if (startl.map != current_map_data.map) { startl = null; }
-			    } else {
-				console.log("Failed to draw line:");
-				console.log(step);
-			    }
-
-			    if (endl && startl) {
-				var len = Math.sqrt((startl.x - endl.x) * (startl.x - endl.x) + (startl.y - endl.y) * (startl.y - endl.y));
-				var ndots = Math.floor(len * 2);
-				if (ndots < 2) { ndots = 2; }
-				for (var dot_iter = 0; dot_iter < ndots; dot_iter++) {
-				    var scale = dot_iter / (ndots - 1.0);
-				    var x = (endl.x - startl.x) * scale + startl.x;
-				    var y = (endl.y - startl.y) * scale + startl.y;
-				    var dot = $('<div style=\"position: absolute; width: 3px; height: 3px; background-color: #'
-						+ step[3] + '; "></div>').appendTo("#map");
-				    position_div(dot, x, y, 0);
-				    plan_divs.push(dot);
-				}
-			    }
-			} else if (step[0] == "icon") {
-			    var l = action[2];
-			    if (step[1] == "robot.location") {
-				l = robot_locations[robot];
-			    } else {
-				for (var sub in step[1].split(".")) {
-				    if (typeof(l) == "string") {
-					l = surfaces[l].data;
-				    }
-				    l = l[step[1].split(".")[sub]];
-				}
-			    }
-			    if (l.map == current_map_data.map) {
-				var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
-					    + 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
-				var a = 0; if (step[3] == "rotate") { a = l.a; }
-				position_div(dot, l.x, l.y, a);
-				plan_divs.push(dot);
-			    }
-			} else {
-			    console.log("Failed a display element:");
-			    console.log(step);
-			}
-		    }
-		    for (var step_name in plan[3][action[0]][action[1]].changes) {
-			var step = plan[3][action[0]][action[1]].changes[step_name];
-			if (step_name == "robot.location") {
-			    robot_locations[robot] = action[2];
-			    for (var sub in step.split(".")) {
-				if (typeof(robot_locations[robot]) == "string") {
-				    robot_locations[robot] = surfaces[robot_locations[robot]].data;
-				}
-				robot_locations[robot] = robot_locations[robot][step.split(".")[sub]];
-			    }
-			}
-		    }
-
-		    edit_idx++;
-		    if (edit_idx > 2) { edit_idx = 1; }
-		    var str = "";
-		    for (var param in action[2]) {
-			var value = action[2][param];
-			if ('object' == typeof(value)) {
-			    if (value.x != undefined && value.y != undefined &&
-				value.a != undefined && value.map != undefined) {
-				str = str + ", " + param + ":(" + toFixed(value.x, 2) + ","
-				    + toFixed(value.y, 2) + "," + toFixed(value.a, 2) + "," + value.map + ")";
-			    } else {
-				str = str + ", " + param + ":STRANGE_OBJECT";
-			    }
-			} else {
-			    str = str + ", " + param + ":" + value;
-			}
-		    }
-		    var color = "";
-		    if (action[3]) {
-			fixed_actions++;
-			color = "background-color: grey;";
-		    }
-		    $('<div class="edit-item-' + edit_idx + '" style="' + color + '">' + action[0] 
-		      + ': ' + action[1] + str + '</div>').data("idx", action_i - fixed_actions)
-			.insertBefore($('#plan-buffer')).click(function() {
-			    if (confirm("Delete all actions after this one?")) {
-				$.deleteJSON("/plan/plan?start=" + $(this).data("idx"), function() {
-				    if (selected == null && selected_type == null) {
-					update_select(null, null);
-				    }
-				});
-			    }
-			});
-		}
-	    }
-
-	    if (plan != null && plan[1]) {
-		$('#plan-execute').removeAttr("disabled");
-		$('#plan-execute').attr("title", "");
-	    } else {
-		$('#plan-execute').attr("disabled", "disabled");
-		$('#plan-execute').attr("title", "Cannot execute this plan because the goal world changed");
-	    }
-	    if (plan != null && plan[0].length > 0) {
-		$('#plan-clear').removeAttr("disabled");
-		$('#plan-clear').attr("title", "");
-		
-	    } else {
-		$('#plan-clear').attr("disabled", "disabled");
-		$('#plan-clear').attr("title", "Can't clear empty plan");
-	    }
-
-	});
+	console.log("Get plan");
+	update_plan();
     }
 }
+
+function update_plan() {
+    $.getJSON("/plan", function(plan) {
+	console.log(plan);
+	$('#plan-lists').children().remove();
+	for (var program in plan.programs) {
+	    console.log("Plan");
+	    var program = plan.programs[program];
+	    $('<div class="plan-' + program[1] + '" data-prog-uid="'
+	      + program[0] + '">' + program[2] + '</div>').appendTo('#plan-lists')
+		.click(function() {
+		    var uid = $(this).data('prog-uid');
+		    var txt = $(this).html();
+		    if (window.confirm("Cancel running program " + txt + "?")) {
+			$.deleteJSON('/plan/' + uid, function(data) {});
+		    }
+		});
+	}
+
+	$('#plan-step-lists').children().remove();
+	if (plan.is_planning) {
+	    $('<div class="currently-planning">Planning</div>').appendTo('#plan-step-lists');
+	} else {
+	    $('<div class="last-steps">Previous Steps: ' +  plan.previous_plan_length 
+	      + '</div>').appendTo('#plan-step-lists');
+
+	    for (var robot in plan.current_plan) {
+		$('<div class="current-step">' + robot + ': '
+		  + plan.current_plan[robot][1]
+		  + '</div>').appendTo('#plan-step-lists');
+	    }
+	    
+	    $('<div class="next-steps">Next Steps: ' +  plan.plan.length 
+	      + '</div>').appendTo('#plan-step-lists');
+	}
+    });
+    
+    
+    
+    var t = function (na, nb) { };
+    t("/plan", function(plan) {
+	return;
+	var edit_idx = 1;
+	
+	$('#edit-nothing').children().each(function(i) {
+	    if (!$(this).attr('id')) {
+		$(this).remove();
+	    }
+	});
+	
+	var edit_idx = 1;
+	for (var robot in robots) {
+	    var robot = robots[robot];
+	    edit_idx++;
+	    if (edit_idx > 2) { edit_idx = 1; }
+	    $('<div class="edit-item-' + edit_idx + '">' + robot.data.name + '</div>')
+		.insertBefore($('#map-items-buffer')).data('robot', robot.data.name)
+		.click(function() {
+		    if (is_editting_world) {
+			update_select("edit-robot", $(this).data('robot'));
+		    } else {
+			update_select("plan-robot", $(this).data('robot'));
+		    }
+		});
+	}
+	
+	$('#edit-nothing').children().each(function(i) {
+	    if (!$(this).attr('id')) {
+		$(this).remove();
+	    }
+	});
+	
+	for (var i in plan_divs) {
+	    plan_divs[i].remove();
+	}
+	plan_divs = [];
+	if (plan != null) {
+	    
+	    var robot_locations = {};
+	    for (var robot in robots) {
+		robot_locations[robot] = robots[robot].data.location;
+	    }
+	    
+	    var fixed_actions = 0;
+	    
+	    for (var action_i in plan[0]) {
+		var action = plan[0][action_i];
+		
+		for (var step_i in plan[3][action[0]][action[1]].display) {
+		    var step = plan[3][action[0]][action[1]].display[step_i];
+		    if (step[0] == "line") {
+			var startl = action[2][step[1]];
+			if (step[1] == "robot.location") {
+			    startl = robot_locations[robot];
+			}
+			var endl = action[2][step[2]];
+			if (step[2] == "robot.location") {
+			    endl = robot_locations[robot];
+			}
+			if (endl && startl) {
+			    if (endl.map != current_map_data.map) { endl = null; }
+			    if (startl.map != current_map_data.map) { startl = null; }
+			} else {
+			    console.log("Failed to draw line:");
+			    console.log(step);
+			}
+			
+			if (endl && startl) {
+			    var len = Math.sqrt((startl.x - endl.x) * (startl.x - endl.x) + (startl.y - endl.y) * (startl.y - endl.y));
+			    var ndots = Math.floor(len * 2);
+			    if (ndots < 2) { ndots = 2; }
+			    for (var dot_iter = 0; dot_iter < ndots; dot_iter++) {
+				var scale = dot_iter / (ndots - 1.0);
+				var x = (endl.x - startl.x) * scale + startl.x;
+				var y = (endl.y - startl.y) * scale + startl.y;
+				var dot = $('<div style=\"position: absolute; width: 3px; height: 3px; background-color: #'
+					    + step[3] + '; "></div>').appendTo("#map");
+				position_div(dot, x, y, 0);
+				plan_divs.push(dot);
+			    }
+			}
+		    } else if (step[0] == "icon") {
+			var l = action[2];
+			if (step[1] == "robot.location") {
+			    l = robot_locations[robot];
+			} else {
+			    for (var sub in step[1].split(".")) {
+				if (typeof(l) == "string") {
+				    l = surfaces[l].data;
+				}
+				    l = l[step[1].split(".")[sub]];
+			    }
+			}
+			if (l.map == current_map_data.map) {
+			    var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
+					+ 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
+			    var a = 0; if (step[3] == "rotate") { a = l.a; }
+			    position_div(dot, l.x, l.y, a);
+			    plan_divs.push(dot);
+			}
+		    } else {
+			console.log("Failed a display element:");
+			console.log(step);
+		    }
+		}
+		for (var step_name in plan[3][action[0]][action[1]].changes) {
+		    var step = plan[3][action[0]][action[1]].changes[step_name];
+		    if (step_name == "robot.location") {
+			robot_locations[robot] = action[2];
+			for (var sub in step.split(".")) {
+			    if (typeof(robot_locations[robot]) == "string") {
+				robot_locations[robot] = surfaces[robot_locations[robot]].data;
+			    }
+			    robot_locations[robot] = robot_locations[robot][step.split(".")[sub]];
+			}
+		    }
+		}
+		
+		edit_idx++;
+		if (edit_idx > 2) { edit_idx = 1; }
+		var str = "";
+		for (var param in action[2]) {
+		    var value = action[2][param];
+		    if ('object' == typeof(value)) {
+			if (value.x != undefined && value.y != undefined &&
+			    value.a != undefined && value.map != undefined) {
+			    str = str + ", " + param + ":(" + toFixed(value.x, 2) + ","
+				+ toFixed(value.y, 2) + "," + toFixed(value.a, 2) + "," + value.map + ")";
+			} else {
+			    str = str + ", " + param + ":STRANGE_OBJECT";
+			}
+		    } else {
+			str = str + ", " + param + ":" + value;
+		    }
+		}
+		var color = "";
+		if (action[3]) {
+		    fixed_actions++;
+		    color = "background-color: grey;";
+		}
+		$('<div class="edit-item-' + edit_idx + '" style="' + color + '">' + action[0] 
+		  + ': ' + action[1] + str + '</div>').data("idx", action_i - fixed_actions)
+		    .insertBefore($('#plan-buffer')).click(function() {
+			if (confirm("Delete all actions after this one?")) {
+			    $.deleteJSON("/plan/plan?start=" + $(this).data("idx"), function() {
+				if (selected == null && selected_type == null) {
+				    update_select(null, null);
+				}
+				});
+			}
+		    });
+		}
+	}
+	
+	if (plan != null && plan[1]) {
+	    $('#plan-execute').removeAttr("disabled");
+	    $('#plan-execute').attr("title", "");
+	} else {
+	    $('#plan-execute').attr("disabled", "disabled");
+	    $('#plan-execute').attr("title", "Cannot execute this plan because the goal world changed");
+	}
+	if (plan != null && plan[0].length > 0) {
+	    $('#plan-clear').removeAttr("disabled");
+	    $('#plan-clear').attr("title", "");
+	    
+	} else {
+	    $('#plan-clear').attr("disabled", "disabled");
+	    $('#plan-clear').attr("title", "Can't clear empty plan");
+	}
+	
+    });
+}
+
 
 $('#plan-execute').click(function() {
     $.postJSON("/execute_plan/plan", null, function(result) {

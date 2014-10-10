@@ -594,7 +594,9 @@ class BlastPt(object):
         self.x = float(x)
         self.y = float(y)
         self.a = float(a)
-        self.map = mid
+        self.map = str(mid)
+        if type(mid) != str and type(mid) != unicode:
+            raise BlastTypeError("Defined a point object with an invalid map: " + str(mid))
         self.wrap_angle()
 
     def wrap_angle(self):
