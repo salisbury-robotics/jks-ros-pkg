@@ -147,3 +147,37 @@ div.currently-planning {
     background-color: #E74C3C;
     text-align: center;
 }
+
+
+
+
+div.last-steps {
+    border: 0px;
+    background-color: #AAA;
+    color: #FFF;
+    padding: 5px;   
+    font-size: 16px;
+    text-align: center;
+}
+div.current-step-idle {
+    border: 0px;
+    background-color: #AAC;
+    color: #FFF;
+    padding: 5px;   
+    font-size: 16px;
+    text-align: center;
+}
+div.current-step {
+    border: 0px;
+    background-color: #E74C3C;
+    color: #FFF;
+    padding: 5px;   
+}
+div.next-steps {
+    border: 0px;
+    background-color: #ACA;
+    color: #FFF;
+    padding: 5px;   
+    font-size: 16px;
+    text-align: center;
+}
