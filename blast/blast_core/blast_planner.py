@@ -1501,6 +1501,8 @@ class BlastPlannableWorld:
             return x
         plan = [clean_json(x) for x in self.plan]
         current = {}
+        for n in self.world.robots_keysort:
+            current[n] = None
         for k, v in self.robot_actions.iteritems():
             current[clean_json(k)] = clean_json(v)
         self.lock.release()
