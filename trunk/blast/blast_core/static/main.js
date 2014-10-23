@@ -365,6 +365,18 @@ $.getJSON( "/map", function( data ) {
 });
 
 
+function zoomlessWorldXtoScreenX(x) {
+    return x * pixel_scale;
+}
+function zoomlessWorldYtoScreenY(y) {
+    return $('#map-image').height() - y * pixel_scale;
+}
+function worldXtoScreenX(x) {
+    return (x * pixel_scale) * (map_zoom * map_zoom);
+}
+function worldYtoScreenY(y) {
+    return ($('#map-image').height() - y * pixel_scale) * (map_zoom * map_zoom);
+}
 
 function position_div(div, x, y, a) {
     div.css("position", "absolute");
@@ -375,8 +387,8 @@ function position_div(div, x, y, a) {
 
     var bw = div.css("border").split(" ")[0].split("px")[0] * 1.0;
 
-    div.css("left", x * pixel_scale - div.width() / 2 - bw);
-    div.css("top", $('#map-image').height() - (y * pixel_scale + bw + div.height() / 2));
+    div.css("left", zoomlessWorldXtoScreenX(x) - div.width() / 2 - bw);
+    div.css("top", zoomlessWorldYtoScreenY(y) - (bw + div.height() / 2));
 }
 
 function screenXtoWorldX(x) {
@@ -670,6 +682,30 @@ function same_robot(r1, r2) { //visiually the same
 	&& r1.data.location.map == r2.data.location.map;
 }
 
+function center_map_on(item_type, item, subc) {
+    if (item_type == "location") {
+	on_load = function() {
+	    update_zoom(3.0);
+	    $('#map-scroll')
+		.scrollTop(worldYtoScreenY(item.y) - $('#map-scroll').height() / 2.0)
+		.scrollLeft(worldXtoScreenX(item.x) - $('#map-scroll').width() / 2.0);
+	};
+	if (!item.map) {
+	    on_load();
+	} else if (!current_map_data) {
+	    show_map(item.map, on_load);
+	} else if (item.map != current_map_data.map) {
+	    show_map(item.map, on_load);
+	} else {
+	    on_load();
+	}
+    } else if (item_type == "robot") {
+	center_map_on("location", robots[item].data.location);
+    } else if (item_type == "plan-robot") {
+	center_map_on("location", robots_plan[item].data.location);
+    }
+}
+
 function load_physical_robot(robot, nuke_select) {
     $.getJSON("/robot/" + robot + "?include_type=true", function(d) {
 	if (!redraw_robot(robots, d)) {
@@ -803,9 +839,19 @@ function update_plan() {
 	      + '</div>').appendTo('#plan-step-lists');
 
 	    for (var robot in plan.current_plan) {
-		$('<div class="current-step">' + robot + ': '
-		  + plan.current_plan[robot][1]
-		  + '</div>').appendTo('#plan-step-lists');
+		var txt = null;
+		if (plan.current_plan[robot] == null) {
+		    txt = $('<div class="current-step-idle">'
+			    + robot + ': Idle</div>');
+		} else {
+		    txt = $('<div class="current-step">' + robot
+			    + ': ' + plan.current_plan[robot][1]
+			    + '</div>');
+		}
+		txt.appendTo('#plan-step-lists').data('robot', robot)
+		    .click(function() {
+			center_map_on("robot", $(this).data('robot'));
+		    });
 	    }
 	    
 	    $('<div class="next-steps">Next Steps: ' +  plan.plan.length 
@@ -1001,7 +1047,7 @@ $('#plan-execute').click(function() {
 update_select(null, null);
 
 
-function show_map(map) {
+function show_map(map, on_map_load) {
     hide_all();
     $('#map-screen').show();
     location.hash = encodeURIComponent("maps/" + map);
@@ -1056,6 +1102,7 @@ function show_map(map) {
 			      });
 		}
 	    });
+	    on_map_load();
 	});
 	
 	$('#map-image').attr('src', '/fspng/' + data.map_file);
@@ -1067,13 +1114,20 @@ function show_map(map) {
 ///////////////////////////////////////////////////////////////////
 
 map_zoom = 1.0;
-function update_zoom() {
+function update_zoom(nz) {
+    var wx = screenXtoWorldX($('#map-scroll').scrollLeft() + $('#map-scroll').height() / 2.0);
+    var wy = screenYtoWorldY($('#map-scroll').scrollTop() + $('#map-scroll').height() / 2.0);
+    map_zoom = nz;
     $('#map').css('zoom', map_zoom * 100.0 + '%');
     $('#map').css('-moz-transform', 'scale(' + map_zoom + ')');
     $('#map').css('-webkit-transform', 'scale(' + map_zoom + ')');
+    
+    $('#map-scroll')
+	.scrollTop(worldYtoScreenY(wy) - $('#map-scroll').height() / 2.0)
+	.scrollLeft(worldXtoScreenX(wx) - $('#map-scroll').height() / 2.0);
 }
-$('#zoom-in').click(function() { map_zoom *= 1.3; update_zoom(); });
-$('#zoom-out').click(function() { map_zoom /= 1.3; update_zoom(); });
+$('#zoom-in').click(function() { update_zoom(map_zoom * 1.3); });
+$('#zoom-out').click(function() { update_zoom(map_zoom / 1.3); });
 
 
 
