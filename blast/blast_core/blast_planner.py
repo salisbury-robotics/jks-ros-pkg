@@ -1460,9 +1460,14 @@ class BlastPlannableWorld:
             r = "success"
             if self.code_exit_state[i.uid] == False:
                 r = "failure"
+            if self.code_exit_state[i.uid] == None:
+                r = "cancelled"
             p.append((i.uid, r, i.description))
         for i in self.code_exec:
-            p.append((i.uid, "running", i.description))
+            if i in self.cancel_programs:
+                p.append((i.uid, "cancelling", i.description))
+            else:
+                p.append((i.uid, "running", i.description))
         for i in self.post_edit_code_exec:
             p.append((i.uid, "queue", i.description))
         self.lock.release()
@@ -1499,20 +1504,21 @@ class BlastPlannableWorld:
             elif type(x) == blast_world.BlastObjectRef:
                 return {'object_ref': x.uid}
             return x
-        plan = [clean_json(x) for x in self.plan]
+        plan = [] # [clean_json(x) for x in self.plan]
         current = {}
         for n in self.world.robots_keysort:
             current[n] = None
         for k, v in self.robot_actions.iteritems():
             current[clean_json(k)] = clean_json(v)
         self.lock.release()
-        print nprevious_steps, plan, current
+        #print nprevious_steps, plan, current
         return nprevious_steps, plan, current
 
     def cancel_program(self, uid):
         self.lock.acquire()
         self.cancel_programs.add(uid)
         self.needs_replan = True
+        self.on_program_changed()
         self.lock.release()
         return True
 
@@ -1560,6 +1566,9 @@ class BlastPlannableWorld:
                 self.lock.release()
                 break
 
+            if len(self.cancel_programs) != 0: #If we cancel during planning, we need a replan
+                self.needs_replan = True
+
             if self.needs_replan:
                 still_running = False
                 tbc = set()
@@ -1576,6 +1585,19 @@ class BlastPlannableWorld:
                     self.lock.acquire()
 
                 if not still_running:
+                    #Cancel code
+                    print "Cancelling programs", self.cancel_programs
+                    cancel_remove = []
+                    for x in self.code_exec:
+                        if x.uid in self.cancel_programs:
+                            print "Cancel", x.uid
+                            cancel_remove.append(x)
+                    for x in cancel_remove:
+                        self.code_exec.remove(x)
+                        self.finished_code.append(x)
+                        self.code_exit_state[x.uid] = None
+                    self.cancel_programs = set()
+
                     self.is_planning = True
                     self.on_program_changed()
                     self.times_planned = self.times_planned + 1

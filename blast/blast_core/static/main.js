@@ -146,13 +146,13 @@ $.putJSON( "/session", {}, function(data) {
     update_session();
     setInterval(update_session, SESSION_TIMEOUT * 0.9 * 1000.0);
 
-    
+    //TODO: remove debug tool
     $.putJSON( "/world", "plan", function(data) {
 	$.postJSON("/world/plan/robot/stair4/location", 
 		   {"x": 20, "y": 40, "a": 0, "map": "clarkcenterfirstfloor"},
 		   function(data2) {
 		       $.getJSON( "/world/plan/robot/stair4/location", function(data2) {
-			   console.log(data2);
+			   //console.log(data2);
 		       });
 
 		   });
@@ -202,10 +202,6 @@ function call_feed(time) {
 	    return;
 	}
 
-	console.log("World: " + data[1]);
-	console.log("Type: " + data[2]);
-	console.log("Item: " + data[3]);
-
 	if (data[1] == null && data[2] == "plan" && data[3] == null) {
 	    //Reload null select
 	    if (selected_type == null && selected == null) {
@@ -225,8 +221,6 @@ function call_feed(time) {
 	    var type = data[3].substring(0, sep);
 	    var text = data[3].substring(sep + 1);
 	    var text_types = {'0': "Error", '1': "Warning", '2': "Done"};
-	    console.log(type);
-	    console.log(text);
 	    alert(text_types[type] + " -- " + text);
 	} else if (data[2] == "terminate") {
 	    //Just exit out, so we do not call the feed again. The server shutdown.
@@ -416,8 +410,9 @@ function check_robot_same(robot_name) {
 }
 
 function redraw_robot(robots, robot_data, border) {
-    console.log(current_map_data.map + " " + robot_data.location.map);
+    if (!current_map_data) return;
     if (current_map_data.map != robot_data.location.map) {
+	if (!robots[robot_data.name]) { return false; }
 	if (robots[robot_data.name].div) { robots[robot_data.name].div.remove(); }
 	if (robots[robot_data.name].halo) { robots[robot_data.name].halo.remove(); }
 	return false;
@@ -648,10 +643,8 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	});
     });
 
-    console.log("Update select div");
     
     robot.div.unbind("mousedown").mousedown(function() {
-	console.log("Down: " + drag);
 	if (drag != null) { return; }
 	drag = $(this);
 	$(document).unbind("mousemove").mousemove(function(event) {
@@ -699,10 +692,14 @@ function center_map_on(item_type, item, subc) {
 	} else {
 	    on_load();
 	}
-    } else if (item_type == "robot") {
-	center_map_on("location", robots[item].data.location);
     } else if (item_type == "plan-robot") {
-	center_map_on("location", robots_plan[item].data.location);
+	$.getJSON( "/world/plan/robot/stair4/location", function(locdata) {
+	    center_map_on("location", locdata);
+	});
+    } else if (item_type == "robot") {
+	$.getJSON( "/robot/stair4/location", function(locdata) {
+	    center_map_on("location", locdata);
+	});
     }
 }
 
@@ -713,7 +710,6 @@ function load_physical_robot(robot, nuke_select) {
 	}
 	robots[d.name].div.css("z-index", Z_STACK * 2 + get_z_order(d.name));
 	robots[d.name].default_ocf = function() {
-	    console.log("Click the robot");
 	    if (is_editting_world) {
 		update_select("edit-robot", $(this).data("robot"));
 	    } else {
@@ -808,17 +804,14 @@ function update_select(nst, ns) {
 	    }
 	});
 	
-	console.log("Get plan");
 	update_plan();
     }
 }
 
 function update_plan() {
     $.getJSON("/plan", function(plan) {
-	console.log(plan);
 	$('#plan-lists').children().remove();
 	for (var program in plan.programs) {
-	    console.log("Plan");
 	    var program = plan.programs[program];
 	    $('<div class="plan-' + program[1] + '" data-prog-uid="'
 	      + program[0] + '">' + program[2] + '</div>').appendTo('#plan-lists')
@@ -1102,7 +1095,9 @@ function show_map(map, on_map_load) {
 			      });
 		}
 	    });
-	    on_map_load();
+	    if (on_map_load) {
+		on_map_load();
+	    }
 	});
 	
 	$('#map-image').attr('src', '/fspng/' + data.map_file);
