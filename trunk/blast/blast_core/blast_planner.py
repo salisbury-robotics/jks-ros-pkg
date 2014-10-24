@@ -174,6 +174,9 @@ class Planner(object):
                     change, location_do_not_cares = w_next.take_action(robot_name, action, parameters)
                     if change == None:
                         continue
+                    #This is used for properly displaying the action. This allows us to know where the
+                    #robot started
+                    parameters["robot.location"] = w[0].robots[robot_name].location.copy()
                     wn = (w[1] + change, (w_next, w[1] + change, w[2] + [(action, parameters, change), ]))
                     heapq.heappush(worlds, wn)
                     
@@ -679,12 +682,14 @@ class Planner(object):
                                 if debug: print "Time", es_time
                                 world_new_plan = r
                         else: #We have a simple action, add it to the plan.
+                            lmparameters = step[2].copy()
+                            lmparameters["robot.location"] = w_clone.robots[step[0]].location.copy()
                             length, ldc = w_clone.take_action(step[0], step[1], step[2])
                             #print "Result -> ", length, ldc
                             if length == None and ldc == None:
                                 es_plan = None
                                 break
-                            es_plan.append([es_time, "ACTION", length, step[0], step[1], step[2]])
+                            es_plan.append([es_time, "ACTION", length, step[0], step[1], lmparameters])
                             es_time = es_time + length
                 
                     if es_plan == None: #We have failed to merge extra steps, world is invalud
@@ -772,6 +777,7 @@ class Planner(object):
                         if parameters != None and parameters != {}:
                             for nparam, state in w_start.action_robot_pose(robot, action, parameters): 
                                 w_end = self.get_robot_pose_world(w_start, robot, action, nparam, state)
+                                nparam["robot.location"] = w_end.robots[robot].location.copy()
                                 new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, nparam])
                                 if new_plan != None:
                                     if debug: print "Successfully set down object for", robot, "at", min_time
@@ -807,6 +813,7 @@ class Planner(object):
                     if debug: print "Trying", action, "for", robot, "at", min_time
                     for parameters, state in w_start.action_robot_pose(robot, action, {}): 
                         w_end = self.get_robot_pose_world(w_start, robot, action, parameters, state)
+                        parameters["robot.location"] = w_end.robots[robot].location.copy()
                         new_plan = self.merge_motion_plan(w_start, w_end, robot, min_time, world[1], [robot, action, parameters])
                         #print parameters, state, "->", new_plan != None
                         if new_plan != None:
@@ -1494,17 +1501,29 @@ class BlastPlannableWorld:
                     if i >= 'A' and i <= 'Z': continue
                     if i >= 'a' and i <= 'z': continue
                     if i >= '0' and i <= '9': continue
-                    if i in ['_', '-', '/', '\\', '+', '-', '!', '@',
-                             '#', '$', '%', '^', '&', '*', '(', ')',
-                             '"', ';', ':', '<', '>', ',', '.', '?',
+                    if i in ['_', '-', '/', '\\', '+', '=', '!', '@', '~', '`', ' ',
+                             '#', '$', '%', '^', '&', '*', '(', ')', '\n',
+                             '"', ';', ':', '<', '>', ',', '.', '?', '\r',
                              "'", '{', '}', '[', ']', '|', ' ', '\t']: continue
                     is_strange = True
                 if is_strange:
+                    print x, "is an EXOTIC_STRING"
                     return "EXOTIC_STRING"
             elif type(x) == blast_world.BlastObjectRef:
                 return {'object_ref': x.uid}
+            elif type(x) == blast_world.BlastCodeStep:
+                return clean_json(x.to_dict())
+            elif type(x) == blast_world.BlastParameterPtr:
+                return clean_json(x.to_dict())
             return x
-        plan = [] # [clean_json(x) for x in self.plan]
+        plan = []
+        for a in self.plan:
+            if a[1] == "ACTION":
+                plan.append(
+                    clean_json(a + [self.world.types.get_action_for_robot(self.world.robots[a[3]].robot_type.name, 
+                                                                          a[4])[1].to_dict(), ]))
+            else:
+                plan.append(clean_json(a))
         current = {}
         for n in self.world.robots_keysort:
             current[n] = None
