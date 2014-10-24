@@ -850,70 +850,56 @@ function update_plan() {
 	    $('<div class="next-steps">Next Steps: ' +  plan.plan.length 
 	      + '</div>').appendTo('#plan-step-lists');
 	}
-    });
-    
-    
-    
-    var t = function (na, nb) { };
-    t("/plan", function(plan) {
-	return;
-	var edit_idx = 1;
-	
-	$('#edit-nothing').children().each(function(i) {
-	    if (!$(this).attr('id')) {
-		$(this).remove();
-	    }
-	});
-	
-	var edit_idx = 1;
-	for (var robot in robots) {
-	    var robot = robots[robot];
-	    edit_idx++;
-	    if (edit_idx > 2) { edit_idx = 1; }
-	    $('<div class="edit-item-' + edit_idx + '">' + robot.data.name + '</div>')
-		.insertBefore($('#map-items-buffer')).data('robot', robot.data.name)
-		.click(function() {
-		    if (is_editting_world) {
-			update_select("edit-robot", $(this).data('robot'));
-		    } else {
-			update_select("plan-robot", $(this).data('robot'));
-		    }
-		});
-	}
-	
-	$('#edit-nothing').children().each(function(i) {
-	    if (!$(this).attr('id')) {
-		$(this).remove();
-	    }
-	});
+
 	
 	for (var i in plan_divs) {
 	    plan_divs[i].remove();
 	}
 	plan_divs = [];
-	if (plan != null) {
-	    
-	    var robot_locations = {};
-	    for (var robot in robots) {
-		robot_locations[robot] = robots[robot].data.location;
-	    }
-	    
+	if (plan.plan != null) {
 	    var fixed_actions = 0;
 	    
-	    for (var action_i in plan[0]) {
-		var action = plan[0][action_i];
-		
-		for (var step_i in plan[3][action[0]][action[1]].display) {
-		    var step = plan[3][action[0]][action[1]].display[step_i];
+	    for (var action_i in plan.plan) {
+		var action = plan.plan[action_i];
+		//console.log(action);
+		if (action[1] != "ACTION") {
+		    continue;
+		}
+
+		var get_location = function(lstr, robot, param) {
+		    var l = {};
+		    var lstrs = lstr.split(".");
+		    if (lstr == "robot.location") {
+			l = param[lstr];
+		    } else if (lstrs.length == 1) {
+			l = param[lstr];
+		    } else {
+			for (var sub in lstrs) {
+			    if (sub == 0) {
+				l = action[5][lstrs[sub]];
+				if (!l) break;
+				l = surfaces[l];
+				if (!l) break;
+				l = l.data;
+			    } else {
+				l = l[lstrs[sub]];
+				if (!l) break;
+			    }
+			}
+		    }
+		    if (!l) {
+			//alert("Could not get location: " + lstr);
+			return {};
+		    }
+		    return l;
+		};
+
+		var robot = action[3];
+		for (var step_i in action[6].display) {
+		    var step = action[6].display[step_i];
 		    if (step[0] == "line") {
-			var startl = action[2][step[1]];
-			if (step[1] == "robot.location") {
-			    startl = robot_locations[robot];
-			}
-			var endl = action[2][step[2]];
-			if (step[2] == "robot.location") {
-			    endl = robot_locations[robot];
-			}
+			var startl = get_location(step[1], robot, action[5]);
+			var endl = get_location(step[2], robot, action[5]);
 			if (endl && startl) {
 			    if (endl.map != current_map_data.map) { endl = null; }
 			    if (startl.map != current_map_data.map) { startl = null; }
@@ -937,17 +923,8 @@ function update_plan() {
 			    }
 			}
 		    } else if (step[0] == "icon") {
-			var l = action[2];
-			if (step[1] == "robot.location") {
-			    l = robot_locations[robot];
-			} else {
-			    for (var sub in step[1].split(".")) {
-				if (typeof(l) == "string") {
-				    l = surfaces[l].data;
-				}
-				    l = l[step[1].split(".")[sub]];
-			    }
-			}
+			var l = get_location(step[1], robot, action[5]);
+		
 			if (l.map == current_map_data.map) {
 			    var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
 					+ 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
@@ -960,24 +937,10 @@ function update_plan() {
 			console.log(step);
 		    }
 		}
-		for (var step_name in plan[3][action[0]][action[1]].changes) {
-		    var step = plan[3][action[0]][action[1]].changes[step_name];
-		    if (step_name == "robot.location") {
-			robot_locations[robot] = action[2];
-			for (var sub in step.split(".")) {
-			    if (typeof(robot_locations[robot]) == "string") {
-				robot_locations[robot] = surfaces[robot_locations[robot]].data;
-			    }
-			    robot_locations[robot] = robot_locations[robot][step.split(".")[sub]];
-			}
-		    }
-		}
 		
-		edit_idx++;
-		if (edit_idx > 2) { edit_idx = 1; }
 		var str = "";
-		for (var param in action[2]) {
-		    var value = action[2][param];
+		for (var param in action[5]) {
+		    var value = action[5][param];
 		    if ('object' == typeof(value)) {
 			if (value.x != undefined && value.y != undefined &&
 			    value.a != undefined && value.map != undefined) {
@@ -990,41 +953,8 @@ function update_plan() {
 			str = str + ", " + param + ":" + value;
 		    }
 		}
-		var color = "";
-		if (action[3]) {
-		    fixed_actions++;
-		    color = "background-color: grey;";
-		}
-		$('<div class="edit-item-' + edit_idx + '" style="' + color + '">' + action[0] 
-		  + ': ' + action[1] + str + '</div>').data("idx", action_i - fixed_actions)
-		    .insertBefore($('#plan-buffer')).click(function() {
-			if (confirm("Delete all actions after this one?")) {
-			    $.deleteJSON("/plan/plan?start=" + $(this).data("idx"), function() {
-				if (selected == null && selected_type == null) {
-				    update_select(null, null);
-				}
-				});
-			}
-		    });
-		}
+	    }
 	}
-	
-	if (plan != null && plan[1]) {
-	    $('#plan-execute').removeAttr("disabled");
-	    $('#plan-execute').attr("title", "");
-	} else {
-	    $('#plan-execute').attr("disabled", "disabled");
-	    $('#plan-execute').attr("title", "Cannot execute this plan because the goal world changed");
-	}
-	if (plan != null && plan[0].length > 0) {
-	    $('#plan-clear').removeAttr("disabled");
-	    $('#plan-clear').attr("title", "");
-	    
-	} else {
-	    $('#plan-clear').attr("disabled", "disabled");
-	    $('#plan-clear').attr("title", "Can't clear empty plan");
-	}
-	
     });
 }
 
@@ -1044,7 +974,13 @@ function show_map(map, on_map_load) {
     hide_all();
     $('#map-screen').show();
     location.hash = encodeURIComponent("maps/" + map);
-    
+
+    //Clear out all the planning divs - those that display the plan.
+    for (var i in plan_divs) {
+	plan_divs[i].remove();
+    }
+    plan_divs = [];
+
     $.getJSON("/map/" + map, function (data) {
 	current_map_data = data;
 	pixel_scale = data.ppm;
@@ -1092,9 +1028,11 @@ function show_map(map, on_map_load) {
 				  }
 				  surfaces[surface_data.name] = {'data': surface_data, 'divs': divs};
 				  update_select(null, null);
+				  update_plan();
 			      });
 		}
 	    });
+
 	    if (on_map_load) {
 		on_map_load();
 	    }

@@ -27,6 +27,7 @@ class BlastCodeError(Exception):
         return repr(self.value)
 
 class BlastParameterPtr(object):
+    __slots__ = ['parameter', 'sub', 'prefix', 'postfix']
     def __init__(self, parameter, sub = None, prefix = None, postfix = None):
         self.parameter = parameter
         self.sub = sub
@@ -37,10 +38,14 @@ class BlastParameterPtr(object):
         if self.sub != None: sub = ", " + str(self.sub)
         return "ParameterPtr(\"" + str(self.parameter) + sub + "\")"
     def __repr__(self): return self.__str__()
+    def to_dict(self):
+        return {'parameter_ptr': True, 'sub': self.sub,
+                'prefix': self.prefix, 'postfix': self.postfix}
 
 
 
 class BlastCodeStep(object):
+    __slots__ = ['label', 'command', 'parameters', 'return_var']
     #Valid commands: STARTSUB, CALLSUB, GOTO, ENDSUB, IF, RETURN, FAIL, PLAN, SCAN, SCAN_STATE
     #STARTSUB indicates the name of a subroutine. It takes an arbitrary set of parameters
     #which are the names of types for the parameters of the subroutine. The main purpose of
@@ -116,6 +121,11 @@ class BlastCodeStep(object):
         lb = None
         if self.label: lb = prefix + self.label
         return BlastCodeStep(lb, self.command, pc, self.return_var)
+
+    def to_dict():
+        return {'label': self.label, 'command': self.command,
+                'parameters': self.parameters, 'return_var': self.return_var}
+                
 
     def __init__(self, label, command, parameters = {}, return_var = None):
         self.label = label
@@ -443,8 +453,6 @@ class BlastWorldTypes(object):
                 if require_object == False or at.is_object_action:
                     if at.planable:
                         actions.append(rt[1])
-        if require_object == False:
-            self.robot_action_cache[robot] = actions
         return actions
 
     def add_script(self, s):
