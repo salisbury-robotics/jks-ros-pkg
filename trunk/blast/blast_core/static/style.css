@@ -131,6 +131,18 @@ div.plan-running {
     color: #FFF;
     padding: 5px;   
 }
+div.plan-cancelling {
+    border: 0px;
+    background-color: #CAA;
+    color: #FFF;
+    padding: 5px;   
+}
+div.plan-cancelled {
+    border: 0px;
+    background-color: #AAB;
+    color: #FFF;
+    padding: 5px;   
+}
 div.plan-queue {
     border: 0px;
     background-color: #AAC;

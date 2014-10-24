@@ -625,12 +625,21 @@ def rm_unicode(t):
 
 #@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
 @app.route('/plan', methods=["GET", "PUT"])
-@app.route('/plan/<target>', methods=["GET", "PUT"])
+@app.route('/plan/<target>', methods=["GET", "PUT", "DELETE"])
 def api_plan(target = None, world = None):
-    if request.method == "PUT": 
+    if request.method == "PUT" or request.method == "DELETE": 
         if not get_user_permission(session, "plan"): return permission_error(request, "plan")
     else:
         if not get_user_permission(session, "view"): return permission_error(request, "view")
+
+    if request.method == "DELETE":
+        print "Cancelling program"
+        try:
+            target = int(target)
+        except:
+            return return_json(None)
+        cr = manager.world.cancel_program(target)
+        return return_json(cr)
 
     if request.method == "PUT":
         try:
@@ -676,132 +685,6 @@ def api_plan(target = None, world = None):
     return return_json({'programs': programs, 'is_planning': manager.world.get_is_planning(),
                         'previous_plan_length': previous_plan_length, 'plan': plan,
                         'current_plan': current_plan})
-
-def a():
-    #if world_edit_session != None:
-    #    world_edit_lock.release()
-    #    return "false"
-
-    start = get_world(world)
-    end = get_world(target)
-    if start == None or end == None:
-        world_edit_lock.release()
-        print "Error: world in planner"
-        return return_json(None)
-
-    action_data = None
-    if request.method == "DELETE":
-        print request.args.get("start", "FAIL")
-        try:
-            start_i = int(request.args.get("start", "0"))
-        except:
-            start_i = 0
-        if start_i < 0: start_i = 0
-        start.plan_steps[end] = start.plan_steps[end][0:start_i]
-    elif request.method == "PUT":
-        action_data = json.loads(request.data)
-
-    if start.post_exec_world:
-        start_clone = start.post_exec_world.copy()
-    else:
-        start_clone = start.copy()
-    start_clone.real_world = False
-
-    if not end in start.plan_steps:
-        start.plan_steps[end] = []
-
-    print "Taking already taken steps", start.current_plan
-    for i in start.plan_steps[end]:
-        start_clone.take_action(i[0], i[1], i[2])
-    print "Done"
-    print
-    print request.method
-
-
-    worked = None
-    equal = False
-
-    #Planning occurs in three phases: 
-    #1. Plan to achieve the world
-    #2. Plan to achieve the world where the action can be run
-    #3. Actually do the action
-    #Phases 2 and 3 are optional, conditioned on action_data not sucking, 
-    #and phases 2 and 3 actually modified the plan world. If you specify 
-    #and action, you have to reload the world. ALSO end world can't be real
-
-    if request.method == "PUT":     
-        locations = []
-        for name, robot in end.world.robots.iteritems():
-            locations.append(robot.location.copy())
-        
-        print "Planning...."
-        r = start_clone.plan(lambda w: w.equal(end.world, tolerant=True), 
-                             {"Pt": locations}, plan_and_return = True)
-        if r != None:
-            plan_to_world, time, steps, ol = r
-            print "Result:", plan_to_world
-            print "Done", steps, time
-        else:
-            plan_to_world, time2, steps = (None, None, None)
-        if plan_to_world != None:
-            worked = True
-            start.plan_steps[end].extend(steps)
-            equal = True
-
-            if (action_data):
-                r = end.plan_action(action_data["robot"], action_data["action"].split(".")[-1], 
-                                    action_data["parameters"], include_action = True)
-                if r != None:
-                    print r
-                    plan_final_world, time2, steps, ol = r
-                    #Note - all of these steps need to be applied to the end world
-                    start.plan_steps[end].extend(steps)
-                else:
-                    worked = False
-                    equal = False
-        else:
-            worked = False
-            equal = False
-    else:
-        if request.method == "DELETE": worked = True
-        equal = start_clone.world.equal(end.world, tolerant=True)
-    
-    if end in start.plan_steps:
-        def clean_p(at, p):
-            if at == None:
-                if p == "fail": return "fail"
-                return {}
-            a = {}
-            for n, v in p.iteritems():
-                a[n] = str(v)
-            return a
-        p = [(x[0], x[1], clean_p(x[1], x[2]), True) for x in start.display_plan]
-        p = p + [(x[0], x[1], clean_p(x[1], x[2]), False) for x in start.plan_steps[end]]
-
-        if True:
-            actions = {}
-            for robot, action, params, is_unplanned in p:
-                if not robot in actions:
-                    actions[robot] = {}
-                if not action in actions[robot]:
-                    if action == None:
-                        actions[robot][None] = {"display": [], "changes": []}
-                    else:
-                        rt, at = start.world.types.get_action_for_robot(start.world.robots[robot].robot_type, action)
-                        actions[robot][action] = {"display": at.display, "changes": at.changes }
-        else:
-            actions = None
-    else:
-        actions = None
-        p = None
-    world_edit_lock.release()
-
-    print "p", p
-    print "equal", equal
-    print "worked", worked
-    print "actions", actions
-
-    return return_json([p, equal, worked, actions])
 
 feed_lock = threading.Lock()
 feed = []
