@@ -963,6 +963,11 @@ class BlastCodeExec(object):
             return
         hl.update(str(self.plan_executed))
         hl.update(str(self.plan_res))
+        def is_surface_loc(t):
+            if type(t) != tuple: return False
+            if len(t) != 2: return False
+            if type(t[0]) != str: return False
+            return (type(t[1]) == dict or type(t[1]) == blast_world.BlastPos or type(t[1]) == blast_world.BlastPosIrr)
         for e in self.environments:
             hl.update(str(e[0]) + str(id(e[1])))
             for dictionary in e[2:]:
@@ -977,8 +982,11 @@ class BlastCodeExec(object):
                             hl.update(s + "|")
                         hl.update(",")
                         continue
-                    elif t != str and t != int and t != float and t != bool and t != blast_world.BlastPt and t != BlastCodeObjectPtr:
-                        raise Exception("Invalid type for dictionary key: " + \
+                    
+                    elif t != str and t != int and t != float and t != bool \
+                            and t != blast_world.BlastPt and t != BlastCodeObjectPtr \
+                            and not is_surface_loc(dictionary[key]):
+                        raise Exception("Invalid type for dictionary item: " + \
                                             str(type(dictionary[key])) + ": " + str(dictionary[key]))
                     hl.update(str(key) + ":" + str(dictionary[key]) + ",")
             
@@ -1072,9 +1080,9 @@ class BlastCodeExec(object):
             if p.sub != None:
                 r = r.split(".")[p.sub]
             if p.prefix != None:
-                r = p.prefix + str(r)
+                r = str(self.paste_parameters(p.prefix, env)) + str(r)
             if p.postfix != None:
-                r = str(r) + p.postfix
+                r = str(r) + str(self.paste_parameters(p.postfix, env))
             return r
         return p
 
@@ -1131,6 +1139,7 @@ class BlastCodeExec(object):
                         raise blast_world.BlastCodeError("Invalid code condition: " + str(c))
                     math_operators = {"<=": 2, ">=": 2, ">": 2, "<": 2, "==": -2, "+": -1, "-": 2, "/": 2, "*": -1}
                     operators = math_operators.copy()
+                    operators["?"] = 1
                     if c[0] in operators:
                         if operators[c[0]] >= 0:
                             if len(c) != operators[c[0]] + 1:
@@ -1152,9 +1161,11 @@ class BlastCodeExec(object):
                         if c[0] == "<=": return c[1] <= c[2]
                         if c[0] == "<": return c[1] < c[2]
                         if c[0] == ">": return c[1] > c[2]
+                        if c[0] == '?': 
+                            return (c[1] != None and c[1] != False and c[1] != 0)
 
                         
-                raise blast_world.BlastCodeError("Invalid code condition: " + str(c))
+                raise blast_world.BlastCodeError("Invalid code condition: " + str(c) + " - " + str(ps))
             cr = condition_eval(params["condition"])
             if cr != True and cr != False:
                 raise blast_world.BlastCodeError("Invalid code condition result: " + str(c) + " returned " + str(cr))
@@ -1178,14 +1189,17 @@ class BlastCodeExec(object):
                     raise blast_world.BlastCodeError("Lowest runner was")
                 self.environments = (ps.command == "RETURN")
             else:
+                ret_val = False
+                if ps.command == "RETURN":
+                    ret_val = params.get('value', True)
                 if not code_plan:
                     self.environments = self.environments[:-1]
                     substep = self.environments[-1][1][self.environments[-1][0]] #Find the CALLSUB
-                    self.environments[-1][3][substep.return_var] = (ps.command == "RETURN") #Set return
+                    self.environments[-1][3][substep.return_var] = ret_val #Set return
                     self.environments[-1][0] = self.environments[-1][0] + 1 #Increment the instruction pointer
                 else:
                     substep = self.environments[-2][1][self.environments[-2][0]]
-                    self.environments[-2][3][substep.return_var] = (ps.command == "RETURN") #Set return
+                    self.environments[-2][3][substep.return_var] = ret_val #Set return
             if code_plan: #This allows us to properly terminate the subplan step
                 return "PLAN"
             return self.execute(world)
@@ -1282,6 +1296,12 @@ class BlastCodeExec(object):
                 labels = next_step[2]
             ptr = labels[sub]
             next_step[0] = ptr
+            return self.execute(world)
+        elif ps.command == "GETOBJECTPLACEPOSITION":
+            obj = world.objects[params['object'].uid]
+            r = (obj.previous_parent, obj.previous_position)
+            next_step[3][ps.return_var] = r
+            next_step[0] = next_step[0] + 1
             return self.execute(world)
         elif ps.command == "GETOBJECT":
             if type(params.get('holder', None)) != str:

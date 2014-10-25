@@ -18,6 +18,11 @@ if __name__ == '__main__': print "This is not intended to be a main file."
 BLAST_INFINITY = 1e10 #For objects
 #FIXME: __ illegal in robot names
 
+def safe_copy(c):
+    if c == None or c == False:
+        return c
+    return c.copy()
+
 class BlastCodeError(Exception):
     __slots__ = ['value']
     def __init__(self, value):
@@ -156,7 +161,7 @@ class BlastCodeStep(object):
             if parameters["label"] == "":
                 raise BlastCodeError("Need 'label' to be non-empty for GOTO")
         elif command == "RETURN":
-            self.acceptable_parameters([])
+            self.acceptable_parameters(['value'])
         elif command == "FAIL":
             self.acceptable_parameters([])
         elif command == "ENDSUB":
@@ -166,6 +171,8 @@ class BlastCodeStep(object):
             #TODO: work it out
         elif command == "GETOBJECT":
             self.acceptable_parameters(['holder'])
+        elif command == "GETOBJECTPLACEPOSITION":
+            self.acceptable_parameters(['object'])
         elif command == "IF":
             self.acceptable_parameters(['condition', 'label_true', 'label_false'])
             #TODO: work it out
@@ -212,7 +219,7 @@ hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_t
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
                                    'label_false': 'fail_hunt'}),
 
-        #If we scanned hapily, then we try to pick up any objects that might have been found
+        #If we scanned happily, then we try to pick up any objects that might have been found
         BlastCodeStep(None, "PLAN", {'world_limits': 
                                      {'robot-holders': {BlastParameterPtr('holder', 0): #ROBOT:
                                                             {BlastParameterPtr('holder', 1): #HOLDER: OBJECT_TYPES
@@ -226,6 +233,7 @@ hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_t
         #If we did not find the object, then we can again, otherwise we win the hunt
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 
                                    'label_true': 'win_hunt', 'label_false': 'scan_loop'}),
+
         #End main loop
         BlastCodeStep('exit_function', "PLAN", {'world_limits':
                                                     {'scans': [(BlastParameterPtr('object_types'), '>', 
@@ -234,7 +242,15 @@ hunt = [BlastCodeStep("hunt_objects", "STARTSUB", {'holder': 'holder', 'object_t
 
         BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('plan_return'), 'label_true': 'win_hunt'}),
         BlastCodeStep('fail_hunt', 'FAIL'),
-        BlastCodeStep('win_hunt', 'RETURN'),
+
+
+        BlastCodeStep("win_hunt", "GETOBJECT", {'holder': BlastParameterPtr('holder')}, 
+                      "hunt-return-object"),
+        #BlastCodeStep(None, "IF", {"condition": BlastParameterPtr('hunt-return-object'), 'label_false': 'scan_loop'}),
+        BlastCodeStep(None, "GETOBJECTPLACEPOSITION", {'object': BlastParameterPtr('hunt-return-object')}, 'hunt-return'),
+        BlastCodeStep(None, "IF", {"condition": ('?', BlastParameterPtr('hunt-return')), 'label_false': 'fail_hunt'}),
+
+        BlastCodeStep(None, 'RETURN', {'value': BlastParameterPtr('hunt-return')}),
         BlastCodeStep(None, 'ENDSUB'),
         ]
 
@@ -707,25 +723,32 @@ class BlastPosIrr(object):
         hl.update("PosIrr")
 
 class BlastObject(object):
-    __slots__ = ('object_type', 'position', 'parent', 'uid')
-    def __init__(self, object_type, pos, parent, blast_object_id): #Note: if pos is None, parent is a robot
+    __slots__ = ('object_type', 'position', 'parent', 'uid', 'previous_position', 'previous_parent')
+    def __init__(self, object_type, pos, parent, blast_object_id, previous_position = None, previous_parent = None): #Note: if pos is None, parent is a robot
+        if parent != None:
+            if type(parent) != str:
+                raise Exception("We have an invalid parent type for an object")
+        if previous_parent != None:
+            if type(previous_parent) != str:
+                raise Exception("We have an invalid parent type for an object")
         self.object_type = object_type
         self.position = pos
         self.parent = parent
         self.uid = blast_object_id
+        self.previous_position = previous_position
+        self.previous_parent = previous_parent
 
     def to_dict(self):
         p = None
         if self.position: p = self.position.to_dict()
         return {"object_type": self.object_type.name, "position": p,
-                "uid": self.uid, "parent": self.parent}
+                "uid": self.uid, "parent": self.parent,
+                "previous_parent": self.previous_parent,
+                "previous_position": self.previous_position,}
 
     def copy(self):
-        if self.position:
-            r = BlastObject(self.object_type, self.position.copy(), self.parent, self.uid)
-        else:
-            r = BlastObject(self.object_type, self.position, self.parent, self.uid)
-        return r
+        return BlastObject(self.object_type, safe_copy(self.position), self.parent, self.uid,
+                           safe_copy(self.previous_position), self.previous_parent)
     
     def hash_update(self, hl):
         hl.update(self.object_type.name)
@@ -978,6 +1001,10 @@ class BlastRobot(object):
             if value:
                 if get_obj(value.uid).parent != self.name + "." + name:
                     copy_obj(value.uid)
+                    if get_obj(value.uid).parent != None:
+                        if get_obj(value.uid).parent.split(".")[0] != self.name:
+                            get_obj(value.uid).previous_parent = get_obj(value.uid).parent
+                            get_obj(value.uid).previous_position = safe_copy(get_obj(value.uid).position)
                     get_obj(value.uid).parent = self.name + "." + name
                     get_obj(value.uid).position = None
                     change = True
@@ -1579,6 +1606,8 @@ class BlastWorld(object):
         uid = self.robots[robot].holders[from_holder].uid
         self.robots[robot].holders[from_holder] = None
         
+        self.objects[uid].previous_parent = self.objects[uid].parent
+        self.objects[uid].previous_position = safe_copy(self.objects[uid].position)
         self.objects[uid].parent = surface
         self.objects[uid].position = pos.copy()
         self.surfaces[surface].objects.append(BlastObjectRef(uid))
@@ -2282,6 +2311,9 @@ class BlastWorld(object):
                 if self.copy_on_write_optimize:
                     self.objects[x[2].uid] = self.objects[x[2].uid].copy()
                 obj = self.objects[x[2].uid]
+                if obj.parent != v.name:
+                    obj.previous_parent = obj.parent
+                    obj.previous_position = safe_copy(obj.position)
                 obj.parent = v.name
                 obj.position = x[3]
                 v.objects.append(BlastObjectRef(obj.uid))

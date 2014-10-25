@@ -231,10 +231,10 @@ def make_test_actions():
             BlastCodeStep("action__pr2-cupholder__coffee-run", "STARTSUB", {'robot': 'robot', 'person_location': 'Pt'}),
             BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "empty_ziplock_1L_bag",
                                             'holder': BlastParameterPtr('robot', postfix = '.left-arm')},
-                          'action__pr2-cupholder__coffee-run__plan_return'), #FIXME: we need to store the result of the hunt: object and location
+                          'action__pr2-cupholder__coffee-run__bag_location'), #FIXME: we need to store the result of the hunt: object and location
 
             #Fail if we can't find the empty bag
-            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+            BlastCodeStep(None, "IF", {'condition': ('?', BlastParameterPtr('action__pr2-cupholder__coffee-run__bag_location')),
                                        'label_false': "action__pr2-cupholder__coffee-run__failure"}),
             #At this point, the bag is in the arm, so we need to get the type of bag.
             BlastCodeStep(None, "GETOBJECT", {'holder': BlastParameterPtr('robot', postfix = '.left-arm')}, 
