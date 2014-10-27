@@ -1475,6 +1475,17 @@ class BlastPlannableWorld:
         self.editor_lock.release()
         return True
 
+    def world_changeable(self, editor):
+        if not self.can_editor(editor):
+            return False
+        self.lock.acquire()
+        for r, t in self.robot_actions.iteritems():
+            if t != None:
+                self.lock.release()
+                return False
+        self.lock.release()
+        return True
+
     def test_action_callback(self, robot, action, parameters):
         print "Test action callback:", robot, action, parameters
         return True
@@ -1518,6 +1529,10 @@ class BlastPlannableWorld:
                 return [clean_json(x) for x in x]
             elif type(x) == blast_world.BlastPt:
                 return x.to_dict()
+            elif type(x) == blast_world.BlastPos:
+                return x.to_dict()
+            elif type(x) == blast_world.BlastPosIrr:
+                return x.to_dict()
             elif type(x) == blast_world.BlastSurface:
                 return x.name
             elif type(x) == str or type(x) == unicode:
@@ -1532,7 +1547,7 @@ class BlastPlannableWorld:
                              "'", '{', '}', '[', ']', '|', ' ', '\t']: continue
                     is_strange = True
                 if is_strange:
-                    print x, "is an EXOTIC_STRING"
+                    #print x, "is an EXOTIC_STRING"
                     return "EXOTIC_STRING"
             elif type(x) == blast_world.BlastObjectRef:
                 return {'object_ref': x.uid}
@@ -1588,6 +1603,24 @@ class BlastPlannableWorld:
                 return None
         return None
 
+    #Note - must be called in a locked world.
+    def cancel_all_robot_actions(self):
+        still_running = False
+        tbc = set()
+        for robot in self.world.robots_keysort:
+            if self.robot_actions.get(robot) != None:
+                still_running = True
+                if self.robot_actions_cancelled.get(robot, False):
+                    self.robot_actions_cancelled[robot] = True
+                    
+        if len(tbc) != 0:
+            self.lock.release()
+            for robot in tbc:
+                self.cancel_callback(robot, False)
+            self.lock.acquire()
+        return still_running
+
+
     def run(self, exit_when_done = False):
         start_time = int(time.time() * 1000)
         time_warp = 0
@@ -1599,6 +1632,13 @@ class BlastPlannableWorld:
                     self.code_exec.append(exc)
                 self.post_edit_code_exec = []
                 self.needs_replan = True
+
+            if self.editor != None:
+                self.cancel_all_robot_actions()
+                self.needs_replan = True
+                self.lock.release()
+                time.sleep(0.1)
+                continue
 
             while self.epic_fail_state:
                 if self.is_stopped: return
@@ -1614,19 +1654,7 @@ class BlastPlannableWorld:
                 self.needs_replan = True
 
             if self.needs_replan:
-                still_running = False
-                tbc = set()
-                for robot in self.world.robots_keysort:
-                    if self.robot_actions.get(robot) != None:
-                        still_running = True
-                    if self.robot_actions_cancelled.get(robot, False):
-                        self.robot_actions_cancelled[robot] = True
-
-                if len(tbc) != 0:
-                    self.lock.release()
-                    for robot in tbc:
-                        self.cancel_callback(robot, False)
-                    self.lock.acquire()
+                still_running = self.cancel_all_robot_actions()
 
                 if not still_running:
                     #Cancel code
