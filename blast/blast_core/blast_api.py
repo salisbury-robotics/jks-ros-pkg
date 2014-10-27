@@ -302,6 +302,7 @@ def session_manage():
         e = manager.world.is_editor(str(session["sid"]))
         r = {"sessions": len(login_sessions),
              "edit_world": e == True,
+             "world_changeable": manager.world.world_changeable(str(session["sid"])),
              "edit_other_session": e == False}
         print r, e
         return return_json(r)
@@ -547,7 +548,8 @@ def action_type(world = None, robot_type = None, action_type = None):
 def edit_world(world = None, robot = None):
     if request.method == "GET":
         if not get_user_permission(session, "view"): return permission_error(request, "view")
-        return return_json(manager.world.is_editor(str(session["sid"])))
+        return session_manage()
+#return_json(manager.world.is_editor(str(session["sid"])))
     elif request.method == "PUT":
         if not get_user_permission(session, "edit"): return permission_error(request, "edit")
         state = json.loads(request.data)
