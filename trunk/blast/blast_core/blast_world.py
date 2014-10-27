@@ -543,10 +543,11 @@ class BlastWorldTypes(object):
         return action_robot_type, action_type
 
 class SurfaceType(object):
-    __slots__ = ['name', 'states', 'planes']
-    def __init__(self, name, states, planes = {}):
+    __slots__ = ['name', 'states', 'locations', 'planes']
+    def __init__(self, name, states, locations, planes = {}):
         self.name = name
         self.states = states
+        self.locations = locations
         self.planes = planes
     
 class RobotType(object):
@@ -787,6 +788,27 @@ class BlastSurface(object):
             for state, data in surface_type.states.iteritems():
                 if data.get("default", False):
                     self.state = state
+
+        #Check locations
+        have_locations = {}
+        for l in surface_type.locations:
+            have_locations[l] = False
+        for name in self.locations_keysort:
+            if name in have_locations:
+                have_locations[name] = True
+            else:
+                f = False
+                for lc in have_locations:
+                    if len(lc) < 1: continue
+                    if lc[-1] == "*":
+                        if name.find(lc[0:-1]) == 0:
+                            f = True
+                            have_locations[lc] = True
+                if not f:
+                    raise BlastTypeError("Invalid location for: " + self.name + " - " + name)
+        for ln, ip in have_locations.iteritems():
+            if not ip:
+                raise BlastTypeError("Location type not found for: " + self.name + " - " + ln)
 
     def to_dict(self):
         lc = {}
