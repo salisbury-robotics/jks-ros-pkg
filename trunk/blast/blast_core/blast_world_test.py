@@ -227,11 +227,10 @@ def make_test_actions():
             
             
             #Code for the action__pr2-cupholder__coffee-run = action pr2-cupholder.coffee-run. Parameters 'robot', 'shop' and 'person_location'
-        
             BlastCodeStep("action__pr2-cupholder__coffee-run", "STARTSUB", {'robot': 'robot', 'person_location': 'Pt'}),
             BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "empty_ziplock_1L_bag",
                                             'holder': BlastParameterPtr('robot', postfix = '.left-arm')},
-                          'action__pr2-cupholder__coffee-run__bag_location'), #FIXME: we need to store the result of the hunt: object and location
+                          'action__pr2-cupholder__coffee-run__bag_location'),
 
             #Fail if we can't find the empty bag
             BlastCodeStep(None, "IF", {'condition': ('?', BlastParameterPtr('action__pr2-cupholder__coffee-run__bag_location')),
@@ -293,10 +292,20 @@ def make_test_actions():
             
             BlastCodeStep(None, "SETROBOTHOLDER", {"holder": BlastParameterPtr('robot', postfix = '.left-arm'),
                                                    "require-preexisting": True, "object-type": "empty_ziplock_1L_bag"}),
+
+            #Set the bag down on the table
             BlastCodeStep(None, "GETOBJECT", {'holder': BlastParameterPtr('robot', postfix = '.left-arm')}, 
                           "action__pr2-cupholder__coffee-run__coffee_money_bag"),
 
-            #TODO: set it down on the table
+            BlastCodeStep(None, "PLAN", {"world_limits": 
+                                         {"place-objects":
+                                              [{'object': BlastParameterPtr('action__pr2-cupholder__coffee-run__coffee_money_bag'),
+                                                'surfaceposition': BlastParameterPtr('action__pr2-cupholder__coffee-run__bag_location'),
+                                                },
+                                               ]},}, 
+                          "action__pr2-cupholder__coffee-run__plan_return"),
+            BlastCodeStep(None, "IF", {'condition': BlastParameterPtr('action__pr2-cupholder__coffee-run__plan_return'),
+                                       'label_false': "action__pr2-cupholder__coffee-run__failure"}),
                                                               
 
             BlastCodeStep(None, "RETURN"),

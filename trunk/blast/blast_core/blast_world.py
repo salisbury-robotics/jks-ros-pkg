@@ -1333,7 +1333,7 @@ class BlastWorld(object):
             for obj in limits['place-objects']:
                 objr = None
                 for n in obj:
-                    if not n in ["object", "surface", "position"]:
+                    if not n in ["object", "surface", "position", "surfaceposition"]:
                         raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " - " + n + " is not a valid atttribute")
 
                 if 'object' in obj:
@@ -1346,6 +1346,11 @@ class BlastWorld(object):
                     raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " has no object tag")
                 if type(objr) != BlastObject:
                     raise BlastCodeError("Invalid settings for place-objects: " + str(obj) + " object is not found to be an object")
+
+                if 'surfaceposition' in obj:
+                    obj = obj.copy()
+                    obj['surface'] = obj['surfaceposition'][0]
+                    obj['position'] = obj['surfaceposition'][1]
 
                 if 'surface' in obj:
                     surf = obj['surface']
