@@ -331,17 +331,21 @@ def make_test_types_world():
     types_world.add_object_type(ObjectType("coffee_money_bag", {"bound_d": 0.1, "bound_h": 0.01}))
     
     types_world.add_surface_type(SurfaceType("coffee_shop",
-                                             {"default": {"default": True, "accessible": True}}))
+                                             {"default": {"default": True, "accessible": True}},
+                                             ["start", "line_*", "end"],))
     types_world.add_surface_type(SurfaceType("table",
                                              {"default": {"default": True, "accessible": True}},
+                                             ["location"],
                                              {"location": [ [(0.2540, -0.6985, 0.762), (0.2540,  0.6985, 0.762),
                                                              (1.0668,  0.6985, 0.762), (1.0668, -0.6985, 0.762),
                                                              ], ],
                                               }))
     types_world.add_surface_type(SurfaceType("transparent_heavy_door",
-                                             {"default": {"default": True, "accessible": True}}))
+                                             {"default": {"default": True, "accessible": True}},
+                                             ["in_entrance", "out_entrance", "in_exit", "out_exit",],))
     types_world.add_surface_type(SurfaceType("elevator",
-                                             {"default": {"default": True, "accessible": True}}))
+                                             {"default": {"default": True, "accessible": True}},
+                                             ["floor_*",]))
     ATL = 0.0001 #Arm offset tolerance
     types_world.add_robot_type(RobotType("pr2", {"width": 0.668, "height": 0.668, 
                                                  "image": {"image": "robot_fs/pr2/pr2_def.png",
