@@ -127,7 +127,7 @@ class BlastCodeStep(object):
         if self.label: lb = prefix + self.label
         return BlastCodeStep(lb, self.command, pc, self.return_var)
 
-    def to_dict():
+    def to_dict(self):
         return {'label': self.label, 'command': self.command,
                 'parameters': self.parameters, 'return_var': self.return_var}
                 
