@@ -620,7 +620,9 @@ def rm_unicode(t):
             r[rm_unicode(k)] = rm_unicode(v)
         return r
     if type(t) == list or type(t) == tuple:
-        return [rm_unicode(x) for x in t]
+        a = [rm_unicode(x) for x in t]
+        if type(t) == tuple: return tuple(a)
+        return a
     raise Exception("Could not clean: " + type(t))
 
 #@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
