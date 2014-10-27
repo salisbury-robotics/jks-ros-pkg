@@ -113,8 +113,13 @@ function update_session() {
     $.getJSON("/session", function(data) {
 	if (data) {
 	    if (data.edit_world && !data.edit_other_session) {
-		$('#edit-world').html("Editing world")
-		    .attr("title", "Click to switch to planning");
+		if (data.world_changeable) {
+		    $('#edit-world').html("Editing world")
+			.attr("title", "Click to switch to planning");
+		} else {
+		    $('#edit-world').html("Waiting...")
+			.attr("title", "Click to switch to planning (waiting for the world to be changable)");
+		}
 		is_editting_world = true;
 		edit_world_action = false;
 	    } else if (data.edit_world && data.edit_other_session) {

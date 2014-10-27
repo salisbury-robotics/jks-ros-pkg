@@ -1476,7 +1476,7 @@ class BlastPlannableWorld:
         return True
 
     def world_changeable(self, editor):
-        if not self.can_editor(editor):
+        if not self.can_edit(editor):
             return False
         self.lock.acquire()
         for r, t in self.robot_actions.iteritems():

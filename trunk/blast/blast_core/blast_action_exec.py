@@ -488,7 +488,10 @@ try:
         elif type(value) == type([]):
             #Is a position
             if len(value) == 2:
-                parameters[str(name)] = BlastPos(surface = value[0], pos_string = value[1])
+                if type(value[1]) == dict:
+                    parameters[str(name)] = BlastPos(surface = value[0], jsond = value[1])
+                else:
+                    parameters[str(name)] = BlastPos(surface = value[0], pos_string = value[1])
             else:
                 raise Exception("Invalid parameter type for " + str(value))
         elif type(value) == type("") or type(value) == type(u""):

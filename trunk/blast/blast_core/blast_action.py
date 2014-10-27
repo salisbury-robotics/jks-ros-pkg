@@ -36,7 +36,7 @@ def jsonload(strs):
     return clean(r)
 
 def json_prepare(dt):
-    if type(dt) == list:
+    if type(dt) == list or type(dt) == tuple:
         return [json_prepare(x) for x in dt]
     if type(dt) == dict:
         c = {}
@@ -45,7 +45,7 @@ def json_prepare(dt):
         return c
     if type(dt) == blast_world.BlastSurface:
         return dt.name
-    if type(dt) == blast_world.BlastPt:
+    if type(dt) in [blast_world.BlastPt, blast_world.BlastPos, blast_world.BlastPosIrr]:
         return dt.to_dict()
     if type(dt) == blast_world.BlastObjectRef:
         return dt.uid
