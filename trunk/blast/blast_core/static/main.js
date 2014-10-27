@@ -1020,7 +1020,7 @@ function show_map(map, on_map_load) {
 				      var l = surface_data.locations[ln];
 				      if (l.map == map) {
 					  var div = $('<div style="width: 20px; height: 20px; background: url('
-						      + '\'/static/def_arrow.png\'); background-size: 20px 20px;" title="'
+						      + '\'/static/loc_arrow.png\'); background-size: 20px 20px;" title="'
 						      + surface_data.name + "." + ln + '"> </div>').appendTo('#map');
 					  position_div(div, l.x, l.y, l.a);
 					  divs.push(div);
