@@ -756,6 +756,11 @@ class Planner(object):
                             elif w_start.robots[robot].holders[l].uid in wl_uids:
                                 pos_t = wl_uids[w_start.robots[robot].holders[l].uid]
 
+                                if 'surfaceposition' in pos_t:
+                                    pos_t = pos_t.copy()
+                                    pos_t['surface'] = pos_t['surfaceposition'][0]
+                                    pos_t['position'] = pos_t['surfaceposition'][1]
+
                                 surface = pos_t['surface']
                                 if type(surface) == blast_world.BlastSurface:
                                     surface = surface.name
@@ -1919,7 +1924,7 @@ def coffee_hunt_test():
     
     world.append_plan([blast_world.BlastCodeStep(None, "CALLSUB", {'sub': 'hunt_objects', 'object_types': "coffee_cup",
                                                                    'holder': 'stair4.cupholder'}, 'plan_return'),
-                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": ('?', blast_world.BlastParameterPtr('plan_return')),
                                                               'label_true': "success", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success", "GETOBJECT", {'holder': 'stair4.cupholder'}, 'object_n'),
                        #blast_world.BlastCodeStep(None, "PLAN", {'extra_steps': [("stair4", "table-place-left", {"table": "table_1", "position": "table_1, Pos(0.6602, 0.10398, 0.762, 0.0, 0.0, 0.0)"}),],
@@ -1931,7 +1936,7 @@ def coffee_hunt_test():
                                                                                        }
                                                                                       ],
                                                                                  }}, 'plan_return'),
-                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": ("?", blast_world.BlastParameterPtr('plan_return')),
                                                               'label_true': "success2", 'label_false': 'failure'}),
                        blast_world.BlastCodeStep("success2", "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL"),],
@@ -1952,7 +1957,7 @@ def run_test():
                        #Grab the bag
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": initial_pickup_point}},
                                                                 "extra_steps": [("stair4", "grab-object", {"tts-text": "Money Bag"}),],}, "plan_return"),
-                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": ('?', blast_world.BlastParameterPtr('plan_return')), "label_false": 'failure'}),
 
                        blast_world.BlastCodeStep(None, "SETROBOTHOLDER", {"holder": "stair4.left-arm", "require-preexisting": True,
                                                                           "object-type": "coffee_money_bag"}),
@@ -1978,13 +1983,13 @@ def coffee_run_exec():
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
     rand_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloordoor")
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": rand_point}}}, "plan_return"),
-                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": ('?', blast_world.BlastParameterPtr('plan_return')), "label_false": 'failure'}),
                        blast_world.BlastCodeStep(None, "PLAN", 
                                                  {"extra_steps": [("stair4", "coffee-run", 
                                                                    {"shop": "clark_peets_coffee_shop",
                                                                     "person_location": initial_pickup_point}),],},
                                                  "plan_return"),
-                       blast_world.BlastCodeStep(None, "IF", {"condition": blast_world.BlastParameterPtr('plan_return'), "label_false": 'failure'}),
+                       blast_world.BlastCodeStep(None, "IF", {"condition": ('?', blast_world.BlastParameterPtr('plan_return')), "label_false": 'failure'}),
                        
                        blast_world.BlastCodeStep(None, "RETURN"),
                        blast_world.BlastCodeStep("failure", "FAIL")
@@ -2111,8 +2116,9 @@ def overplan():
     return r
 
 if __name__ == '__main__':
-    print coffee_hunt_test()
+    #print coffee_hunt_test()
     #print run_test()
+    print coffee_run_exec()
     #print five_coffee_run_exec()
     #print multi_robot_test()
     #print overplan()
