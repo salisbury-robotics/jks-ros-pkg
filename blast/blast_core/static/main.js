@@ -221,6 +221,8 @@ function call_feed(time) {
 	    } else {
 		load_physical_robot(data[3], false);
 	    }
+	} else if (data[1] == null && data[2] == "surface" && data[3]) {
+	    load_surface(data[3]);
 	} else if (data[2] == "notification") {
 	    var sep = data[3].indexOf(':');
 	    var type = data[3].substring(0, sep);
@@ -292,7 +294,7 @@ $('#plan-action').click(function () {
 						var st = param_type.split(":")[1],  sel = "selected=\"selected\"";
 						var surface_sel = $('<select id="plan-action-item-surface-' + param + '"></select>');
 						for (var i in surfaces) {
-						    if (surfaces[i].data.type == st) {
+						    if (surfaces[i].data.surface_type.name == st) {
 							surface_sel.append('<option value=\"' + i + '\" ' + sel + '>' + i + '</option>');
 							sel = "";
 						    }
@@ -1018,23 +1020,7 @@ function show_map(map, on_map_load) {
 	    $.getJSON("/surface", function(data) {
 		for (var surface in data) {
 		    var surface = data[surface];
-		    $.getJSON("/surface/" + surface,
-			      function(surface_data) {
-				  var divs = [];
-				  for (var ln in surface_data.locations) {
-				      var l = surface_data.locations[ln];
-				      if (l.map == map) {
-					  var div = $('<div style="width: 20px; height: 20px; background: url('
-						      + '\'/static/loc_arrow.png\'); background-size: 20px 20px;" title="'
-						      + surface_data.name + "." + ln + '"> </div>').appendTo('#map');
-					  position_div(div, l.x, l.y, l.a);
-					  divs.push(div);
-				      }
-				  }
-				  surfaces[surface_data.name] = {'data': surface_data, 'divs': divs};
-				  update_select(null, null);
-				  update_plan();
-			      });
+		    load_surface(surface);
 		}
 	    });
 
@@ -1048,6 +1034,84 @@ function show_map(map, on_map_load) {
     });
 }
 
+function load_surface(surface) {
+    $.getJSON("/surface/" + surface + "?include_type=true&include_objects=true&include_object_types=true",
+	      function(surface_data) {
+		  var divs = [];
+		  for (var ln in surface_data.locations) {
+		      var l = surface_data.locations[ln];
+		      if (l.map == current_map_data.map) {
+			  var div = $('<div style="width: 20px; height: 20px; background: url('
+				      + '\'/static/loc_arrow.png\'); background-size: 20px 20px;" title="'
+				      + surface_data.name + "." + ln + '"> </div>').appendTo('#map');
+			  position_div(div, l.x, l.y, l.a);
+			  divs.push(div);
+			  if (ln in surface_data.surface_type.planes) {
+			      var planes = surface_data.surface_type.planes[ln];
+			      for (var plane_idx in planes) {
+				  var plane = planes[plane_idx];
+				  var points = "";
+				  var xm = null;
+				  var ym = null;
+				  var xl = null;
+				  var yl = null;
+				  var points_arr = [];
+				  var buffer = 10;
+				  for (var point_idx in plane) {
+				      var x = plane[point_idx][0];
+				      var y = plane[point_idx][1];
+				      var xt = l.x + x * Math.cos(l.a) - y * Math.sin(l.a);
+				      var yt = l.y + x * Math.sin(l.a) + y * Math.cos(l.a);
+				      var xtc = zoomlessWorldXtoScreenX(xt);
+				      var ytc = zoomlessWorldYtoScreenY(yt);
+				      if (xtc > xl || xl == null) xl = xtc;
+				      if (ytc > yl || yl == null) yl = ytc;
+				      if (xtc < xm || xm == null) xm = xtc;
+				      if (ytc < ym || ym == null) ym = ytc;
+				      points_arr.push([xtc, ytc]);
+				  }
+				  var points = "";
+				  for (var i in points_arr) {
+				      var pt = points_arr[i];
+				      points += (pt[0] - xm + buffer) + "," + (pt[1] - ym + buffer) + " ";
+				  }
+				  //.plane_div.append('<polygon points="' + points + '" />');
+				  var plane_div = $('<svg style="position: absolute; top: ' + (ym - buffer) + 'px;'
+						    + ' left: ' + (xm - buffer) + 'px;" width="' + (xl - xm + 2 * buffer)
+						    + 'px" height="' +  (xl - xm + 2 * buffer) + 'px">'
+						    + '<polygon points="' + points + '" '
+						    + 'style="fill:lime;stroke:purple;'
+						    + 'stroke-width:1" /></svg>').appendTo("#map");
+				  divs.push(plane_div);
+			      }
+			  }
+			  
+			  if (ln == "location") {
+			      for (var obj_idx in surface_data.objects) {
+				  var obj = surface_data.objects[obj_idx];
+				  var x = obj.position.x;
+				  var y = obj.position.y;
+				  var at = obj.position.rz + l.a;
+				  var xt = l.x + x * Math.cos(l.a) - y * Math.sin(l.a);
+				  var yt = l.y + x * Math.sin(l.a) + y * Math.cos(l.a);
+				  var im = obj.object_type.world_icon;
+				  var w = obj.object_type.motion_limits.bound_d * pixel_scale;
+				  var div = $('<div style="width: ' + w + 'px; height: '
+					      + w + 'px; background: url(\'/fspng/' + im
+					      + '\'); background-size: ' + w + 'px ' + w 
+					      + 'px;" title="' + obj.object_type.name
+					      + '"> </div>').appendTo('#map');
+				  position_div(div, xt, yt, at);
+				  divs.push(div);
+			      }
+			  }
+		      }
+		  }
+		  surfaces[surface_data.name] = {'data': surface_data, 'divs': divs};
+		  update_select(null, null);
+		  update_plan();
+	      });
+}
 
 ///////////////////////////////////////////////////////////////////
 
