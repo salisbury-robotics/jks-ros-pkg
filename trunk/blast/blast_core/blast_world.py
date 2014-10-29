@@ -549,6 +549,14 @@ class SurfaceType(object):
         self.states = states
         self.locations = locations
         self.planes = planes
+        for i in self.planes.iterkeys():
+            if i != "location":
+                raise BlastTypeError("Surface plane can only be for 'location' tag: " 
+                                     + i + " is invalid for " + name)
+
+    def to_dict(self):
+        return {'name': self.name, 'states': self.states, 
+                'locations': self.locations, 'planes': self.planes}
     
 class RobotType(object):
     __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort',
@@ -585,10 +593,21 @@ class RobotType(object):
                 "position_variables": self.position_variables, "parent": par}
 
 class ObjectType(object):
-    __slots__ = ["name", "parent", "tags", "motion_limits"]
-    def __init__(self, name, motion_limits, parent = None):
+    __slots__ = ["name", "parent", "tags", "motion_limits", "world_icon"]
+    def to_dict(self):
+        r = {'name': self.name, 'motion_limits': self.motion_limits,
+             'parent': self.parent, "world_icon": self.world_icon}
+        if r['parent'] != None: r['parent'] = r['parent'].name
+        return r
+
+    def __init__(self, name, motion_limits, world_icon = None, parent = None):
         self.name = name
         self.tags = set()
+        self.world_icon = world_icon
+        if self.world_icon != None:
+            if self.world_icon.find("object_fs/" + name + "/") != 0:
+                raise BlastTypeError("Invalid world icon path: " + self.world_icon + " for " + self.name)
+
         self.parent = None
 
         #Create motion limits
@@ -597,6 +616,8 @@ class ObjectType(object):
             for name, value in parent.motion_limits.iteritems():
                 if not name in self.motion_limits:
                     self.motion_limits[name] = value
+            if self.world_icon == None:
+                self.world_icon = parent.world_icon
         def_motion_limits = {"rotation_limit": math.pi, "accel_x": BLAST_INFINITY, 
                              "accel_y": BLAST_INFINITY, "accel_z": BLAST_INFINITY,
                              "bound_d": False, "bound_h": False}
@@ -605,7 +626,7 @@ class ObjectType(object):
                 self.motion_limits[name] = value
     
     def add_tag(self, name):
-        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z", "bound_d", "bound_h"]
+        bad_list = ["name", "rotation_limit", "accel_x", "accel_y", "accel_z", "bound_d", "bound_h", "world_icon"]
         if name in bad_list:
             raise BlastTypeError(name + " is an invalid tag for objects because "
                                  + "it is a motion constraint in " + self.name)
@@ -815,7 +836,7 @@ class BlastSurface(object):
         for name in self.locations:
             lc[name] = self.locations[name].to_dict()
         return {'name': self.name, 'locations': lc, 'state': self.state,
-                'type': self.surface_type.name}
+                'surface_type': self.surface_type.name}
     def to_json(self):
         return json.dumps(self.to_dict())
 

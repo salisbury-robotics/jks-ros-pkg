@@ -54,12 +54,13 @@ def json_prepare(dt):
 
 
 class BlastActionExec:
-    def __init__(self, robot, manager, guid, filenames, on_robot_change = thunk):
+    def __init__(self, robot, manager, guid, filenames, on_robot_change = thunk, on_surface_change = thunk):
         self._robot = robot
         self._manager = manager
         self._guid = guid
         self._filenames = filenames
         self._on_robot_change = on_robot_change
+        self._on_surface_change = on_surface_change
 
     def set_failure(self, mode):
         if self._manager.get_current_guid() == self._guid:
@@ -132,17 +133,23 @@ class BlastActionExec:
             return None
         r = None
         w = self._get_manager_world(world)
+        sn = w.objects.get(obj)
+        if sn: sn = sn.parent
         r = w.delete_surface_object(obj)
         self._release_manager_world(world)
         self._on_robot_change()
+        if sn: self._on_surface_change(sn)
         return r
     
     def robot_pick_object(self, uid, to_holder, world = None):
         r = None
         w = self._get_manager_world(world)
+        sn = w.objects.get(uid)
+        if sn: sn = sn.parent
         r = w.robot_pick_object(self._robot, uid, to_holder)
         self._release_manager_world(world)
         self._on_robot_change()
+        self._on_surface_change(sn)
         return r
         
     def robot_place_object(self, from_h, surface, pos, world = None):
@@ -151,6 +158,7 @@ class BlastActionExec:
         r = w.robot_place_object(self._robot, from_h, surface, pos)
         self._release_manager_world(world)
         self._on_robot_change()
+        self._on_surface_change(surface)
         return r
         
     def add_surface_object(self, surface, object_type, pos, world = None):
@@ -159,6 +167,7 @@ class BlastActionExec:
         r = w.add_surface_object(surface, object_type, pos)
         self._release_manager_world(world)
         self._on_robot_change()
+        self._on_surface_change(surface)
         return r
 
     def set_robot_position(self, pos, val, world = None):
@@ -515,6 +524,7 @@ class BlastManager:
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
         self.on_robot_change = lambda robot: None
         self.on_plan_action = lambda: None
+        self.on_surface_change = lambda surface: None
 
         oefc = self.world.action_epic_fail_callback
         def efc(r, a, p):
@@ -557,8 +567,10 @@ class BlastManager:
         print "--- Exec action", robot, "-->", action, parameters
         def rc():
             self.on_robot_change(robot)
+        def sc(sn):
+            self.on_surface_change(sn)
         my_guid = self.action_guid
-        exe = BlastActionExec(robot, self, my_guid, action_exec, rc)
+        exe = BlastActionExec(robot, self, my_guid, action_exec, rc, sc)
         self.action_guid = self.action_guid + 1
         self.actions_running.append(exe)
         

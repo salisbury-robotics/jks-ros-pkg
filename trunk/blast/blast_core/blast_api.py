@@ -36,7 +36,7 @@ class BlastFs(object):
             return None
         
 
-fs = BlastFs("", ["maps/", "robot_fs/", "action_fs/"])
+fs = BlastFs("", ["maps/", "robot_fs/", "action_fs/", "object_fs/",])
 
 def return_json(js):
     if type(js) != type(""): js = json.dumps(js)
@@ -101,6 +101,10 @@ class AcquireWorld(object):
         self.alive()
         return self.world.surfaces_keysort
     surfaces_keysort = property(get_surfaces_keysort, set_error)
+    def get_objects_keysort(self):
+        self.alive()
+        return self.world.objects_keysort
+    objects_keysort = property(get_objects_keysort, set_error)
 
     def get_map(self, mp):
         self.alive()
@@ -117,6 +121,11 @@ class AcquireWorld(object):
         s = self.world.get_surface(name)
         if s: s = s.copy()
         return s
+    def get_object(self, uid):
+        self.alive()
+        o = self.world.get_object(uid)
+        if o: o = o.copy()
+        return o
     def get_robot_location(self, name):
         self.alive()
         l = self.world.get_robot(name)
@@ -329,7 +338,19 @@ def api_surface(world = None, surface = None):
     if surface:
         r = w.get_surface(surface)
         if r:
-            r = return_json(r.to_dict())
+            r = r.to_dict()
+            if request.args.get("include_type", "false") == "true":
+                r["surface_type"] = w.types.surfaces.get(r["surface_type"]).to_dict()
+            if request.args.get("include_objects", "false") == "true":
+                r["objects"] = [];
+                for uid in w.objects_keysort:
+                    obj = w.get_object(uid)
+                    if obj.parent == r['name']:
+                        od = obj.to_dict()
+                        if request.args.get("include_object_types", "false") == "true":
+                            od['object_type'] = w.types.objects.get(od['object_type']).to_dict()
+                        r['objects'].append(od)
+            r = return_json(r)
     else:
         r = return_json(w.surfaces_keysort)
     release_world(world)
@@ -789,16 +810,20 @@ def notification(level, message):
 def on_robot_change(robot):
     queue_load(None, "robot", robot)
     time.sleep(1.0)
+def on_surface_change(surface):
+    queue_load(None, "surface", surface)
+    time.sleep(1.0)
 
 def on_program_change():
     queue_load(None, "plan", None)
 
 
 def run(a, w):
-    global manager
+    global manager, global_feed_alive
     manager = blast_action.BlastManager(a, w)
     manager.on_robot_change = on_robot_change
     manager.world.on_program_changed = on_program_change
+    manager.on_surface_change = on_surface_change
     #mthread = ManagerThread()
     #mthread.start()
 

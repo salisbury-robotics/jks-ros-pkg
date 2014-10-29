@@ -325,10 +325,12 @@ def make_test_types_world():
                                             "accel_y": 1.0,
                                             "bound_d": 0.09398,
                                             "bound_h": 0.15748},
-                                           ))
+                                           "object_fs/coffee_cup/icon.png"))
     types_world.add_object_tag("coffee_cup", "cupholder_object")
-    types_world.add_object_type(ObjectType("empty_ziplock_1L_bag", {"bound_d": 0.1, "bound_h": 0.01}))
-    types_world.add_object_type(ObjectType("coffee_money_bag", {"bound_d": 0.1, "bound_h": 0.01}))
+    types_world.add_object_type(ObjectType("empty_ziplock_1L_bag", {"bound_d": 0.1, "bound_h": 0.01},
+                                           "object_fs/empty_ziplock_1L_bag/icon.png"))
+    types_world.add_object_type(ObjectType("coffee_money_bag", {"bound_d": 0.1, "bound_h": 0.01},
+                                           "object_fs/coffee_money_bag/icon.png"))
     
     types_world.add_surface_type(SurfaceType("coffee_shop",
                                              {"default": {"default": True, "accessible": True}},

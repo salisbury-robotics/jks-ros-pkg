@@ -81,7 +81,7 @@ class BlastSurface(object):
         if jsond:
             self.name = str(jsond["name"])
             self.state = str(jsond["state"])
-            self.surface_type = str(jsond["type"])
+            self.surface_type = str(jsond["surface_type"])
             self.locations = {}
             for name, loc in jsond["locations"].iteritems():
                 self.locations[str(name)] = BlastLocation(jsond = loc)
