@@ -356,18 +356,18 @@ def make_test_types_world():
                                                            "right-arm": (0, 0),
                                                            },       
                                                  "image,left-arm=tucked": {"image": "robot_fs/pr2/pr2_left_tucked.png",
-                                                                           "left-arm": (24 / 48.0 * 0.668, 15 / 48.0 * 0.668),
-                                                                           "right-arm": (41 / 48.0 * 0.668, 11 / 48.0 * 0.668),
+                                                                           "left-arm": ((24 / 48.0 - 0.5) * 0.668, (15 / 48.0 - 0.5) * 0.668),
+                                                                           "right-arm": ((41 / 48.0 - 0.5) * 0.668, (11 / 48.0 - 0.5) * 0.668),
                                                                            "priority": 50,
                                                                            },
                                                  "image,right-arm=tucked": {"image": "robot_fs/pr2/pr2_right_tucked.png",
-                                                                            "left-arm": (6 / 48.0 * 0.668, 10 / 48.0 * 0.668),
-                                                                            "right-arm": (17 / 48.0 * 0.668, 20 / 48.0 * 0.668),
+                                                                            "left-arm": ((6 / 48.0 - 0.5) * 0.668, (10 / 48.0 - 0.5) * 0.668),
+                                                                            "right-arm": ((17 / 48.0 - 0.5) * 0.668, (20 / 48.0 - 0.5) * 0.668),
                                                                             "priority": 50,
                                                                             },
                                                  "image,left-arm=tucked,right-arm=tucked": {"image": "robot_fs/pr2/pr2_both_tucked.png",
-                                                                                            "left-arm": (24 / 48.0 * 0.668, 15 / 48.0 * 0.668),
-                                                                                            "right-arm": (17 / 48.0 * 0.668, 20 / 48.0 * 0.668),
+                                                                                            "left-arm": ((24 / 48.0 - 0.5) * 0.668, (15 / 48.0 - 0.5) * 0.668),
+                                                                                            "right-arm": ((17 / 48.0 - 0.5) * 0.668, (20 / 48.0 - 0.5) * 0.668),
                                                                                             "priority": 100,
                                                                                             },
                                                  },
@@ -405,7 +405,34 @@ def make_test_types_world():
                                           "tilt-laser": False,
                                           }))
 
-    types_world.add_robot_type(RobotType("pr2-cupholder", {},
+    types_world.add_robot_type(RobotType("pr2-cupholder", {"image": 
+                                                           {"image": "robot_fs/pr2-cupholder/pr2_def.png",
+                                                            "priority": 0, #Lowest
+                                                            "left-arm": (0.668 , 0),
+                                                            "right-arm": (0, 0),
+                                                            "cupholder": ((4.5 / 48.0 - 0.5) * 0.668, ((31 + 5) / 48.0 - 0.5) * 0.668),
+                                                            },       
+                                                           "image,left-arm=tucked": 
+                                                           {"image": "robot_fs/pr2-cupholder/pr2_left_tucked.png",
+                                                            "left-arm": ((24 / 48.0 - 0.5) * 0.668, (15 / 48.0 - 0.5) * 0.668),
+                                                            "right-arm": ((41 / 48.0 - 0.5) * 0.668, (11 / 48.0 - 0.5) * 0.668),
+                                                            "cupholder": ((4.5 / 48.0 - 0.5) * 0.668, ((31 + 5) / 48.0 - 0.5) * 0.668),
+                                                            "priority": 50,
+                                                            },
+                                                           "image,right-arm=tucked":
+                                                               {"image": "robot_fs/pr2-cupholder/pr2_right_tucked.png",
+                                                                "left-arm": ((6 / 48.0 - 0.5) * 0.668, (10 / 48.0 - 0.5) * 0.668),
+                                                                "right-arm": ((17 / 48.0 - 0.5) * 0.668, (20 / 48.0 - 0.5) * 0.668),
+                                                            "cupholder": ((4.5 / 48.0 - 0.5) * 0.668, ((31 + 5) / 48.0 - 0.5) * 0.668),
+                                                                "priority": 50,
+                                                                },
+                                                           "image,left-arm=tucked,right-arm=tucked": 
+                                                           {"image": "robot_fs/pr2-cupholder/pr2_both_tucked.png",
+                                                            "left-arm": ((24 / 48.0 - 0.5) * 0.668, (15 / 48.0 - 0.5) * 0.668),
+                                                            "right-arm": ((17 / 48.0 - 0.5) * 0.668, (20 / 48.0 - 0.5) * 0.668),
+                                                            "cupholder": ((4.5 / 48.0 - 0.5) * 0.668, ((31 + 5) / 48.0 - 0.5) * 0.668),
+                                                            "priority": 100,
+                                                            },},
                                          {"cupholder": {}}, {}, types_world.get_robot("pr2")))
 
     a, c = make_test_actions()

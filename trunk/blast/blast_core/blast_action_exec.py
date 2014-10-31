@@ -1,5 +1,5 @@
 
-import sys, json, traceback
+import sys, json, traceback, math
 
 class BlastRuntimeError(Exception):
     __slots__ = ['value']
@@ -55,19 +55,48 @@ class BlastObject(object):
             self.object_type = str(jsond['object_type'])
 
 class BlastLocation(object):
+    __slots__ = ['_mid', '_x', '_y', '_a']
     def __init__(self, x = None, y = None, a = None, mid = None, jsond = None):
-        self.x = x
-        self.y = y
-        self.a = a
-        self.mid = mid
+        self._x = x
+        self._y = y
+        self._a = a
+        self._mid = mid
         if jsond:
-            self.x = jsond['x']
-            self.y = jsond['y']
-            self.a = jsond['a']
-            self.mid = str(jsond['map'])
-        if self.x: self.x = float(self.x)
-        if self.y: self.y = float(self.y)
-        if self.a: self.a = float(self.a)
+            self._x = float(jsond['x'])
+            self._y = float(jsond['y'])
+            self._a = float(jsond['a'])
+            self._mid = str(jsond['map'])
+        if self._x: self._x = float(self._x)
+        if self._y: self._y = float(self._y)
+        if self._a: self._a = float(self._a)
+        
+        while self._a > +math.pi:
+            self._a -= 2 * math.pi
+        while self._a <= -math.pi:
+            self._a += 2 * math.pi
+
+        if self._mid == None:
+            raise BlastRuntimeError("No map provided")
+
+    @property
+    def x(self): return self._x
+    @property
+    def y(self): return self._y
+    @property
+    def a(self): return self._a
+    @property
+    def mid(self): return self._mid
+
+    def move(self, xp, yp = 0.0):
+        return BlastLocation(x = self.x + xp * math.cos(self.a) - yp * math.sin(self.a),
+                             y = self.y + xp * math.sin(self.a) + yp * math.cos(self.a),
+                             a = self.a, mid = self.mid)
+    def moveTo(self, xp, yp):
+        return BlastLocation(x = xp, y = yp, a = self.a, mid = self.mid)
+    def rotate(self, ad):
+        return BlastLocation(x = self.x, y = self.y, a = self.a + ad, mid = self.mid)
+    def rotateTo(self, ap):
+        return BlastLocation(x = self.x, y = self.y, a = ap, mid = self.mid)
 
     def to_dict(self):
         return {'x': self.x, 'y': self.y, 'a': self.a, 'map': self.mid}
@@ -467,7 +496,22 @@ class BlastActionExec():
         if res == None or res == False:
             raise BlastRuntimeError("Failed to set location of object")
         return res
-
+    
+    #Gets the location of the robot in the world.
+    def get_location(self, world = None):
+        check_world(world)
+        if world:
+            res = ipc_packet("GET_ROBOT_LOCATION," + str(world) + "\n")
+        else:
+            res = ipc_packet("GET_ROBOT_LOCATION_NW\n")
+        if res == "None": res = None
+        if res == "False": res = False
+        if res.find("LOCATION") == 0:
+            res = BlastLocation(jsond = json.loads(res[len("LOCATION"):]))
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to set location of object")
+        return res
+    
     def run(self):
         raise Exception("Need to override run method")
 

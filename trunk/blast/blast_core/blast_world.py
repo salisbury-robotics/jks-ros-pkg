@@ -763,10 +763,12 @@ class BlastObject(object):
     def to_dict(self):
         p = None
         if self.position: p = self.position.to_dict()
+        pp = None
+        if self.previous_position: pp = self.previous_position.to_dict()
         return {"object_type": self.object_type.name, "position": p,
                 "uid": self.uid, "parent": self.parent,
                 "previous_parent": self.previous_parent,
-                "previous_position": self.previous_position,}
+                "previous_position": pp,}
 
     def copy(self):
         return BlastObject(self.object_type, safe_copy(self.position), self.parent, self.uid,
