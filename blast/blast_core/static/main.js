@@ -408,15 +408,21 @@ function zoomlessScreenYtoWorldY(y) {
 
 function check_robot_same(robot_name) {
     if (robots_plan[robot_name]) {
-	if (same_robot(robots_plan[robot_name], robots[robot_name])) {
-	    robots_plan[robot_name].div.hide();
-	} else {
-	    robots_plan[robot_name].div.show();
+	if (robots_plan[robot_name].div) {
+	    if (same_robot(robots_plan[robot_name], robots[robot_name])) {
+		robots_plan[robot_name].div.hide();
+	    } else {
+		robots_plan[robot_name].div.show();
+	    }
 	}
     }
 }
 
 function redraw_robot(robots, robot_data, border) {
+    if (!robots[robot_data.name]) {
+	robots[robot_data.name] = {};
+    }
+    robots[robot_data.name].data = robot_data;
     if (!current_map_data) return;
     if (current_map_data.map != robot_data.location.map) {
 	if (!robots[robot_data.name]) { return false; }
@@ -424,6 +430,7 @@ function redraw_robot(robots, robot_data, border) {
 	if (robots[robot_data.name].halo) { robots[robot_data.name].halo.remove(); }
 	return false;
     }
+
     
     var rd = robot_data.robot_type.display;
     var position_flags = [];
@@ -442,7 +449,7 @@ function redraw_robot(robots, robot_data, border) {
 			good = false;
 			break;
 		    }
-		} else if (target !== false && joint === false) {
+		} else if (target !== false && target !== null && joint === false) {
 		    good = false;
 		    break;
 		}
@@ -452,7 +459,6 @@ function redraw_robot(robots, robot_data, border) {
 	    }
 	}
     }
-
     
     var images = [];
     for (var image_name in rd) {
@@ -500,10 +506,22 @@ function redraw_robot(robots, robot_data, border) {
 	}
     }
 
-    if (!robots[robot_data.name]) {
-	robots[robot_data.name] = {};
+    for (var h in robot_data.holders) {
+	if (robot_data.holders[h] && h in image) {
+	    var obj = robot_data.holders[h];
+	    var w = obj.object_type.motion_limits.bound_d * pixel_scale;
+	    var x = div.width() / 2.0 + image[h][0] * pixel_scale - w / 2.0;
+	    var y = div.height() / 2.0 + image[h][1] * pixel_scale - w / 2.0;
+	    var im = obj.object_type.world_icon;
+	    var oddiv = $('<div style="width: ' + w + 'px; height: '
+			  + w + 'px; background: url(\'/fspng/' + im
+			  + '\'); background-size: ' + w + 'px ' + w 
+			  + 'px; left: ' + x + 'px; top: ' + y
+			  + 'px; position: absolute;" title="'
+			  + obj.object_type.name + '"> </div>').appendTo(div);
+	}
     }
-    robots[robot_data.name].data = robot_data;
+
     robots[robot_data.name].div = div;
     
     if (selected == robot_data.name && (selected_type == "plan-robot" || selected_type == "robot")) {
@@ -700,21 +718,35 @@ function center_map_on(item_type, item, subc) {
 	    on_load();
 	}
     } else if (item_type == "plan-robot") {
-	$.getJSON( "/world/plan/robot/stair4/location", function(locdata) {
-	    center_map_on("location", locdata);
-	});
+	if (item in plan_robots) {
+	    center_map_on("location", plan_robots[item].data.location);
+	} else {
+	    console.log("Could not center on robot: " + item);
+	    console.log(plan_robots);
+	}
     } else if (item_type == "robot") {
-	$.getJSON( "/robot/stair4/location", function(locdata) {
-	    center_map_on("location", locdata);
-	});
+	if (item in robots) {
+	    center_map_on("location", robots[item].data.location);
+	} else {
+	    console.log("Could not center on robot: " + item);
+	    console.log(robots);
+	}
     }
 }
 
 function load_physical_robot(robot, nuke_select) {
-    $.getJSON("/robot/" + robot + "?include_type=true", function(d) {
-	if (!redraw_robot(robots, d)) {
+    $.getJSON("/robot/" + robot + "?include_type=true&include_objects=true&include_object_types=true", function(d) {
+	var ret_val = redraw_robot(robots, d);
+
+	if ($('#follow-robot-select').val() == robot) {
+	    disp_map(robots[robot].data.location.map);
+	    center_map_on("robot", robot);
+	}
+
+	if (!ret_val) {
 	    return;
 	}
+
 	robots[d.name].div.css("z-index", Z_STACK * 2 + get_z_order(d.name));
 	robots[d.name].default_ocf = function() {
 	    if (is_editting_world) {
@@ -740,7 +772,7 @@ function load_physical_robot(robot, nuke_select) {
 }
 
 function load_plan_robot(robot, nuke_select) {
-    $.getJSON("/world/plan/robot/" + robot + "?include_type=true", function(d) {
+    $.getJSON("/world/plan/robot/" + robot + "?include_type=true&include_objects=true&include_object_types=true", function(d) {
 	if (!redraw_robot(robots_plan, d, "3px solid #2ecc71")) {
 	    return;
 	}
@@ -907,7 +939,7 @@ function update_plan() {
 		    if (step[0] == "line") {
 			var startl = get_location(step[1], robot, action[5]);
 			var endl = get_location(step[2], robot, action[5]);
-			if (endl && startl) {
+			if (endl && startl && current_map_data) {
 			    if (endl.map != current_map_data.map) { endl = null; }
 			    if (startl.map != current_map_data.map) { startl = null; }
 			} else {
@@ -931,17 +963,18 @@ function update_plan() {
 			}
 		    } else if (step[0] == "icon") {
 			var l = get_location(step[1], robot, action[5]);
-		
-			if (l.map == current_map_data.map) {
-			    var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
-					+ 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
-			    var a = 0; if (step[3] == "rotate") { a = l.a; }
-			    position_div(dot, l.x, l.y, a);
-			    plan_divs.push(dot);
+			if (l && current_map_data) {
+			    if (l.map == current_map_data.map) {
+				var dot = $('<div style=\"position: absolute; width: 5px; height: 5px;'
+					    + 'background: url(\'/fspng/' + step[2] + '\');"></div>').appendTo("#map");
+				var a = 0; if (step[3] == "rotate") { a = l.a; }
+				position_div(dot, l.x, l.y, a);
+				plan_divs.push(dot);
+			    }
+			} else {
+			    console.log("Failed a display element:");
+			    console.log(step);
 			}
-		    } else {
-			console.log("Failed a display element:");
-			console.log(step);
 		    }
 		}
 		
@@ -977,6 +1010,23 @@ $('#plan-execute').click(function() {
 update_select(null, null);
 
 
+$("#follow-robot-select").change(function() {
+    if ($(this).val()) {
+	disp_map(robots[$(this).val()].data.location.map);
+	center_map_on("robot", $(this).val());
+    }
+});
+
+function disp_map(map, map_on_load) {
+    if (!current_map_data) {
+	return show_map(map, map_on_load);
+    }
+    if (current_map_data.map != map) {
+	return show_map(map, map_on_load);
+    }
+    return null;
+}
+
 function show_map(map, on_map_load) {
     hide_all();
     $('#map-screen').show();
@@ -993,10 +1043,14 @@ function show_map(map, on_map_load) {
 	pixel_scale = data.ppm;
 	$('#map-image').unbind('load').load(function() {
 	    for (var robot in robots) { 
-		robots[robot].div.remove();
+		if (robots[robot].div) {
+		    robots[robot].div.remove();
+		}
 	    }
 	    for (var robot in robots_plan) { 
-		robots_plan[robot].div.remove();
+		if (robots_plan[robot].div) {
+		    robots_plan[robot].div.remove();
+		}
 	    }
 	    for (var surface in surfaces) { 
 		for (var i in surfaces[surface].divs) { 
@@ -1006,12 +1060,17 @@ function show_map(map, on_map_load) {
 	    
 	    update_select(null, null);
 	    
-	    $.getJSON("/robot?map=" + map, function(data) {
+	    $.getJSON("/robot", function(data) {
+		var prev = $("#follow-robot-select").val();
+		$("#follow-robot-select").html("<option value=\"\">None</option>");
 		for (var robot in data) {
+		    var s = "";
+		    if (data[robot] == prev) { s = "selected"; }
+		    $("#follow-robot-select").append("<option value=\"" + data[robot] + "\" " + s + ">" + data[robot] + "</option>");
 		    load_physical_robot(data[robot], true);
 		}
 	    });
-	    $.getJSON("/world/plan/robot?map=" + map, function(data) {
+	    $.getJSON("/world/plan/robot", function(data) {
 		for (var robot in data) {
 		    load_plan_robot(data[robot], true);
 		}
@@ -1037,6 +1096,13 @@ function show_map(map, on_map_load) {
 function load_surface(surface) {
     $.getJSON("/surface/" + surface + "?include_type=true&include_objects=true&include_object_types=true",
 	      function(surface_data) {
+		  if (surface in surfaces) {
+		      if (surfaces[surface].divs) {
+			  for (var i in surfaces[surface].divs) { 
+			      surfaces[surface].divs[i].remove();
+			  }
+		      }
+		  }
 		  var divs = [];
 		  for (var ln in surface_data.locations) {
 		      var l = surface_data.locations[ln];

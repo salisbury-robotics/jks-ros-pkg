@@ -387,6 +387,13 @@ def api_robot(world = None, robot = None):
             rd = rd.to_dict()
             if request.args.get("include_type", "false") == "true":
                 rd["robot_type"] = w.types.robots.get(rd["robot_type"]).to_dict()
+            if request.args.get("include_objects", "false") == "true":
+                for holder_name, obj in rd["holders"].iteritems():
+                    if obj != None:
+                        od = w.get_object(obj).to_dict()
+                        if request.args.get("include_object_types", "false") == "true":
+                            od['object_type'] = w.types.objects.get(od['object_type']).to_dict()
+                        rd["holders"][holder_name] = od
         release_world(world)
         return return_json(rd)
 
@@ -809,7 +816,7 @@ def notification(level, message):
 
 def on_robot_change(robot):
     queue_load(None, "robot", robot)
-    time.sleep(1.0)
+    #time.sleep(1.0)
 def on_surface_change(surface):
     queue_load(None, "surface", surface)
     time.sleep(1.0)

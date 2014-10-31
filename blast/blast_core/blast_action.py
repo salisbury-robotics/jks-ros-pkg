@@ -82,6 +82,14 @@ class BlastActionExec:
         self._manager.world.lock.release()
         
     
+    def get_location(self, world = None):
+        r = None
+        w = self._get_manager_world(world)
+        if self._robot in w.robots:
+            r = w.robots[self._robot].location.to_dict()
+        self._release_manager_world(world)
+        return r
+
     def set_location(self, position, world = None):
         r = None
         w = self._get_manager_world(world)
@@ -389,6 +397,13 @@ class BlastActionExec:
                 else:
                     r = "False"
                 proc.stdin.write(r + "\n")
+                proc.stdin.flush()
+            elif result.find("GET_ROBOT_LOCATION") == 0:
+                if result.strip().split(",")[0].strip() == "GET_ROBOT_LOCATION":
+                    world = result.strip().split(",")[1].strip()
+                else:
+                    world = None
+                proc.stdin.write("LOCATION" + json.dumps(json_prepare(self.get_location(world))).replace("\n", "\\n") + "\n")
                 proc.stdin.flush()
             elif result.find("SET_ROBOT_LOCATION") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_LOCATION":
