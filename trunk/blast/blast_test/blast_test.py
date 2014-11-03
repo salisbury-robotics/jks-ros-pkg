@@ -1,5 +1,5 @@
 
-
+import blast
 import blast_action, blast_world_test, blast_planner
 
 test_list = [('BLAST ACTION TEST MAIN', blast_action.test_main),

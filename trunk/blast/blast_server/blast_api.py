@@ -1,4 +1,4 @@
-import json, mimetypes, Image, StringIO, uuid, time, threading
+import json, mimetypes, Image, StringIO, uuid, time, threading, sys, os
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash, Response
 import blast_action, blast_world
 
@@ -16,6 +16,8 @@ class BlastFs(object):
     def __init__(self, root = "", first_filters = None):
         self.root = root
         self.first_filters = first_filters
+    def get_root(self):
+        return self.root
     def get_file_name(self, name):
         if self.first_filters != None:
             for f in self.first_filters:
@@ -35,6 +37,9 @@ class BlastFs(object):
         except:
             return None
         
+blast_root = os.path.dirname(os.path.abspath(__file__))
+if len(sys.argv) > 1:
+    blast_root = sys.argv[1]
 
 fs = BlastFs("", ["maps/", "robot_fs/", "action_fs/", "object_fs/",])
 
@@ -322,7 +327,8 @@ def session_manage():
 
 @app.route('/')
 def show_main_page():
-    f = open("static/index.html", "r")
+    my_path = os.path.dirname(os.path.abspath(__file__))
+    f = open(my_path + "/static/index.html", "r")
     r = f.read()
     f.close()
     return r.replace("${SESSION_TIMEOUT}", str(SESSION_TIMEOUT))
@@ -842,10 +848,13 @@ def run(a, w):
     #mthread.alive = False
     #mthread.join()
 
-
+    
 if __name__ == '__main__':
-    import blast_world_test
-    run(["test_actions"], blast_world_test.make_test_world())
+    if "--test" in sys.argv:
+        my_path = os.path.dirname(os.path.abspath(__file__))
+        my_path += "/../blast_test"
+        import blast_world_test
+        run(["test_actions"], blast_world_test.make_test_world())
 
 
 
