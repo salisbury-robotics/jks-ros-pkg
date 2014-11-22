@@ -31,17 +31,18 @@ class BlastFs(object):
         return mimetypes.guess_type(fs)
     def get_file(self, name):
         fs = self.get_file_name(name)
+        print name, fs
         if fs == None: return None
         try:
             return open(self.get_file_name(name), "r")
         except:
             return None
         
-blast_root = os.path.dirname(os.path.abspath(__file__))
+blast_root = os.path.dirname(os.path.abspath(__file__)) + "/"
 if len(sys.argv) > 1:
-    blast_root = sys.argv[1]
+    blast_root = sys.argv[1] + "/"
 
-fs = BlastFs("", ["maps/", "robot_fs/", "action_fs/", "object_fs/",])
+fs = BlastFs(blast_root, ["maps/", "robot_fs/", "action_fs/", "object_fs/",])
 
 def return_json(js):
     if type(js) != type(""): js = json.dumps(js)
@@ -840,7 +841,7 @@ def run(a, w):
     #mthread = ManagerThread()
     #mthread.start()
 
-    app.run(debug=DEBUG, threaded=True)
+    app.run(debug=DEBUG, threaded=True, use_reloader=False, use_evalex=False)
     print "Terminating"
     queue_load(None, "terminate", None)
     global_feed_alive = False
@@ -854,7 +855,7 @@ if __name__ == '__main__':
         my_path = os.path.dirname(os.path.abspath(__file__))
         my_path += "/../blast_test"
         import blast_world_test
-        run(["test_actions"], blast_world_test.make_test_world())
+        run(["test_actions"], blast_world_test.make_test_world(my_path))
 
 
 

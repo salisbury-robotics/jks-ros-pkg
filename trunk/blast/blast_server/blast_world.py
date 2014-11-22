@@ -931,17 +931,37 @@ BLAST_TRUE = BlastPrimitive("True")
 BLAST_NONE = BlastPrimitive("None")
 
 class BlastMap(object):
-    __slots__ = ['map', 'map_file', 'ppm']
-    def __init__(self, mid, map_file, ppm):
+    __slots__ = ['map', 'map_file', 'ppm', 'root_dir', 'imagehash', 'mapdata']
+    def __init__(self, mid, root_dir, map_file, ppm, imagehash = None, mapdata = None):
         self.map = mid
         self.map_file = map_file
         self.ppm = ppm
+        self.root_dir = root_dir
+
+        if imagehash and mapdata:
+            self.imagehash = imagehash
+            self.mapdata = mapdata
+        else:
+            ih = hashlib.sha256()
+            ih.update(str(self.ppm))
+            f = open(root_dir + "/" + self.map_file, "r")
+            md = []
+            while True:
+                r = f.read(128)
+                if not r:
+                    break
+                md.append(r)
+                ih.update(r)
+            f.close()
+            self.mapdata = "".join(md)
+            self.imagehash = ih.digest()
 
     def hash_update(self, hl, get_obj, consider_scan):
         hl.update(self.map_file + str(self.ppm))
 
     def copy(self):
-        return BlastMap(self.map, self.map_file, self.ppm)
+        return BlastMap(self.map, self.root_dir, self.map_file, self.ppm, 
+                        self.imagehash, self.mapdata)
 
     def equal(self, other, get_obj, other_get_obj, tolerant = False):
         if self == other: return True
@@ -980,13 +1000,14 @@ class BlastObjectRef(object):
     
 
 class BlastRobot(object):
-    __slots__ = ['name', 'robot_type', 'location', 'holders', 'positions']
+    __slots__ = ['name', 'robot_type', 'location', 'holders', 'positions', 'is_active']
     def __init__(self, name, location, robot_type, do_setup = True):
         self.name = name
         self.robot_type = robot_type
         self.location = location
         self.holders = {}
         self.positions = {}
+        self.is_active = None
         if not do_setup: return
         for name in self.robot_type.holders.iterkeys():
             self.holders[name] = None
@@ -1999,6 +2020,9 @@ class BlastWorld(object):
             elif ptype.find("Pos:") == 0:
                 txt = ptype.split(":")[1].split(",")
                 csp.append((pname, "pos", txt[0].strip(), txt[1].strip()))
+            #elif ptype.find("Joint:") == 0:
+                #action_robot_type
+            #    csp.append((pname, "==", 
             elif ptype == "String":
                 if not pname in parameters:
                     raise Exception("String parameters must be specified")
@@ -2031,7 +2055,6 @@ class BlastWorld(object):
                 csp_var = csp_var + 1
                 this_svar = "var_" + str(csp_var)
                 csp_var = csp_var + 1
-
                 
                 csp = csp + [(this_ivar, "==", c[1]),]
                 csp = csp + [(this_svar, "==", [len(p_var_settings),]),]
@@ -2051,6 +2074,7 @@ class BlastWorld(object):
         #print csp
 
         this_var, csp, csp_var = eval_condition(action_type.condition, csp, csp_var)
+        print csp
 
         #print robot_name, action, parameters
         #for c in csp:
