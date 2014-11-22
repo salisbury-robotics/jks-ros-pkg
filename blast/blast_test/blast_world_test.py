@@ -1,4 +1,4 @@
-
+import blast
 from blast_world import *
 
 def make_test_actions():
@@ -374,7 +374,8 @@ def make_test_types_world():
                                          {"left-arm": {"mass-limit": 2.5}, 
                                           "right-arm": {"mass-limit": 2.5},
                                           },
-                                         {"torso": {False: (["torso",], [ATL,], [0.0,]), "up": [0.3,], "down": [0.0,], },
+                                         {"torso": {False: (["torso",], [ATL,], [0.0,]), "up": [0.3,], "down": [0.0,],
+                                                    "MIN": [0.0,], "MAX": [0.3,], },
                                           "left-arm": {False: (["shoulder_pan", "shoulder_lift", "upper_arm_roll",
                                                                 "elbow_flex", "forearm_roll", "r_wrist_flex",
                                                                 "wrist_roll", "gripper"],
@@ -443,9 +444,9 @@ def make_test_types_world():
 ###############################################################################
 
 
-def make_table_top_world(make_objects = True):
+def make_table_top_world(root_path, make_objects = True):
     world = BlastWorld(make_test_types_world())
-    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", "maps/clarkcenterfirstfloor.pgm", 20.0)
+    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", root_path + "/maps/clarkcenterfirstfloor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloor)
 
     world.append_surface(BlastSurface("table_1", 
@@ -472,26 +473,26 @@ def make_table_top_world(make_objects = True):
     
     
     
-def make_test_world():
+def make_test_world(root_path):
     world = BlastWorld(make_test_types_world())
 
-    clarkcenterfirstfloordoor = BlastMap("clarkcenterfirstfloordoor", "maps/clarkcenterfirstfloordoor.pgm", 20.0)
+    clarkcenterfirstfloordoor = BlastMap("clarkcenterfirstfloordoor", root_path + "/maps/clarkcenterfirstfloordoor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloordoor)
-    clarkcenterfirstflooroutside = BlastMap("clarkcenterfirstflooroutside", "maps/clarkcenterfirstflooroutside.pgm", 20.0)
+    clarkcenterfirstflooroutside = BlastMap("clarkcenterfirstflooroutside", root_path + "/maps/clarkcenterfirstflooroutside.pgm", 20.0)
     world.append_map(clarkcenterfirstflooroutside)
-    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", "maps/clarkcenterfirstfloor.pgm", 20.0)
+    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", root_path + "/maps/clarkcenterfirstfloor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloor)
-    clarkcenterbasementelevator = BlastMap("clarkcenterbasementelevator", "maps/clarkcenterbasementelevator.pgm", 20.0)
+    clarkcenterbasementelevator = BlastMap("clarkcenterbasementelevator", root_path + "/maps/clarkcenterbasementelevator.pgm", 20.0)
     world.append_map(clarkcenterbasementelevator)
-    clarkcenterfirstfloorelevator = BlastMap("clarkcenterfirstfloorelevator", "maps/clarkcenterfirstfloorelevator.pgm", 20.0)
+    clarkcenterfirstfloorelevator = BlastMap("clarkcenterfirstfloorelevator", root_path + "/maps/clarkcenterfirstfloorelevator.pgm", 20.0)
     world.append_map(clarkcenterfirstfloorelevator)
-    clarkcentersecondfloorelevator = BlastMap("clarkcentersecondfloorelevator", "maps/clarkcentersecondfloorelevator.pgm", 20.0)
+    clarkcentersecondfloorelevator = BlastMap("clarkcentersecondfloorelevator", root_path + "/maps/clarkcentersecondfloorelevator.pgm", 20.0)
     world.append_map(clarkcentersecondfloorelevator)
-    clarkcenterthirdfloorelevator = BlastMap("clarkcenterthirdfloorelevator", "maps/clarkcenterthirdfloorelevator.pgm", 20.0)
+    clarkcenterthirdfloorelevator = BlastMap("clarkcenterthirdfloorelevator", root_path + "/maps/clarkcenterthirdfloorelevator.pgm", 20.0)
     world.append_map(clarkcenterthirdfloorelevator)
-    clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", "maps/clarkcenterthirdflooroutside.pgm", 20.0)
+    clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", root_path + "/maps/clarkcenterthirdflooroutside.pgm", 20.0)
     world.append_map(clarkcenterthirdflooroutside)
-    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", "maps/clarkcenterpeetscoffee.pgm", 20.0)
+    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", root_path + "/maps/clarkcenterpeetscoffee.pgm", 20.0)
     world.append_map(clarkcenterpeetscoffee)
                                  
     world.append_surface(BlastSurface("salisbury_table", 
@@ -561,7 +562,7 @@ def make_test_world():
     return world
 
 def run_test():
-    world = make_test_world()
+    world = make_test_world(".")
     
     #Set at the shop with the initial bag
     initial_bag = BlastObject(world.types.get_object("coffee_money_bag"), None, "stair4.right-arm")
@@ -640,7 +641,7 @@ def clone_world_test(world):
 
 
 def elevator_test():
-    world = make_test_world()
+    world = make_test_world(".")
     res = world.take_action("stair4", "tuck-both-arms", {})
     print "Tuck arms:", res
     if not res:
@@ -687,7 +688,7 @@ def elevator_test():
 
 
 def arms_test():
-    world = make_test_world()
+    world = make_test_world(".")
     
     print '-'*130
     print "                                                            PRE-EXEC"
@@ -708,7 +709,7 @@ def arms_test():
     return True
     
 def torso_test():
-    world = make_test_world()
+    world = make_test_world(".")
     
     print '-'*130
     print "                                                            PRE-EXEC"
@@ -729,15 +730,19 @@ def torso_test():
 
 
     a = world.enumerate_action("stair4", "torso", {})
+    print "Enumerate action:", a
     if a[0] != True: return False
     if not 'height' in a[1]: return False
     if not 0.0 in a[1]['height']: return False
     if not 0.3 in a[1]['height']: return False
     if len(a[1]['height']) != 2: return False
+
+    world.action_robot_pose("stair4", "torso", {})
+
     return True
 
 def pick_and_place_test():
-    world = make_table_top_world()
+    world = make_table_top_world(".")
     world.gc_objects()
     
     print '-'*130
@@ -793,8 +798,8 @@ def pick_and_place_test():
     return True
 
 if __name__ == '__main__':
-    torso_test()
-    #run_test()
+    #torso_test()
+    run_test()
     #elevator_test()
     #arms_test()
     #pick_and_place_test()
