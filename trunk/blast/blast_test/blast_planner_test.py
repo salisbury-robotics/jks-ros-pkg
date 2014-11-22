@@ -10,7 +10,7 @@ import blast_planner
 
 def coffee_hunt_test():
     import blast_world_test
-    world = blast_planner.BlastPlannableWorld(blast_world_test.make_table_top_world(False))
+    world = blast_planner.BlastPlannableWorld(blast_world_test.make_table_top_world(".", False))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
 
     objects_to_add = {"table_1": 1, "table_2": 1, "first_scan": None}
@@ -64,7 +64,7 @@ def coffee_hunt_test():
 
 def run_test():
     import blast_world_test
-    world = blast_planner.BlastPlannableWorld(blast_world_test.make_test_world())
+    world = blast_planner.BlastPlannableWorld(blast_world_test.make_test_world("."))
 
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
                        #Grab the bag
@@ -92,7 +92,7 @@ def run_test():
 
 def coffee_run_exec():
     import blast_world_test
-    world = blast_planner.BlastPlannableWorld(blast_world_test.make_test_world())
+    world = blast_planner.BlastPlannableWorld(blast_world_test.make_test_world("."))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
     rand_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloordoor")
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": rand_point}}}, "plan_return"),
@@ -117,7 +117,7 @@ def coffee_run_exec():
 
 def five_coffee_run_exec():
     import blast_world_test
-    world = blast_planner.BlastPlannableWorld(blast_world_test.make_test_world())
+    world = blast_planner.BlastPlannableWorld(blast_world_test.make_test_world("."))
     initial_pickup_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloor")
     rand_point = blast_world.BlastPt(17.460, 38.323, -2.330, "clarkcenterfirstfloordoor")
     world.append_plan([blast_world.BlastCodeStep(None, "PLAN", {"world_limits": {"robot-location": {"stair4": rand_point}}}, "plan_return"),
@@ -141,7 +141,7 @@ def five_coffee_run_exec():
 
 def multi_robot_test():
     import blast_world_test
-    world_i = blast_world_test.make_table_top_world(True)
+    world_i = blast_world_test.make_table_top_world(".", True)
     
     stair5 = blast_world.BlastRobot("stair5", 
                                     blast_world.BlastPt(10.000, 40.957, 0.148, "clarkcenterfirstfloor"),
@@ -178,7 +178,7 @@ def multi_robot_test():
 def overplan():
     
     import blast_world_test
-    world_i = blast_world_test.make_table_top_world(False)
+    world_i = blast_world_test.make_table_top_world(".", False)
     
     stair5 = blast_world.BlastRobot("stair5", 
                                     blast_world.BlastPt(10.000, 40.957, 0.148, "clarkcenterfirstfloor"),
