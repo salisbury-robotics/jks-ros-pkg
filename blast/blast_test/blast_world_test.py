@@ -446,7 +446,7 @@ def make_test_types_world():
 
 def make_table_top_world(root_path, make_objects = True):
     world = BlastWorld(make_test_types_world())
-    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", root_path + "/maps/clarkcenterfirstfloor.pgm", 20.0)
+    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", root_path, "maps/clarkcenterfirstfloor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloor)
 
     world.append_surface(BlastSurface("table_1", 
@@ -476,23 +476,23 @@ def make_table_top_world(root_path, make_objects = True):
 def make_test_world(root_path):
     world = BlastWorld(make_test_types_world())
 
-    clarkcenterfirstfloordoor = BlastMap("clarkcenterfirstfloordoor", root_path + "/maps/clarkcenterfirstfloordoor.pgm", 20.0)
+    clarkcenterfirstfloordoor = BlastMap("clarkcenterfirstfloordoor", root_path, "maps/clarkcenterfirstfloordoor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloordoor)
-    clarkcenterfirstflooroutside = BlastMap("clarkcenterfirstflooroutside", root_path + "/maps/clarkcenterfirstflooroutside.pgm", 20.0)
+    clarkcenterfirstflooroutside = BlastMap("clarkcenterfirstflooroutside", root_path, "maps/clarkcenterfirstflooroutside.pgm", 20.0)
     world.append_map(clarkcenterfirstflooroutside)
-    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", root_path + "/maps/clarkcenterfirstfloor.pgm", 20.0)
+    clarkcenterfirstfloor = BlastMap("clarkcenterfirstfloor", root_path, "maps/clarkcenterfirstfloor.pgm", 20.0)
     world.append_map(clarkcenterfirstfloor)
-    clarkcenterbasementelevator = BlastMap("clarkcenterbasementelevator", root_path + "/maps/clarkcenterbasementelevator.pgm", 20.0)
+    clarkcenterbasementelevator = BlastMap("clarkcenterbasementelevator", root_path, "maps/clarkcenterbasementelevator.pgm", 20.0)
     world.append_map(clarkcenterbasementelevator)
-    clarkcenterfirstfloorelevator = BlastMap("clarkcenterfirstfloorelevator", root_path + "/maps/clarkcenterfirstfloorelevator.pgm", 20.0)
+    clarkcenterfirstfloorelevator = BlastMap("clarkcenterfirstfloorelevator", root_path, "maps/clarkcenterfirstfloorelevator.pgm", 20.0)
     world.append_map(clarkcenterfirstfloorelevator)
-    clarkcentersecondfloorelevator = BlastMap("clarkcentersecondfloorelevator", root_path + "/maps/clarkcentersecondfloorelevator.pgm", 20.0)
+    clarkcentersecondfloorelevator = BlastMap("clarkcentersecondfloorelevator", root_path, "maps/clarkcentersecondfloorelevator.pgm", 20.0)
     world.append_map(clarkcentersecondfloorelevator)
-    clarkcenterthirdfloorelevator = BlastMap("clarkcenterthirdfloorelevator", root_path + "/maps/clarkcenterthirdfloorelevator.pgm", 20.0)
+    clarkcenterthirdfloorelevator = BlastMap("clarkcenterthirdfloorelevator", root_path, "maps/clarkcenterthirdfloorelevator.pgm", 20.0)
     world.append_map(clarkcenterthirdfloorelevator)
-    clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", root_path + "/maps/clarkcenterthirdflooroutside.pgm", 20.0)
+    clarkcenterthirdflooroutside = BlastMap("clarkcenterthirdflooroutside", root_path, "maps/clarkcenterthirdflooroutside.pgm", 20.0)
     world.append_map(clarkcenterthirdflooroutside)
-    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", root_path + "/maps/clarkcenterpeetscoffee.pgm", 20.0)
+    clarkcenterpeetscoffee = BlastMap("clarkcenterpeetscoffee", root_path, "maps/clarkcenterpeetscoffee.pgm", 20.0)
     world.append_map(clarkcenterpeetscoffee)
                                  
     world.append_surface(BlastSurface("salisbury_table", 
