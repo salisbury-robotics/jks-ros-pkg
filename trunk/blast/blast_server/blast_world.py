@@ -449,7 +449,7 @@ class BlastWorldTypes(object):
         self.action_for_robot_cache = {}
         self.add_script(hunt)
 
-    def enumerate_robot(self, robot, require_object = False):
+    def enumerate_robot(self, robot, require_object = False, allow_unplannable = False, include_robot_type = False, require_type = None):
         if require_object == False:
             rc = self.robot_action_cache.get(robot, None)
         else:
@@ -467,8 +467,12 @@ class BlastWorldTypes(object):
             rt = name.split(".")
             if rt[0] in types:
                 if require_object == False or at.is_object_action:
-                    if at.planable:
-                        actions.append(rt[1])
+                    atrt = (at.time_estimate == "True()") #True if internal action
+                    if (at.planable or allow_unplannable) and (require_type == None or atrt == require_type):
+                        if include_robot_type:
+                            actions.append(rt)
+                        else:
+                            actions.append(rt[1])
         return actions
 
     def add_script(self, s):
@@ -954,7 +958,9 @@ class BlastMap(object):
                 ih.update(r)
             f.close()
             self.mapdata = "".join(md)
-            self.imagehash = ih.digest()
+            self.imagehash = str(ih.digest())
+
+        print self.map, self.map_file
 
     def hash_update(self, hl, get_obj, consider_scan):
         hl.update(self.map_file + str(self.ppm))
@@ -1252,8 +1258,10 @@ class BlastWorld(object):
         return out
 
 
-    def enumerate_robot(self, robot, require_object = False):
-        return self.types.enumerate_robot(self.robots[robot].robot_type.name, require_object = require_object)
+    def enumerate_robot(self, robot, require_object = False, allow_unplannable = False, include_robot_type = False, require_type = None):
+        return self.types.enumerate_robot(self.robots[robot].robot_type.name, require_object = require_object, 
+                                          allow_unplannable = allow_unplannable, include_robot_type = include_robot_type,
+                                          require_type = require_type)
 
     def delete_surface_object(self, obj):
         if self.objects.get(obj) == None:
