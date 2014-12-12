@@ -1,6 +1,7 @@
 import json, mimetypes, Image, StringIO, uuid, time, threading, sys, os
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash, Response
 import blast_action, blast_world
+import trace_dumper
 
 DEBUG = True
 SECRET_KEY = 'flask_dev_key'
@@ -10,6 +11,7 @@ SESSION_TIMEOUT = 10.0
 
 manager = None
 
+trace_dumper.trace_start("trace.html")
 
 
 class BlastFs(object):

@@ -1,5 +1,6 @@
 import blast_world
 import blast_planner
+import SocketServer
 import os, sys, subprocess, json, time, threading
 
 blast_action_exec_d = {}
@@ -7,6 +8,19 @@ def set_action_exec(robot_type, action_type, item):
     if not robot_type in blast_action_exec_d:
         blast_action_exec_d[robot_type] = {}
     blast_action_exec_d[robot_type][action_type] = item
+
+def enc_str(s):
+    return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
+def dec_str(s):
+    return s.replace("%n", "\n").replace("%c", ",").replace("%p", "%")
+def is_int(x):
+    try:
+        x = int(x)
+        return True
+    except:
+        return False
+
+
 
 class BlastRuntimeError(Exception):
     __slots__ = ['value']
@@ -54,11 +68,12 @@ def json_prepare(dt):
 
 
 class BlastActionExec:
-    def __init__(self, robot, manager, guid, filenames, on_robot_change = thunk, on_surface_change = thunk):
+    def __init__(self, robot, manager, guid, action_robot_type, action, on_robot_change = thunk, on_surface_change = thunk):
         self._robot = robot
         self._manager = manager
         self._guid = guid
-        self._filenames = filenames
+        self._action_robot_type = action_robot_type
+        self._action = action
         self._on_robot_change = on_robot_change
         self._on_surface_change = on_surface_change
 
@@ -260,25 +275,34 @@ class BlastActionExec:
         return o
     
     def run(self, parameters):
-        py_file = None
-        for filename in self._filenames:
-            for direct in self._manager.directories:
-                if os.path.exists(os.path.join(direct, filename)):
-                    py_file = os.path.join(direct, filename)
-                    break
-            if py_file: break
-        if not py_file:
-            raise BlastRuntimeError("No file for action with options " + str(self._filenames) 
-                                    + " in directories " + str(self._manager.directories))
-        exec_path = os.path.dirname(os.path.abspath(__file__))
-        exec_path += "/../blast_client/blast_action_exec.py"
-        proc = subprocess.Popen(['python', exec_path, py_file, json.dumps(json_prepare(parameters))],
-                                stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=sys.stdout)
+        print "Getting world"
+        w = self._get_manager_world(None)
+        start_robot = w.robots.get(self._robot, None)
+        if start_robot == None:
+            print "Could not connect to the robot"
+            #TODO: EPIC FAIL
+            self._release_manager_world(None)
+            return
+        if start_robot.is_active in [False, None, True]:
+            print "Robot is not ready", start_robot.is_active
+            #TODO: EPIC FAIL
+            self._release_manager_world(None)
+            return
+        self._release_manager_world(None)
+        
+        print "Starting action, robot is ready"
+        write_data, read_data = start_robot.is_active.start_action(self._action_robot_type, self._action, parameters)
+        if read_data == None or write_data == None:
+            print "Could not start action"
+            #TODO: EPIC FAIL
+            return
+        
+        w = None
+                
         message = None
-
         error = False
         while True:
-            result = proc.stdout.readline()
+            result = read_data()
             print result
             if type(result) != type(""):
                 print "Ignore packet", result
@@ -291,10 +315,9 @@ class BlastActionExec:
                     obj = result.strip().split(",")[1].strip()
                 res = self.delete_surface_object(obj, world)
                 if res:
-                    proc.stdin.write("True\n")
+                    write_data("True\n")
                 else:
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("GET_OBJECT") == 0:
                 if result.strip().split(",")[0].strip() == "GET_OBJECT":
                     world = result.strip().split(",")[1].strip()
@@ -304,10 +327,9 @@ class BlastActionExec:
                     obj = result.strip().split(",")[1].strip()
                 res = self.get_object(obj, world)
                 if res:
-                    proc.stdin.write("OBJECT" + json.dumps(json_prepare(res)).replace("\n", "\\n") + "\n")
+                    write_data("OBJECT" + json.dumps(json_prepare(res)).replace("\n", "\\n") + "\n")
                 else:
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("GET_SURFACE") == 0:
                 if result.strip().split(",")[0].strip() == "GET_SURFACE":
                     world = result.strip().split(",")[1].strip()
@@ -317,10 +339,9 @@ class BlastActionExec:
                     surface = result.strip().split(",")[1].strip()
                 res = self.get_surface(surface, world)
                 if res:
-                    proc.stdin.write("SURFACE" + json.dumps(json_prepare(res)).replace("\n", "\\n") + "\n")
+                    write_data("SURFACE" + json.dumps(json_prepare(res)).replace("\n", "\\n") + "\n")
                 else:
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("SURFACE_SCAN") == 0:
                 if result.strip().split(",")[0].strip() == "SURFACE_SCAN":
                     world = result.strip().split(",")[1].strip()
@@ -332,10 +353,9 @@ class BlastActionExec:
                     object_types = [str(x) for x in result.strip().split(",")[2:]]
                 res = self.get_surface(surface, world)
                 if res:
-                    proc.stdin.write(str(self.surface_scan(surface, object_types, world)) + "\n")
+                    write_data(str(self.surface_scan(surface, object_types, world)) + "\n")
                 else:
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("TAKE_ACTION") == 0:
                 if result.strip().split(",")[0].strip() == "TAKE_ACTION":
                     world = result.strip().split(",")[1].strip()
@@ -346,12 +366,12 @@ class BlastActionExec:
                     action = result.strip().split(",")[1].strip()
                     parameters = jsonload(",".join(result.strip().split(",")[2:]))
                 try:
-                    proc.stdin.write(str(self.take_action(action, parameters, world)) + "\n")
+                    write_data(str(self.take_action(action, parameters, world)) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("PLAN_PLACE") == 0:
+                raise Exception("THIS IS DEAD")
                 if result.strip().split(",")[0].strip() == "PLAN_PLACE":
                     world = result.strip().split(",")[1].strip()
                     uid = result.strip().split(",")[2].strip()
@@ -363,15 +383,15 @@ class BlastActionExec:
                     surface = result.strip().split(",")[2].strip()
                     pos = [x.strip().replace("Pos","").strip('()').strip() for x in result.strip().split(",")[3:]]
                 if pos[0] != surface:
-                    proc.stdin.write("None\n")
+                    write_data("None\n")
                 else:
                     try:
-                        proc.stdin.write(str(self.plan_place(uid, surface, pos)) + "\n")
+                        write_data(str(self.plan_place(uid, surface, pos)) + "\n")
                     except BlastRuntimeError as ex:
                         print "--- Runtime error ----", ex
-                        proc.stdin.write("None\n")
-                proc.stdin.flush()
+                        write_data("None\n")
             elif result.find("PLAN_HUNT") == 0:
+                raise Exception("THIS IS DEAD")
                 if result.strip().split(",")[0].strip() == "PLAN_HUNT":
                     world = result.strip().split(",")[1].strip()
                     holder = result.strip().split(",")[2].strip()
@@ -383,13 +403,12 @@ class BlastActionExec:
                 try:
                     r = self.plan_hunt(holder, object_type, world)
                     if r == False or r == None:
-                        proc.stdin.write(str(r) + "\n")
+                        write_data(str(r) + "\n")
                     else:
-                        proc.stdin.write(",".join([str(x) for x in r]) + "\n")
+                        write_data(",".join([str(x) for x in r]) + "\n")
                 except BlastRuntimeError as ex:
                     print "--- Runtime error ----", ex
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("SET_FAILURE") == 0:
                 r = self.set_failure(result.split(",")[1].strip())
                 if r == None:
@@ -398,15 +417,13 @@ class BlastActionExec:
                     r = "True"
                 else:
                     r = "False"
-                proc.stdin.write(r + "\n")
-                proc.stdin.flush()
+                write_data(r + "\n")
             elif result.find("GET_ROBOT_LOCATION") == 0:
                 if result.strip().split(",")[0].strip() == "GET_ROBOT_LOCATION":
                     world = result.strip().split(",")[1].strip()
                 else:
                     world = None
-                proc.stdin.write("LOCATION" + json.dumps(json_prepare(self.get_location(world))).replace("\n", "\\n") + "\n")
-                proc.stdin.flush()
+                write_data("LOCATION" + json.dumps(json_prepare(self.get_location(world))).replace("\n", "\\n") + "\n")
             elif result.find("SET_ROBOT_LOCATION") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_LOCATION":
                     world = result.strip().split(",")[1].strip()
@@ -415,10 +432,9 @@ class BlastActionExec:
                     world = None
                     location = jsonload(",".join(result.strip().split(",")[1:]))
                 if self.set_location(location, world):
-                    proc.stdin.write("True\n")
+                    write_data("True\n")
                 else:
-                    proc.stdin.write("None\n")
-                proc.stdin.flush()
+                    write_data("None\n")
             elif result.find("SET_ROBOT_POSITION") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_POSITION":
                     world = result.strip().split(",")[1].strip()
@@ -428,8 +444,7 @@ class BlastActionExec:
                     world = None
                     position = result.strip().split(",")[1].strip()
                     state = jsonload(",".join(result.strip().split(",")[2:]))
-                proc.stdin.write(str(self.set_robot_position(position, state, world)) + "\n")
-                proc.stdin.flush()
+                write_data(str(self.set_robot_position(position, state, world)) + "\n")
             elif result.find("GET_ROBOT_HOLDER") == 0:
                 if result.strip().split(",")[0].strip() == "GET_ROBOT_HOLDER":
                     world = result.strip().split(",")[1].strip()
@@ -437,8 +452,7 @@ class BlastActionExec:
                 else:
                     world = None
                     holder = result.strip().split(",")[1].strip()
-                proc.stdin.write(str(self.get_robot_holder(holder)) + "\n")
-                proc.stdin.flush()
+                write_data(str(self.get_robot_holder(holder)) + "\n")
             elif result.find("SET_ROBOT_HOLDER") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_HOLDER":
                     world = result.strip().split(",")[1].strip()
@@ -451,8 +465,7 @@ class BlastActionExec:
                     ot = result.strip().split(",")[2].strip()
                     req = result.strip().split(",")[3].strip() == "True"
                 if ot == "None()": ot = None
-                proc.stdin.write(str(self.set_robot_holder(holder, ot, req, world)) + "\n")
-                proc.stdin.flush()
+                write_data(str(self.set_robot_holder(holder, ot, req, world)) + "\n")
             elif result.find("ROBOT_TRANSFER_HOLDER") == 0:
                 if result.strip().split(",")[0].strip() == "ROBOT_TRANSFER_HOLDER":
                     world = result.strip().split(",")[1].strip()
@@ -462,10 +475,8 @@ class BlastActionExec:
                     world = None
                     from_h = result.strip().split(",")[1].strip()
                     to_h = result.strip().split(",")[2].strip()
-                proc.stdin.write(str(self.robot_transfer_holder(from_h, to_h, world)) + "\n")
-                proc.stdin.flush()
+                write_data(str(self.robot_transfer_holder(from_h, to_h, world)) + "\n")
             elif result.find("ROBOT_PICK_OBJECT") == 0:
-                
                 if result.strip().split(",")[0].strip() == "ROBOT_PICK_OBJECT":
                     world = result.strip().split(",")[1].strip()
                     object_ref = result.strip().split(",")[2].strip()
@@ -475,9 +486,7 @@ class BlastActionExec:
                     object_ref = result.strip().split(",")[1].strip()
                     to_h = result.strip().split(",")[2].strip()
                 object_ref = int(object_ref.strip("BlastObjectRef()")) #Remove down to uid
-                proc.stdin.write(str(self.robot_pick_object(object_ref, to_h, world)) + "\n")
-                proc.stdin.flush()
-                
+                write_data(str(self.robot_pick_object(object_ref, to_h, world)) + "\n")                
             elif result.find("ROBOT_PLACE_OBJECT") == 0:
                 if result.strip().split(",")[0].strip() == "ROBOT_PLACE_OBJECT":
                     world = result.strip().split(",")[1].strip()
@@ -491,9 +500,7 @@ class BlastActionExec:
                     surface = result.strip().split(",")[2].strip()
                     pos = [float(str(x).strip()) for x in result.strip().split(",")[3:]]
                     pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
-                proc.stdin.write(str(self.robot_place_object(from_h, surface, pos, world)) + "\n")
-                proc.stdin.flush()
-
+                write_data(str(self.robot_place_object(from_h, surface, pos, world)) + "\n")
             elif result.find("ADD_SURFACE_OBJECT") == 0:
                 if result.strip().split(",")[0].strip() == "ADD_SURFACE_OBJECT":
                     world = result.strip().split(",")[1].strip()
@@ -506,11 +513,8 @@ class BlastActionExec:
                     surface = result.strip().split(",")[1].strip()
                     object_type = result.strip().split(",")[2].strip()
                     pos = [float(x.strip()) for x in result.strip().split(",")[3:]]
-                    pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
-            
-                proc.stdin.write(str(self.add_surface_object(surface, object_type, pos, world)) + "\n")
-                proc.stdin.flush()
-
+                    pos = blast_world.BlastPos(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])          
+                write_data(str(self.add_surface_object(surface, object_type, pos, world)) + "\n")
             elif result.find("LIST_SURFACE_OBJECTS") == 0:
                 if result.strip().split(",")[0].strip() == "LIST_SURFACE_OBJECTS":
                     world = result.strip().split(",")[1].strip()
@@ -518,9 +522,7 @@ class BlastActionExec:
                 else:
                     world = None
                     surface = result.strip().split(",")[1].strip()
-                proc.stdin.write(str(self.list_surface_objects(surface, world)) + "\n")
-                proc.stdin.flush()
-                
+                write_data(str(self.list_surface_objects(surface, world)) + "\n")                
             elif result.strip() == "TERMINATE":
                 break
             elif result.strip() == "ERROR":
@@ -533,9 +535,246 @@ class BlastActionExec:
             raise BlastRuntimeError("Internal action error")
         return not error
 
+ROBOT_STATE_NONE = 0
+ROBOT_STATE_NEED_INFO = 1
+ROBOT_STATE_CONTROL = 2
+
+one_manager_lock = threading.Lock()
+one_manager = None
+class BlastManagedRobot(SocketServer.BaseRequestHandler):
+    def start_action(self, robot_type, action_type, parameters):
+        if not self.ready_to_start or not self.alive:
+            print "Robot is not ready to start action"
+            return None, None
+        else:
+            #TODO sanitize robot_type, action_type
+            self.lock.acquire()
+            print "Robot sending request"
+            m_id = self.action_id
+            self.action_id += 1
+            self.action_start_queue.append(m_id)
+            self.request.sendall("START_ACTION," + robot_type + "," + action_type
+                                 + "," + enc_str(json.dumps(json_prepare(parameters))) + "\n")
+            self.lock.release()
+            print "Waiting for response"
+            found_id = None
+            while self.alive and found_id == None:
+                time.sleep(0.01)
+                self.lock.acquire()
+                if m_id in self.action_id_to_client:
+                    found_id = self.action_id_to_client[m_id]
+                self.lock.release()
+            print "Got response", found_id
+            if found_id != None:
+                def action_write(strda):
+                    print "Writing data", strda
+                    self.lock.acquire()
+                    self.request.sendall(str(found_id) + "," + enc_str(strda) + "\naggjkergjgerjklrvjkl;rvjk'aejklrbnjkl;erbegbrerjaaejaergjlejkl'erjksergjklergjklergjklesrgjklergjklerg\r\n")
+                    self.lock.release()
+                    print "Done"
+                def action_read():
+                    while True:
+                        self.lock.acquire()
+                        if self.action_queues[found_id] != []:
+                            break
+                        self.lock.release()
+                        time.sleep(0.01)
+                        if not self.alive:
+                            print "Loop is no longer alive"
+                            return "TERMINATE"
+                    #Lock is still aquired from loop
+                    r = self.action_queues[found_id][0]
+                    self.action_queues[found_id] = self.action_queues[found_id][1:]
+                    self.lock.release()
+                    print "Read from queue:", found_id, r
+                    return r
+                return action_write, action_read
+            else:
+                return None, None
+
+    def handle(self):
+        self.alive = True
+        self.lock = threading.Lock()
+        self.ready_to_start = False
+        self.action_id = 0
+        self.action_start_queue = []
+        self.action_queues = {}
+        self.action_id_to_client = {}
+
+        manager = one_manager
+        if not manager:
+            print "Tried to open connection, but there was no manager"
+            return
+        print "Starting connection"
+        buff = ""
+
+        state = 0
+        robot_name = None
+        # 0 = no information
+        # 1 = running
+        # 2 = wait for name
+        # 3 = map check
+        # 4 = wait for location
+
+
+        while True:
+            if buff.find("\n") == -1:
+                nxt = self.request.recv(1024)
+                print "State", state, "val", nxt
+                if not nxt: break
+                buff += nxt
+            if buff.find("\n") != -1:
+                packet = buff[0:buff.find("\n")].strip()
+                buff = buff[buff.find("\n")+1:]
+                
+                print "Packet", state, "data", packet
+                self.lock.acquire()
+                if state == 0:
+                    if packet == "BLAST_ROBOT_CONNECT":
+                        state = 2
+                        self.request.sendall("WAIT_NAME\n")
+                    else:
+                        self.request.sendall("ERROR,INVALID PROTOCOL\n")
+                        self.lock.release()
+                        break
+                elif state == 1:
+                    start = packet.split(",")[0].strip()
+                    print "We recieved", packet
+                    if start == "STARTED_ACTION":
+                        a_id = int(packet.split(",")[1].strip())
+                        m_id = int(self.action_start_queue[0])
+                        self.action_start_queue = self.action_start_queue[1:]
+                        self.action_queues[a_id] = []
+                        self.action_id_to_client[m_id] = a_id
+                    elif is_int(start):
+                        a_id = int(packet.split(",")[0].strip())
+                        self.action_queues[a_id].append(dec_str(",".join(packet.split(",")[1:])))
+                    else:
+                        self.request.sendall("ERROR,INVALID COMMAND\n")
+                        self.lock.release()
+                        break
+                elif state == 2:
+                    if packet.split(",")[0].strip() == "ROBOT":
+                        robot_name = packet.split(",")[1].strip()
+                        robot_type = packet.split(",")[2].strip()
+                        manager.world.lock.acquire()
+                        robot = manager.world.world.get_robot(robot_name)
+                        if not robot:
+                            print "Invalid robot"
+                            self.request.sendall("ERROR,INVALID ROBOT\n")
+                            manager.world.lock.release()
+                            self.lock.release()
+                            break
+                        if robot.robot_type.name != robot_type:
+                            print "Invalid robot type"
+                            self.request.sendall("ERROR,INVALID TYPE\n")
+                            manager.world.lock.release()
+                            self.lock.release()
+                            break
+                        else:
+                            robot.is_active = False
+                            manager.world.lock.release()
+                            self.request.sendall("VALID_ROBOT\n")
+                            state = 3
+                    else:
+                        self.request.sendall("ERROR,INVALID COMMAND\n")
+                        self.lock.release()
+                        break
+                elif state == 3 and packet != "GET_LOCATION":
+                    if packet == "START":
+                        state = 1
+                        robot = manager.world.world.get_robot(robot_name)
+                        if robot:
+                            self.ready_to_start = True
+                            robot.is_active = self
+                            self.request.sendall("STARTED\n")
+                        else:
+                            self.request.sendall("ERROR,INVALID COMMAND\n")
+                    elif packet == "LIST_MAPS":
+                        ms = ["MAPS"]
+                        for mp in manager.world.world.maps_keysort:
+                            ms.append(mp)
+                            ms.append(enc_str(manager.world.world.get_map(mp).imagehash))
+                        self.request.sendall(",".join(ms) + ",\n")
+                    elif packet == "LIST_ACTIONS":
+                        actions = manager.world.world.enumerate_robot(robot_name, False, True, True, False)
+                        ac = ["ACTIONS",]
+                        for at, av in actions:
+                            ac.append(at)
+                            ac.append(av)
+                        self.request.sendall(",".join(ac) + ",\n")
+                    elif packet.find("GET_MAP,") == 0:
+                        mn = packet.split(",")[1].strip()
+                        print "Getting map", mn
+                        mf = manager.world.world.get_map(mn)
+                        if mf != None:
+                            #enc_str(mf.mapdata)
+                            self.request.sendall(",".join(["MAP", enc_str(mn), enc_str(str(mf.ppm)),
+                                                           enc_str(mf.mapdata), "\n"]))
+                        else:
+                            self.request.sendall("ERROR,INVALID MAP\n")
+                            self.lock.release()
+                            break
+                    else:
+                        self.request.sendall("ERROR,INVALID COMMAND\n")
+                        self.lock.release()
+                        break
+                elif state == 4 or (state == 3 and packet == "GET_LOCATION"):
+                    if packet == "GET_LOCATION":
+                        manager.robot_waiting_for(robot_name, "LOCATION")
+                        self.request.sendall("WAIT_LOCATION\n")
+                    elif packet == "CHECK_LOCATION":
+                        self.request.sendall("LOCATION," + str(manager.robot_has(robot_name, "LOCATION")) + "\n")
+                    elif packet == "START" and manager.robot_has(robot_name, "LOCATION"):
+                        state = 1
+                        robot = manager.world.world.get_robot(robot_name)
+                        if robot:
+                            self.ready_to_start = True
+                            robot.is_active = self
+                            self.request.sendall("STARTED\n")
+                        else:
+                            self.request.sendall("ERROR,INVALID COMMAND\n")
+                    else:
+                        self.request.sendall("ERROR,INVALID COMMAND\n")
+                        self.lock.release()
+                        break
+                self.lock.release()
+                print packet
+        robot = manager.world.world.get_robot(robot_name)
+        if robot:
+            robot.is_active = None
+        print "Connection exit!"
+        self.alive = False
+
+        #self.state = ROBOT_STATE_NONE
+
+    
+def manager_active():
+    global one_manager, one_manager_lock
+    one_manager_lock.acquire()
+    a = one_manager
+    one_manager_lock.release()
+    return a
+    
 class BlastManager:
     def __init__(self, directories, world):
-        self.directories = directories
+        global one_manager, one_manager_lock
+        one_manager_lock.acquire()
+        if one_manager != None:
+            one_manager_lock.release()
+            raise Exception("There can only be one manager")
+        one_manager = self
+        one_manager_lock.release()
+        
+        self.robot_connections = {}
+        
+        self.server = None
+        self.server_thread = None
+        self.server = SocketServer.TCPServer(("localhost", 8080), BlastManagedRobot)
+        self.server_thread = threading.Thread(target=self.server.serve_forever)
+        self.server_thread.daemon = True
+        self.server_thread.start()
+
         self.world = blast_planner.BlastPlannableWorld(world)
         self.world.real_world = True
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
@@ -563,11 +802,27 @@ class BlastManager:
         self.worldthread.start()
 
     def __del__(self):
+        global one_manager, one_manager_lock
         self.stop()
+        if self.server:
+            self.server.shutdown()
+        if self.server_thread:
+            self.server_thread.join()
+        one_manager_lock.acquire()
+        one_manager = None
+        one_manager_lock.release()
     def stop(self):
         self.is_stopped = True
         for name, world in self.worlds.iteritems():
             world.stop()
+
+    def robot_waiting_for(self, robot, forwhat):
+        if forwhat != "LOCATION":
+            raise Exception("You need location only forwhat")
+    def robot_has(self, robot, forwhat):
+        if forwhat != "LOCATION":
+            raise Exception("You need location only forwhat")
+        
 
 
     def take_action(self, robot, action, parameters):
@@ -576,18 +831,19 @@ class BlastManager:
     def on_action_take(self, robot, action, parameters):
         print "Action!", robot, action, parameters
         robot_type = self.world.world.robots[robot].robot_type
-        action_exec = []
-        while robot_type:
-            action_exec.append(robot_type.name + "__" + action + ".py")
-            robot_type = robot_type.parent
+        action_robot_type = robot_type
+        while action_robot_type:
+            if (action_robot_type.name + "." + action) in self.world.world.types.actions:
+                break
+            action_robot_type = action_robot_type.parent
 
-        print "--- Exec action", robot, "-->", action, parameters
+        print "--- Exec action", robot, action_robot_type.name, "-->", action, parameters
         def rc():
             self.on_robot_change(robot)
         def sc(sn):
             self.on_surface_change(sn)
         my_guid = self.action_guid
-        exe = BlastActionExec(robot, self, my_guid, action_exec, rc, sc)
+        exe = BlastActionExec(robot, self, my_guid, action_robot_type.name, action, rc, sc)
         self.action_guid = self.action_guid + 1
         self.actions_running.append(exe)
         
