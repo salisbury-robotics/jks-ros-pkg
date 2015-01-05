@@ -1043,6 +1043,7 @@ class BlastRobot(object):
         copy = BlastRobot(self.name, self.location.copy(), self.robot_type, do_setup = False)
         copy.holders = self.holders.copy()
         copy.positions = self.positions.copy()
+        copy.is_active = self.is_active
         for name in self.positions.iterkeys():
             if self.positions[name]:
                 copy.positions[name] = self.positions[name].copy()

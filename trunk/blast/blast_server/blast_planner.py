@@ -74,6 +74,10 @@ class Planner(object):
     __slots__ = ['initial_world', 'code_exc', 'point_plans', 'world_gen_tree']
     def __init__(self, initial_world, code_exc):
         self.initial_world = initial_world.copy()
+        #Copy all the robots with no is_active so we don't have any confusion.
+        for robot in self.initial_world.robots_keysort:
+            self.initial_world.robots[robot] = self.initial_world.robots[robot].copy()
+            self.initial_world.robots[robot].is_active = None
         self.code_exc = code_exc
         self.world_gen_tree = {}
         self.point_plans = {}
