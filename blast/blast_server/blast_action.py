@@ -542,6 +542,29 @@ ROBOT_STATE_CONTROL = 2
 one_manager_lock = threading.Lock()
 one_manager = None
 class BlastManagedRobot(SocketServer.BaseRequestHandler):
+    def action_write(self, found_id, strda):
+        print "Writing data", strda
+        self.lock.acquire()
+        self.request.sendall(str(found_id) + "," + enc_str(strda) + "\n")
+        self.lock.release()
+        print "Done"
+    def action_read(self, found_id):
+        while True:
+            self.lock.acquire()
+            if self.action_queues[found_id] != []:
+                break
+            self.lock.release()
+            time.sleep(0.01)
+            if not self.alive:
+                print "Loop is no longer alive"
+                return "TERMINATE"
+        #Lock is still aquired from loop
+        r = self.action_queues[found_id][0]
+        self.action_queues[found_id] = self.action_queues[found_id][1:]
+        self.lock.release()
+        print "Read from queue:", found_id, r
+        return r
+
     def start_action(self, robot_type, action_type, parameters):
         if not self.ready_to_start or not self.alive:
             print "Robot is not ready to start action"
@@ -566,28 +589,8 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                 self.lock.release()
             print "Got response", found_id
             if found_id != None:
-                def action_write(strda):
-                    print "Writing data", strda
-                    self.lock.acquire()
-                    self.request.sendall(str(found_id) + "," + enc_str(strda) + "\naggjkergjgerjklrvjkl;rvjk'aejklrbnjkl;erbegbrerjaaejaergjlejkl'erjksergjklergjklergjklesrgjklergjklerg\r\n")
-                    self.lock.release()
-                    print "Done"
-                def action_read():
-                    while True:
-                        self.lock.acquire()
-                        if self.action_queues[found_id] != []:
-                            break
-                        self.lock.release()
-                        time.sleep(0.01)
-                        if not self.alive:
-                            print "Loop is no longer alive"
-                            return "TERMINATE"
-                    #Lock is still aquired from loop
-                    r = self.action_queues[found_id][0]
-                    self.action_queues[found_id] = self.action_queues[found_id][1:]
-                    self.lock.release()
-                    print "Read from queue:", found_id, r
-                    return r
+                action_write = lambda strda: self.action_write(found_id, strda)
+                action_read = lambda: self.action_read(found_id)
                 return action_write, action_read
             else:
                 return None, None
@@ -742,6 +745,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                 print packet
         robot = manager.world.world.get_robot(robot_name)
         if robot:
+            print "Clear robot active"
             robot.is_active = None
         print "Connection exit!"
         self.alive = False

@@ -198,40 +198,49 @@ class BlastNetworkBridge:
                     self.connection_lock.release()
 
 
-            if not self.error:
+            if self.error:
+                print "System error, not starting second loop."
+            else:
+                print "-------------------Starting second loop-----------------------"
                 while self.alive and not self.error:
                     if buff.find("\n") == -1:
                         received = self.sock.recv(2*1024*2*2*2)
                         if received == None or received == False:
                             break
                         buff += received
-                        if buff.find("\n") != -1:
-                            packet = buff[0:buff.find("\n")].strip()
-                            self.connection_lock.acquire()
-                            def is_int(x):
-                                try:
-                                    int(x)
-                                    return True
-                                except:
-                                    return False
-                            if packet.find("START_ACTION,") == 0:
-                                self.sock.send("STARTED_ACTION,"
-                                               + str(self.action_id) + "\n")
-                                self.action_callbacks[self.action_id] \
-                                    = self.action_start(packet.split(",")[1].strip(),
-                                                        packet.split(",")[2].strip(),
-                                                        self.action_id,
-                                                        dec_str(packet.split(",")[3]),
-                                                        self.write_data)
-                                self.action_id += 1
-                                self.connection_lock.release()
-                            elif is_int(packet.split(",")[0]):
-                                aid = int(packet.split(",")[0])
-                                data = packet[packet.find(",")+1:]
-                                ac = self.action_callbacks.get(aid, None)
-                                self.connection_lock.release()
-                                if ac != None:
-                                    ac(dec_str(data))
+                    if buff.find("\n") != -1:
+                        packet = buff[0:buff.find("\n")].strip()
+                        buff = buff[buff.find("\n")+1:]
+                        self.connection_lock.acquire()
+                        def is_int(x):
+                            try:
+                                int(x)
+                                return True
+                            except:
+                                return False
+                        if packet.find("START_ACTION,") == 0:
+                            self.sock.send("STARTED_ACTION,"
+                                           + str(self.action_id) + "\n")
+                            self.action_callbacks[self.action_id] \
+                                = self.action_start(packet.split(",")[1].strip(),
+                                                    packet.split(",")[2].strip(),
+                                                    self.action_id,
+                                                    dec_str(packet.split(",")[3]),
+                                                    self.write_data)
+                            self.action_id += 1
+                            self.connection_lock.release()
+                        elif is_int(packet.split(",")[0]):
+                            aid = int(packet.split(",")[0])
+                            data = packet[packet.find(",")+1:]
+                            print "Send", aid, "<-", data
+                            ac = self.action_callbacks.get(aid, None)
+                            self.connection_lock.release()
+                            if ac != None:
+                                ac(dec_str(data))
+                            else:
+                                self.error = "INVALID_ACTION," + str(aid)
+                        else:
+                            self.error = "INVALID_PACKET," + packet
         except:
             print "There was an exception in reading:"
             traceback.print_exc()
@@ -285,12 +294,12 @@ class ActionExecutor():
             result = self.proc.stdout.readline()
             if result != "":
                 print "Data", result
-                self.write_callback(str(self.action_id) + "," + result.strip("\r\n") + "\n")
+                self.write_callback(str(self.action_id) + "," + enc_str(result) + "\n")
             else:
                 if self.proc.poll() != None:
                     print "Action shutdown"
                     self.shutdown = True
-                    self.write_callback(str(self.action_id) + ",TERMINATE\n")
+                    self.write_callback(str(self.action_id) + ",TERMINATE%n\n")
                 time.sleep(0.001)
         print "Thread shutdown"
         
@@ -301,7 +310,7 @@ class ActionExecutor():
                 self.proc.terminate()
             self.thread.join()
             return
-        self.proc.stdin.write("None\n")
+        self.proc.stdin.write(data)
         self.proc.stdin.flush()
         
         
