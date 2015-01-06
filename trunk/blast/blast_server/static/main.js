@@ -872,7 +872,13 @@ function update_plan() {
 
 	    for (var robot in plan.current_plan) {
 		var txt = null;
-		if (plan.current_plan[robot] == null) {
+		if (plan.current_plan[robot] == "__disconnected") {
+		    txt = $('<div class="current-step-discon">'
+			    + robot + ': Disconnected</div>');
+		} else if (plan.current_plan[robot] == "__setup") {
+		    txt = $('<div class="current-step-setup">'
+			    + robot + ': Setting Up</div>');
+		} else if (plan.current_plan[robot] == null) {
 		    txt = $('<div class="current-step-idle">'
 			    + robot + ': Idle</div>');
 		} else {

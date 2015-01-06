@@ -1573,6 +1573,11 @@ class BlastPlannableWorld:
             current[n] = None
         for k, v in self.robot_actions.iteritems():
             current[clean_json(k)] = clean_json(v)
+        for n in self.world.robots_keysort:
+            if self.world.robots[n].is_active == None:
+                current[n] = "__disconnected"
+            if self.world.robots[n].is_active == False:
+                current[n] = "__setup"
         self.lock.release()
         #print nprevious_steps, plan, current
         return nprevious_steps, plan, current
