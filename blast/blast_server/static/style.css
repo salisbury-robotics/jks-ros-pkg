@@ -190,6 +190,22 @@ div.current-step-idle {
     font-size: 16px;
     text-align: center;
 }
+div.current-step-setup {
+    border: 0px;
+    background-color: #f1c40f;
+    color: #FFF;
+    padding: 5px;   
+    font-size: 16px;
+    text-align: center;
+}
+div.current-step-discon {
+    border: 0px;
+    background-color: #c0392b;
+    color: #FFF;
+    padding: 5px;   
+    font-size: 16px;
+    text-align: center;
+}
 div.current-step {
     border: 0px;
     background-color: #E74C3C;

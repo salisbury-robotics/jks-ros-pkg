@@ -677,6 +677,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         else:
                             robot.is_active = False
                             manager.world.lock.release()
+                            manager.world.on_program_changed()
                             self.request.sendall("VALID_ROBOT\n")
                             state = 3
                     else:
@@ -690,6 +691,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         if robot:
                             self.ready_to_start = True
                             robot.is_active = self
+                            manager.world.on_program_changed()
                             self.request.sendall("STARTED\n")
                         else:
                             self.request.sendall("ERROR,INVALID COMMAND\n")
@@ -733,6 +735,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         robot = manager.world.world.get_robot(robot_name)
                         if robot:
                             self.ready_to_start = True
+                            manager.world.on_program_changed()
                             robot.is_active = self
                             self.request.sendall("STARTED\n")
                         else:
@@ -747,6 +750,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
         if robot:
             print "Clear robot active"
             robot.is_active = None
+            manager.world.on_program_changed()
         print "Connection exit!"
         self.alive = False
 
