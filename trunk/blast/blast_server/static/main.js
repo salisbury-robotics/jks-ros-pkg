@@ -337,7 +337,8 @@ $('#plan-action-ok').click(function () {
 	}
     }
     
-    $.putJSON('/plan/plan', {"robot": $('#plan-action-robot').val(), "action": $('#plan-action-type').val(),
+    $.putJSON('/plan/plan', {"robot": $('#plan-action-robot').val(), 
+			     "action": $('#plan-action-type').val(),
 			     "parameters": params },
 	      function(r) {
 		  if (r == null) {
@@ -345,9 +346,6 @@ $('#plan-action-ok').click(function () {
 		      return;
 		  }
 		  update_select(null, null);
-		  $.getJSON('/robot/' + $('#plan-action-robot').val() + "/location", function (data) {
-		      show_map(data.map);
-		  });
 	      });
     $('#plan-action-div').hide();
 });
