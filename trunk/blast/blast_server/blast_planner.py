@@ -1592,6 +1592,16 @@ class BlastPlannableWorld:
 
     def append_plan(self, code, robots, description = "Unknown, appended"):
         self.lock.acquire()
+        for robot in robots:
+            if robot not in self.world.robots:
+                self.lock.release()
+                return None
+            if self.world.robots[robot].is_active == False \
+                    or self.world.robots[robot].is_active == None \
+                    or self.world.robots[robot].location == None \
+                    or self.world.robots[robot].location.map.find(":") == 0:
+                self.lock.release()
+                return None
         exc = BlastCodeExec(self.code_exec_uid, code, robots, description = description)
         ret_uid = self.code_exec_uid
         self.code_exec_uid = self.code_exec_uid + 1
