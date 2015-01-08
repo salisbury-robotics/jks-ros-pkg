@@ -340,6 +340,10 @@ $('#plan-action-ok').click(function () {
     $.putJSON('/plan/plan', {"robot": $('#plan-action-robot').val(), "action": $('#plan-action-type').val(),
 			     "parameters": params },
 	      function(r) {
+		  if (r == null) {
+		      alert("Planning failed. Ensure that the robot is connected and not in a teleop state.");
+		      return;
+		  }
 		  update_select(null, null);
 		  $.getJSON('/robot/' + $('#plan-action-robot').val() + "/location", function (data) {
 		      show_map(data.map);
