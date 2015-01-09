@@ -1,6 +1,11 @@
 
 import sys, json, traceback, math
 
+def enc_str(s):
+    return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
+def dec_str(s):
+    return s.replace("%n", "\n").replace("%c", ",").replace("%p", "%")
+
 class BlastRuntimeError(Exception):
     __slots__ = ['value']
     def __init__(self, value):
@@ -150,6 +155,14 @@ class BlastActionExec():
 
     def json(self, d):
         return json.dumps(d)
+
+    #Executes a capability command. Returns none if it failed.
+    def capability(self, cap, fn, param):
+        res = ipc_packet("CAPABILITY," + cap + "," + fn + "," + enc_str(json.dumps(param)))
+        try:
+            return json.loads(res)
+        except:
+            return None
         
     #Takes a name for a surface and gets the resulting JSON data structure.
     #Returns None if the surface does not exist.

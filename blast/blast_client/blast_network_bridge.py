@@ -1,5 +1,5 @@
 
-import socket, threading, time, traceback, hashlib, sys, subprocess, os
+import socket, threading, time, traceback, hashlib, sys, subprocess, os, json
 
 def enc_str(s):
     return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
@@ -77,13 +77,16 @@ class MapStore():
             return None, None, None
 
 class BlastNetworkBridge:
-    def __init__(self, host, port, robot_name, robot_type, action_start, install_action, map_store, require_location = False):
+    def __init__(self, host, port, robot_name, robot_type, root_action, 
+                 action_start, install_action, capability_cb, map_store, require_location = False):
         self.action_start = action_start
         self.install_action = install_action
+        self.root_action = root_action
         self.robot_name = robot_name
         self.robot_type = robot_type
         self.require_location = require_location
         self.map_store = map_store
+        self.capability_cb = capability_cb
         self.connection_lock = threading.Lock()
         self.alive = True
         self.host = host
@@ -93,6 +96,7 @@ class BlastNetworkBridge:
         self.error = False
         self.connect_fail = False
         self.action_callbacks = {}
+        self.capabilities = {}
         self.SHUT_WR = socket.SHUT_WR
         
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -103,10 +107,52 @@ class BlastNetworkBridge:
             self.connect_fail = True
             self.error = "CONNECT FAIL"
 
-    def write_data(self, data):
+    def capability_write(self, aid, cap, fn, param):
+        if not aid in self.action_callbacks:
+            return "null"
+        do_send = True
+        res = "null"
+        if cap not in self.capabilities:
+            self.capabilities[cap] = set()
+        
+        #Special logic for the start and stop function.
+        if fn == "START":
+            if len(self.capabilities[cap]) > 0:
+                do_send = False
+            if aid in self.capabilities[cap]: #Return false if already started
+                res = "false"
+            else:
+                res = "true"
+                self.capabilities[cap].add(aid)
+                param = "null"
+        elif fn == "STOP":
+            if aid not in self.capabilities[cap]:
+                res = "false"
+                do_send = False
+            else:
+                self.capabilities[cap].remove(aid)
+                res = "true"
+                if len(self.capabilities[cap]) > 0:
+                    do_send = False
+        if do_send:
+            res = self.capability_cb(cap, fn, param)
+        return res
+
+    def write_data(self, data, terminate_action = None):
         good = True
         print "Writing data", data
         self.connection_lock.acquire()
+        if terminate_action != None:
+            print "Terminating action", terminate_action
+            if terminate_action in self.action_callbacks:
+                del self.action_callbacks[terminate_action]
+            for cap in self.capabilities:
+                if terminate_action in self.capabilities[cap]:
+                    self.capabilities[cap].remove(terminate_action)
+                    if len(self.capabilities[cap]) == 0:
+                        self.connection_lock.release()
+                        self.capability_cb(cap, "STOP", "null")
+                        self.connection_lock.acquire()
         if not self.error and self.alive:
             try:
                 self.sock.send(data)
@@ -202,6 +248,13 @@ class BlastNetworkBridge:
                 print "System error, not starting second loop."
             else:
                 print "-------------------Starting second loop-----------------------"
+                if self.root_action:
+                    #Prepend buff with starting the root action
+                    self.action_callbacks["ROOT"] = self.action_start(self.root_action.split("__", 1)[0], 
+                                                                      self.root_action.split("__", 1)[1],
+                                                                      "ROOT", "{}",
+                                                                      self.write_data,
+                                                                      self.capability_write)
                 while self.alive and not self.error:
                     if buff.find("\n") == -1:
                         received = self.sock.recv(2*1024*2*2*2)
@@ -226,7 +279,8 @@ class BlastNetworkBridge:
                                                     packet.split(",")[2].strip(),
                                                     self.action_id,
                                                     dec_str(packet.split(",")[3]),
-                                                    self.write_data)
+                                                    self.write_data,
+                                                    self.capability_write)
                             self.action_id += 1
                             self.connection_lock.release()
                         elif is_int(packet.split(",")[0]):
@@ -241,6 +295,7 @@ class BlastNetworkBridge:
                                 self.error = "INVALID_ACTION," + str(aid)
                         else:
                             self.error = "INVALID_PACKET," + packet
+                            self.connection_lock.release()
         except:
             print "There was an exception in reading:"
             traceback.print_exc()
@@ -275,10 +330,11 @@ class BlastNetworkBridge:
 
 #['python', exec_path, py_file, json.dumps(json_prepare(parameters))],
 class ActionExecutor():
-    def __init__(self, start_command, action_id, write_callback):
+    def __init__(self, start_command, action_id, write_callback, capability_callback):
         self.shutdown = False
         self.action_id = action_id
         self.write_callback = write_callback
+        self.capability_callback = capability_callback
         self.proc = subprocess.Popen(start_command,
                                      stdout=subprocess.PIPE, 
                                      stdin=subprocess.PIPE,
@@ -294,12 +350,24 @@ class ActionExecutor():
             result = self.proc.stdout.readline()
             if result != "":
                 print "Data", result
-                self.write_callback(str(self.action_id) + "," + enc_str(result) + "\n")
+                if (result.find("CAPABILITY,") == 0):
+                    data = result.split(",")
+                    cap = dec_str(data[1])
+                    fn = dec_str(data[2])
+                    param = json.loads(dec_str(data[3]))
+                    d = self.capability_callback(self.action_id, cap, fn, param)
+                    self.write(enc_str(d) + "\n") #Write the capability result.
+                else:
+                    term = None
+                    if result.strip().strip(",").strip() == "TERMINATE":
+                        print "Recieved an explicit terminate message", self.action_id
+                        term = self.action_id
+                    self.write_callback(str(self.action_id) + "," + enc_str(result) + "\n", terminate_action = term)
             else:
                 if self.proc.poll() != None:
                     print "Action shutdown"
                     self.shutdown = True
-                    self.write_callback(str(self.action_id) + ",TERMINATE%n\n")
+                    self.write_callback(str(self.action_id) + ",TERMINATE%n\n", terminate_action = self.action_id)
                 time.sleep(0.001)
         print "Thread shutdown"
         
@@ -316,12 +384,15 @@ class ActionExecutor():
         
 
 
-def action_start(action_robot_type, action_name, action_id, parameters, write_callback):
+def action_start(action_robot_type, action_name, action_id, parameters, write_callback, capability_write):
     print "Action!!!"
     def my_action(data):
         print data
     return my_action
 
+def capability_callback(capability, command, parameters):
+    print "Run capability command:", capability, command, parameter
+    return "null"
 
 def install_action(robot_type, action_name):
     print "Installing", robot_type, action_name, "(test - does nothing)"
@@ -330,12 +401,13 @@ def install_action(robot_type, action_name):
 if __name__ == '__main__' and len(sys.argv) > 1:
     def write_c(s):
         print "ACTION", s
-    act = ActionExecutor(["sleep", "5"], 1, write_c)
+    act = ActionExecutor(["sleep", "5"], 1, write_c, capability_callback)
     time.sleep(1.0)
     act.write(None)
 elif __name__ == '__main__':
     map_store = MapStore("maps/")
-    bnb = BlastNetworkBridge("localhost", 8080, "stair4", "pr2-cupholder", action_start, install_action, map_store)
+    bnb = BlastNetworkBridge("localhost", 8080, "stair4", "pr2-cupholder", None,
+                             action_start, install_action, capability_callback, map_store)
     bnb.start()
     bnb.wait()
     bnb.stop()
