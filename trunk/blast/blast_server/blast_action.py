@@ -597,6 +597,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
 
     def handle(self):
         self.alive = True
+        self.root_action_thread = None
         self.lock = threading.Lock()
         self.ready_to_start = False
         self.action_id = 0
@@ -621,6 +622,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
 
 
         while True:
+            start_a = False
             if buff.find("\n") == -1:
                 nxt = self.request.recv(1024)
                 print "State", state, "val", nxt
@@ -687,36 +689,52 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                 elif state == 3 and packet != "GET_LOCATION":
                     if packet == "START":
                         state = 1
+                        manager.world.lock.acquire()
                         robot = manager.world.world.get_robot(robot_name)
                         if robot:
                             self.ready_to_start = True
                             robot.is_active = self
+                            rt, at = manager.world.world.types.get_action_for_robot(robot.robot_type.name, "__root")
+                            manager.world.lock.release()
                             manager.world.on_program_changed()
                             self.request.sendall("STARTED\n")
+                            if rt != None and at != None:
+                                print "Starting root action", rt, at
+                                start_a = (rt.name, at.name.split(".")[1], {})
                         else:
+                            manager.world.lock.release()
                             self.request.sendall("ERROR,INVALID COMMAND\n")
                     elif packet == "LIST_MAPS":
                         ms = ["MAPS"]
+                        manager.world.lock.acquire()
                         for mp in manager.world.world.maps_keysort:
                             ms.append(mp)
                             ms.append(enc_str(manager.world.world.get_map(mp).imagehash))
+                        manager.world.lock.release()
                         self.request.sendall(",".join(ms) + ",\n")
                     elif packet == "LIST_ACTIONS":
+                        manager.world.lock.acquire()
                         actions = manager.world.world.enumerate_robot(robot_name, False, True, True, False)
                         ac = ["ACTIONS",]
+                        print "Enumerate action for LIST_ACTIONS", robot_name, actions
                         for at, av in actions:
                             ac.append(at)
                             ac.append(av)
+                        manager.world.lock.release()
                         self.request.sendall(",".join(ac) + ",\n")
                     elif packet.find("GET_MAP,") == 0:
                         mn = packet.split(",")[1].strip()
                         print "Getting map", mn
                         mf = manager.world.world.get_map(mn)
+                        manager.world.lock.acquire()
                         if mf != None:
                             #enc_str(mf.mapdata)
-                            self.request.sendall(",".join(["MAP", enc_str(mn), enc_str(str(mf.ppm)),
-                                                           enc_str(mf.mapdata), "\n"]))
+                            l = ",".join(["MAP", enc_str(mn), enc_str(str(mf.ppm)),
+                                                           enc_str(mf.mapdata), "\n"])
+                            manager.world.lock.release()
+                            self.request.sendall(l)
                         else:
+                            manager.world.lock.release()
                             self.request.sendall("ERROR,INVALID MAP\n")
                             self.lock.release()
                             break
@@ -732,25 +750,43 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         self.request.sendall("LOCATION," + str(manager.robot_has(robot_name, "LOCATION")) + "\n")
                     elif packet == "START" and manager.robot_has(robot_name, "LOCATION"):
                         state = 1
+                        manager.world.lock.acquire()
                         robot = manager.world.world.get_robot(robot_name)
                         if robot:
                             self.ready_to_start = True
-                            manager.world.on_program_changed()
                             robot.is_active = self
+                            rt, at = manager.world.world.types.get_action_for_robot(robot.robot_type.name, "__root")
+                            manager.world.lock.release()
+                            manager.world.on_program_changed()
                             self.request.sendall("STARTED\n")
+                            if rt != None and at != None:
+                                print "Starting root action in GET_LOC", rt, at
+                                start_a = (rt.name, at.name.split(".")[1], {})
                         else:
+                            manager.world.lock.release()
                             self.request.sendall("ERROR,INVALID COMMAND\n")
                     else:
                         self.request.sendall("ERROR,INVALID COMMAND\n")
                         self.lock.release()
                         break
+                if start_a != False:
+                    #self.start_action(start_a[0], start_a[1], start_a[2])
+                    self.root_action_thread = threading.Thread(target = manager.root_action_thread,
+                                                               args = (robot_name, start_a[0], start_a[1], start_a[2]))
+                    self.root_action_thread.daemon = True
+                    self.root_action_thread.start()
+                    start_a = False
                 self.lock.release()
                 print packet
+        manager.world.lock.acquire()
         robot = manager.world.world.get_robot(robot_name)
         if robot:
             print "Clear robot active"
             robot.is_active = None
+            manager.world.lock.release()
             manager.world.on_program_changed()
+        else:
+            manager.world.lock.release()
         print "Connection exit!"
         self.alive = False
 
@@ -830,11 +866,22 @@ class BlastManager:
     def robot_has(self, robot, forwhat):
         if forwhat != "LOCATION":
             raise Exception("You need location only forwhat")
-        
-
-
+    
     def take_action(self, robot, action, parameters):
         return self.on_action_take(robot, action, parameters)
+
+    def root_action_thread(self, robot, rt, action, parameters):
+        print "Root action!", robot, rt, action, parameters
+        def rc():
+            self.on_robot_change(robot)
+        def sc(sn):
+            self.on_surface_change(sn)
+        my_guid = self.action_guid
+        exe = BlastActionExec(robot, self, my_guid, rt, action, rc, sc)
+        self.action_guid = self.action_guid + 1
+        exe.run(parameters)
+        print "Root action for", robot, "is offline"
+        return True
 
     def on_action_take(self, robot, action, parameters):
         print "Action!", robot, action, parameters

@@ -450,12 +450,12 @@ class BlastWorldTypes(object):
         self.add_script(hunt)
 
     def enumerate_robot(self, robot, require_object = False, allow_unplannable = False, include_robot_type = False, require_type = None):
-        if require_object == False:
-            rc = self.robot_action_cache.get(robot, None)
-        else:
-            rc = None
-        if rc != None:
-            return rc
+        #if require_object == False:
+        #    rc = self.robot_action_cache.get(robot, None)
+        #else:
+        #    rc = None
+        #if rc != None:
+        #    return rc
         types = set()
         rt = self.robots[robot]
         while rt:
