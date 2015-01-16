@@ -154,11 +154,28 @@ class BlastActionExec():
         pass
 
     def json(self, d):
-        return json.dumps(d)
+        def r(a):
+            if a == None: return None
+            if type(a) == str or type(a) == bool or type(a) == int or type(a) == long or type(a) == float:
+                return a
+            if type(a) == unicode:
+                return str(a)
+            if type(a) == tuple or type(a) == set or type(a) == list:
+                return [r(x) for x in a]
+            if type(a) == dict:
+                o = {}
+                for k, v in a.iteritems():
+                    o[r(k)] = r(v)
+                return o
+            if hasattr(a, "to_dict"):
+                if callable(getattr(a, "to_dict")):
+                    return r(a.to_dict())
+            raise Exception("BLAST could not serialize: " + str(a))
+        return json.dumps(r(d))
 
     #Executes a capability command. Returns none if it failed.
-    def capability(self, cap, fn, param):
-        res = ipc_packet("CAPABILITY," + cap + "," + fn + "," + enc_str(json.dumps(param)))
+    def capability(self, cap, fn, param = None):
+        res = ipc_packet("CAPABILITY," + cap + "," + fn + "," + enc_str(self.json(param)))
         try:
             return json.loads(res)
         except:

@@ -77,11 +77,10 @@ class MapStore():
             return None, None, None
 
 class BlastNetworkBridge:
-    def __init__(self, host, port, robot_name, robot_type, root_action, 
+    def __init__(self, host, port, robot_name, robot_type, 
                  action_start, install_action, capability_cb, map_store, require_location = False):
         self.action_start = action_start
         self.install_action = install_action
-        self.root_action = root_action
         self.robot_name = robot_name
         self.robot_type = robot_type
         self.require_location = require_location
@@ -248,13 +247,6 @@ class BlastNetworkBridge:
                 print "System error, not starting second loop."
             else:
                 print "-------------------Starting second loop-----------------------"
-                if self.root_action:
-                    #Prepend buff with starting the root action
-                    self.action_callbacks["ROOT"] = self.action_start(self.root_action.split("__", 1)[0], 
-                                                                      self.root_action.split("__", 1)[1],
-                                                                      "ROOT", "{}",
-                                                                      self.write_data,
-                                                                      self.capability_write)
                 while self.alive and not self.error:
                     if buff.find("\n") == -1:
                         received = self.sock.recv(2*1024*2*2*2)
@@ -406,7 +398,7 @@ if __name__ == '__main__' and len(sys.argv) > 1:
     act.write(None)
 elif __name__ == '__main__':
     map_store = MapStore("maps/")
-    bnb = BlastNetworkBridge("localhost", 8080, "stair4", "pr2-cupholder", None,
+    bnb = BlastNetworkBridge("localhost", 8080, "stair4", "pr2-cupholder",
                              action_start, install_action, capability_callback, map_store)
     bnb.start()
     bnb.wait()
