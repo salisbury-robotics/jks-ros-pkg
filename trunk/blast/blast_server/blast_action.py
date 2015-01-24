@@ -303,7 +303,7 @@ class BlastActionExec:
         error = False
         while True:
             result = read_data()
-            print result
+            #print result
             if type(result) != type(""):
                 print "Ignore packet", result
             elif result.find("DELETE_SURFACE_OBJECT") == 0:
@@ -543,11 +543,11 @@ one_manager_lock = threading.Lock()
 one_manager = None
 class BlastManagedRobot(SocketServer.BaseRequestHandler):
     def action_write(self, found_id, strda):
-        print "Writing data", strda
+        #print "Writing data", strda
         self.lock.acquire()
         self.request.sendall(str(found_id) + "," + enc_str(strda) + "\n")
         self.lock.release()
-        print "Done"
+        #print "Done"
     def action_read(self, found_id):
         while True:
             self.lock.acquire()
@@ -625,14 +625,14 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
             start_a = False
             if buff.find("\n") == -1:
                 nxt = self.request.recv(1024)
-                print "State", state, "val", nxt
+                #print "State", state, "val", nxt
                 if not nxt: break
                 buff += nxt
             if buff.find("\n") != -1:
                 packet = buff[0:buff.find("\n")].strip()
                 buff = buff[buff.find("\n")+1:]
                 
-                print "Packet", state, "data", packet
+                #print "Packet", state, "data", packet
                 self.lock.acquire()
                 if state == 0:
                     if packet == "BLAST_ROBOT_CONNECT":
@@ -644,7 +644,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         break
                 elif state == 1:
                     start = packet.split(",")[0].strip()
-                    print "We recieved", packet
+                    #print "We recieved", packet
                     if start == "STARTED_ACTION":
                         a_id = int(packet.split(",")[1].strip())
                         m_id = int(self.action_start_queue[0])
@@ -699,7 +699,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                             manager.world.on_program_changed()
                             self.request.sendall("STARTED\n")
                             if rt != None and at != None:
-                                print "Starting root action", rt, at
+                                #print "Starting root action", rt, at
                                 start_a = (rt.name, at.name.split(".")[1], {})
                         else:
                             manager.world.lock.release()
@@ -716,7 +716,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         manager.world.lock.acquire()
                         actions = manager.world.world.enumerate_robot(robot_name, False, True, True, False)
                         ac = ["ACTIONS",]
-                        print "Enumerate action for LIST_ACTIONS", robot_name, actions
+                        #print "Enumerate action for LIST_ACTIONS", robot_name, actions
                         for at, av in actions:
                             ac.append(at)
                             ac.append(av)
@@ -724,7 +724,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         self.request.sendall(",".join(ac) + ",\n")
                     elif packet.find("GET_MAP,") == 0:
                         mn = packet.split(",")[1].strip()
-                        print "Getting map", mn
+                        #print "Getting map", mn
                         mf = manager.world.world.get_map(mn)
                         manager.world.lock.acquire()
                         if mf != None:
@@ -760,7 +760,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                             manager.world.on_program_changed()
                             self.request.sendall("STARTED\n")
                             if rt != None and at != None:
-                                print "Starting root action in GET_LOC", rt, at
+                                #print "Starting root action in GET_LOC", rt, at
                                 start_a = (rt.name, at.name.split(".")[1], {})
                         else:
                             manager.world.lock.release()
@@ -777,7 +777,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                     self.root_action_thread.start()
                     start_a = False
                 self.lock.release()
-                print packet
+                #print packet
         manager.world.lock.acquire()
         robot = manager.world.world.get_robot(robot_name)
         if robot:

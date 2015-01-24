@@ -4,6 +4,10 @@ class BlastPr2MoveActionExec(BlastActionExec):
     def __init__(self):
         BlastActionExec.__init__(self)
     def run(self, parameters):
+        self.capability("move_base", "START")
+        self.capability("move_base", "DRIVE", parameters["end"])
+    
+    def ok():
         start_l = self.get_location()
         end_l = parameters["end"]
         mid = BlastLocation(start_l.x, start_l.y, start_l.a, end_l.mid)
