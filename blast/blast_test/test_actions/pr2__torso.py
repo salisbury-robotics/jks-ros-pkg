@@ -6,5 +6,6 @@ class BlastPr2Torso(BlastActionExec):
         BlastActionExec.__init__(self)
     def run(self, parameters):
         print parameters
-        self.set_robot_position("torso", [parameters["height"], ])
+        self.capability("driver", "START")
+        self.capability("driver", "WAIT_TORSO", [parameters["height"], ])
 set_action_exec(BlastPr2Torso)

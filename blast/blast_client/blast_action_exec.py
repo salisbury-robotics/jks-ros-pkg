@@ -124,9 +124,13 @@ class BlastSurface(object):
 #over stdout, avoiding problems with mixing log
 #data into IPC data. All log data goes into 
 #stderr along with any generated error messages.
-ipc = sys.stdout
-ipc_ind = sys.stdin
-sys.stdout = sys.stderr
+if __name__ == '__main__':
+    ipc = sys.stdout
+    ipc_ind = sys.stdin
+    sys.stdout = sys.stderr
+else:
+    ipc = None
+    ipc_ind = None
 
 def ipc_write_packet(packet):
     ipc.write(packet + "\n")
@@ -176,10 +180,10 @@ class BlastActionExec():
     #Executes a capability command. Returns none if it failed.
     def capability(self, cap, fn, param = None):
         res = ipc_packet("CAPABILITY," + cap + "," + fn + "," + enc_str(self.json(param)))
-        try:
-            return json.loads(res)
-        except:
-            return None
+        r = dec_str(res)
+        if r[0] == 'G':
+            return json.loads(r[1:])
+        raise Exception("Exception in capability " + cap + " " + fn + str(param) + " - " + r[1:])
         
     #Takes a name for a surface and gets the resulting JSON data structure.
     #Returns None if the surface does not exist.
@@ -548,41 +552,46 @@ class BlastActionExec():
 def set_action_exec(ex):
     ex().run(parameters) #Nones for legacy
 
-try:
-    parameters_c = json.loads(sys.argv[2])
-    parameters = {}
-    for name, value in parameters_c.iteritems():
-        if type(value) == type(1) or type(value) == type(1.0) or type(value) == type(1L):
-            parameters[str(name)] = value
-        elif type(value) == type({}):
-            if "x" in value and "y" in value and "a" in value and "map" in value:
-                parameters[str(name)] = BlastLocation(jsond = value)
-            else:
-                raise Exception("Invalid parameter type for " + str(value))
-        elif type(value) == type([]):
-            #Is a position
-            if len(value) == 2:
-                if type(value[1]) == dict:
-                    parameters[str(name)] = BlastPos(surface = value[0], jsond = value[1])
-                else:
-                    parameters[str(name)] = BlastPos(surface = value[0], pos_string = value[1])
-            else:
-                raise Exception("Invalid parameter type for " + str(value))
-        elif type(value) == type("") or type(value) == type(u""):
-            parameters[str(name)] = str(value)
-        else:
-            raise Exception("Invalid parameter type for " + str(value))
-    execfile(sys.argv[1])
-    ipc_write_packet("TERMINATE\n")
-except:
-    print "Exception in action:", sys.argv
-    print '-'*60
-    traceback.print_exc(file=sys.stdout)
-    print '-'*60
+if __name__ == '__main__':
     try:
-        ipc_write_packet("ERROR\n")
+        parameters_c = json.loads(sys.argv[2])
+        parameters = {}
+        for name, value in parameters_c.iteritems():
+            if type(value) == type(1) or type(value) == type(1.0) or type(value) == type(1L):
+                parameters[str(name)] = value
+            elif type(value) == type({}):
+                if "x" in value and "y" in value and "a" in value and "map" in value:
+                    parameters[str(name)] = BlastLocation(jsond = value)
+                else:
+                    raise Exception("Invalid parameter type for " + str(value))
+            elif type(value) == type([]):
+            #Is a position
+                if len(value) == 2:
+                    if type(value[1]) == dict:
+                        parameters[str(name)] = BlastPos(surface = value[0], jsond = value[1])
+                    else:
+                        parameters[str(name)] = BlastPos(surface = value[0], pos_string = value[1])
+                else:
+                    raise Exception("Invalid parameter type for " + str(value))
+            elif type(value) == type("") or type(value) == type(u""):
+                parameters[str(name)] = str(value)
+            else:
+                raise Exception("Invalid parameter type for " + str(value))
+        execfile(sys.argv[1])
+        ipc_write_packet("TERMINATE\n")
     except:
-        print "Failed to write error"
+        print "Exception in action:", sys.argv
+        print '-'*60
+        traceback.print_exc(file=sys.stdout)
+        print '-'*60
+        try:
+            ipc_write_packet("ERROR\n")
+        except:
+            print "Failed to write error"
+else:
+    print "Not running because action is not main."
+
+
 
 
 

@@ -48,7 +48,7 @@ class MapStore():
             self.lock.release()
             return None, None, None
         try:
-            print "Read in", map_name
+            #print "Read in", map_name
             fn = open(self.maps_dir + "/" + map_name + ".txt", "r")
             res = float(fn.read())
             fn.close()
@@ -67,7 +67,7 @@ class MapStore():
             self.map_cache[map_name] = md
             self.map_hash[map_name] = mh
             self.map_resolution[map_name] = res
-            print "Done"
+            #print "Done"
             self.lock.release()
             return md, mh, res
         except:
@@ -108,7 +108,7 @@ class BlastNetworkBridge:
 
     def capability_write(self, aid, cap, fn, param):
         if not aid in self.action_callbacks:
-            return "null"
+            return "Gnull"
         do_send = True
         res = "null"
         if cap not in self.capabilities:
@@ -134,15 +134,20 @@ class BlastNetworkBridge:
                 if len(self.capabilities[cap]) > 0:
                     do_send = False
         if do_send:
-            res = self.capability_cb(cap, fn, param)
-        return res
+            try:
+                res = self.capability_cb(cap, fn, param)
+                res = json.dumps(res)
+            except:
+                print "Exception in capability"
+                return "E" + traceback.format_exc()
+        return "G" + res
 
     def write_data(self, data, terminate_action = None):
         good = True
-        print "Writing data", data
+        #print "Writing data", data
         self.connection_lock.acquire()
         if terminate_action != None:
-            print "Terminating action", terminate_action
+            #print "Terminating action", terminate_action
             if terminate_action in self.action_callbacks:
                 del self.action_callbacks[terminate_action]
             for cap in self.capabilities:
@@ -165,7 +170,7 @@ class BlastNetworkBridge:
         self.connection_lock.release()
         if not good:
             print "We could not write data to the server!"
-        print "Done"
+        #print "Done"
         return good
 
     def thread_runner(self):
@@ -179,11 +184,11 @@ class BlastNetworkBridge:
                     if received == None or received == False:
                         break
                     buff += received
-                    print "STPE", buff
+                    #print "STPE", buff
                 if buff.find("\n") != -1:
                     packet = buff[0:buff.find("\n")].strip()
                     buff = buff[buff.find("\n")+1:]
-                    print "Packet", packet[0:128]
+                    #print "Packet", packet[0:128]
                     self.connection_lock.acquire()
                     if packet.find("ERROR,") == 0:
                         self.error = packet[packet.find(",")+1:]
@@ -278,7 +283,7 @@ class BlastNetworkBridge:
                         elif is_int(packet.split(",")[0]):
                             aid = int(packet.split(",")[0])
                             data = packet[packet.find(",")+1:]
-                            print "Send", aid, "<-", data
+                            #print "Send", aid, "<-", data
                             ac = self.action_callbacks.get(aid, None)
                             self.connection_lock.release()
                             if ac != None:
@@ -341,7 +346,7 @@ class ActionExecutor():
         while not self.shutdown:
             result = self.proc.stdout.readline()
             if result != "":
-                print "Data", result
+                #print "Data", result
                 if (result.find("CAPABILITY,") == 0):
                     data = result.split(",")
                     cap = dec_str(data[1])
