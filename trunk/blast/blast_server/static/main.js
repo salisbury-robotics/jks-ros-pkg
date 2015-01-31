@@ -152,7 +152,7 @@ $.putJSON( "/session", {}, function(data) {
     setInterval(update_session, SESSION_TIMEOUT * 0.9 * 1000.0);
 
     //TODO: remove debug tool
-    $.putJSON( "/world", "plan", function(data) {
+    /*$.putJSON( "/world", "plan", function(data) {
 	$.postJSON("/world/plan/robot/stair4/location", 
 		   {"x": 20, "y": 40, "a": 0, "map": "clarkcenterfirstfloor"},
 		   function(data2) {
@@ -161,7 +161,7 @@ $.putJSON( "/session", {}, function(data) {
 		       });
 
 		   });
-    });
+    });*/
 
     hide_all();
     $('#primary-screen').show();
@@ -389,6 +389,7 @@ function position_div(div, x, y, a) {
     div.css("-webkit-transform", tf);
 
     var bw = div.css("border").split(" ")[0].split("px")[0] * 1.0;
+    //console.log(div.css("border") + " -> " + bw);
 
     div.css("left", zoomlessWorldXtoScreenX(x) - div.width() / 2 - bw);
     div.css("top", zoomlessWorldYtoScreenY(y) - (bw + div.height() / 2));
@@ -425,7 +426,7 @@ function redraw_robot(robots, robot_data, border) {
 	robots[robot_data.name] = {};
     }
     robots[robot_data.name].data = robot_data;
-    if (!current_map_data) return;
+    if (!current_map_data) return false;
     if (current_map_data.map != robot_data.location.map) {
 	if (!robots[robot_data.name]) { return false; }
 	if (robots[robot_data.name].div) { robots[robot_data.name].div.remove(); }
@@ -536,20 +537,33 @@ function redraw_robot(robots, robot_data, border) {
 
 
 function update_select_robot(robot, robot_dir, selected_type_r) {
-    if (robot.div) {
+    /*if (robot.div) {
 	
     }
     if (robot.halo) {
 	robot.halo.remove();
-    }
+    }*/
 
     var robot_url = "/robot/";
     if (selected_type_r == "plan-robot") { robot_url = "/world/plan/robot/"; }
 
-    robot.div.css("border", "3px solid #e67e22");
-    robot.halo = $('<div style="position: absolute; color: #e67e22;">X</div>').appendTo(robot.div);
-    robot.halo.css("left", (robot.div.width() / 2 - robot.halo.width() / 2) + "px");
-    robot.halo.css("top", (-robot.div.height() - robot.halo.height()) / 1.5 + "px");
+    //robot.halo = $('<div style="position: absolute; color: #e67e22;">X</div>').appendTo(robot.div);
+    //robot.halo.css("left", (robot.div.width() / 2 - robot.halo.width() / 2) + "px");
+    //robot.halo.css("top", (-robot.div.height() - robot.halo.height()) / 1.5 + "px");
+
+    var disable = ""; //You cannot change a robot's positions in physical space
+    if (selected_type_r == "edit-robot") { // && !is_editting_world) {
+	disable = "disabled";
+    }
+    // You cannot change a robot's location unless you are editting the world or teloping
+    var loc_disable = "";
+    if (selected_type_r == "edit-robot" && !is_editting_world) { 
+	loc_disable = "true";
+    }
+    $('#edit-robot-map').attr('disabled', loc_disable);
+    $('#edit-robot-x').attr('disabled', loc_disable);
+    $('#edit-robot-y').attr('disabled', loc_disable);
+    $('#edit-robot-a').attr('disabled', loc_disable);
     
     $('#edit-robot').children().each(function(i) {
 	if ($(this).attr('id') != '') {
@@ -569,7 +583,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 		var name = dt['False'][0][p];
 		$('<div>' + name + ": </div>").appendTo(d).append(
 		    $('<input id="' + name + '" value="' + robot.data.positions[pn][name]
-		      + '" style="width: 50px;" />').keyup(function() { 
+		      + '" style="width: 50px;" ' + disable + '/>').keyup(function() { 
 			  var joint = $(this).attr('id');
 			  var pos = $(this).parent().parent().attr('id');
 			  var val = $(this).val();
@@ -651,7 +665,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
     });
     $('#edit-robot').show();    
     
-    robot.halo.unbind("mousedown").mousedown(function() {
+    /*robot.halo.unbind("mousedown").mousedown(function() {
 	if (drag != null) { return; }
 	drag = $(this);
 	$(document).unbind("mousemove").mousemove(function(event) {
@@ -668,9 +682,9 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	    drag = null;
 	    $(document).unbind("mousemove").unbind("mouseup");
 	});
-    });
+    });*/
 
-    
+    /*
     robot.div.unbind("mousedown").mousedown(function() {
 	if (drag != null) { return; }
 	drag = $(this);
@@ -691,7 +705,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	    drag = null;
 	    $(document).unbind("mousemove").unbind("mouseup");
 	});
-    });
+    });*/
 }
 
 function same_robot(r1, r2) { //visiually the same
@@ -738,7 +752,11 @@ function center_map_on(item_type, item, subc) {
 
 function load_physical_robot(robot, nuke_select) {
     $.getJSON("/robot/" + robot + "?include_type=true&include_objects=true&include_object_types=true", function(d) {
-	var ret_val = redraw_robot(robots, d);
+	var b = null;
+	if (selected_type == "edit-robot" && selected == robot) {
+	    b = "3px solid #e67e22";
+	}
+	var ret_val = redraw_robot(robots, d, b);
 
 	if ($('#follow-robot-select').val() == robot) {
 	    disp_map(robots[robot].data.location.map);
@@ -751,8 +769,9 @@ function load_physical_robot(robot, nuke_select) {
 
 	robots[d.name].div.css("z-index", Z_STACK * 2 + get_z_order(d.name));
 	robots[d.name].default_ocf = function() {
-	    if (is_editting_world) {
-		update_select("edit-robot", $(this).data("robot"));
+	    update_select("edit-robot", $(this).data("robot"));
+	    /*if (is_editting_world) {
+	      update_select("edit-robot", $(this).data("robot"));
 	    } else {
 		if (robots_plan[d.name].data.location.map == robots[d.name].data.location.map) {
 		    update_select(null, null);
@@ -761,7 +780,7 @@ function load_physical_robot(robot, nuke_select) {
 		} else {
 		    alert("Robot is on " + robots_plan[d.name].data.location.map + ".");
 		}
-	    }
+	    }*/
 	};
 	robots[d.name].div.click(robots[d.name].default_ocf);
 	check_robot_same(d.name);
@@ -784,9 +803,9 @@ function load_plan_robot(robot, nuke_select) {
 	});
 	check_robot_same(d.name);
 	if (nuke_select) {
-	    update_select(null, null);
+	    //update_select(null, null);
 	} else if (selected_type == "plan-robot" && selected == d.name) {
-	    update_select(selected_type, selected);
+	    //update_select(selected_type, selected);
 	}
     });
 }
@@ -794,38 +813,32 @@ function load_plan_robot(robot, nuke_select) {
 
 
 function update_select(nst, ns) {
+    var reloadfn = null, old_plan_robot = null, old_physical_robot = null;
     if (selected_type == "plan-robot") {
-	if (robots_plan[selected].div) {
-	    if (same_robot(robots_plan[selected], robots[selected])) {
-		robots_plan[selected].div.hide();
-	    }
-	    robots_plan[selected].div.css("border", "3px solid #2ecc71");
-	    robots_plan[selected].div.unbind("mousedown");
-	    robots_plan[selected].div.click(function() {
-		update_select("plan-robot", $(this).data("robot"));
-	    });
-	}
-	if (robots_plan[selected].halo) {
-	    robots_plan[selected].halo.remove();
+	if (robots_plan[selected].div || robots_plan[selected].halo) {
+	    old_plan_robot = selected;
 	}
     }
-
     if (selected_type == "edit-robot") {
-	if (robots[selected].div) {
-	    robots[selected].div.css("border", "0px");
-	    robots[selected].div.unbind("mousedown");
-	    if (!robots[selected].default_ocf) { alert("ocf sucks"); }
-	    robots[selected].div.unbind("click").click(robots[selected].default_ocf);
-	}
-	if (robots[selected].halo) {
-	    robots[selected].halo.remove();
+	if (robots[selected].div || robots[selected].halo) {
+	    old_physical_robot = selected;
 	}
     }
-
 
     selected = ns;
     selected_type = nst;
     drag = null;
+    if (old_physical_robot)
+	load_physical_robot(old_physical_robot);
+    if (old_plan_robot)
+	load_plan_robot(old_plan_robot);
+    if (selected_type == "plan-robot" && old_plan_robot != selected) {
+	load_plan_robot(selected);
+    }
+    if (selected_type == "edit-robot" && old_physical_robot != selected) {
+	load_physical_robot(selected);
+    }
+
     if (selected_type == "plan-robot") {
 	$('#edit-nothing').hide();
 	update_select_robot(robots_plan[selected], robots_plan, "plan-robot");
@@ -835,7 +848,6 @@ function update_select(nst, ns) {
     } else {
 	$('#edit-robot').hide();
     }
-
     if (selected_type == null && selected == null) {
 	$('#edit-robot').hide();
 	$('#edit-nothing').show();
