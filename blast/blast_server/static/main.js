@@ -111,6 +111,7 @@ $('#edit-world').click(function() {
 
 function update_session() {
     $.getJSON("/session", function(data) {
+	console.log(data);
 	if (data) {
 	    if (data.edit_world && !data.edit_other_session) {
 		if (data.world_changeable) {
@@ -125,6 +126,11 @@ function update_session() {
 	    } else if (data.edit_world && data.edit_other_session) {
 		$('#edit-world').html("Other user is editing world")
 		    .attr("title", "Waiting for them to stop");
+		is_editting_world = false;
+		edit_world_action = null;
+	    } else if (data.teleop != null) {
+		$('#edit-world').html("Teleop: " + data.teleop)
+		    .attr("title", "Teleoperating robot: " + data.teleop);
 		is_editting_world = false;
 		edit_world_action = null;
 	    } else if (!data.edit_world) {
@@ -217,9 +223,9 @@ function call_feed(time) {
 	    update_session();
 	} else if (data[2] == "robot" && data[3] && (!data[1] || data[1] == "plan")) {
 	    if (data[1] == "plan") {
-		load_plan_robot(data[3], false);
+		load_plan_robot(data[3]);
 	    } else {
-		load_physical_robot(data[3], false);
+		load_physical_robot(data[3]);
 	    }
 	} else if (data[1] == null && data[2] == "surface" && data[3]) {
 	    load_surface(data[3]);
@@ -557,7 +563,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
     }
     // You cannot change a robot's location unless you are editting the world or teloping
     var loc_disable = "";
-    if (selected_type_r == "edit-robot" && !is_editting_world) { 
+    if (selected_type_r == "edit-robot" && !is_editting_world && robot.data.robot_state != "selfteleop") { 
 	loc_disable = "true";
     }
     $('#edit-robot-map').attr('disabled', loc_disable);
@@ -624,7 +630,42 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
 	$('#edit-robot-map').append("<option value=\"" + map + "\" " + sel + ">" + map + "</option>");
     }
 
+    if (robot.data.robot_state == "active") {
+	$('#edit-robot-teleop').html('TELEOP');
+    } else if (robot.data.robot_state == "selfteleop") {
+	$('#edit-robot-teleop').html('RELEASE');
+    } else if (robot.data.robot_state == "teleop") {
+	$('#edit-robot-teleop').html('OTHER TELEOP');
+    } else if (robot.data.robot_state == "offline") {
+	$('#edit-robot-teleop').html('OFFLINE');
+    } else if (robot.data.robot_state == "connecting") {
+	$('#edit-robot-teleop').html('CONNECTING');
+    }
 
+    $('#edit-robot-teleop').unbind('click');
+    if (robot.data.robot_state == "active") { 
+	$('#edit-robot-teleop').click(function() {
+	    $.postJSON(robot_url + selected + "/teleop/true", null,
+		       function(res) {
+			   update_session();
+			   if (res != true) {
+			       alert("Unable to gain control of robot");
+			   }
+		       });
+	});
+    }
+    if (robot.data.robot_state == "selfteleop") { 
+	$('#edit-robot-teleop').click(function() {
+	    $.postJSON(robot_url + selected + "/teleop/false", null,
+		       function(res) {
+			   update_session();
+			   if (res != true) {
+			       alert("Unable to release control of robot");
+			   }
+		       });
+	});
+    }
+    
     $('#edit-robot-x').unbind('keyup').keyup(function() {
 	if (robot.data.location.x == 1.0 * $(this).val()) { return; }
 	robot.data.location.x = 1.0 * $(this).val();
@@ -750,7 +791,7 @@ function center_map_on(item_type, item, subc) {
     }
 }
 
-function load_physical_robot(robot, nuke_select) {
+function load_physical_robot(robot) {
     $.getJSON("/robot/" + robot + "?include_type=true&include_objects=true&include_object_types=true", function(d) {
 	var b = null;
 	if (selected_type == "edit-robot" && selected == robot) {
@@ -784,15 +825,14 @@ function load_physical_robot(robot, nuke_select) {
 	};
 	robots[d.name].div.click(robots[d.name].default_ocf);
 	check_robot_same(d.name);
-	if (nuke_select) {
-	    update_select(null, null);
-	} else if (selected_type == "robot" && selected == d.name) {
-	    update_select(selected_type, selected);
+	if (selected_type == "edit-robot" && selected == robot) {
+	    $('#edit-nothing').hide();
+	    update_select_robot(robots[selected], robots, "edit-robot");
 	}
     });
 }
 
-function load_plan_robot(robot, nuke_select) {
+function load_plan_robot(robot) {
     $.getJSON("/world/plan/robot/" + robot + "?include_type=true&include_objects=true&include_object_types=true", function(d) {
 	if (!redraw_robot(robots_plan, d, "3px solid #2ecc71")) {
 	    return;
@@ -802,10 +842,9 @@ function load_plan_robot(robot, nuke_select) {
 	    update_select("plan-robot", $(this).data("robot"));
 	});
 	check_robot_same(d.name);
-	if (nuke_select) {
-	    //update_select(null, null);
-	} else if (selected_type == "plan-robot" && selected == d.name) {
-	    //update_select(selected_type, selected);
+	if (selected_type == "plan-robot" && selected == robot) {
+	    $('#edit-nothing').hide();
+	    update_select_robot(robots[selected], robots, "plan-robot");
 	}
     });
 }
