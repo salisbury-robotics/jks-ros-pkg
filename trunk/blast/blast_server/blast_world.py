@@ -1582,18 +1582,19 @@ class BlastWorld(object):
     def set_robot_position(self, robot, position, val):
         if not robot in self.robots:
             print "Set robot position invalid robot", robot
-            return False
+            return None
         if not position in self.robots[robot].positions:
             print "Set robot position invalid position", position, "for robot", robot
-            return False
+            return None
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
+        old = self.robots[robot].positions[position].copy()
         if type(val) == type([]):
             goal_len = len(self.robots[robot].robot_type.position_variables[position][False][0])
             if goal_len != len(val):
                 print "Invalid number of joints for position ", position, \
                     "for robot", robot, "need", goal_len, "got", len(val)
-                return False
+                return None
             for name, v in zip(self.robots[robot].robot_type.position_variables[position][False][0], val):
                 if v != None:
                     self.robots[robot].positions[position][name] = float(v)
@@ -1601,27 +1602,32 @@ class BlastWorld(object):
             for name, v in val.iteritems():
                 if not name in self.robots[robot].positions[position]:
                     print "Set robot position invalid joint", name, "for", position, "for robot", robot
-                    return False
+                    return None
             for name, v in val.iteritems():
                 self.robots[robot].positions[position][name] = float(v)
         self.clear_hash("robots")
-        return True
+        new = self.robots[robot].positions[position]
+        for name in old:
+            if new[name] != old[name]:
+                return True
+        return False
     
     def set_robot_location(self, robot, blast_pt):
         if not robot in self.robots:
             print "Set robot location invalid robot", robot
-            return False
+            return None
         if self.copy_on_write_optimize:
             self.robots[robot] = self.robots[robot].copy()
         if type(blast_pt) == dict:
             if not 'x' in blast_pt or not 'y' in blast_pt or not 'a' in blast_pt or not 'map' in blast_pt:
                 print "Invalid point dictionary"
-                return False
+                return None
             blast_pt = BlastPt(blast_pt['x'], blast_pt['y'],
                                blast_pt['a'], blast_pt['map'])
+        rup = not self.robots[robot].location.equal(blast_pt)
         self.robots[robot].location = blast_pt.copy()
         self.clear_hash("robots")
-        return True
+        return rup
 
     def robot_transfer_holder(self, robot, from_holder, to_holder):
         if not robot in self.robots:

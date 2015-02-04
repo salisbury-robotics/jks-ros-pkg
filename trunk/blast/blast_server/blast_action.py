@@ -108,9 +108,13 @@ class BlastActionExec:
     def set_location(self, position, world = None):
         r = None
         w = self._get_manager_world(world)
-        w.set_robot_location(self._robot, position.copy())
+        r = w.set_robot_location(self._robot, position.copy())
         self._release_manager_world(world)
-        self._on_robot_change()
+        if r == True:
+            self._on_robot_change()
+            return True
+        if r == False:
+            return True
         return r
 
     def set_robot_holder(self, holder, ot, require_preexisting_object = True, world = None):
@@ -198,7 +202,10 @@ class BlastActionExec:
         w = self._get_manager_world(world)
         r = w.set_robot_position(self._robot, pos, val)
         self._release_manager_world(world)
-        self._on_robot_change()
+        if r == True:
+            self._on_robot_change()
+        if r == False:
+            return True
         return r
 
     def surface_scan(self, surface, object_types, world = None):
@@ -562,7 +569,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
         r = self.action_queues[found_id][0]
         self.action_queues[found_id] = self.action_queues[found_id][1:]
         self.lock.release()
-        print "Read from queue:", found_id, r
+        #print "Read from queue:", found_id, r
         return r
 
     def start_action(self, robot_type, action_type, parameters):
@@ -595,6 +602,28 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
             else:
                 return None, None
 
+    def set_teleop(self, session_name, activate):
+        self.lock.acquire()
+        if self.teleop == session_name or self.teleop == None:
+            if activate:
+                self.teleop = session_name
+            else:
+                self.teleop = None
+            self.lock.release()
+            return True
+        self.lock.release()
+        return False
+
+    def get_teleop(self, session_name):
+        r = None
+        self.lock.acquire()
+        if self.teleop == session_name:
+            r = True
+        elif self.teleop != None:
+            r = False
+        self.lock.release()
+        return r
+
     def handle(self):
         self.alive = True
         self.root_action_thread = None
@@ -604,6 +633,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
         self.action_start_queue = []
         self.action_queues = {}
         self.action_id_to_client = {}
+        self.teleop = None
 
         manager = one_manager
         if not manager:

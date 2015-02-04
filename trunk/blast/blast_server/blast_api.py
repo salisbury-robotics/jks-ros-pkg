@@ -252,6 +252,13 @@ def clean_sessions():
     for sid in login_sessions:
         if login_sessions[sid]["last_update"] + SESSION_TIMEOUT < clean_time:
             print "Kill session", sid
+            if login_sessions[sid]["teleop"] != None:
+                manager.world.lock.acquire()
+                r = manager.world.world.robots.get(login_sessions[sid]["teleop"], None)
+                if r != None:
+                    if r.is_active:
+                        r.is_active.set_teleop(sid, False)
+                manager.world.lock.release()
             manager.world.clear_editor(str(sid))
             bad_sessions.append(sid)
 
@@ -262,27 +269,31 @@ def clean_sessions():
 
 
 def get_user_permission(session, perm):
-    global login_sessions, login_sessions_lock
+    global login_sessions, login_sessions_lock, permissions
     if debug_locks: print "Lock sessions start"
     login_sessions_lock.acquire()
     if debug_locks: print "Lock sessions done"
     if not "sid" in session: 
         login_sessions_lock.release()
+        print "No sid in session", session
         return False
     if not str(session["sid"]) in login_sessions: 
         login_sessions_lock.release()
+        print str(session["sid"]), "not in login sessions"
         return False
     session_d = login_sessions[str(session["sid"])]
     session_d["last_update"] = time.time()
-    if perm in permissions:
+    if not perm in permissions:
         login_sessions_lock.release()
-        return True
+        print "Permission", perm, "not in permissions", permissions
+        return False
     login_sessions_lock.release()
     clean_sessions()
-    return False
+    return True
 
 def permission_error(request, perm):
-    return "You need permission:", perm
+    print "There was a permission error!"
+    return "You need permission: " + str( perm)
 
 
 
@@ -299,6 +310,7 @@ def session_manage():
         if debug_locks: print "Lock sessions done"
         sid = str(time.time()) + "-" + str(uuid.uuid4())
         login_sessions[sid] = {"sid": sid, "last_update": time.time(),
+                               "teleop": None,
                                "worlds": {}, "worlds_locks": {}}
         session["sid"] = sid
         login_sessions_lock.release()
@@ -313,12 +325,14 @@ def session_manage():
         if not str(session["sid"]) in login_sessions: 
             login_sessions_lock.release()
             return "false"
+        teleop = login_sessions[str(session["sid"])]["teleop"]
         login_sessions[str(session["sid"])]["last_update"] = time.time()
         login_sessions_lock.release()
         clean_sessions()
         e = manager.world.is_editor(str(session["sid"]))
         r = {"sessions": len(login_sessions),
              "edit_world": e == True,
+             "teleop": teleop,
              "world_changeable": manager.world.world_changeable(str(session["sid"])),
              "edit_other_session": e == False}
         print r, e
@@ -393,7 +407,18 @@ def api_robot(world = None, robot = None):
     if robot:
         rd = w.get_robot(robot)
         if rd:
+            rstate = "offline"
+            if rd.is_active == False:
+                rstate = "connecting"
+            elif rd.is_active != None:
+                rstate = "active"
+                ts = rd.is_active.get_teleop(str(session["sid"]))
+                if ts == False:
+                    rstate = "teleop"
+                elif ts == True:
+                    rstate = "selfteleop"
             rd = rd.to_dict()
+            rd["robot_state"] = rstate
             if request.args.get("include_type", "false") == "true":
                 rd["robot_type"] = w.types.robots.get(rd["robot_type"]).to_dict()
             if request.args.get("include_objects", "false") == "true":
@@ -403,6 +428,7 @@ def api_robot(world = None, robot = None):
                         if request.args.get("include_object_types", "false") == "true":
                             od['object_type'] = w.types.objects.get(od['object_type']).to_dict()
                         rd["holders"][holder_name] = od
+        
         release_world(world)
         return return_json(rd)
 
@@ -469,6 +495,52 @@ def api_robot_location(world = None, robot = None):
     queue_load(world, "robot", robot, for_user)
     return r
 
+@app.route('/robot/<robot>/teleop/<tstate>', methods=["POST"])
+def api_robot_teleop(robot, tstate):
+    if not get_user_permission(session, "edit"): return permission_error(request, "edit")
+    if tstate.lower() == 'true':
+        tstate = True
+    elif tstate.lower() == 'false':
+        tstate = False
+    else:
+        print "Invalid tstate"
+        return return_json(None)
+    
+    robot = str(robot)
+    w = acquire_world(None, edit = True, temporary_edit = True)
+    login_sessions_lock.acquire()
+    session_d = login_sessions[str(session["sid"])]
+    if session_d["teleop"] != None and tstate == True:
+        login_sessions_lock.release()
+        print "Teleop is not none, already have a robot"
+        return return_json(None)
+    if session_d["teleop"] != robot and tstate == False:
+        login_sessions_lock.release()
+        print "We are trying to remove an invalid robot"
+        return return_json(None)
+
+    rv = w.get_robot(robot)
+    if not rv:
+        print "No robot"
+        login_sessions_lock.release()
+        return return_json(None)
+    if rv.is_active == False or rv.is_active == None:
+        print "Robot is not active"
+        login_sessions_lock.release()
+        return return_json(None)
+    r = rv.is_active.set_teleop(session["sid"], tstate)
+    if r == True:
+        print "Teleop found"
+        if tstate == True:
+            session_d["teleop"] = robot
+        else:
+            session_d["teleop"] = None
+        queue_load(None, "robot", robot)
+    else:
+        print "We teleoped, but could not start"
+    login_sessions_lock.release()
+    return return_json(r)
+
 
 @app.route('/robot/<robot>/holder', methods=["GET"])
 @app.route('/robot/<robot>/holder/<holder>', methods=["GET", "POST"])
@@ -516,7 +588,7 @@ def api_robot_position(world = None, robot = None, position = None):
     else: return permission_error(request, "INVALID")
     if not get_user_permission(session, perm): return permission_error(request, perm)
     w = acquire_world(world, edit = (request.method == "POST"))
-    if not w: error_world(world)
+    if not w: return error_world(world)
     if request.method == "GET":
         robot = w.get_robot(robot)
         if robot != None: robot = robot.to_dict()
