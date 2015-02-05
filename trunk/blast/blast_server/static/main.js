@@ -172,6 +172,10 @@ $.putJSON( "/session", {}, function(data) {
     hide_all();
     $('#primary-screen').show();
     post_hash();
+    //Now initialize
+    call_feed(0);
+    initialize_maps();
+    update_select(null, null);
 });
 
 $('#back').click(function() { hide_all(); $('#primary-screen').show(); });
@@ -206,9 +210,7 @@ $('#plan-clear').click(function() {
 
 ///////////////////////////////////////////////////////////////////
 
-
 function call_feed(time) {
-
     $.getJSON("/feed/" + time, function(data) {
 	if (!data) {
 	    return;
@@ -247,8 +249,6 @@ function call_feed(time) {
     });
 
 }
-
-call_feed(0);
 
 ///////////////////////////////////////////////////////////////////
 
@@ -365,14 +365,16 @@ $('#plan-action-cancel').click(function () {
 
 maps = {};
 
-$.getJSON( "/map", function( data ) {
-    maps = data;
-    for (var i in data) {
-        var map = data[i];
-        $('<div class="list-element">' + map + '</div>').data('map', map)
-            .appendTo('#map-list').click(function() { show_map($(this).data('map')); });	
-    }
-});
+function initialize_maps() {
+    $.getJSON( "/map", function( data ) {
+	maps = data;
+	for (var i in data) {
+            var map = data[i];
+            $('<div class="list-element">' + map + '</div>').data('map', map)
+		.appendTo('#map-list').click(function() { show_map($(this).data('map')); });	
+	}   
+    });
+}
 
 
 function zoomlessWorldXtoScreenX(x) {
@@ -636,7 +638,7 @@ function update_select_robot(robot, robot_dir, selected_type_r) {
     } else if (robot.data.robot_state == "selfteleop") {
 	$('#edit-robot-teleop').html('RELEASE');
     } else if (robot.data.robot_state == "teleop") {
-	$('#edit-robot-teleop').html('OTHER TELEOP');
+	$('#edit-robot-teleop').html('OTHER OP');
     } else if (robot.data.robot_state == "offline") {
 	$('#edit-robot-teleop').html('OFFLINE');
     } else if (robot.data.robot_state == "connecting") {
@@ -1066,9 +1068,6 @@ $('#plan-execute').click(function() {
 	}
     });
 });
-
-update_select(null, null);
-
 
 $("#follow-robot-select").change(function() {
     if ($(this).val()) {
