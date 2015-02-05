@@ -176,7 +176,7 @@ $.putJSON( "/session", {}, function(data) {
 
 $('#back').click(function() { hide_all(); $('#primary-screen').show(); });
 
-
+/*
 $('#plan-to-world').click(function() {
     $.putJSON('/plan/plan', null, function(r) {
 	if (!r) {
@@ -191,7 +191,8 @@ $('#plan-to-world').click(function() {
 	    update_select(null, null);
 	}
     });
-});
+});*/
+
 $('#plan-clear').click(function() {
     if (confirm("Delete all actions?")) {
 	$.deleteJSON("/plan/plan", function() {
@@ -343,9 +344,9 @@ $('#plan-action-ok').click(function () {
 	}
     }
     
-    $.putJSON('/plan/plan', {"robot": $('#plan-action-robot').val(), 
-			     "action": $('#plan-action-type').val(),
-			     "parameters": params },
+    $.putJSON('/plan', {"robot": $('#plan-action-robot').val(), 
+			"action": $('#plan-action-type').val(),
+			"parameters": params },
 	      function(r) {
 		  if (r == null) {
 		      alert("Planning failed. Ensure that the robot is connected and not in a teleop state.");

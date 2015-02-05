@@ -51,7 +51,6 @@ def return_json(js):
     return Response(response=js, status=200, mimetype="application/json")
 
 
-
 login_sessions = {}
 login_sessions_lock = threading.Lock()
 
@@ -507,7 +506,8 @@ def api_robot_teleop(robot, tstate):
         return return_json(None)
     
     robot = str(robot)
-    w = acquire_world(None, edit = True, temporary_edit = True)
+    #w = acquire_world(None, edit = True, temporary_edit = True)
+    #if not w: return return_json(None)
     login_sessions_lock.acquire()
     session_d = login_sessions[str(session["sid"])]
     if session_d["teleop"] != None and tstate == True:
@@ -518,14 +518,17 @@ def api_robot_teleop(robot, tstate):
         login_sessions_lock.release()
         print "We are trying to remove an invalid robot"
         return return_json(None)
-
-    rv = w.get_robot(robot)
+    
+    manager.world.lock.acquire()
+    rv = manager.world.world.robots.get(robot, None)
     if not rv:
         print "No robot"
+        manager.world.lock.release()
         login_sessions_lock.release()
         return return_json(None)
     if rv.is_active == False or rv.is_active == None:
         print "Robot is not active"
+        manager.world.lock.release()
         login_sessions_lock.release()
         return return_json(None)
     r = rv.is_active.set_teleop(session["sid"], tstate)
@@ -538,6 +541,7 @@ def api_robot_teleop(robot, tstate):
         queue_load(None, "robot", robot)
     else:
         print "We teleoped, but could not start"
+    manager.world.lock.release()
     login_sessions_lock.release()
     return return_json(r)
 
@@ -738,7 +742,7 @@ def rm_unicode(t):
 
 #@app.route('/world/<world>/plan/<target>', methods=["GET", "PUT", "DELETE"])
 @app.route('/plan', methods=["GET", "PUT"])
-@app.route('/plan/<target>', methods=["GET", "PUT", "DELETE"])
+@app.route('/plan/<target>', methods=["DELETE"])
 def api_plan(target = None, world = None):
     if request.method == "PUT" or request.method == "DELETE": 
         if not get_user_permission(session, "plan"): return permission_error(request, "plan")
@@ -765,11 +769,11 @@ def api_plan(target = None, world = None):
         #    print "Could not remove unicode"
         #    return return_json(None)
 
-        if target == None:
-            return return_json(None)
-        print "Acquire target world", target
-        wend = acquire_world(target)
-        if not wend: return error_world(target)
+        #if target == None:
+        #    return return_json(None)
+        #print "Acquire target world", target
+        #wend = acquire_world(target)
+        #if not wend: return error_world(target)
         if action_data == None:
             return return_json(None)
         print "Planning action!"
