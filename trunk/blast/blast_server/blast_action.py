@@ -1,7 +1,7 @@
 import blast_world
 import blast_planner
 import SocketServer
-import os, sys, subprocess, json, time, threading
+import os, sys, subprocess, json, time, threading, traceback
 
 blast_action_exec_d = {}
 def set_action_exec(robot_type, action_type, item):
@@ -303,7 +303,21 @@ class BlastActionExec:
             print "Could not start action"
             #TODO: EPIC FAIL
             return
+
+        r = False
+        try:
+            r = self.run_internal(parameters, start_robot, write_data, read_data)
+        except:
+            print "Action processor threw exception."
+            traceback.print_exc()
+            r = False
+        try:
+            write_data(False, terminate = True)
+        except:
+            print "Could not write the terminator."
+        return r
         
+    def run_internal(self, parameters, start_robot, write_data, read_data):
         w = None
                 
         message = None
@@ -549,15 +563,25 @@ ROBOT_STATE_CONTROL = 2
 one_manager_lock = threading.Lock()
 one_manager = None
 class BlastManagedRobot(SocketServer.BaseRequestHandler):
-    def action_write(self, found_id, strda):
+    def action_write(self, found_id, strda, terminate = False):
         #print "Writing data", strda
-        self.lock.acquire()
-        self.request.sendall(str(found_id) + "," + enc_str(strda) + "\n")
-        self.lock.release()
+        if terminate:
+            print "Terminate action", found_id
+            self.lock.acquire()
+            if found_id in self.action_queues:
+                del self.action_queues[found_id]
+            self.lock.release()
+        else:
+            self.lock.acquire()
+            self.request.sendall(str(found_id) + "," + enc_str(strda) + "\n")
+            self.lock.release()
         #print "Done"
     def action_read(self, found_id):
         while True:
             self.lock.acquire()
+            if not found_id in self.action_queues:
+                self.lock.release()
+                return "TERMINATE\n"
             if self.action_queues[found_id] != []:
                 break
             self.lock.release()
@@ -596,14 +620,22 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                 self.lock.release()
             print "Got response", found_id
             if found_id != None:
-                action_write = lambda strda: self.action_write(found_id, strda)
+                action_write = lambda strda, terminate = False: self.action_write(found_id, strda, terminate)
                 action_read = lambda: self.action_read(found_id)
                 return action_write, action_read
             else:
                 return None, None
 
     def set_teleop(self, session_name, activate):
+        if self.robot_name == None: return False
         self.lock.acquire()
+        if activate == True and self.teleop == None:
+            #if len(self.action_queues) != 0:
+            #    self.lock.release()
+            #    return False
+            if self.manager.world.robot_in_program(self.robot_name):
+                self.lock.release()
+                return False
         if self.teleop == session_name or self.teleop == None:
             if activate:
                 self.teleop = session_name
@@ -614,10 +646,10 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
         self.lock.release()
         return False
 
-    def get_teleop(self, session_name):
+    def get_teleop(self, session_name = None):
         r = None
         self.lock.acquire()
-        if self.teleop == session_name:
+        if self.teleop == session_name and session_name != None:
             r = True
         elif self.teleop != None:
             r = False
@@ -635,15 +667,17 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
         self.action_id_to_client = {}
         self.teleop = None
 
-        manager = one_manager
-        if not manager:
+        self.manager = one_manager
+        manager = self.manager
+        if not self.manager:
             print "Tried to open connection, but there was no manager"
             return
         print "Starting connection"
         buff = ""
 
         state = 0
-        robot_name = None
+        self.robot_name = None
+        self.robot_type = None
         # 0 = no information
         # 1 = running
         # 2 = wait for name
@@ -683,24 +717,28 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         self.action_id_to_client[m_id] = a_id
                     elif is_int(start):
                         a_id = int(packet.split(",")[0].strip())
-                        self.action_queues[a_id].append(dec_str(",".join(packet.split(",")[1:])))
+                        a_next = dec_str(",".join(packet.split(",")[1:]))
+                        if a_id in self.action_queues:
+                            self.action_queues[a_id].append(a_next)
+                        else:
+                            print "Sent message to invalid action: ", a_next
                     else:
                         self.request.sendall("ERROR,INVALID COMMAND\n")
                         self.lock.release()
                         break
                 elif state == 2:
                     if packet.split(",")[0].strip() == "ROBOT":
-                        robot_name = packet.split(",")[1].strip()
-                        robot_type = packet.split(",")[2].strip()
+                        self.robot_name = packet.split(",")[1].strip()
+                        self.robot_type = packet.split(",")[2].strip()
                         manager.world.lock.acquire()
-                        robot = manager.world.world.get_robot(robot_name)
+                        robot = manager.world.world.get_robot(self.robot_name)
                         if not robot:
                             print "Invalid robot"
                             self.request.sendall("ERROR,INVALID ROBOT\n")
                             manager.world.lock.release()
                             self.lock.release()
                             break
-                        if robot.robot_type.name != robot_type:
+                        if robot.robot_type.name != self.robot_type:
                             print "Invalid robot type"
                             self.request.sendall("ERROR,INVALID TYPE\n")
                             manager.world.lock.release()
@@ -720,7 +758,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                     if packet == "START":
                         state = 1
                         manager.world.lock.acquire()
-                        robot = manager.world.world.get_robot(robot_name)
+                        robot = manager.world.world.get_robot(self.robot_name)
                         if robot:
                             self.ready_to_start = True
                             robot.is_active = self
@@ -744,7 +782,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         self.request.sendall(",".join(ms) + ",\n")
                     elif packet == "LIST_ACTIONS":
                         manager.world.lock.acquire()
-                        actions = manager.world.world.enumerate_robot(robot_name, False, True, True, False)
+                        actions = manager.world.world.enumerate_robot(self.robot_name, False, True, True, False)
                         ac = ["ACTIONS",]
                         #print "Enumerate action for LIST_ACTIONS", robot_name, actions
                         for at, av in actions:
@@ -774,14 +812,14 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         break
                 elif state == 4 or (state == 3 and packet == "GET_LOCATION"):
                     if packet == "GET_LOCATION":
-                        manager.robot_waiting_for(robot_name, "LOCATION")
+                        manager.robot_waiting_for(self.robot_name, "LOCATION")
                         self.request.sendall("WAIT_LOCATION\n")
                     elif packet == "CHECK_LOCATION":
-                        self.request.sendall("LOCATION," + str(manager.robot_has(robot_name, "LOCATION")) + "\n")
-                    elif packet == "START" and manager.robot_has(robot_name, "LOCATION"):
+                        self.request.sendall("LOCATION," + str(manager.robot_has(self.robot_name, "LOCATION")) + "\n")
+                    elif packet == "START" and manager.robot_has(self.robot_name, "LOCATION"):
                         state = 1
                         manager.world.lock.acquire()
-                        robot = manager.world.world.get_robot(robot_name)
+                        robot = manager.world.world.get_robot(self.robot_name)
                         if robot:
                             self.ready_to_start = True
                             robot.is_active = self
@@ -802,14 +840,14 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                 if start_a != False:
                     #self.start_action(start_a[0], start_a[1], start_a[2])
                     self.root_action_thread = threading.Thread(target = manager.root_action_thread,
-                                                               args = (robot_name, start_a[0], start_a[1], start_a[2]))
+                                                               args = (self.robot_name, start_a[0], start_a[1], start_a[2]))
                     self.root_action_thread.daemon = True
                     self.root_action_thread.start()
                     start_a = False
                 self.lock.release()
                 #print packet
         manager.world.lock.acquire()
-        robot = manager.world.world.get_robot(robot_name)
+        robot = manager.world.world.get_robot(self.robot_name)
         if robot:
             print "Clear robot active"
             robot.is_active = None

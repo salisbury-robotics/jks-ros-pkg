@@ -1500,6 +1500,12 @@ class BlastPlannableWorld:
     def stop(self):
         self.is_stopped = True
 
+    def robot_in_program(self, robot):
+        for i in self.code_exec + self.post_edit_code_exec:
+            if robot in i.robots:
+                return True
+        return False
+
     def get_programs(self):
         p = []
         self.lock.acquire()
@@ -1600,6 +1606,9 @@ class BlastPlannableWorld:
                     or self.world.robots[robot].is_active == None \
                     or self.world.robots[robot].location == None \
                     or self.world.robots[robot].location.map.find(":") == 0:
+                self.lock.release()
+                return None
+            if self.world.robots[robot].is_active.get_teleop() != None:
                 self.lock.release()
                 return None
         exc = BlastCodeExec(self.code_exec_uid, code, robots, description = description)

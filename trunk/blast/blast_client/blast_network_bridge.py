@@ -288,8 +288,10 @@ class BlastNetworkBridge:
                             self.connection_lock.release()
                             if ac != None:
                                 ac(dec_str(data))
-                            else:
+                            elif aid > self.action_id:
                                 self.error = "INVALID_ACTION," + str(aid)
+                            else:
+                                print "WARNING: message ignored from terminated action"
                         else:
                             self.error = "INVALID_PACKET," + packet
                             self.connection_lock.release()
