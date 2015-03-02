@@ -29,6 +29,10 @@ l_arm_state = [ 0.06024,  1.248526,   1.789070,  -1.683386, -1.7343417, -0.09621
 r_arm_state = [-0.023593, 1.1072800, -1.5566882, -2.124408, -1.4175,    -1.8417,     0.21436,   0]
 torso_state = [0.0]
 head_state = [0.0, 0.0]
+force_forwards = 0
+force_strafe = 0
+force_turn = 0
+do_simulation = True
 last_sent = None
 definitely_sent = None #State definitely sent to server.
 
@@ -41,11 +45,33 @@ def safe_c(x):
 
 #TODO: get rid of loops
 def capability_cb(cap, fn, param):
-    global definitely_sent, last_sent, l_arm_state, r_arm_state, torso_state, head_state, robot_location
+    global definitely_sent, last_sent, l_arm_state, r_arm_state, torso_state, head_state, robot_location, force_strafe, force_forwards, force_turn, do_simulation
     #print "Capability!!!!", cap, fn, param
     if fn == "START" or fn == "STOP":
+        if cap == "driver" and fn == "STOP":
+            state_lock.acquire()
+            force_forwards = 0
+            force_strafe = 0
+            force_turn = 0
+            state_lock.release()
         print "Start/stop", cap
         return None
+    elif cap == "simulator" and fn == "SIMULATE":
+        #force_forwards = 0
+        #   force_strafe = 0
+        state_lock.acquire()
+        if do_simulation and robot_location:
+            if type(robot_location) == dict:
+                robot_location = blast_action_exec.BlastLocation(jsond = robot_location)
+            robot_location = robot_location.rotate(force_turn * 0.1).move(force_forwards * 0.1, force_strafe * 0.1)
+            robot_location = robot_location.to_dict()
+        state_lock.release()
+    elif cap == "driver" and fn == "FORCE":
+        state_lock.acquire()
+        force_forwards = param.get("forward", 0)
+        force_strafe = param.get("strafe", 0)
+        force_turn = param.get("turn", 0)
+        state_lock.release()
     elif cap == "amcl_set_location" and (fn == "VALUE" or fn == "WAIT_VALUE"):
         if type(param) != dict:
             raise Exception("Parameter is not correct in type")
@@ -141,6 +167,7 @@ def capability_cb(cap, fn, param):
                 break
     elif (cap == "driver" and fn == "WAIT_ABSOLUTE_LOCATION") or (cap == "move_base" and fn == "DRIVE"):
         state_lock.acquire()
+        do_simulation = False
         start_l = robot_location.copy()
         state_lock.release()
         mid = blast_action_exec.BlastLocation(start_l["x"], start_l["y"], start_l["a"], start_l["map"])
@@ -208,6 +235,7 @@ def capability_cb(cap, fn, param):
             if rl["a"] == param["a"] and rl["x"] == param["x"] and rl["y"] == param["y"]:
                 break
         print "Really done"
+        do_simulation = True
     else:
         print "Invalid function", cap, fn
         raise Exception("We have executed an invalid capability: " + str(cap) + " " + str(fn))

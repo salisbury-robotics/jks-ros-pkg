@@ -84,13 +84,33 @@
 	  </div>
 
 	  <div style="height: 10px;"></div>
+
 	  <div class="edit-item-1">
 	    <div id="edit-robot-name"></div>
+
+	    <div id="robot-teleop-panel" style="width: 100%;">
+	      <div style="width: 180px; height: 60px; margin-left: auto; margin-right: auto;">
+		<div id="robot-teleop-left-strafe" style="background-image: url('/static/teleop.png'); background-position: -10px -10px; height: 60px; width: 60px; float: left;"></div>
+		<div id="robot-teleop-forward" style="background-image: url('/static/teleop.png'); background-position: -70px -10px; height: 60px; width: 60px; float: left;"></div>
+		<div id="robot-teleop-right-strafe" style="background-image: url('/static/teleop.png'); background-position: -130px -10px; height: 60px; width: 60px; float: left;"></div>
+	      </div>
+	      <div style="width: 180px; height: 60px; margin-left: auto; margin-right: auto;">
+		<div id="robot-teleop-left-turn" style="background-image: url('/static/teleop.png'); background-position: -10px -70px; height: 60px; width: 60px; float: left;"></div>
+		<div id="robot-teleop-backward" style="background-image: url('/static/teleop.png'); background-position: -70px -70px; height: 60px; width: 60px; float: left;"></div>
+		<div id="robot-teleop-right-turn" style="background-image: url('/static/teleop.png'); background-position: -130px -70px; height: 60px; width: 60px; float: left;"></div>
+	      </div>
+	    </div>
 
 	    X: <input id="edit-robot-x" style="width: 35px;"/>
 	    Y: <input id="edit-robot-y" style="width: 35px;"/>
 	    A: <input id="edit-robot-a" style="width: 35px;"/>
 	    Map: <select id="edit-robot-map" style="width: 140px;"></select>
+	  </div>
+
+	  <div id="edit-robot-teleop">
+	    <div style="width: 200px;">
+	      <span class="teleop-strafe-left" id="edit-robot-teleop-turnleft"></span>
+	    </div>
 	  </div>
 	  
 	  

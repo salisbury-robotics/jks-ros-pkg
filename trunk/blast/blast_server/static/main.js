@@ -543,6 +543,63 @@ function redraw_robot(robots, robot_data, border) {
 };
 
 
+teleop_forward_mouse = false;
+teleop_backward_mouse = false;
+teleop_left_strafe_mouse = false;
+teleop_right_strafe_mouse = false;
+teleop_left_turn_mouse = false;
+teleop_right_turn_mouse = false;
+
+function resendTeleop() {
+    var s = {"direction": 
+	     {"forward": teleop_forward_mouse,
+	      "backward": teleop_backward_mouse,
+	      "left_turn": teleop_left_turn_mouse,
+	      "right_turn": teleop_right_turn_mouse,
+	      "left_strafe": teleop_left_strafe_mouse,
+	      "right_strafe": teleop_right_strafe_mouse,
+	     },
+	    };
+    $.putJSON("/teleop", s, function(r){ });
+}
+
+$(document).mouseup(function() {
+    var click = teleop_forward_mouse || teleop_backward_mouse || teleop_left_strafe_mouse
+	|| teleop_right_strafe_mouse || teleop_left_turn_mouse || teleop_right_turn_mouse;
+    teleop_forward_mouse = false;
+    teleop_backward_mouse = false;
+    teleop_left_strafe_mouse = false;
+    teleop_right_strafe_mouse = false;
+    teleop_left_turn_mouse = false;
+    teleop_right_turn_mouse = false;
+    if (click) resendTeleop();
+});
+$('#robot-teleop-left-strafe').mousedown(function() {
+    teleop_left_strafe_mouse = true;
+    resendTeleop();
+});
+$('#robot-teleop-left-turn').mousedown(function() {
+    teleop_left_turn_mouse = true;
+    resendTeleop();
+});
+$('#robot-teleop-right-strafe').mousedown(function() {
+    teleop_right_strafe_mouse = true;
+    resendTeleop();
+});
+$('#robot-teleop-right-turn').mousedown(function() {
+    teleop_right_turn_mouse = true;
+    resendTeleop();
+});
+$('#robot-teleop-forward').mousedown(function() {
+    teleop_forward_mouse = true;
+    resendTeleop();
+});
+$('#robot-teleop-backward').mousedown(function() {
+    teleop_backward_mouse = true;
+    resendTeleop();
+});
+
+
 
 
 function update_select_robot(robot, robot_dir, selected_type_r) {
