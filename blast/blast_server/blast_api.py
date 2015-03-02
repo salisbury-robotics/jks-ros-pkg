@@ -494,6 +494,39 @@ def api_robot_location(world = None, robot = None):
     queue_load(world, "robot", robot, for_user)
     return r
 
+@app.route('/teleop', methods=["PUT"])
+def api_robot_teleop_dict():
+    if not get_user_permission(session, "edit"): return permission_error(request, "edit")
+    try:
+        new_state = json.loads(request.data)
+    except:
+        return None
+    login_sessions_lock.acquire()
+    session_d = login_sessions.get(str(session["sid"]), None)
+    if session_d == None:
+        login_sessions_lock.release()
+        return return_json(None)
+    robot = session_d.get("teleop", None)
+    if robot == None:
+        login_sessions_lock.release()
+        return return_json(None)
+
+    manager.world.lock.acquire()
+    rv = manager.world.world.robots.get(robot, None)
+    if not rv:
+        login_sessions_lock.release()
+        manager.world.lock.release()
+        return return_json(None)
+    ia = rv.is_active
+    if ia == False or ia == None:
+        login_sessions_lock.release()
+        manager.world.lock.release()
+        return return_json(None)
+    manager.world.lock.release()
+    login_sessions_lock.release()
+    r = ia.set_teleop_dict(str(session["sid"]), new_state)
+    return return_json(r)
+
 @app.route('/robot/<robot>/teleop/<tstate>', methods=["POST"])
 def api_robot_teleop(robot, tstate):
     if not get_user_permission(session, "edit"): return permission_error(request, "edit")

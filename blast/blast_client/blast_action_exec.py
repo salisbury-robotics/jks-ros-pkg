@@ -530,6 +530,18 @@ class BlastActionExec():
         if res == None or res == False:
             raise BlastRuntimeError("Failed to set location of object")
         return res
+
+    def get_teleop(self):
+        check_world(None)
+        res = ipc_packet("GET_TELEOP\n")
+        if res == "None": res = None
+        if res == "True": res = True
+        if res == "False": res = False
+        if res == None or res == False or res == True:
+            return res
+        if res.find("TELEOP") != 0:
+            raise BlastRuntimeError("Invalid return for teleop")
+        return json.loads(res[len("TELEOP"):])
     
     #Gets the location of the robot in the world.
     def get_location(self, world = None):

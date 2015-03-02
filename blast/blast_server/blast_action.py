@@ -280,6 +280,20 @@ class BlastActionExec:
         if o: o = o.to_dict()
         self._release_manager_world(world)
         return o
+
+    def get_teleop(self):
+        r = None
+        w = self._get_manager_world(None)
+        print "GET TELEOP"
+        if self._robot in w.robots:
+            print "ROBOT IS GOOD"
+            rb = w.robots[self._robot]
+            if rb.is_active:
+                print "ROBOT IS ACTIVE"
+                r = rb.is_active.get_teleop_dict()
+                print "RETURN", r
+        self._release_manager_world(None)
+        return r
     
     def run(self, parameters):
         print "Getting world"
@@ -319,7 +333,6 @@ class BlastActionExec:
         
     def run_internal(self, parameters, start_robot, write_data, read_data):
         w = None
-                
         message = None
         error = False
         while True:
@@ -327,6 +340,8 @@ class BlastActionExec:
             #print result
             if type(result) != type(""):
                 print "Ignore packet", result
+            elif result.strip() == "GET_TELEOP":
+                write_data("TELEOP" + json.dumps(json_prepare(self.get_teleop())) + "\n")
             elif result.find("DELETE_SURFACE_OBJECT") == 0:
                 if result.strip().split(",")[0].strip() == "DELETE_SURFACE_OBJECT":
                     world = result.strip().split(",")[1].strip()
@@ -626,9 +641,33 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
             else:
                 return None, None
 
-    def set_teleop(self, session_name, activate):
-        if self.robot_name == None: return False
+    def set_teleop_dict(self, session_name, new_val):
+        if type(new_val) != dict:
+            return False
         self.lock.acquire()
+        if self.robot_name == None:
+            self.lock.release()
+            return False
+        if session_name != self.teleop:
+            self.lock.release()
+            return False
+        self.teleop_dict = new_val.copy()
+        self.lock.release()
+        return True
+
+    def get_teleop_dict(self):
+        r = None
+        self.lock.acquire()
+        if self.teleop_dict and self.teleop != None:
+            r = self.teleop_dict.copy()
+        self.lock.release()
+        return r
+
+    def set_teleop(self, session_name, activate):
+        self.lock.acquire()
+        if self.robot_name == None:
+            self.lock.release()
+            return False
         if activate == True and self.teleop == None:
             #if len(self.action_queues) != 0:
             #    self.lock.release()
@@ -666,6 +705,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
         self.action_queues = {}
         self.action_id_to_client = {}
         self.teleop = None
+        self.teleop_dict = None
 
         self.manager = one_manager
         manager = self.manager
