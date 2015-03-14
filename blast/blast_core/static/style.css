@@ -1,0 +1,113 @@
+
+div, img { 
+    -moz-user-select: none; 
+    -khtml-user-select: none; 
+    -webkit-user-select: none; 
+    -o-user-select: none; 
+    user-select: none;
+} 
+
+body {
+    background-color: #ECF0F1;
+    padding: 0px;
+    margin: 0px;
+}
+
+div.list {
+    padding: 0px;
+    margin: 0px;
+    width: 400px;
+}
+
+div.list-header {
+    background-color: #34495E;
+    color: #FFF;
+    padding: 15px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 20px;
+    text-align: center;
+}
+
+div.list-element {
+    background-color: #3498DB;
+    color: #FFF;
+    padding: 5px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 16px;
+    text-align: center;
+    border-top: 1px solid #999;
+}
+div.list-element:hover {
+    background-color: #44A8EB;
+}
+
+span.square-button {
+    background-color: #AAC;
+    color: #FFFFFF;
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    text-align: center;
+}
+span.square-button:hover {
+    background-color: #BBC;
+}
+
+button.edit-world {
+    width: 200px;
+    border: 0px;
+    margin: 0px;
+    background-color: #2ECC71;
+    color: #FFF;
+    padding: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    //opacity: 0.8;
+    text-align: center;
+}
+button.edit-world:disabled, button.edit-world:disabled:hover {
+    background-color: #BBC;
+}
+
+button.edit-world:hover {
+    background-color: #3EDC81;
+}
+
+button.edit-world-me {
+    background-color: #3498DB;
+}
+button.edit-world-me:hover {
+    background-color: #44A8EB;
+}
+
+button.edit-world-other {
+    background-color: #E74C3C;
+}
+button.edit-world-other:hover {
+    background-color: #F75C4C;
+}
+
+
+
+div.edit-item-1 {
+    border: 0px;
+    background-color: #2ECC71;
+    color: #FFF;
+    padding: 5px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 16px;
+    text-align: center;
+}
+div.edit-item-2 {
+    border: 0px;
+    background-color: #E74C3C;
+    color: #FFF;
+    padding: 5px;
+    font-weight: bold;
+    //opacity: 0.8;
+    font-size: 16px;
+    text-align: center;
+}
