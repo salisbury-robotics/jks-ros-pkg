@@ -964,6 +964,7 @@ def run(a, w):
 if __name__ == '__main__':
     if "--test" in sys.argv:
         my_path = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(my_path + "/../blast_test")
         my_path += "/../blast_test"
         import blast_world_test
         run(["test_actions"], blast_world_test.make_test_world(my_path))

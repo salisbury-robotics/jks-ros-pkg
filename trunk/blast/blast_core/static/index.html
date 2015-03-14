@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <title>BLAST!</title>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.4.3/jquery.min.js"></script>
+    <link href="/static/style.css" rel="stylesheet" type="text/css" />
+  </head>
+  
+  <script>
+    SESSION_TIMEOUT = ${SESSION_TIMEOUT};
+  </script>
+  
+  <body>
+    <div style="margin-left: auto; margin-right: auto; width:400px;" id="primary-screen">
+      <div style="height: 100px;"></div>
+      <div class="list" id="map-list">
+	<div class="list-header">
+	  BLAST
+	</div>
+	<div style="height: 100px;"></div>
+	<div class="list-header">
+	  Maps
+	</div>
+      </div>
+    </div>
+
+    
+    <div style="margin-left: auto; margin-right: auto; width:400px;" id="login-screen">
+      <div style="height: 100px;"></div>
+      <div class="list" id="map-list">
+	<div class="list-header">
+	  BLAST
+	</div>
+	<div style="height: 100px;"></div>
+	<div class="list-header">
+	  Login
+	</div>
+      </div>
+    </div>
+
+    <div style="margin-left: auto; margin-right: auto; width:1000px; position: relative;" id="map-screen">
+
+
+      <div id="plan-action-div"
+	   style="position: absolute; width: 800px; height: 560px; top: 200px; left: 100px; background-color: #2980b9; z-index: 9000; ">
+	<div style="width: 700px; margin: 50px; text-align: center;">
+	  Order Action
+	</div>
+
+	<div style="width: 760px; margin: 20px; text-align: center;">
+	  Robot: <select id="plan-action-robot"></select> Action: <select id="plan-action-type"></select>
+	</div>
+
+	<div id="plan-action-items" style="width: 760px; margin: 20px; text-align: center; overflow: auto; height: 300px;">
+	</div>
+
+	<div style="width: 750px; margin: 25px; text-align: center;">
+	  <button class="edit-world" id="plan-action-ok">Plan</button>
+	  <button class="edit-world edit-world-other" id="plan-action-cancel">Cancel</button>
+	</div>
+      </div>
+
+
+      <div style="height: 100px;"></div>
+      <div style="width: 200px; height: 800px; float: left;">
+	<div style="width: 200px;">
+	  <span class="square-button" id="back"><-</span>
+	  Zoom
+	  <span class="square-button" id="zoom-out">-</span>
+	  <span class="square-button" id="zoom-in">+</span>
+	</div>
+	<div style="height: 10px;"></div>
+
+	<button class="edit-world" id="edit-world">
+	</button>
+
+	<div style="height: 10px;"></div>
+
+	<div class="edit-robot" id="edit-robot">
+	  <div style="width: 200px;">
+	    <span class="square-button" id="edit-robot-exit">X</span>
+	    <span class="square-button" id="edit-robot-reset" style="width: 100px;">RESET</span>
+	  </div>
+
+	  <div style="height: 10px;"></div>
+	  <div class="edit-item-1">
+	    <div id="edit-robot-name"></div>
+
+	    X: <input id="edit-robot-x" style="width: 35px;"/>
+	    Y: <input id="edit-robot-y" style="width: 35px;"/>
+	    A: <input id="edit-robot-a" style="width: 35px;"/>
+	    Map: <select id="edit-robot-map" style="width: 140px;"></select>
+	  </div>
+	  
+	  
+	</div>
+
+
+
+	<div class="edit-nothing" id="edit-nothing">
+	  <div style="width: 200px;" id="mapbuffer">
+	  </div>
+
+	  <button class="edit-world" id="plan-action">Plan Action</button>
+	  <div style="height: 10px;" id="plan-action-buffer"></div>
+
+	  <div class="edit-item-1" id="map-items">
+	    Map Items
+	  </div>
+	  
+	  <div style="height: 10px;" id="map-items-buffer"></div>
+
+	  	  
+	  <button class="edit-world" id="plan-to-world">Plan to World</button>
+
+	  <div id="plan-buffer">
+	    <button class="edit-world edit-world-me" id="plan-execute" style="width: 100px; float: left;">Execute</button>
+	    <button class="edit-world edit-world-other" id="plan-clear" style="width: 100px; float: left;">Clear</button>
+	  </div>
+	  
+	</div>
+
+      </div>
+      
+      <div style="width: 800px; height: 800px; position:relative; overflow: scroll; float: right;">
+	<div id="map-container" style="position: relative; margin: 0px; padding: 0px; border: 0px;">
+	  <div id="map" style="position: absolute; margin: 0px; padding: 0px; border: 0px;">
+	    <!--<div id="map-upper-left" style="position: absolute; left: 0px; top:0px; width: 1px; height: 1px;" />-->
+	    <img src="" alt="Map failed to load" id="map-image" style="position: absolute; left: 0px; top: 0px" draggable="false" />
+	    <!--<div id="map-lower-right" style="position: absolute; left: 0px; top:0px; width: 1px; height: 1px;" />-->
+	  </div>
+	</div>
+      </div>
+    </div>
+
+
+  </body>
+
+
+  <script src="/static/main.js"></script>
+</html>
