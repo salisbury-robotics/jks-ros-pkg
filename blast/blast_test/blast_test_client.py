@@ -8,12 +8,6 @@ import blast_network_bridge, blast_action_exec
 exec_path = my_path + "/../blast_client/blast_action_exec.py"
 actions_path = my_path + "/test_actions/"
 
-def action_start(action_robot_type, action_name, action_id, parameters, write_callback, capability_write):
-    global actions_path, exec_path
-    py_file = actions_path + action_robot_type + "__" + action_name + ".py"
-    cmd = ['python', exec_path, py_file, parameters]
-    exc = blast_network_bridge.ActionExecutor(cmd, action_id, write_callback, capability_write)
-    return exc.get_callback()
 
 def install_action(robot_type, action_name):
     global actions_path
@@ -242,8 +236,9 @@ def capability_cb(cap, fn, param):
     return None
 
 map_store = blast_network_bridge.MapStore(my_path + "/maps_client/")
+action_store = blast_network_bridge.ActionStore(my_path + "/actions_client/")
 bnb = blast_network_bridge.BlastNetworkBridge("localhost", 8080, "stair4", "pr2-cupholder",
-                                              action_start, install_action, capability_cb, map_store)
+                                              install_action, capability_cb, map_store, action_store)
 bnb.start()
 bnb.wait()
 bnb.stop()

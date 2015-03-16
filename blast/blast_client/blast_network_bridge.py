@@ -6,6 +6,48 @@ def enc_str(s):
 def dec_str(s):
     return s.replace("%n", "\n").replace("%c", ",").replace("%p", "%")
 
+
+class ActionStore():
+    def __init__(self, adir):
+        self.lock = threading.Lock()
+        self.actions_dir = adir
+        
+    def action_file(self, robot, action):
+        #TODO: reject bad characters
+        return self.actions_dir + "/" + robot + "__" + action + ".py"
+
+    def read_action(self, robot, action):
+        self.lock.acquire()
+        fstr = ""
+        try:
+            fn = open(self.action_file(robot, action), "r")
+            for l in fn: fstr += l
+            fn.close()
+        except:
+            fstr = None
+        self.lock.release()
+        return fstr
+
+    #Validates that an action exists and that it has the correct hash
+    def validate_action(self, robot, action, ahash = None):
+        fstr = self.read_action(robot, action)
+        if fstr == None:
+            return False
+        if ahash == None:
+            return True
+        hl = hashlib.sha256()
+        hl.update(str(fstr))
+        mh = str(hl.digest())
+        return (mh == ahash)
+        
+    def write_action(self, robot, action, content):
+        self.lock.acquire()
+        f = open(self.action_file(robot, action), "w")
+        f.write(content)
+        f.close()
+        self.lock.release()
+        
+
 class MapStore():
     def __init__(self, mdir):
         self.lock = threading.Lock()
@@ -78,8 +120,9 @@ class MapStore():
 
 class BlastNetworkBridge:
     def __init__(self, host, port, robot_name, robot_type, 
-                 action_start, install_action, capability_cb, map_store, require_location = False):
-        self.action_start = action_start
+                 install_action, capability_cb,
+                 map_store, action_store, require_location = False):
+        self.action_store = action_store
         self.install_action = install_action
         self.robot_name = robot_name
         self.robot_type = robot_type
@@ -106,6 +149,16 @@ class BlastNetworkBridge:
             self.connect_fail = True
             self.error = "CONNECT FAIL"
 
+    def action_start(self, action_robot_type, action_name, action_id, parameters, write_callback, capability_write):
+        file_name = self.action_store.action_file(action_robot_type, action_name)
+        if file_name == None: return None
+        my_path = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(my_path + "/../blast_client")
+        exec_path = my_path + "/../blast_client/blast_action_exec.py"
+        cmd = ['python', exec_path, file_name, parameters]
+        exc = ActionExecutor(cmd, action_id, write_callback, capability_write)
+        return exc.get_callback()
+    
     def capability_write(self, aid, cap, fn, param):
         if not aid in self.action_callbacks:
             return "Gnull"
@@ -198,20 +251,34 @@ class BlastNetworkBridge:
                         self.sock.send("LIST_MAPS\n")
                     elif packet.find("ACTIONS") == 0:
                         ac_data = packet.split(",")[1:]
-                        for i in range(len(ac_data)/2):
-                            if not self.install_action(ac_data[i*2], ac_data[i*2+1]):
-                                print "Could not install an action"
-                                self.error = "Could not install an action: " + str(ac_data[i*2]) \
-                                    + " " + str(ac_data[i*2+1]) + " - " + str(ac_data)
+                        request_action = None
+                        for i in range(len(ac_data)/3):
+                            arobot, aaction, ahash = dec_str(ac_data[i*3]), dec_str(ac_data[i*3+1]), dec_str(ac_data[i*3+2])
+                            #print "We are trying action",
+                            if not self.action_store.validate_action(arobot, aaction, ahash):
+                                request_action = [arobot, aaction]
                                 break
                         #Start the controller
+                        print "ACTIONS", request_action
                         if self.error:
+                            print "Error"
                             self.connection_lock.release()
                             break
-                        if self.require_location:
+                        if request_action != None:
+                            self.sock.send("GET_ACTION," + enc_str(request_action[0]) + "," + enc_str(request_action[1]) + ",\n")
+                        elif self.require_location:
+                            print "Wait loc"
                             self.sock.send("WAIT_LOCATION\n")
                         else:
+                            print "Start!!!"
                             self.sock.send("START\n")
+                    elif packet.find("ACTION,") == 0:
+                        ac_data = packet.split(",")[1:]
+                        actr = dec_str(ac_data[0])
+                        actn = dec_str(ac_data[1])
+                        code = dec_str(ac_data[2])
+                        self.action_store.write_action(actr, actn, code)
+                        self.sock.sendall("LIST_ACTIONS\n")
                     elif packet.find("MAPS") == 0:
                         map_data = packet.split(",")[1:]
                         is_good = True
