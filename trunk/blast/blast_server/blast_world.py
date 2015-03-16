@@ -271,11 +271,11 @@ class BlastError(Exception):
 
 
 class BlastAction(object):
-    __slots__ = ['name', 'robot', 'parameters', 'condition', 'time_estimate',
+    __slots__ = ['name', 'code', 'code_hash', 'robot', 'parameters', 'condition', 'time_estimate',
                  'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces', 'is_object_action']
 
     def to_dict(self):
-        return {"name": self.name, "parameters": self.parameters, "condition": self.condition, 
+        return {"name": self.name, "code": self.code, "parameters": self.parameters, "condition": self.condition, 
                 "time_estimate": self.changes, "display": self.display, 
                 "planable": self.planable, 'user': self.user, 'failure_modes': self.failure_modes}
 
@@ -288,8 +288,9 @@ class BlastAction(object):
             if not var.split(".")[0] in self.parameters:
                 return False
         return True
+        
 
-    def __init__(self, name, parameters, condition, time_estimate, 
+    def __init__(self, name, code, parameters, condition, time_estimate, 
                  changes, display, workspaces, planable = True, user = False, fm = {}): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
@@ -299,6 +300,10 @@ class BlastAction(object):
         self.workspaces = workspaces
         self.failure_modes = fm
         self.is_object_action = False
+        self.code = code
+        hl = hashlib.sha256()
+        hl.update(str(code))
+        self.code_hash = str(hl.digest())
 
         if "robot" in self.parameters:
             raise BlastTypeError("A parameter cannot be called 'robot' in " + name)
