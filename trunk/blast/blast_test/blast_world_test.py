@@ -2,7 +2,26 @@ import blast
 from blast_world import *
 import os, sys
 
-
+five_coffee_code = """
+#Code for the action__pr2-cupholder__five-coffee-run. Parameters 'robot', 'shop' and 'person_location'
+STARTSUB:
+    plan_return = PLAN {"extra_steps": [(robot, "coffee-run", 
+                                         {"shop": shop, "person_location": person_location}),]}
+    IF ('==', plan_return, FALSE) FAIL;
+    plan_return = PLAN {"extra_steps": [(robot, "coffee-run", 
+                                         {"shop": shop, "person_location": person_location}),]}
+    IF ('==', plan_return, FALSE) FAIL;
+    plan_return = PLAN {"extra_steps": [(robot, "coffee-run", 
+                                         {"shop": shop, "person_location": person_location}),]}
+    IF ('==', plan_return, FALSE) FAIL;
+    plan_return = PLAN {"extra_steps": [(robot, "coffee-run", 
+                                         {"shop": shop, "person_location": person_location}),]}
+    IF ('==', plan_return, FALSE) FAIL;
+    plan_return = PLAN {"extra_steps": [(robot, "coffee-run", 
+                                         {"shop": shop, "person_location": person_location}),]}
+    IF ('==', plan_return, FALSE) FAIL;
+    
+"""
 
 coffee_code = """
 #Code for the action__pr2-cupholder__coffee-run = action pr2-cupholder.coffee-run. Parameters 'robot', 'shop' and 'person_location'
@@ -40,7 +59,7 @@ STARTSUB:
 
     plan_return = PLAN {"world_limits": {"robot-holders": 
                                          {robot:
-                                          {"left-arm": coffee-run__coffee_money_bag},},
+                                          {"left-arm": coffee_money_bag},},
                                         },
                         "extra_steps": [(robot, "buy-coffee", {"shop": shop}),], };
     IF ('==', plan_return, FALSE) FAIL;
@@ -64,43 +83,23 @@ STARTSUB:
     SETROBOTHOLDER {"holder": robot + '.left-arm',
                     "require-preexisting": True, "object-type": "empty_ziplock_1L_bag"};
 
-            #Set the bag down on the table
+    #Set the bag down on the table
     coffee_money_bag = GETOBJECT {'holder': robot + '.left-arm'};
 
-    plan_return = PLAN, {"world_limits": 
-                         {"place-objects":
-                          [{'object': coffee_money_bag,
-                            'surfaceposition': bag_location,
-                           },]},};
+    plan_return = PLAN {"world_limits": 
+                        {"place-objects":
+                         [{'object': coffee_money_bag,
+                           'surfaceposition': bag_location,
+                          },]},};
     IF ('==', plan_return, FALSE) FAIL; 
     RETURN;
 """
 
-def process_code(codebase, action_name = None):
-    strings_d = {}
-    string_c = 0
 
-    codebase_strip = codebase
-    codebase_ns = ""
-    while codebase_strip.find('\'') != 0 or codebase_strip.find('"') != 0:
-        fsq = codebase_strip.find('\'')
-        fdq = codebase_strip.find('"')
-        str_d = None
-        if fsq >= 0 and (fdq == -1 or fsq < fdq):
-            str_d = '\''
-        if fdq >= 0 and (fsq == -1 or fdq < fsq):
-            str_d = '"'
-        if str_d == None:
-            codebase_ns += codebase_strip
-            break
-        else:
-            break
-        
-            
-    
     
 
-process_code(coffee_code, 'action__pr2-cupholder__coffee-run')
+#print process_action_code(coffee_code, 'action__pr2-cupholder__coffee-run')
+#print process_action_code(five_coffee_code, 'action__pr2-cupholder__five-coffee-run')
 
 def code_action(*args, **kwargs):
     name = args[0]
@@ -114,6 +113,12 @@ def code_action(*args, **kwargs):
         for l in codef:
             code += l
         codef.close()
+    if name == "pr2-cupholder.coffee-run":
+        code = coffee_code
+    if name == "pr2-cupholder.five-coffee-run":
+        code = five_coffee_code
+    if code == None:
+        raise Exception("Codeless test action:" + name)
     
     argc = tuple([name, code] + list(args[1:]))
     return BlastAction(*argc, **kwargs)
@@ -430,7 +435,7 @@ def make_test_actions():
             BlastCodeStep("action__pr2-cupholder__coffee-run__failure", "FAIL"),
             ]
 
-    return test, code
+    return test, [] #code
 
 
 def make_test_types_world():

@@ -23,6 +23,252 @@ def safe_copy(c):
         return c
     return c.copy()
 
+
+
+
+def process_action_code(codebase, action_name = None):
+    strings_d = {}
+    string_c = 0
+    label_prefix = action_name
+    if label_prefix == None: label_prefix = "autogen_label"
+    label_prefix += "__internal_label__"
+    label_count = 0
+    def get_label():
+        label_count = label_count + 1
+        return label_prefix + str(label_count - 1)
+
+    codebase_strip = ""
+    for i in codebase.split("\n"):
+        if i.strip().find("#") != 0:
+            codebase_strip += i + "\n"
+    codebase_ns = ""
+    while codebase_strip.find('\'') != 0 or codebase_strip.find('"') != 0:
+        fsq = codebase_strip.find('\'')
+        fdq = codebase_strip.find('"')
+        str_d = None
+        if fsq >= 0 and (fdq == -1 or fsq < fdq):
+            str_d = '\''
+        if fdq >= 0 and (fsq == -1 or fdq < fsq):
+            str_d = '"'
+        if str_d == None:
+            codebase_ns += codebase_strip
+            break
+        else:
+            codebase_ns += codebase_strip[:codebase_strip.find(str_d)]
+            codebase_strip = codebase_strip[codebase_strip.find(str_d)+1:]
+            end = codebase_strip.replace("\\\\", "AA").replace("\\" + str_d, "AA").find(str_d)
+            str_found = codebase_strip[:end]
+            if str_found not in strings_d:
+                strings_d[str_found] = string_c
+                string_c += 1
+            codebase_ns += "<" + str(strings_d[str_found]) + ">"
+            codebase_strip = codebase_strip[end+1:]
+
+    string_nd = {}
+    for k, v in strings_d.iteritems():
+        string_nd[v] = k
+
+    code_data = []
+    for ln in codebase_ns.split(";"):
+        ln = ln.replace("\t", " ").replace("\n", " ").replace("\r", " ")
+        while True:
+            ll = len(ln)
+            ln = ln.replace("  ", " ").strip()
+            if ll == len(ln): break
+
+
+        def read_dict(ss):
+            if ss[0] != "{":
+                return None, None
+            ss = ss[1:]
+            #print "RD", ss
+            rdic = {}
+            while True:
+                while ss != "" and ss[0] == " ": ss == ss[1:]
+                if ss == "":
+                    return None, None
+                if ss[0] == "}":
+                    ss = ss[1:].strip() #Remove the close }
+                    break
+                t, ss = read_token(ss)
+                if ss[0] != ":": return None, None
+                ss = ss[1:].strip() #Skip colon
+                t2, ss = read_token(ss, "}")
+                if ss[0] == ',': ss = ss[1:].strip() #Remove the comma
+                rdic[t] = t2
+            return rdic, ss
+                
+        def read_array(ss):
+            while ss != "" and ss[0] == " ": ss = ss[1:]
+            starter = ss[0]
+            if starter == '(':
+                ender = ')'
+            elif starter == '[':
+                ender = ']'
+            else:
+                return None, None
+
+            ss = ss[1:].strip() #Remove opener
+            toks = []
+            while ss[0] != ender:
+                t, ss = read_token(ss, ender)
+                toks.append(t)
+                if ss == "": return None, None
+                if ss[0] == ',': ss = ss[1:].strip()
+                #print t, ss
+            ss = ss[1:].strip()
+            if ender == ')': toks = tuple(toks)
+            return toks, ss
+            
+
+        def read_token(ss, ender = " "):
+            while ss != "" and ss[0] == " ": ss = ss[1:]
+            if ss == "":
+                return None, None
+            if ss[0] == "{":
+                return read_dict(ss)
+            if ss[0] == "(" or ss[0] == "[":
+                return read_array(ss)
+            ll = ss.find(ender)
+            if ll < 0 or (ss.find(":") < ll and ss.find(":") != -1):
+                ll = ss.find(":")
+            if ll < 0 or (ss.find(",") < ll and ss.find(",") != -1):
+                ll = ss.find(",")
+            if ll < 0: ll = len(ss)
+            return ss[0:ll].strip(), ss[ll:].strip()
+
+        if ln.strip() == "": continue
+
+        goto_line = None
+        if ln.split(" ")[0].find(":") != -1:
+            goto_line = ln[:ln.find(": ")].strip()
+            ln = ln[ln.find(": ")+1:].strip()
+            if goto_line == "STARTSUB": goto_line = action_name
+        #print
+        #print goto_line, "->", ln
+        
+
+        tokens = []
+        ln2 = ln.strip()
+        while ln2 != "":
+            if ln2[0] == ":" or ln2[0] == ",":
+                raise Exception("Parse error: " + ln)
+            t, ln2 = read_token(ln2)
+            #print t, "->", ln2
+            if ln2 == None:
+                raise Exception("Parse error: " + ln)
+            tokens.append(t)
+            ln2 = ln2.strip()
+
+        ret_var = None
+        if len(tokens) > 2:
+            if tokens[1] == '=':
+                ret_var = tokens[0]
+                tokens = tokens[2:]
+
+        def transform_param(param):
+            if param == None: return param
+            if type(param) == dict:
+                do = {}
+                for k, v in param.iteritems():
+                    do[transform_param(k)] = transform_param(v)
+                return do
+            if type(param) == list or type(param) == tuple:
+                r = [transform_param(x) for x in param]
+                if type(param) == tuple: r = tuple(r)
+                return r
+
+            if type(param) == unicode: param = str(param)
+            if param == "" or type(param) != str:
+                return param
+            if param.find("+") != -1:
+                v = param.split("+")
+                if len(v) == 2:
+                    var0 = v[0].find("<") == -1
+                    var1 = v[1].find("<") == -1
+                    if var0 and var1:
+                        raise Exception("You cannot append two variables: " + ln + " " + param)
+                    elif var0 and not var1:
+                        s = string_nd[int(v[1].strip().strip('<>').strip())]
+                        return BlastParameterPtr(v[0].strip(), postfix = s)
+                    elif not var0 and var1:
+                        s = string_nd[int(v[0].strip().strip('<>').strip())]
+                        return BlastParameterPtr(v[1].strip(), prefix = s)
+                    elif not var0 and not var1:
+                        s0 = string_nd[int(v[0].strip().strip('<>').strip())]
+                        s1 = string_nd[int(v[1].strip().strip('<>').strip())]
+                        return s0 + s1
+                elif len(v) == 3:
+                    var0 = v[0].find("<") == -1
+                    var1 = v[1].find("<") == -1
+                    var2 = v[2].find("<") == -1
+                    if not var0 and var1 and not var2:
+                        s0 = string_nd[int(v[0].strip().strip('<>').strip())]
+                        s2 = string_nd[int(v[2].strip().strip('<>').strip())]
+                        return BlastParameterPtr(v[1].strip(), prefix = s0, postfix = s1)
+                    else:
+                        raise Exception("Not yet implemented: " + ln)
+                else:
+                    raise Exception("You can only have two + in a variable currently: " + ln)
+
+            if param.strip()[0] == '<' and param.strip()[-1] == '>':
+                return string_nd[int(param.strip().strip('<>').strip())]
+            if param.lower().strip() == "false": return False
+            if param.lower().strip() == "true": return True
+            return BlastParameterPtr(param)
+
+        if tokens[0] == "IF":
+            if ret_var != None:
+                raise Exception("No return allowed for ifs: " + ln)
+            if type(tokens[1]) != tuple:
+                raise Exception("Invalid if statement - no tuple: " + ln)
+            #if (COND,...) <true> <false>?
+            cond = tokens[1]
+            truth = tokens[2]
+            fails = ""
+            if len(tokens) > 3: fails = tokens[3]
+            
+            if type(truth) != str: raise Exception("Invalid if statement - true not a label: " + ln)
+            if type(fails) != str: raise Exception("Invalid if statement - false not a label: " + ln)
+            
+            ec = []
+            if truth.upper() == "RETURN" or truth.upper() == "FAIL" or fails.upper() == "RETURN" or fails.upper() == "FAIL":
+                label_count = label_count + 1
+                end_label = label_prefix + str(label_count - 1)
+                if truth.upper() == "RETURN" or truth.upper() == "FAIL":
+                    label_count = label_count + 1
+                    label = label_prefix + str(label_count - 1)
+                    ec.append(BlastCodeStep(None, "GOTO", {"label": end_label}, None))
+                    ec.append(BlastCodeStep(label, truth.upper(), {}, None))
+                    truth = label
+                if fails.upper() == "RETURN" or fails.upper() == "FAIL":
+                    label_count = label_count + 1
+                    label = label_prefix + str(label_count - 1)
+                    ec.append(BlastCodeStep(None, "GOTO", {"label": end_label}, None))
+                    ec.append(BlastCodeStep(label, fails.upper(), {}, None))
+                    fails = label
+                ec.append(BlastCodeStep(end_label, "NOOP", {}, None))
+                
+                
+            pd = {"condition": transform_param(cond),
+                  "label_true": truth}
+            if fails != "": pd["label_false"] = fails
+            #print cond, "->", pd
+            code_data.append(BlastCodeStep(goto_line, "IF", pd))
+            code_data.extend(ec)
+        else:
+            #Normal function
+            fn = tokens[0]
+            if len(tokens) > 1:
+                param = tokens[1]
+            else:
+                param = {}
+            param = transform_param(param)
+            #print goto_line, ret_var, fn, param
+            code_data.append(BlastCodeStep(goto_line, fn, param, ret_var))
+    return code_data
+    
+
 class BlastCodeError(Exception):
     __slots__ = ['value']
     def __init__(self, value):
@@ -40,8 +286,14 @@ class BlastParameterPtr(object):
         self.postfix = postfix
     def __str__(self):
         sub = ""
-        if self.sub != None: sub = ", " + str(self.sub)
-        return "ParameterPtr(\"" + str(self.parameter) + sub + "\")"
+        if self.sub != None: sub = "\", \"" + str(self.sub)
+        pref = ""
+        if self.prefix != None:
+            pref = ", prefix=\"" + self.prefix + "\""
+        post = ""
+        if self.postfix != None:
+            pref = ", postfix=\"" + self.postfix + "\""
+        return "ParameterPtr(\"" + str(self.parameter) + sub + "\"" + post + pref + ")"
     def __repr__(self): return self.__str__()
     def to_dict(self):
         return {'parameter_ptr': True, 'sub': self.sub,
@@ -146,6 +398,9 @@ class BlastCodeStep(object):
                 raise BlastCodeError("Need a label for STARTSUB")
             if label.strip() == "":
                 raise BlastCodeError("Need a label for STARTSUB")
+        elif command == "NOOP":
+            if parameters != {}:
+                raise BlastCodeError("A NOOP may not have parameters")
         elif command == "CALLSUB":
             #self.acceptable_parameters(['sub'], False)
             if not "sub" in parameters:
