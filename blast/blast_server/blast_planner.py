@@ -656,6 +656,7 @@ class Planner(object):
                                     blast_world.BlastCodeStep("success", "RETURN"),
                                     blast_world.BlastCodeStep("failure", "FAIL"),
                                     ]
+                            code.extend(blast_world.process_action_code(action_type.code, p['sub']))
                             #Add it to the program at the proper step
                             lstep = [min_time, "SETPLAN", uid, None, code, prog_ord]
                             prog_ord = prog_ord + 1
@@ -1078,7 +1079,7 @@ class BlastCodeExec(object):
             return tuple([self.paste_parameters(v, env) for v in p])
         if type(p) == blast_world.BlastParameterPtr:
             if not p.parameter in env:
-                raise blast_world.BlastCodeError("Invalid variable/parameter: " + str(p.parameter))
+                raise blast_world.BlastCodeError("Invalid variable/parameter: " + str(p.parameter) + " " + str(env))
                 return
             r = env.get(p.parameter)
             if type(r) == BlastCodeObjectPtr:
@@ -1137,19 +1138,28 @@ class BlastCodeExec(object):
             else:
                 world.clear_scan(next_step[4]) #Set back the scan so planning runs with our scans
                 return params
+        elif ps.command == "NOOP":
+            next_step[0] = next_step[0] + 1
+            return self.execute(world)
         elif ps.command == "IF":
             def condition_eval(c):
-                if type(c) == bool:
+                if type(c) == type([]):
+                    return c
+                if type(c) == bool or type(c) == list:
                     return c
                 if type(c) == int or type(c) == float or type(c) == long or type(c) == str:
                     return c
-                if type(c) == tuple or type(c) == list:
+                if type(c) == blast_world.BlastPosIrr or type(c) == blast_world.BlastPos or type(c) == blast_world.BlastSurface:
+                    return c
+                if type(c) == tuple: # or type(c) == list:
                     if len(c) == 0:
                         raise blast_world.BlastCodeError("Invalid code condition: " + str(c))
                     math_operators = {"<=": 2, ">=": 2, ">": 2, "<": 2, "==": -2, "+": -1, "-": 2, "/": 2, "*": -1}
                     operators = math_operators.copy()
                     operators["?"] = 1
                     if c[0] in operators:
+                        ci = c
+                        c = [c[0], ] + [condition_eval(x) for x in ci[1:]]
                         if operators[c[0]] >= 0:
                             if len(c) != operators[c[0]] + 1:
                                 raise blast_world.BlastCodeError("Invalid code condition arguments to '" + c[0] 
@@ -1162,7 +1172,7 @@ class BlastCodeExec(object):
                                                                  + " should be at least " + str(-operators[c[0]]))
                         if c[0] in math_operators:
                             for p in c[1:]:
-                                if not (type(p) == int or type(p) == float or type(p) == long):
+                                if not (type(p) == int or type(p) == float or type(p) == long or (type(p) == bool and c[0] == "==")):
                                     raise blast_world.BlastCodeError("Invalid code condition arguments to '" + c[0] 
                                                                      + "': must be int, float, or long: '" + str(p) + "'"
                                                                      + " not " + str(type(p)))
@@ -1170,11 +1180,15 @@ class BlastCodeExec(object):
                         if c[0] == "<=": return c[1] <= c[2]
                         if c[0] == "<": return c[1] < c[2]
                         if c[0] == ">": return c[1] > c[2]
+                        if c[0] == "==": return c[1] == c[2]
                         if c[0] == '?': 
                             return (c[1] != None and c[1] != False and c[1] != 0)
-
+                        raise blast_world.BlastCodeError("Invalid code operator: " + str(c))
+                    else:
+                        #raise blast_world.BlastCodeError("Invalid code - tupple is not an operator: " + str(c))
+                        return c #This is sketchy, because if there was an operator it would be evaluated.
                         
-                raise blast_world.BlastCodeError("Invalid code condition: " + str(c) + " - " + str(ps))
+                raise blast_world.BlastCodeError("Invalid code condition type: " + str(c) + " of " + str(type(c)) + " - " + str(ps))
             cr = condition_eval(params["condition"])
             if cr != True and cr != False:
                 raise blast_world.BlastCodeError("Invalid code condition result: " + str(c) + " returned " + str(cr))

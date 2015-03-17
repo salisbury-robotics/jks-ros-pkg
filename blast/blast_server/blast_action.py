@@ -284,14 +284,14 @@ class BlastActionExec:
     def get_teleop(self):
         r = None
         w = self._get_manager_world(None)
-        print "GET TELEOP"
+        #print "GET TELEOP"
         if self._robot in w.robots:
-            print "ROBOT IS GOOD"
+            #print "ROBOT IS GOOD"
             rb = w.robots[self._robot]
             if rb.is_active:
-                print "ROBOT IS ACTIVE"
+                #print "ROBOT IS ACTIVE"
                 r = rb.is_active.get_teleop_dict()
-                print "RETURN", r
+                #print "RETURN", r
         self._release_manager_world(None)
         return r
     
