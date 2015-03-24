@@ -952,7 +952,7 @@ def run(a, w):
     #mthread = ManagerThread()
     #mthread.start()
 
-    app.run(debug=DEBUG, threaded=True, use_reloader=False, use_evalex=False)
+    app.run(debug=DEBUG, host='0.0.0.0', threaded=True, use_reloader=False, use_evalex=False)
     print "Terminating"
     queue_load(None, "terminate", None)
     global_feed_alive = False

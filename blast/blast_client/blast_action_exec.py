@@ -1,5 +1,5 @@
 
-import sys, json, traceback, math
+import sys, json, traceback, math, os, socket
 
 def enc_str(s):
     return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
@@ -124,23 +124,48 @@ class BlastSurface(object):
 #over stdout, avoiding problems with mixing log
 #data into IPC data. All log data goes into 
 #stderr along with any generated error messages.
+port = None
 if __name__ == '__main__':
-    ipc = sys.stdout
-    ipc_ind = sys.stdin
-    sys.stdout = sys.stderr
+    try: 
+        port = sys.argv[3]
+    except:
+        port = None
+    if port:
+        ipc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ipc.connect(('127.0.0.1', int(port)))
+        ipc_ind = ipc
+    else:
+        ipc = sys.stdout
+        #ipc = os.fdopen(sys.stdout.fileno(), 'w', 0)
+        ipc_ind = sys.stdin
+        sys.stdout = sys.stderr
 else:
     ipc = None
     ipc_ind = None
 
-def ipc_write_packet(packet):
-    ipc.write(packet + "\n")
-    ipc.flush()
 
+BIG = " "*2048
+def ipc_write_packet(packet):
+    ipc.write(packet + BIG + "\n")
+    #ipc.flush()
+    raise Error("What a drag")
+
+ipc_buffer = ""
 def ipc_packet(packet):
-    ipc.write(packet + "\n")
-    ipc.flush()
+    global ipc_buffer
+    #ipc.write(packet + BIG + "\n")
+    #ipc.writeln(packet)
+    #print packet
+    ipc.send(packet + "\n")
+    #sys.stdout.write(packet + "\n")
+    #ipc.flush()
+    #print packet
+    #ipc.flush()
     #print "TO IPC", packet
-    r = ipc_ind.readline()
+    while ipc_buffer.find("\n") == -1:
+        ipc_buffer += ipc_ind.recv(1024)
+    r = ipc_buffer[:ipc_buffer.find("\n")]
+    ipc_buffer = ipc_buffer[ipc_buffer.find("\n")+1:]
     #print "FROM IPC", r
     return r
 
@@ -499,7 +524,7 @@ class BlastActionExec():
         #    position = ",".join([str(x) for x in position])
         #ps = ",".join([str(x).strip() for x in position.strip().strip('[]()').strip().replace("Pos(", "").replace(")", "").split(",")])
 
-        print position, holder
+        #print position, holder
 
         if world:
             res = ipc_packet("ROBOT_PLACE_OBJECT," + str(world) + "," 
@@ -600,8 +625,9 @@ if __name__ == '__main__':
             ipc_write_packet("ERROR\n")
         except:
             print "Failed to write error"
-else:
-    print "Not running because action is not main."
+
+#else:
+#    print "Not running because action is not main."
 
 
 
