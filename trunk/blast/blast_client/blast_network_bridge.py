@@ -1,5 +1,5 @@
 
-import socket, threading, time, traceback, hashlib, sys, subprocess, os, json
+import socket, threading, time, traceback, hashlib, sys, subprocess, os, json, random
 
 def enc_str(s):
     return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
@@ -155,7 +155,7 @@ class BlastNetworkBridge:
         my_path = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(my_path + "/../blast_client")
         exec_path = my_path + "/../blast_client/blast_action_exec.py"
-        cmd = ['python', exec_path, file_name, parameters]
+        cmd = ['python', '-u', exec_path, file_name, parameters]
         exc = ActionExecutor(cmd, action_id, write_callback, capability_write)
         return exc.get_callback()
     
@@ -401,8 +401,24 @@ class ActionExecutor():
         self.action_id = action_id
         self.write_callback = write_callback
         self.capability_callback = capability_callback
+        port = 0
+        self.socket = None
+        while True:
+            try:
+                port = random.randint(10000, 30000)
+                print "For ", start_command
+                print port
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socket.bind(('127.0.0.1', port))
+                start_command.append(str(port))
+                break
+            except:
+                print "Error"
+                traceback.print_exc()
+                pass
+        self.socket.listen(10)
         self.proc = subprocess.Popen(start_command,
-                                     stdout=subprocess.PIPE, 
+                                     stdout=sys.stdout, 
                                      stdin=subprocess.PIPE,
                                      stderr=sys.stdout) #TODO logging output needs to be handled
         self.thread = threading.Thread(target=self.thread_run)
@@ -412,10 +428,21 @@ class ActionExecutor():
         return self.write
     
     def thread_run(self):
+        self.conn, self.addr = self.socket.accept()
+        buff = ""
         while not self.shutdown:
-            result = self.proc.stdout.readline()
+            #result = self.proc.stdout.readline()
+            #if result != "":
+            #    print "Message", result
+            if buff.find("\n") == -1:
+                buff += self.conn.recv(1024)
+                print buff
+            result = ""
+            if buff.find("\n") != -1:
+                result = buff[:buff.find("\n")]
+                buff = buff[buff.find("\n")+1:]
+                print "We have result: " , result
             if result != "":
-                #print "Data", result
                 if (result.find("CAPABILITY,") == 0):
                     data = result.split(",")
                     cap = dec_str(data[1])
@@ -436,6 +463,14 @@ class ActionExecutor():
                     self.write_callback(str(self.action_id) + ",TERMINATE%n\n", terminate_action = self.action_id)
                 time.sleep(0.001)
         print "Thread shutdown"
+        try:
+            self.conn.close()
+        except:
+            print "Con could not be closed"
+        try:
+            self.socket.close()
+        except:
+            print "Socket could not be closed"
         
     def write(self, data):
         if data == None:
@@ -444,8 +479,9 @@ class ActionExecutor():
                 self.proc.terminate()
             self.thread.join()
             return
-        self.proc.stdin.write(data)
-        self.proc.stdin.flush()
+        self.conn.send(data)
+        #self.proc.stdin.write(data)
+        #self.proc.stdin.flush()
         
         
 
