@@ -23,8 +23,17 @@ def safe_copy(c):
         return c
     return c.copy()
 
-
-
+def copy_dict(c):
+    if type(c) == dict:
+        d = {}
+        for k, v in c.iteritems():
+            d[copy_dict(k)] = copy_dict(v)
+        return d
+    elif type(c) == list:
+        return [copy_dict(x) for x in c]
+    elif type(c) == tuple:
+        return tuple([copy_dict(x) for x in c])
+    return c
 
 def process_action_code(codebase, action_name = None):
     strings_d = {}
@@ -525,9 +534,18 @@ class BlastError(Exception):
         return repr(self.value)
 
 
+
 class BlastAction(object):
     __slots__ = ['name', 'code', 'code_hash', 'robot', 'parameters', 'condition', 'time_estimate',
                  'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces', 'is_object_action']
+
+    def copy(self):
+        return BlastAction(self.name, self.code, copy_dict(self.parameters),
+                           copy_dict(self.condition), copy_dict(self.time_estimate),
+                           copy_dict(self.changes),  copy_dict(self.display),
+                           copy_dict(self.workspaces),
+                           planable = self.planable, user = self.user, 
+                           fm = copy_dict(self.failure_modes))
 
     def to_dict(self):
         return {"name": self.name, "code": self.code, "parameters": self.parameters, "condition": self.condition, 
@@ -621,6 +639,7 @@ class BlastAction(object):
         if 'success' in fm:
             raise BlastTypeError("A failure mode cannot be called 'success'")
         
+
         for mode, changes in [("success", self.changes),] + fm.items():
             for var in changes:
                 if var != "robot.location" and var.find("robot.holders.") != 0 and var.find("robot.positions.") != 0 \
@@ -708,6 +727,45 @@ class BlastWorldTypes(object):
         self.robot_action_cache = {}
         self.action_for_robot_cache = {}
         self.add_script(hunt)
+
+    def get_keys_json(self):
+        return {"robots": self.robots.keys(),
+                "objects": self.objects.keys(),
+                "actions": self.actions.keys(),
+                "surfaces": self.surfaces.keys()}
+
+    def copy(self):
+        new = BlastWorldTypes()
+        new.script = [] #Blow away any pre-loaded libs
+        new.script_indexes = {}
+        new.add_script([x.copy() for x in self.script])
+        for k, v in self.surfaces.iteritems():
+            new.surfaces[k] = self.surfaces[k].copy()
+        lim = True
+        while lim:
+            lim = False
+            for k, v in self.robots.iteritems():
+                if k in new.robots: continue
+                if v.parent == None:
+                    new.robots[k] = v.copy()
+                elif v.parent.name in new.robots:
+                    new.robots[k] = v.copy(new.robots[v.parent.name])
+                else:
+                    lim = True
+        lim = True
+        while lim:
+            lim = False
+            for k, v in self.objects.iteritems():
+                if k in new.objects: continue
+                if v.parent == None:
+                    new.objects[k] = v.copy()
+                elif v.parent.name in new.objects:
+                    new.objects[k] = v.copy(new.objects[v.parent.name])
+                else:
+                    lim = True
+        for k, v in self.actions.iteritems():
+            new.actions[k] = v.copy()
+        return new
 
     def enumerate_robot(self, robot, require_object = False, allow_unplannable = False, include_robot_type = False, require_type = None):
         #if require_object == False:
@@ -808,6 +866,11 @@ class BlastWorldTypes(object):
 
 class SurfaceType(object):
     __slots__ = ['name', 'states', 'locations', 'planes']
+    def copy(self):
+        return SurfaceType(self.name, copy_dict(self.states),
+                           copy_dict(self.locations),
+                           copy_dict(self.planes))
+
     def __init__(self, name, states, locations, planes = {}):
         self.name = name
         self.states = states
@@ -825,6 +888,12 @@ class SurfaceType(object):
 class RobotType(object):
     __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort',
                  'display']
+    def copy(self, parent = None):
+        return RobotType(self.name, copy_dict(self.display),
+                         copy_dict(self.holders),
+                         copy_dict(self.position_variables),
+                         parent)
+
     def __init__(self, name, display, holders, position_variables, parent = None):
         #TODO: define "display" values
 
@@ -863,6 +932,10 @@ class ObjectType(object):
              'parent': self.parent, "world_icon": self.world_icon}
         if r['parent'] != None: r['parent'] = r['parent'].name
         return r
+
+    def copy(self, parent = None):
+        return ObjectType(self.name, copy_dict(self.motion_limits),
+                          copy_dict(self.world_icon), parent)
 
     def __init__(self, name, motion_limits, world_icon = None, parent = None):
         self.name = name

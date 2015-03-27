@@ -1,6 +1,6 @@
 import json, mimetypes, Image, StringIO, uuid, time, threading, sys, os
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash, Response
-import blast_action, blast_world
+import blast_action, blast_world, threading
 import trace_dumper
 
 DEBUG = True
@@ -10,6 +10,10 @@ SESSION_TIMEOUT = 10.0
 
 
 manager = None
+edit_types = None
+edit_types_lock = threading.Lock()
+edit_types_sessions = {"actions": {}, "robots": {},
+                       "surfaces": {}, "objects": {}}
 
 trace_dumper.trace_start("trace.html")
 
@@ -242,7 +246,7 @@ permissions = ["view", "edit", "plan"]
 
 
 def clean_sessions():
-    global login_sessions, login_sessions_lock
+    global login_sessions, login_sessions_lock, edit_types_lock, edit_types_sessions
     bad_sessions = []
     if debug_locks: print "Lock sessions start"
     login_sessions_lock.acquire()
@@ -259,6 +263,12 @@ def clean_sessions():
                         r.is_active.set_teleop(sid, False)
                 manager.world.lock.release()
             manager.world.clear_editor(str(sid))
+            edit_types_lock.acquire()
+            for s in edit_types_sessions:
+                for k in edit_types_sessions[s]:
+                    if edit_types_sessions[s][k] == str(sid):
+                        edit_types_sessions[s][k] = None
+            edit_types_lock.release()
             bad_sessions.append(sid)
 
     for sid in bad_sessions:
@@ -873,6 +883,15 @@ def get_feed(start):
         time.sleep(0.1)
     return return_json(None)
 
+@app.route('/types', methods=["GET"])
+def get_types():
+    global edit_types, edit_types_lock
+    if not get_user_permission(session, "edit"): return permission_error(request, "edit")
+    edit_types_lock.acquire()
+    r = edit_types.get_keys_json()
+    edit_types_lock.release()
+    return return_json(r)
+
 @app.route('/execute_plan/<target>', methods=["POST"])
 def execute_plan(target):
     return False
@@ -944,11 +963,12 @@ def on_program_change():
 
 
 def run(a, w):
-    global manager, global_feed_alive
+    global manager, global_feed_alive, edit_types
     manager = blast_action.BlastManager(a, w)
     manager.on_robot_change = on_robot_change
     manager.world.on_program_changed = on_program_change
     manager.on_surface_change = on_surface_change
+    edit_types = manager.world.world.types.copy()
     #mthread = ManagerThread()
     #mthread.start()
 
