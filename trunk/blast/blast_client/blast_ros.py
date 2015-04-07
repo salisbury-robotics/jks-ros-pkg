@@ -1,15 +1,7 @@
 
 import sys, os, threading, time, math, socket, random, subprocess
-my_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(my_path + "/../blast_client")
-
 import blast_network_bridge, blast_action_exec
 import rospy
-
-my_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(my_path + "/../blast_client")
-exec_path = my_path + "/blast_action_exec.py"
-
 
 class BlastROSError(Exception):
     __slots__ = ['value']
@@ -18,25 +10,14 @@ class BlastROSError(Exception):
     def __str__(self):
         return repr(self.value)
 
-def install_action(robot_type, action_name):
-    print "SPAM", robot_type, action_name
-    return True
-
-capabilities_dict = {"talker":
-                         {"START": {"apt-pkgs": [], #list of apt-get packages
-                                    "launch-files": [('rospy_tutorials', 'test-add-two-ints.launch'),], #(package-name, file) tuples
-                                    "publishers": {"chatter": {"message": "std_msgs.String"},},
-                                    "subscribers": {"chatter": {"message": "std_msgs.String"},},
-                                    "services": {"/add_two_ints": {"message": "rospy_tutorials.AddTwoInts"},},
-                                    },
-                          "send-string": {"type": "pub", "topic": "chatter"},
-                          "get-string": {"type": "sub-last", "topic": "chatter"},
-                          "add": {"type": "service", "name": "/add_two_ints"},
-                          },
-                     }
 
 class BlastRos():
-    def __init__(self, node_name, capabilities):
+    def __init__(self, node_name, capabilities, start_ros = False):
+        self.start_ros = start_ros
+        self.roscore = None
+        if start_ros:
+            self.roscore = subprocess.Popen(['roscore'])
+
         rospy.init_node(node_name)
         self.node_name = node_name
         self.capabilities = capabilities
@@ -85,6 +66,11 @@ class BlastRos():
 
     def spin_thread(self):
         rospy.spin()
+
+    def install_capability(self, capability_name, capability_dict):
+        #print "SPAM", capability_name
+        #TODO: make it so that this actually checks for hash stuff
+        return (capability_name in self.capabilities)
 
     def capability_cb(self, cap, fn, param):
         if not cap in self.capabilities:
@@ -190,18 +176,3 @@ class BlastRos():
         raise blast_action_exec.BlastRuntimeError("Invalid function: " + fn + " for capability " + cap)
         return None
 
-
-
-map_store = blast_network_bridge.MapStore(my_path + "/maps_client/")
-action_store = blast_network_bridge.ActionStore(my_path + "/actions_client/")
-blast_ros = BlastRos('blast_ros', capabilities_dict)
-bnb = blast_network_bridge.BlastNetworkBridge("localhost", 8080, "stair4", "ros_tester",
-                                              install_action, blast_ros.capability_cb, map_store, action_store)
-
-bnb.start()
-bnb.wait()
-bnb.stop()
-if bnb.error:
-    print "The system terminated with error", bnb.error
-else:
-    print "Terminated without error"
