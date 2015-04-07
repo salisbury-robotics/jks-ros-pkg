@@ -1,5 +1,6 @@
 
 import socket, threading, time, traceback, hashlib, sys, subprocess, os, json, random
+import errno
 
 def enc_str(s):
     return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
@@ -142,6 +143,7 @@ class BlastNetworkBridge:
         self.SHUT_WR = socket.SHUT_WR
         
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.settimeout(0.001)
         try:
             # Connect to server and send data
             self.sock.connect((self.host, self.port))
@@ -195,7 +197,7 @@ class BlastNetworkBridge:
                 return "E" + traceback.format_exc()
         return "G" + res
 
-    def write_data(self, data, terminate_action = None):
+    def write_data(self, data, terminate_action = None, total_stop = None):
         good = True
         #print "Writing data", data
         self.connection_lock.acquire()
@@ -210,6 +212,8 @@ class BlastNetworkBridge:
                         self.connection_lock.release()
                         self.capability_cb(cap, "STOP", "null")
                         self.connection_lock.acquire()
+            if total_stop and False:
+                self.stop()
         if not self.error and self.alive:
             try:
                 self.sock.send(data)
@@ -233,7 +237,17 @@ class BlastNetworkBridge:
             print "Beginning reading"
             while self.alive and not self.error:
                 if buff.find("\n") == -1:
-                    received = self.sock.recv(2*1024*2*2*2)
+                    try:
+                        received = self.sock.recv(2*1024*2*2*2)
+                    except socket.error, e:
+                        err = e.args[0]
+                        if err == 'timed out':
+                            continue
+                        else:
+                            raise e
+                    except KeyboardInterrupt:
+                        self.stop()
+                        continue
                     if received == None or received == False:
                         break
                     buff += received
@@ -244,7 +258,7 @@ class BlastNetworkBridge:
                     #print "Packet", packet[0:128]
                     self.connection_lock.acquire()
                     if packet.find("ERROR,") == 0:
-                        self.error = packet[packet.find(",")+1:]
+                        self.error = "PACKET ERROR: " + packet[packet.find(",")+1:]
                     elif packet == "WAIT_NAME":
                         self.sock.send("ROBOT," + self.robot_name + "," + self.robot_type + "\n")
                     elif packet == "VALID_ROBOT":
@@ -321,7 +335,17 @@ class BlastNetworkBridge:
                 print "-------------------Starting second loop-----------------------"
                 while self.alive and not self.error:
                     if buff.find("\n") == -1:
-                        received = self.sock.recv(2*1024*2*2*2)
+                        try:
+                            received = self.sock.recv(2*1024*2*2*2)
+                        except socket.error, e:
+                            err = e.args[0]
+                            if err == 'timed out':
+                                continue
+                            else:
+                                raise e
+                        except KeyboardInterrupt:
+                            self.stop()
+                            continue
                         if received == None or received == False:
                             break
                         buff += received
@@ -375,11 +399,16 @@ class BlastNetworkBridge:
         self.thread = threading.Thread(target=self.thread_runner)
         self.thread.start()
 
-    def wait(self):
+    def wait(self, check_fn = None):
         try:
             while self.alive:
                 time.sleep(0.1)
-        except KeyboardInterrupt:
+                if check_fn:
+                    if not check_fn():
+                        print "Shutdown for external trigger"
+                        break
+        except:
+            print "Wait interrupted"
             pass
         
     def __del__(self):
@@ -387,11 +416,12 @@ class BlastNetworkBridge:
 
     def stop(self):
         self.alive = False
-        if self.sock:
-            self.sock.shutdown(self.SHUT_WR)
         if self.thread:
             self.thread.join()
             self.thread = None
+        if self.sock:
+            self.sock.shutdown(self.SHUT_WR)
+            self.sock = None
         
 
 #['python', exec_path, py_file, json.dumps(json_prepare(parameters))],
@@ -435,13 +465,21 @@ class ActionExecutor():
             #if result != "":
             #    print "Message", result
             if buff.find("\n") == -1:
-                buff += self.conn.recv(1024)
-                print buff
+                try:
+                    nv = self.conn.recv(1024)
+                except:
+                    self.shutdown = True
+                    continue
+                if nv == "":
+                    self.shutdown = True
+                    continue
+                buff += nv
+                #print buff
             result = ""
             if buff.find("\n") != -1:
                 result = buff[:buff.find("\n")]
                 buff = buff[buff.find("\n")+1:]
-                print "We have result: " , result
+                #print "We have result: " , result
             if result != "":
                 if (result.find("CAPABILITY,") == 0):
                     data = result.split(",")
@@ -452,16 +490,17 @@ class ActionExecutor():
                     self.write(enc_str(d) + "\n") #Write the capability result.
                 else:
                     term = None
-                    if result.strip().strip(",").strip() == "TERMINATE":
+                    if result.strip().strip(",").strip() in ["TERMINATE", "TERMINATE_ALL"]:
                         print "Recieved an explicit terminate message", self.action_id
                         term = self.action_id
-                    self.write_callback(str(self.action_id) + "," + enc_str(result) + "\n", terminate_action = term)
+                    self.write_callback(str(self.action_id) + "," + enc_str(result) + "\n", terminate_action = term, 
+                                        total_stop = (result.strip().strip(",").strip() == "TERMINATE_ALL"))
             else:
                 if self.proc.poll() != None:
                     print "Action shutdown"
                     self.shutdown = True
                     self.write_callback(str(self.action_id) + ",TERMINATE%n\n", terminate_action = self.action_id)
-                time.sleep(0.001)
+                    #time.sleep(0.001)
         print "Thread shutdown"
         try:
             self.conn.close()
@@ -471,6 +510,7 @@ class ActionExecutor():
             self.socket.close()
         except:
             print "Socket could not be closed"
+        print "Conn and socket closed"
         
     def write(self, data):
         if data == None:

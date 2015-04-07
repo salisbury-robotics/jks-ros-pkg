@@ -1,5 +1,14 @@
 
-import sys, json, traceback, math, os, socket
+import sys, json, traceback, math, os, socket, signal
+
+TERMINATED_CC = False
+
+def signal_handler(signal, frame):
+    global TERMINATED_CC
+    TERMINATED_CC = True
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
 
 def enc_str(s):
     return s.replace("%", "%p").replace("\n", "%n").replace(",", "%c")
@@ -144,11 +153,8 @@ else:
     ipc_ind = None
 
 
-BIG = " "*2048
 def ipc_write_packet(packet):
-    ipc.write(packet + BIG + "\n")
-    #ipc.flush()
-    raise Error("What a drag")
+    ipc.send(packet + "\n")
 
 ipc_buffer = ""
 def ipc_packet(packet):
@@ -615,7 +621,10 @@ if __name__ == '__main__':
             else:
                 raise Exception("Invalid parameter type for " + str(value))
         execfile(sys.argv[1])
-        ipc_write_packet("TERMINATE\n")
+        if TERMINATED_CC:
+            ipc_write_packet("TERMINATE_ALL\n")
+        else:
+            ipc_write_packet("TERMINATE\n")
     except:
         print "Exception in action:", sys.argv
         print '-'*60

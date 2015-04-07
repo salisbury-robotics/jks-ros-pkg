@@ -774,13 +774,13 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         robot = manager.world.world.get_robot(self.robot_name)
                         if not robot:
                             print "Invalid robot"
-                            self.request.sendall("ERROR,INVALID ROBOT\n")
+                            self.request.sendall("ERROR,INVALID ROBOT NAME\n")
                             manager.world.lock.release()
                             self.lock.release()
                             break
                         if robot.robot_type.name != self.robot_type:
                             print "Invalid robot type"
-                            self.request.sendall("ERROR,INVALID TYPE\n")
+                            self.request.sendall("ERROR,INVALID ROBOT TYPE\n")
                             manager.world.lock.release()
                             self.lock.release()
                             break
