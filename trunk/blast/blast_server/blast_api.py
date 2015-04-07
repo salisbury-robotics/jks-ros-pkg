@@ -986,8 +986,21 @@ if __name__ == '__main__':
         my_path = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(my_path + "/../blast_test")
         my_path += "/../blast_test"
-        import blast_world_test
-        run(["test_actions"], blast_world_test.make_test_world(my_path))
+
+        try:
+            test_fn = sys.argv[sys.argv.index("--test") + 1]
+        except:
+            test_fn = "blast_world_test"
+        if not test_fn.replace("_", "").isalnum():
+            print "We can only accept alpha-numeric names", test_fn
+            sys.exit(-1)
+        if test_fn == "run" or test_fn == "my_path" or test_fn == "exec":
+            print "You cannot name the input function run, my_path or exec"
+            sys.exit(-1)
+
+        exec("import " + test_fn)
+        exec("my_world = " + test_fn + ".make_test_world(my_path)")
+        run(["test_actions"], my_world)
 
 
 
