@@ -124,7 +124,7 @@ def code_action(*args, **kwargs):
     return BlastAction(*argc, **kwargs)
 
 def make_test_actions():
-    test = [code_action("pr2.__root", {}, "True()", "\"0\"", {}, [], {}, planable = False),
+    test = [code_action("pr2.__root", {}, "True()", "\"0\"", {}, [], {}, [], planable = False),
             code_action("pr2.move", {"end": "Pt"},
                         ("&&", ("==", "robot.location.map", "end.map"),
                          #("!=", "robot.location", "end"),
@@ -134,7 +134,8 @@ def make_test_actions():
                         "add(mul(\"8\", dist(robot.location, end)), abs(angle_diff(robot.location.a, end.a)))",
                         {"robot.location": "end" },
                         [("line", "robot.location", "end", "00FF00"),
-                         ], {None: ["end"]}),
+                         ], {None: ["end"]},
+                        [],),
             code_action("pr2.tuck-both-arms", {},
                         ("contains", "robot.left-arm", {"rotation_limit": [(0.5, math.pi)],
                                                         "accept_empty": True}), 
@@ -143,7 +144,8 @@ def make_test_actions():
                                                       -1.7343417, -0.0962141, -0.0864407, None],
                          "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
                                                         -1.4175, -1.8417, 0.21436, None]},
-                        [("icon", "robot.location", "action_fs/pr2/tuck_both_arms/icon.png"), ], {}),
+                        [("icon", "robot.location", "action_fs/pr2/tuck_both_arms/icon.png"), ], {},
+                        [],),
             
             code_action("pr2-cupholder.buy-coffee", {"shop": "Surface:coffee_shop"},
                         ("&&", ("==", "robot.location", "shop.locations.start"),
@@ -155,7 +157,8 @@ def make_test_actions():
                          "robot.holders.left-arm": "Object(\"coffee_cup\")"},
                         [("line", "robot.location", "shop.locations.end"),
                          ("icon", "shop.locations.end", "action_fs/pr2/buy-coffee/icon.png"), ],
-                        {"shop": ["shop.locations.end"]}, planable = False),
+                        {"shop": ["shop.locations.end"]},
+                        [], planable = False),
             code_action("pr2.door-blast", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.out_entrance"),
                          ("position", "robot.torso", [0.3,]),
@@ -163,7 +166,8 @@ def make_test_actions():
                          ("position", "robot.right-arm", "tucked")),
                         "\"55\"", {"robot.location": "door.locations.out_exit"},
                         [("icon", "door.locations.out_entrance", "action_fs/pr2/door-blast/icon.png"),],
-                        {"door": ["door.locations.out_entrance", "door.locations.out_exit"], }),
+                        {"door": ["door.locations.out_entrance", "door.locations.out_exit"], },
+                        [],),
             code_action("pr2.door-drag", {"door": "Surface:transparent_heavy_door"},
                         ("&&", ("==", "robot.location", "door.locations.in_entrance"), 
                          ("position", "robot.torso", [0.3,]),
@@ -174,16 +178,19 @@ def make_test_actions():
                                     "robot.positions.left-arm": False, 
                                     "robot.positions.right-arm": False},
                         [("icon", "door.locations.in_entrance", "action_fs/pr2/door-drag/icon.png"),],
-                        {"door": ["door.locations.in_entrance", "door.locations.in_exit"], }),
+                        {"door": ["door.locations.in_entrance", "door.locations.in_exit"], },
+                        [],),
 
             code_action("pr2.torso", {"height": "Joint:torso.torso"},
                         "True()", "\"20\"", #FIXME
                         {"robot.positions.torso": ["height",]},
-                        [("icon", "robot.location", "action_fs/pr2/torso/icon.png"),], {}),
+                        [("icon", "robot.location", "action_fs/pr2/torso/icon.png"),], {},
+                        [],),
             code_action("pr2.head", {"pan": "Joint:head.pan", "tilt": "Joint:head.tilt"},
                         "True()", "\"3\"",
                         {"robot.positions.head": ["pan", "tilt",]},
-                        [("icon", "robot.location", "action_fs/pr2/head/icon.png"),], {}),
+                        [("icon", "robot.location", "action_fs/pr2/head/icon.png"),], {},
+                        [],),
                         
             code_action("pr2.elevator", {"elevator": "Surface:elevator", 
                                          "infloor": "Location:elevator.floor_",
@@ -195,7 +202,8 @@ def make_test_actions():
                          ("position", "robot.right-arm", "tucked")),
                         "\"150\"", {"robot.location": "outfloor"},
                         [("icon", "infloor", "action_fs/pr2/elevator/icon.png"),],
-                        {"elevator": ["infloor", "outfloor"] }),
+                        {"elevator": ["infloor", "outfloor"] },
+                        [],),
             
             code_action("pr2.grab-object", {"tts-text": "String"}, 
                         ("contains", "robot.left-arm", "None()"),
@@ -203,6 +211,7 @@ def make_test_actions():
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
                         [("icon", "robot.location", "action_fs/pr2/grab-object/icon.png"),], {},
+                        [],
                         planable = False),
             code_action("pr2.give-object", {"tts-text": "String"}, 
                         ("not", ("contains", "robot.left-arm", "None()")),
@@ -210,6 +219,7 @@ def make_test_actions():
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    "robot.positions.right-arm": False},
                         [("icon", "robot.location", "action_fs/pr2/give-object/icon.png"),], {},
+                        [],
                         planable = False),
 
             
@@ -221,7 +231,8 @@ def make_test_actions():
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    #"robot.positions.right-arm": None
                                    },
-                        [("icon", "robot.location", "action_fs/pr2-cupholder/stash-cupholder/icon.png"),], {},),
+                        [("icon", "robot.location", "action_fs/pr2-cupholder/stash-cupholder/icon.png"),], {},
+                        [],),
             code_action("pr2-cupholder.unstash-cupholder", {}, 
                         ("&&", ("contains", "robot.cupholder", {"has_tag": "cupholder_object"}),
                          ("contains", "robot.left-arm",  "None()")),
@@ -230,14 +241,16 @@ def make_test_actions():
                                    "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                    #"robot.positions.right-arm": None
                                    },
-                        [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),], {},),
+                        [("icon", "robot.location", "action_fs/pr2-cupholder/unstash-cupholder/icon.png"),], {},
+                        [],),
 
 
             code_action("pr2-cupholder.coffee-run", {"person_location": "Pt", "shop": "Surface:coffee_shop"}, 
                         "True()", "True()", {"robot.location": "False()",
                                              "robot.positions.left-arm": False, 
                                              "robot.positions.right-arm": False,}, 
-                        [], {}, planable = False, user = True, 
+                        [], {},
+                        [], planable = False, user = True, 
                         fm = {"no-bag": {"robot.location": "False()", 
                                          "robot.positions.left-arm": False, 
                                          "robot.positions.right-arm": False,
@@ -248,7 +261,8 @@ def make_test_actions():
                         "True()", "True()", {"robot.location": "False()",
                                              "robot.positions.left-arm": False, 
                                              "robot.positions.right-arm": False,}, 
-                        [], {}, planable = False, user = True, 
+                        [], {},
+                        [], planable = False, user = True, 
                         fm = {"no-bag": {"robot.location": "False()", 
                                          "robot.positions.left-arm": False, 
                                          "robot.positions.right-arm": False,
@@ -267,6 +281,7 @@ def make_test_actions():
                          "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                          }, [("icon", "robot.location", "action_fs/pr2/table-pick-left/icon.png"),],
                         {"table": ["table.locations.location",], },
+                        [],
                         fm = {"no_object": 
                               {"robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                                "table.objects-0": "object",
@@ -291,7 +306,8 @@ def make_test_actions():
                          "robot.positions.left-arm": [0.0, -0.350, 0.0, -1.225, 3.14159, -1.65, 0.0, False], 
                          #"robot.positions.left-arm": False,
                          }, [("icon", "robot.location", "action_fs/pr2/table-place-left/icon.png"),],
-                        {"table": ["table.locations.location",], },),
+                        {"table": ["table.locations.location",], },
+                        [],),
 
             
             code_action("pr2.table-coffee-scan", 
@@ -301,7 +317,8 @@ def make_test_actions():
                          ("position", "robot.right-arm", "tucked")), "\"1\"",
                         {"table.scan": "coffee_cup,empty_ziplock_1L_bag" },
                         [("icon", "robot.location", "action_fs/pr2/table-coffee-scan/icon.png"),],
-                        {"table": ["table.locations.location",], },),
+                        {"table": ["table.locations.location",], },
+                        [],),
             
             ]
 

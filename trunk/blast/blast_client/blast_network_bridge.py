@@ -8,20 +8,27 @@ def dec_str(s):
     return s.replace("%n", "\n").replace("%c", ",").replace("%p", "%")
 
 
-class ActionStore():
-    def __init__(self, adir):
+class HashStore():
+    def __init__(self, file_fun):
         self.lock = threading.Lock()
-        self.actions_dir = adir
-        
-    def action_file(self, robot, action):
-        #TODO: reject bad characters
-        return self.actions_dir + "/" + robot + "__" + action + ".py"
+        self.file_fun = file_fun
 
-    def read_action(self, robot, action):
+    def safe_file(self, fn):
+        if fn == "__root": 
+            return
+        if fn.find("__") != -1:
+            raise Exception("You cannot have double underscores: " + str(fn))
+        if not fn.replace("_", "").replace("-", "").isalnum():
+            raise Exception("You must have an alphanumeric string with - and _: " + str(fn))
+    
+    def hash_file(self, a1, a2):
+        return self.file_fun(a1, a2)
+
+    def read_file(self, a1, a2):
         self.lock.acquire()
         fstr = ""
         try:
-            fn = open(self.action_file(robot, action), "r")
+            fn = open(self.hash_file(a1, a2), "r")
             for l in fn: fstr += l
             fn.close()
         except:
@@ -29,9 +36,9 @@ class ActionStore():
         self.lock.release()
         return fstr
 
-    #Validates that an action exists and that it has the correct hash
-    def validate_action(self, robot, action, ahash = None):
-        fstr = self.read_action(robot, action)
+    #Validates that a file that exists and that it has the correct hash
+    def validate_file(self, a1, a2, ahash = None):
+        fstr = self.read_file(a1, a2)
         if fstr == None:
             return False
         if ahash == None:
@@ -41,13 +48,51 @@ class ActionStore():
         mh = str(hl.digest())
         return (mh == ahash)
         
-    def write_action(self, robot, action, content):
+    def write_file(self, a1, a2, content):
         self.lock.acquire()
-        f = open(self.action_file(robot, action), "w")
+        f = open(self.hash_file(a1, a2), "w")
         f.write(content)
         f.close()
         self.lock.release()
         
+class ActionStore():
+    def __init__(self, adir):
+        self.actions_dir = adir
+        self.libraries = {}
+        self.hs = HashStore(self.action_file)
+    def action_file(self, robot, action):
+        self.hs.safe_file(robot)
+        self.hs.safe_file(action)
+        return self.actions_dir + "/" + robot + "__" + action + ".py"
+    def validate_action(self, robot, action, ahash = None):
+        return self.hs.validate_file(robot, action, ahash)
+    def write_action(self, robot, action, content):
+        return self.hs.write_file(robot, action, content)
+    def read_action(self, robot, action):
+        return self.hs.read_file(robot, action)
+    def set_libraries(self, robot, action, libs):
+        if not robot in self.libraries:
+            self.libraries[robot] = {}
+        if type(libs) == str or type(libs) == unicode:
+            libs = [str(x) for x in json.loads(libs)]
+        self.libraries[robot][action] = libs
+    def get_libraries(self, robot, action):
+        return self.libraries.get(robot, {}).get(action, [])
+
+class LibraryStore():
+    def __init__(self, ldir):
+        self.libs_dir = ldir
+        self.hs = HashStore(self.library_file)
+    def library_file(self, robot, action):
+        self.hs.safe_file(robot)
+        self.hs.safe_file(action)
+        return self.libs_dir + "/" + robot + "__" + action + ".py"
+    def validate_library(self, robot, action, ahash = None):
+        return self.hs.validate_file(robot, action, ahash)
+    def write_library(self, robot, action, content):
+        return self.hs.write_file(robot, action, content)
+    def read_library(self, robot, action):
+        return self.hs.read_file(robot, action)
 
 class MapStore():
     def __init__(self, mdir):
@@ -122,8 +167,10 @@ class MapStore():
 class BlastNetworkBridge:
     def __init__(self, host, port, robot_name, robot_type, 
                  install_action, capability_cb,
-                 map_store, action_store, require_location = False):
+                 map_store, action_store, library_store,
+                 require_location = False):
         self.action_store = action_store
+        self.library_store = library_store
         self.install_action = install_action
         self.robot_name = robot_name
         self.robot_type = robot_type
@@ -154,10 +201,18 @@ class BlastNetworkBridge:
     def action_start(self, action_robot_type, action_name, action_id, parameters, write_callback, capability_write):
         file_name = self.action_store.action_file(action_robot_type, action_name)
         if file_name == None: return None
+        libs = self.action_store.get_libraries(action_robot_type, action_name)
+        libf = []
+        for lib in libs:
+            if lib.find(".") == -1:
+                #TODO: check if correct behavior!!! action_robot_type vs. robot_type
+                libf.append(self.library_store.library_file(action_robot_type, lib))
+            else:
+                libf.append(self.library_store.library_file(lib.split(".")[0], lib.split(".")[1]))
         my_path = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(my_path + "/../blast_client")
         exec_path = my_path + "/../blast_client/blast_action_exec.py"
-        cmd = ['python', '-u', exec_path, file_name, parameters]
+        cmd = ['python', '-u', exec_path, file_name, parameters] + libf
         exc = ActionExecutor(cmd, action_id, write_callback, capability_write)
         return exc.get_callback()
     
@@ -266,9 +321,11 @@ class BlastNetworkBridge:
                     elif packet.find("ACTIONS") == 0:
                         ac_data = packet.split(",")[1:]
                         request_action = None
-                        for i in range(len(ac_data)/3):
-                            arobot, aaction, ahash = dec_str(ac_data[i*3]), dec_str(ac_data[i*3+1]), dec_str(ac_data[i*3+2])
-                            #print "We are trying action",
+                        for i in range(len(ac_data)/4):
+                            arobot, aaction = dec_str(ac_data[i*4]), dec_str(ac_data[i*4+1])
+                            ahash, alibs = dec_str(ac_data[i*4+2]), dec_str(ac_data[i*4+3])
+                            #print "We are trying action", arobot, aaction, ahash, alibs
+                            self.action_store.set_libraries(arobot, aaction, alibs)
                             if not self.action_store.validate_action(arobot, aaction, ahash):
                                 request_action = [arobot, aaction]
                                 break
@@ -280,6 +337,26 @@ class BlastNetworkBridge:
                             break
                         if request_action != None:
                             self.sock.send("GET_ACTION," + enc_str(request_action[0]) + "," + enc_str(request_action[1]) + ",\n")
+                        else:
+                            print "Get Libs"
+                            self.sock.send("LIST_LIBRARIES\n")
+                    elif packet.find("LIBRARIES") == 0:
+                        ac_data = packet.split(",")[1:]
+                        request_action = None
+                        for i in range(len(ac_data)/3):
+                            arobot, aaction, ahash = dec_str(ac_data[i*3]), dec_str(ac_data[i*3+1]), dec_str(ac_data[i*3+2])
+                            #print "We are trying action",
+                            if not self.library_store.validate_library(arobot, aaction, ahash):
+                                request_action = [arobot, aaction]
+                                break
+                        #Start the controller
+                        print "LIBRARIES", request_action
+                        if self.error:
+                            print "Error"
+                            self.connection_lock.release()
+                            break
+                        if request_action != None:
+                            self.sock.send("GET_LIBRARY," + enc_str(request_action[0]) + "," + enc_str(request_action[1]) + ",\n")
                         elif self.require_location:
                             print "Wait loc"
                             self.sock.send("WAIT_LOCATION\n")
@@ -293,6 +370,13 @@ class BlastNetworkBridge:
                         code = dec_str(ac_data[2])
                         self.action_store.write_action(actr, actn, code)
                         self.sock.sendall("LIST_ACTIONS\n")
+                    elif packet.find("LIBRARY,") == 0:
+                        ac_data = packet.split(",")[1:]
+                        actr = dec_str(ac_data[0])
+                        actn = dec_str(ac_data[1])
+                        code = dec_str(ac_data[2])
+                        self.library_store.write_library(actr, actn, code)
+                        self.sock.sendall("LIST_LIBRARIES\n")
                     elif packet.find("MAPS") == 0:
                         map_data = packet.split(",")[1:]
                         is_good = True
