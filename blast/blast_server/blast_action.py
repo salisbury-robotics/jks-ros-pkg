@@ -820,6 +820,18 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                             ms.append(enc_str(manager.world.world.get_map(mp).imagehash))
                         manager.world.lock.release()
                         self.request.sendall(",".join(ms) + ",\n")
+                    elif packet == "LIST_LIBRARIES":
+                        manager.world.lock.acquire()
+                        rtype = manager.world.world.get_robot(self.robot_name).robot_type
+                        libs = manager.world.world.types.all_libraries_for_robot(rtype)
+                        ac = ["LIBRARIES",]
+                        for lib in libs:
+                            l = manager.world.world.types.get_library(lib)
+                            ac.append(l.name.split(".")[0])
+                            ac.append(l.name.split(".")[1])
+                            ac.append(l.code_hash)
+                        manager.world.lock.release()
+                        self.request.sendall(",".join([enc_str(x) for x in ac]) + ",\n")
                     elif packet == "LIST_ACTIONS":
                         manager.world.lock.acquire()
                         actions = manager.world.world.enumerate_robot(self.robot_name, False, True, True, False)
@@ -831,6 +843,7 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                             ac.append(av)
                             artc, atc = manager.world.world.types.get_action_for_robot(rtype, av)
                             ac.append(atc.code_hash)
+                            ac.append(json.dumps(atc.libraries))
                         manager.world.lock.release()
                         self.request.sendall(",".join([enc_str(x) for x in ac]) + ",\n")
                     elif packet.find("GET_ACTION,") == 0:
@@ -845,6 +858,18 @@ class BlastManagedRobot(SocketServer.BaseRequestHandler):
                         if code == None:
                             code = "None"
                         self.request.sendall("ACTION," + enc_str(actr) + "," + enc_str(actn) + "," + enc_str(code) + ",\n")
+                    elif packet.find("GET_LIBRARY,") == 0:
+                        actr = dec_str(packet.split(",")[1]).strip()
+                        actn = dec_str(packet.split(",")[2]).strip()
+                        manager.world.lock.acquire()
+                        code = None
+                        actt = manager.world.world.types.get_library(actr + "." + actn)
+                        if actt != None:
+                            code = actt.code
+                        manager.world.lock.release()
+                        if code == None:
+                            code = "None"
+                        self.request.sendall("LIBRARY," + enc_str(actr) + "," + enc_str(actn) + "," + enc_str(code) + ",\n")
                     elif packet.find("GET_MAP,") == 0:
                         mn = packet.split(",")[1].strip()
                         #print "Getting map", mn

@@ -10,16 +10,14 @@ class BlastRosTestRootAction(BlastActionExec):
     def __init__(self):
         BlastActionExec.__init__(self)
     def run(self, parameters):
-        self.capability("talker", "START")
+        talker = self.get_library("ros_tester", "talker")
         time.sleep(3.0) #Needed for interconnect, very brittle
         iter = 0
         while True:
-            rs = self.capability("talker", "add", {"a": 42, "b": iter})
-            print "Add ->", rs
+            print "Add ->", talker.add(iter, 42)
             iter = iter + 1
-            self.capability("talker", "send-string", {"data": "Hi, I'm a spammer " + str(iter)})
-            r = self.capability("talker", "get-string")
-            print "We have", r
+            talker.send_string("Hi, I'm a spammer " + str(iter))
+            print "We have", talker.get_string()
             try:
                 time.sleep(0.1)
             except:
@@ -28,6 +26,26 @@ class BlastRosTestRootAction(BlastActionExec):
 set_action_exec(BlastRosTestRootAction)
 """
 
+ROS_TEST_TALKER = """
+
+class RosTestTalker(BlastActionLibrary):
+    def __init__(self):
+        BlastActionLibrary.__init__(self, ["talker"])
+
+    def add(self, a, b):
+        rs = self.capability("talker", "add", {"a": a, "b": b})
+        return rs["sum"]
+    
+    def send_string(self, string):
+        return self.capability("talker", "send-string", {"data": string})
+
+    def get_string(self):
+        r = self.capability("talker", "get-string")
+        return r["data"]
+
+add_library("ros_tester", "talker", RosTestTalker)
+
+"""
 
 
 def make_test_types_world():
@@ -38,7 +56,12 @@ def make_test_types_world():
                                          {}, {}))
     types_world.add_action_type(BlastAction("ros_tester.__root", ROS_TEST_ROOT,
                                             {}, "True()", "\"0\"", {}, [], {},
+                                            ["ros_tester.talker"],
                                             planable = False))
+    types_world.add_library_type(BlastLibrary("ros_tester.talker", ROS_TEST_TALKER,
+                                              [], #No library dependices
+                                              ["talker"], #Talker capability required
+                                              ))
     return types_world
     
 def make_test_world(root_path):

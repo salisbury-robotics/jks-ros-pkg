@@ -237,8 +237,9 @@ def capability_cb(cap, fn, param):
 
 map_store = blast_network_bridge.MapStore(my_path + "/maps_client/")
 action_store = blast_network_bridge.ActionStore(my_path + "/actions_client/")
+library_store = blast_network_bridge.LibraryStore(my_path + "/libraries_client/")
 bnb = blast_network_bridge.BlastNetworkBridge("localhost", 8080, "stair4", "pr2-cupholder",
-                                              install_action, capability_cb, map_store, action_store)
+                                              install_action, capability_cb, map_store, action_store, library_store)
 bnb.start()
 bnb.wait()
 bnb.stop()

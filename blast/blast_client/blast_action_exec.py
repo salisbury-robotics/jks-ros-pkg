@@ -136,7 +136,7 @@ class BlastSurface(object):
 port = None
 if __name__ == '__main__':
     try: 
-        port = sys.argv[3]
+        port = sys.argv[-1]
     except:
         port = None
     if port:
@@ -184,9 +184,63 @@ def check_type(var, typ):
 def check_world(world):
     pass
 
+global_libs = {}
+def add_library(robot, name, cl):
+    global global_libs
+    if not robot in global_libs:
+        global_libs[robot] = {}
+    global_libs[robot][name] = cl
+
+
+class BlastActionLibrary():
+    def __init__(self, caps):
+        self.exc = None
+        self.started = False
+        self.capabilities = caps
+    def _start(self):
+        for c in self.capabilities:
+            self.exc.capability(c, "START")
+        self.started = True
+    def _stop(self):
+        if not self.started: return
+        self.exc._libstop(self)
+        for c in self.capabilities:
+            self.exc.capability(c, "STOP")
+        self.started = False
+    def __del__(self):
+        self._stop()
+    #API
+    def capability(self, c, s, p = None):
+        if not self.started: raise Exception("Ran a library that has not been started")
+        return self.exc.capability(c, s, p)
+    
+
 class BlastActionExec():
     def __init__(self):
+        self.lib_obj = {}
         pass
+
+    def _libstop(self, l):
+        for rn in self.lib_obj:
+            for ln in self.lib_obj[rn]:
+                if self.lib_obj[rn][ln] == l:
+                    del self.lib_obj[rn][ln]
+    def get_library(self, rn, ln):
+        global global_libs
+        #TODO: if robot is None, current type
+        if not rn in self.lib_obj:
+            self.lib_obj[rn] = {}
+        if ln in self.lib_obj[rn]:
+            return self.lib_obj[rn][ln]
+        if not rn in global_libs:
+            raise Exception("Tried to load from a robot without a library: " + str(rn))
+        if not ln in global_libs[rn]:
+            raise Exception("Tried to load invalid library: " + str(rn) + " " + str(ln))
+        li = global_libs[rn][ln]()
+        li.exc = self
+        li._start()
+        self.lib_obj[rn][ln] = li
+        return li
 
     def json(self, d):
         def r(a):
@@ -620,6 +674,8 @@ if __name__ == '__main__':
                 parameters[str(name)] = str(value)
             else:
                 raise Exception("Invalid parameter type for " + str(value))
+        for libf in sys.argv[3:-1]:
+            execfile(libf)
         execfile(sys.argv[1])
         if TERMINATED_CC:
             ipc_write_packet("TERMINATE_ALL\n")

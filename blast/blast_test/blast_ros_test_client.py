@@ -22,10 +22,11 @@ capabilities_dict = {"talker":
 
 map_store = blast_network_bridge.MapStore(my_path + "/maps_client/")
 action_store = blast_network_bridge.ActionStore(my_path + "/actions_client/")
+library_store = blast_network_bridge.LibraryStore(my_path + "/libraries_client/")
 blast_ros = blast_ros.BlastRos('blast_ros', capabilities_dict, start_ros = True)
 bnb = blast_network_bridge.BlastNetworkBridge("localhost", 8080, "stair4", "ros_tester",
                                               blast_ros.install_capability, blast_ros.capability_cb,
-                                              map_store, action_store)
+                                              map_store, action_store, library_store)
 
 bnb.start()
 bnb.wait()

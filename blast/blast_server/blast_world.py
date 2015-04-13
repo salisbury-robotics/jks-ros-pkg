@@ -534,22 +534,45 @@ class BlastError(Exception):
         return repr(self.value)
 
 
+class BlastLibrary(object):
+    __slots__ = ['name', 'robot', 'code', 'code_hash', 'library_deps', 'capability_deps']
+    
+    def __init__(self, name, code, library_deps, capability_deps):
+        self.name = name
+        self.robot = name.split(".")[0]
+        self.code = code
+        self.library_deps = library_deps
+        self.capability_deps = capability_deps
+        hl = hashlib.sha256()
+        hl.update(str(code))
+        self.code_hash = str(hl.digest())
+
+    def copy(self):
+        return BlastLibrary(copy_dict(self.name), copy_dict(self.code),
+                            copy_dict(self.library_deps),
+                            copy_dict(self.capability_deps))
+
+    def to_dict(self):
+        return {"name": self.name, "code": self.code,
+                "library_deps": self.library_deps, 
+                "capability_deps": self.capability_deps}
+
 
 class BlastAction(object):
     __slots__ = ['name', 'code', 'code_hash', 'robot', 'parameters', 'condition', 'time_estimate',
-                 'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces', 'is_object_action']
+                 'changes', 'display', 'planable', 'user', 'failure_modes', 'workspaces', 'libraries', 'is_object_action']
 
     def copy(self):
         return BlastAction(self.name, self.code, copy_dict(self.parameters),
                            copy_dict(self.condition), copy_dict(self.time_estimate),
-                           copy_dict(self.changes),  copy_dict(self.display),
-                           copy_dict(self.workspaces),
+                           copy_dict(self.changes), copy_dict(self.display),
+                           copy_dict(self.workspaces), copy_dict(self.libraries),
                            planable = self.planable, user = self.user, 
                            fm = copy_dict(self.failure_modes))
 
     def to_dict(self):
         return {"name": self.name, "code": self.code, "parameters": self.parameters, "condition": self.condition, 
-                "time_estimate": self.changes, "display": self.display, 
+                "time_estimate": self.changes, "display": self.display, 'libraries': self.libraries,
                 "planable": self.planable, 'user': self.user, 'failure_modes': self.failure_modes}
 
     def scan_only(self):
@@ -564,7 +587,7 @@ class BlastAction(object):
         
 
     def __init__(self, name, code, parameters, condition, time_estimate, 
-                 changes, display, workspaces, planable = True, user = False, fm = {}): #Name must be robot_type.action
+                 changes, display, workspaces, libraries, planable = True, user = False, fm = {}): #Name must be robot_type.action
         self.name = name
         self.robot = name.split(".")[0]
         self.parameters = parameters
@@ -573,6 +596,7 @@ class BlastAction(object):
         self.workspaces = workspaces
         self.failure_modes = fm
         self.is_object_action = False
+        self.libraries = libraries
         self.code = code
         hl = hashlib.sha256()
         hl.update(str(code))
@@ -715,12 +739,15 @@ class BlastAction(object):
 ################################################################
 
 class BlastWorldTypes(object):
-    __slots__ = ['surfaces', 'robots', 'objects', 'actions', 'parameter_values_cache', 'robot_action_cache', 'script', 'script_indexes', 'action_for_robot_cache']
+    __slots__ = ['surfaces', 'robots', 'libraries', 'objects', 'actions', 'script',
+                 'parameter_values_cache', 'robot_action_cache', 
+                 'script_indexes', 'action_for_robot_cache']
     def __init__(self):
         self.script = []
         self.script_indexes = {}
         self.surfaces = {}
         self.robots = {}
+        self.libraries = {}
         self.objects = {}
         self.actions = {}
         self.parameter_values_cache = {}
@@ -765,6 +792,8 @@ class BlastWorldTypes(object):
                     lim = True
         for k, v in self.actions.iteritems():
             new.actions[k] = v.copy()
+        for k, v in self.libraries.iteritems():
+            new.libraries[k] = v.copy()
         return new
 
     def enumerate_robot(self, robot, require_object = False, allow_unplannable = False, include_robot_type = False, require_type = None):
@@ -808,6 +837,35 @@ class BlastWorldTypes(object):
         self.surfaces[surface.name] = surface
     def get_surface(self, name):
         return self.surfaces.get(name, None)
+
+    def add_library_type(self, lib):
+        self.libraries[lib.name] = lib
+    def get_library(self, lib):
+        return self.libraries.get(lib, None)
+    def library_for_robot(self, robot, lib):
+        if type(robot) == BlastRobot:
+            robot = robot.robot_type
+        if type(robot) == str:
+            robot = self.get_robot(name)
+        while robot:
+            lname = (robot.name + "." + lib)
+            if lname in self.libraries:
+                return self.libraries[lname]
+            robot = robot.parent
+        return None
+    def all_libraries_for_robot(self, robot):
+        if type(robot) == BlastRobot:
+            robot = robot.robot_type
+        if type(robot) == str:
+            robot = self.get_robot(name)
+        lr = set()
+        while robot:
+            for ln in self.libraries:
+                if ln.split(".")[0] == robot.name:
+                    lr.add(ln)
+            robot = robot.parent
+        return lr
+            
     
     def add_robot_type(self, robot):
         self.action_for_robot_cache = {}
