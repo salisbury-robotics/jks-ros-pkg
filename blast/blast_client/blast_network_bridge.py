@@ -190,7 +190,7 @@ class BlastNetworkBridge:
         self.SHUT_WR = socket.SHUT_WR
         
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(0.001)
+        #self.sock.settimeout(0.001)
         try:
             # Connect to server and send data
             self.sock.connect((self.host, self.port))
@@ -475,7 +475,14 @@ class BlastNetworkBridge:
             traceback.print_exc()
             self.error = "READ EXCEPTION"
         finally:
-            self.sock.close()
+            try:
+                self.sock.shutdown(self.SHUT_WR)
+            except:
+                pass
+            try:
+                self.sock.close()
+            except:
+                pass
             self.sock = None
             self.alive = False
 
@@ -500,12 +507,13 @@ class BlastNetworkBridge:
 
     def stop(self):
         self.alive = False
+        if self.sock:
+            print "Socket shutdown"
+            self.sock.shutdown(self.SHUT_WR)
+            self.sock = None
         if self.thread:
             self.thread.join()
             self.thread = None
-        if self.sock:
-            self.sock.shutdown(self.SHUT_WR)
-            self.sock = None
         
 
 #['python', exec_path, py_file, json.dumps(json_prepare(parameters))],
