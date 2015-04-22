@@ -962,7 +962,7 @@ class BlastManager:
         
         self.server = None
         self.server_thread = None
-        self.server = SocketServer.TCPServer(("localhost", 8080), BlastManagedRobot)
+        self.server = SocketServer.TCPServer(("0.0.0.0", 8080), BlastManagedRobot)
         self.server_thread = threading.Thread(target=self.server.serve_forever)
         self.server_thread.daemon = True
         self.server_thread.start()
