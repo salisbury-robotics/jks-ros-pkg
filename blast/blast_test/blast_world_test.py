@@ -139,7 +139,7 @@ def make_test_actions():
             code_action("pr2.tuck-both-arms", {},
                         ("contains", "robot.left-arm", {"rotation_limit": [(0.5, math.pi)],
                                                         "accept_empty": True}), 
-                        "\"10\"", 
+                        "\"25\"", 
                         {"robot.positions.left-arm": [0.06024, 1.248526, 1.789070, -1.683386, 
                                                       -1.7343417, -0.0962141, -0.0864407, None],
                          "robot.positions.right-arm": [-0.023593, 1.1072800, -1.5566882, -2.124408,
@@ -488,7 +488,7 @@ def make_test_types_world():
     types_world.add_surface_type(SurfaceType("elevator",
                                              {"default": {"default": True, "accessible": True}},
                                              ["floor_*",]))
-    ATL = 0.0001 #Arm offset tolerance
+    ATL = 0.001 #Arm offset tolerance
     types_world.add_robot_type(RobotType("pr2", {"width": 0.668, "height": 0.668, 
                                                  "image": {"image": "robot_fs/pr2/pr2_def.png",
                                                            "priority": 0, #Lowest
@@ -514,7 +514,7 @@ def make_test_types_world():
                                          {"left-arm": {"mass-limit": 2.5}, 
                                           "right-arm": {"mass-limit": 2.5},
                                           },
-                                         {"torso": {False: (["torso",], [ATL,], [0.0,]), "up": [0.3,], "down": [0.0,],
+                                         {"torso": {False: (["torso",], [0.001,], [0.0,]), "up": [0.3,], "down": [0.0,],
                                                     "MIN": [0.0,], "MAX": [0.3,], },
                                           "left-arm": {False: (["shoulder_pan", "shoulder_lift", "upper_arm_roll",
                                                                 "elbow_flex", "forearm_roll", "r_wrist_flex",
@@ -543,7 +543,7 @@ def make_test_types_world():
                                                         "untucked": [-0.4,  1.0,   0.0,  -2.05,  0.0,  -0.1,  0.0, None],
                                                         },
                                           "head": {False: (["pan", "tilt"], [ATL, ATL], [0, 0]), "level": [0.0, 0.0]},
-                                          "tilt-laser": False,
+                                          "tilt-laser": {False: (['tilt',], [ATL,], [False,]), },
                                           }))
 
     types_world.add_robot_type(RobotType("pr2-cupholder", {"image": 

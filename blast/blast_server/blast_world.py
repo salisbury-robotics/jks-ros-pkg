@@ -1506,10 +1506,11 @@ class BlastRobot(object):
                     for joint, toler in zip(tup[0], tup[1]):
                         tol[joint] = toler
 
+                print tol, tolerant, self.positions[name], other.positions[name]
                 for joint in self.positions[name]:
                     if joint not in other.positions[name]: return False
                     if tolerant:
-                        if self.positions[name][joint] != False and other.positions[name][joint] != False: 
+                        if type(self.positions[name][joint]) == float and type(other.positions[name][joint]) == float: 
                             d = self.positions[name][joint] - other.positions[name][joint]
                             if tol[joint] < -d or d > tol[joint]:
                                 return False
@@ -2322,6 +2323,8 @@ class BlastWorld(object):
                         clone_param = True
                     parameters[name] = BlastPt(float(parameters[name]["x"]), float(parameters[name]["y"]), 
                                                float(parameters[name]["a"]), parameters[name]["map"])
+            elif ptype.find("Joint:") == 0 and ptype.find(".") != -1:
+                parameters[name] = float(parameters[name])
             elif ptype.find("Surface:") == 0:
                 surface_parameters.add(name)
                 if type(parameters[name]) == type("") or type(parameters[name]) == type(u""):
@@ -2426,9 +2429,13 @@ class BlastWorld(object):
             elif ptype.find("Pos:") == 0:
                 txt = ptype.split(":")[1].split(",")
                 csp.append((pname, "pos", txt[0].strip(), txt[1].strip()))
-            #elif ptype.find("Joint:") == 0:
-                #action_robot_type
-            #    csp.append((pname, "==", 
+            elif ptype.find("Joint:") == 0:
+                if not pname in parameters:
+                    raise Exception("We do not support joints yet that are not specified.")
+                #if ptype.find(".") != -1:
+                #    csp.append((pname, "==", ['0', '0.3']))
+                #else:
+                #    raise Exception('Array joint parameters not supported yet')
             elif ptype == "String":
                 if not pname in parameters:
                     raise Exception("String parameters must be specified")
@@ -2480,7 +2487,7 @@ class BlastWorld(object):
         #print csp
 
         this_var, csp, csp_var = eval_condition(action_type.condition, csp, csp_var)
-        print csp
+        #print csp
 
         #print robot_name, action, parameters
         #for c in csp:
@@ -2504,6 +2511,7 @@ class BlastWorld(object):
                     pd["robot." + name] = s
             output.append((od, pd))
         
+        print output
         return output
         
 
