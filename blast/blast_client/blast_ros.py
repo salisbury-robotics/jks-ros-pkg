@@ -1,7 +1,7 @@
 
 import sys, os, threading, time, math, socket, random, subprocess
 import blast_network_bridge, blast_action_exec
-import rospy
+import rospy, genpy
 
 class BlastROSError(Exception):
     __slots__ = ['value']
@@ -42,20 +42,31 @@ class BlastRos():
                     setattr(msg, k, str(v))
                 elif type(getattr(msg, k)) in [long, float, bool, int]:
                     setattr(msg, k, v)
+                elif type(v) == dict:
+                    self.fill_message(getattr(msg, k), v)
                 else:
                     raise blast_action_exec.BlastRuntimeError("Invalid type for message: " + str(k) + " " + str(type(getattr(msg, k))))
         else:
             raise blast_action_exec.BlastRuntimeError("Invalid type for message: " + str(json) + " " + str(type(msg)))
 
-    def ret_msg(self, msg):
-        d = {}
-        for k in msg.__slots__:
-            v = getattr(msg, k)
-            if type(v) in [str, long, float, int, bool] or v == None:
-                d[k] = v
-            else:
-                raise BlastROSException("Invalid type for message: " + str(type(v)) + " from " + k)
-        return d
+    def ret_msg(self, msg, k = "ROOT"):
+        if type(msg) in [long, float, int, bool] or msg == None:
+            return msg
+        elif type(msg) in [str, unicode]:
+            return str(msg)
+        elif type(msg) == list or type(msg) == tuple:
+            return [self.ret_msg(s) for s in msg]
+        elif isinstance(msg, genpy.Message):
+            d = {}
+            for k in msg.__slots__:
+                v = getattr(msg, k)
+                d[str(k)] = self.ret_msg(v, k)
+            return d
+        elif isinstance(msg, genpy.rostime.Time):
+            return {"secs": msg.secs, "nsecs": msg.nsecs}
+        else:
+            raise BlastROSError("Invalid type for message: " + str(type(msg)) + " from " + k)
+        return None
         
     def ros_callback(self, msg, t):
         #print t, "->", msg
@@ -99,6 +110,7 @@ class BlastRos():
                 exec("import " + mtype_folder + ".msg as rosmsg_" + mtype_folder)
                 exec("self.subscribers[topic] = rospy.Subscriber(topic, rosmsg_" + mtype 
                      + ", (lambda s: lambda x: s.ros_callback(x, '" + topic + "'))(self))")
+                print "Subscriber", mtype, topic
                 #exec("self.msg_const[topic] = rosmsg_" + mtype)
                 
             for topic, data in self.capabilities[cap]["START"].get("services", {}).iteritems():
@@ -139,7 +151,7 @@ class BlastRos():
             print "Invalid fn for", cap, "-", fn
             raise blast_action_exec.BlastRuntimeError("Invalid function: " + fn + " for capability " + cap)
             return None
-
+        
         if self.capabilities[cap][fn]["type"] == "service":
             topic = self.capabilities[cap][fn]["name"]
             mtype = self.capabilities[cap]["START"]["services"][topic]["message"]
@@ -147,8 +159,7 @@ class BlastRos():
             self.fill_message(msg, param)
             resp = self.srv_proxy[topic](msg)
             return self.ret_msg(resp)
-    
-        if self.capabilities[cap][fn]["type"] == "pub":
+        elif self.capabilities[cap][fn]["type"] == "pub":
             topic = self.capabilities[cap][fn]["topic"]
             mtype = self.capabilities[cap]["START"]["publishers"][topic]["message"]
             msg = self.msg_const[topic]()
@@ -156,10 +167,9 @@ class BlastRos():
             self.publishers[topic].publish(msg)
             #print "Sent", topic, msg
             return True
-            
-        if self.capabilities[cap][fn]["type"] == "sub-last":
+        elif self.capabilities[cap][fn]["type"] == "sub-last":
             topic = self.capabilities[cap][fn]["topic"]
-            mtype = self.capabilities[cap]["START"]["publishers"][topic]["message"]
+            mtype = self.capabilities[cap]["START"]["subscribers"][topic]["message"]
             data = None
             while True:
                 if rospy.is_shutdown():
@@ -170,8 +180,18 @@ class BlastRos():
                     self.data_lock.release()
                     break
                 self.data_lock.release()
-                time.sleep(0.001)
+                time.sleep(0.0001)
             return data
+        elif self.capabilities[cap][fn]["type"] == "rosrun":
+            package = self.capabilities[cap][fn]["package"]
+            prog = self.capabilities[cap][fn]["prog"]
+            args = self.capabilities[cap][fn]["args"]
+            proc = subprocess.Popen(["rosrun", package, prog, ] + args)
+            proc.wait()
+            return True
+        else:
+            raise blast_action_exec.BlastRuntimeError("Invalid capability type for capability: " + cap
+                                                      + " - " + self.capabilities[cap][fn]["type"])
 
         raise blast_action_exec.BlastRuntimeError("Invalid function: " + fn + " for capability " + cap)
         return None
