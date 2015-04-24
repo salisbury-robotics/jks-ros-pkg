@@ -208,6 +208,13 @@ class BlastActionExec:
             return True
         return r
 
+    def get_robot_position(self, pos, val, world = None):
+        r = None
+        w = self._get_manager_world(world)
+        r = w.get_robot_position(self._robot, pos)
+        self._release_manager_world(world)
+        return r
+
     def surface_scan(self, surface, object_types, world = None):
         r= None
         w = self._get_manager_world(world)
@@ -481,6 +488,14 @@ class BlastActionExec:
                     position = result.strip().split(",")[1].strip()
                     state = jsonload(",".join(result.strip().split(",")[2:]))
                 write_data(str(self.set_robot_position(position, state, world)) + "\n")
+            elif result.find("GET_ROBOT_POSITION") == 0:
+                if result.strip().split(",")[0].strip() == "GET_ROBOT_POSITION":
+                    world = result.strip().split(",")[1].strip()
+                    position = result.strip().split(",")[2].strip()
+                else:
+                    world = None
+                    position = result.strip().split(",")[1].strip()
+                write_data(str(self.get_robot_position(position, world)) + "\n")
             elif result.find("GET_ROBOT_HOLDER") == 0:
                 if result.strip().split(",")[0].strip() == "GET_ROBOT_HOLDER":
                     world = result.strip().split(",")[1].strip()

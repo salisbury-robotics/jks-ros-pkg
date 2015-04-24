@@ -1971,6 +1971,16 @@ class BlastWorld(object):
         return True
 
 
+    def get_robot_position(self, robot, position):
+        if not robot in self.robots:
+            print "Get robot position invalid robot", robot
+            return None
+        if not position in self.robots[robot].positions:
+            print "Get robot position invalid position", position, "for robot", robot
+            return None
+        return self.robots[robot].positions[position].copy()
+        
+        
     def set_robot_position(self, robot, position, val):
         if not robot in self.robots:
             print "Set robot position invalid robot", robot
