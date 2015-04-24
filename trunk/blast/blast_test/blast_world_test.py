@@ -488,7 +488,7 @@ def make_test_types_world():
     types_world.add_surface_type(SurfaceType("elevator",
                                              {"default": {"default": True, "accessible": True}},
                                              ["floor_*",]))
-    ATL = 0.001 #Arm offset tolerance
+    ATL = 0.005 #Arm offset tolerance
     types_world.add_robot_type(RobotType("pr2", {"width": 0.668, "height": 0.668, 
                                                  "image": {"image": "robot_fs/pr2/pr2_def.png",
                                                            "priority": 0, #Lowest
