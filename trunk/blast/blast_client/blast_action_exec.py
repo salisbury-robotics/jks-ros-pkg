@@ -510,6 +510,21 @@ class BlastActionExec():
             raise BlastRuntimeError("Failed to set robot position")
         return res
 
+    def get_robot_position(self, pos, world=None):
+        check_type(pos, type(""))
+        check_world(world)
+        if world:
+            res = ipc_packet("GET_ROBOT_POSITION," + str(world) + "," + str(pos) + "\n")
+        else:
+            res = ipc_packet("GET_ROBOT_POSITION_NW," + str(pos) + "\n")
+        if res == "None": res = None
+        if res == "False": res = False
+        if res == None or res == False:
+            raise BlastRuntimeError("Failed to set robot position")
+        if res.find("POSITION") == 0:
+            return json.loads(res[len("POSITION"):])
+        return res
+
     #Sets what object is in the holder of the robot. Takes the holder, and the object type.
     #If require_preexisting_object is set to True, then an object must be in the holder.
     #Note that this function replaces the object, changing its UID. If it fails, it raises
