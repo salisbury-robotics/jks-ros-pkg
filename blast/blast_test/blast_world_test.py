@@ -182,7 +182,7 @@ def make_test_actions():
                         [],),
 
             code_action("pr2.torso", {"height": "Joint:torso.torso"},
-                        "True()", "\"20\"", #FIXME
+                        "True()", "\"60\"", #FIXME
                         {"robot.positions.torso": ["height",]},
                         [("icon", "robot.location", "action_fs/pr2/torso/icon.png"),], {},
                         [],),
@@ -514,7 +514,7 @@ def make_test_types_world():
                                          {"left-arm": {"mass-limit": 2.5}, 
                                           "right-arm": {"mass-limit": 2.5},
                                           },
-                                         {"torso": {False: (["torso",], [0.001,], [0.0,]), "up": [0.3,], "down": [0.0,],
+                                         {"torso": {False: (["torso",], [0.02,], [0.0,]), "up": [0.3,], "down": [0.0,],
                                                     "MIN": [0.0,], "MAX": [0.3,], },
                                           "left-arm": {False: (["shoulder_pan", "shoulder_lift", "upper_arm_roll",
                                                                 "elbow_flex", "forearm_roll", "r_wrist_flex",
