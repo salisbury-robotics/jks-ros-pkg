@@ -105,9 +105,18 @@ class BlastActionExec:
         self._release_manager_world(world)
         return r
 
-    def set_location(self, position, world = None):
+    def set_location(self, position, oldloc, world = None):
         r = None
         w = self._get_manager_world(world)
+
+        if oldloc != None:
+            blast_pt = blast_world.BlastPt(oldloc['x'], oldloc['y'],
+                                           oldloc['a'], oldloc['map'])
+            if not w.robots[self._robot].location.equal(blast_pt):
+                res = w.robots[self._robot].location.to_dict()
+                self._release_manager_world(world)
+                return res
+
         r = w.set_robot_location(self._robot, position.copy())
         self._release_manager_world(world)
         if r == True:
@@ -208,7 +217,7 @@ class BlastActionExec:
             return True
         return r
 
-    def get_robot_position(self, pos, val, world = None):
+    def get_robot_position(self, pos, world = None):
         r = None
         w = self._get_manager_world(world)
         r = w.get_robot_position(self._robot, pos)
@@ -470,12 +479,19 @@ class BlastActionExec:
             elif result.find("SET_ROBOT_LOCATION") == 0:
                 if result.strip().split(",")[0].strip() == "SET_ROBOT_LOCATION":
                     world = result.strip().split(",")[1].strip()
-                    location = jsonload(",".join(result.strip().split(",")[2:]))
+                    location = jsonload(dec_str(result.strip().split(",")[2]))
+                    oldloc = jsonload(dec_str(result.strip().split(",")[3]))
                 else:
                     world = None
-                    location = jsonload(",".join(result.strip().split(",")[1:]))
-                if self.set_location(location, world):
+                    location = jsonload(dec_str(result.strip().split(",")[1]))
+                    oldloc = jsonload(dec_str(result.strip().split(",")[2])) 
+                l = self.set_location(location, oldloc, world)
+                if type(l) == dict:
+                    write_data("LOCATION" + json.dumps(json_prepare(l)).replace("\n", "\\n") + "\n")
+                elif l == True:
                     write_data("True\n")
+                elif l == False:
+                    write_data("False\n")
                 else:
                     write_data("None\n")
             elif result.find("SET_ROBOT_POSITION") == 0:
@@ -495,7 +511,7 @@ class BlastActionExec:
                 else:
                     world = None
                     position = result.strip().split(",")[1].strip()
-                write_data(str(self.get_robot_position(position, world)) + "\n")
+                write_data("POSITION" + json.dumps(self.get_robot_position(position, world)).replace("\n", "\\n") + "\n")
             elif result.find("GET_ROBOT_HOLDER") == 0:
                 if result.strip().split(",")[0].strip() == "GET_ROBOT_HOLDER":
                     world = result.strip().split(",")[1].strip()
