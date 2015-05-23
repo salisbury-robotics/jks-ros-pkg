@@ -94,6 +94,7 @@ class LibraryStore():
     def read_library(self, robot, action):
         return self.hs.read_file(robot, action)
 
+
 class MapStore():
     def __init__(self, mdir):
         self.lock = threading.Lock()
@@ -111,13 +112,22 @@ class MapStore():
         fn = open(self.maps_dir + "/" + map_name + ".txt", "w")
         fn.write(str(res))
         fn.close()
-        if c in self.map_cache:
-            del self.map_cache[c]
-        if c in self.map_hash:
-            del self.map_hash[c]
-        if c in self.map_resolution:
-            del self.map_resolution[c]
+        if map_name in self.map_cache:
+            del self.map_cache[map_name]
+        if map_name in self.map_hash:
+            del self.map_hash[map_name]
+        if map_name in self.map_resolution:
+            del self.map_resolution[map_name]
         self.load_map(map_name, no_lock = self.lock)
+
+    def get_data(self, map_name):
+        self.lock.acquire()
+        if not map_name in self.map_resolution or not map_name in self.map_cache:
+            self.load_map(map_name, no_lock = self.lock)
+            self.lock.acquire()
+        r = (self.map_resolution[map_name], self.map_cache[map_name])
+        self.lock.release()
+        return r
     
     def load_map(self, map_name, no_lock = False):
         if no_lock != False and no_lock != self.lock:
@@ -391,8 +401,8 @@ class BlastNetworkBridge:
                             else:
                                 if map_hash != hash_value:
                                     print "Invalid hash", map_name
-                                    print map_hash
-                                    print hash_value
+                                    #print map_hash
+                                    #print hash_value
                                     self.sock.send("GET_MAP," + enc_str(map_name) + "\n")
                                     is_good = False
                                     break
@@ -403,6 +413,7 @@ class BlastNetworkBridge:
                         map_name = dec_str(map_data[1])
                         map_r = float(dec_str(map_data[2]))
                         map_c = dec_str(map_data[3])
+                        print "Writing map", map_name, map_r
                         self.map_store.write_map(map_name, map_c, map_r)
                         self.sock.send("LIST_MAPS\n")
                     elif packet.find("STARTED") == 0:
