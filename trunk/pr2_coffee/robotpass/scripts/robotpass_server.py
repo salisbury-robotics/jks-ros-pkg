@@ -178,13 +178,16 @@ class RobotPass(object):
             if (hand != None and self.check_object_vision(hand)):
                 vision_hc = vision_hc + 1
                 if (vision_hc > 5):
+                    print "Hit due to vision"
                     break
             else:
                 vision_hc = 0
             if (arm != None):
                 if (self.get_deflection(arm)):
+                    print "Arm deflection hit"
                     break
             if (sensor.wait_for_result(rospy.Duration(0.1))):
+                print "Sensor gripper hit"
                 break
         self.stop_object_vision()
         self.hit_started = False
@@ -376,48 +379,50 @@ if __name__ == '__main__':
         if (hand == None):
             print "Testing has failed: specify a hand with --use-left or --use-right"
         else:
-            print "Waiting for client"
-            test_client = actionlib.SimpleActionClient("pass_object", PassObjectAction)
-            test_client.wait_for_server()
-            print "Have server"
-            print "Try take"
-            take_goal = PassObjectGoal()
-            take_goal.arm = hand
-            take_goal.direction = PassObjectGoal.TAKE_OBJECT
-            take_goal.arm_position = PassObjectGoal.HIGH
-            take_goal.object_name = "test object"
-            test_client.send_goal(take_goal)
-            test_client.wait_for_result()
-            print "Done take"
+            while not rospy.is_shutdown():
+                print "Waiting for client"
+                test_client = actionlib.SimpleActionClient("pass_object", PassObjectAction)
+                test_client.wait_for_server()
+                print "Have server"
+                print "Try take"
+                take_goal = PassObjectGoal()
+                take_goal.arm = hand
+                take_goal.direction = PassObjectGoal.TAKE_OBJECT
+                take_goal.arm_position = PassObjectGoal.HIGH
+                take_goal.object_name = "dinosore"
+                test_client.send_goal(take_goal)
+                test_client.wait_for_result()
+                print "Done take"
 
-            print "Try stash"
-            stash_goal = PassObjectGoal()
-            stash_goal.arm = hand
-            stash_goal.direction = PassObjectGoal.STASH_OBJECT
-            stash_goal.object_name = "test object"
-            test_client.send_goal(stash_goal)
-            test_client.wait_for_result()
-            print "Done stash"
+                print "Try stash"
+                stash_goal = PassObjectGoal()
+                stash_goal.arm = hand
+                stash_goal.direction = PassObjectGoal.STASH_OBJECT
+                stash_goal.object_name = "test object"
+            #test_client.send_goal(stash_goal)
+            #test_client.wait_for_result()
+                print "Done stash"
 
-            print "Try unstash"
-            stash_goal = PassObjectGoal()
-            stash_goal.arm = hand
-            stash_goal.direction = PassObjectGoal.UNSTASH_OBJECT
-            stash_goal.object_name = "test object"
-            test_client.send_goal(stash_goal)
-            test_client.wait_for_result()
-            print "Done stash"
+                print "Try unstash"
+                stash_goal = PassObjectGoal()
+                stash_goal.arm = hand
+                stash_goal.direction = PassObjectGoal.UNSTASH_OBJECT
+                stash_goal.object_name = "test object"
+            #test_client.send_goal(stash_goal)
+            #test_client.wait_for_result()
+                print "Done stash"
 
-            print "Try give"
-            give_goal = PassObjectGoal()
-            give_goal.arm = hand
-            give_goal.direction = PassObjectGoal.GIVE_OBJECT
-            give_goal.arm_position = PassObjectGoal.HIGH
-            give_goal.object_name = "test object"
-            test_client.send_goal(give_goal)
-            test_client.wait_for_result()
-            print "Done give"
-            print "Done selftest"
+                print "Try give"
+                give_goal = PassObjectGoal()
+                give_goal.arm = hand
+                give_goal.direction = PassObjectGoal.GIVE_OBJECT
+                give_goal.arm_position = PassObjectGoal.HIGH
+                give_goal.object_name = "dinosore"
+                test_client.send_goal(give_goal)
+                test_client.wait_for_result()
+                print "Done give"
+                print "Done selftest"
+            
 
             
             
