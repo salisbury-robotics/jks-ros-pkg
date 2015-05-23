@@ -92,6 +92,16 @@ class BlastLocation(object):
         if self._mid == None:
             raise BlastRuntimeError("No map provided")
 
+    def equals(self, other):
+        if self == other: return True
+        if other == False or other == None: return False
+        if type(other) != type(self): return False
+        if self.x != other.x: return False
+        if self.y != other.y: return False
+        if self.a != other.a: return False
+        if self.mid != other.mid: return False
+        return True
+
     @property
     def x(self): return self._x
     @property
@@ -616,14 +626,22 @@ class BlastActionExec():
 
     #Sets the location of the robot in the world. Takes the position and
     #raises a BlastRuntimeError on failure.
-    def set_location(self, position, world = None):
+    def set_location(self, position, last_location = None, world = None):
         check_type(position, BlastLocation)
+        if last_location != None:
+            check_type(last_location, BlastLocation)
+        lld = None
+        if last_location: lld = last_location.to_dict()
         check_world(world)
         if world:
             res = ipc_packet("SET_ROBOT_LOCATION," + str(world) + "," 
-                             + self.json(position.to_dict()) + "\n")
+                             + self.json(position.to_dict()) + "," 
+                             + self.json(lld) + "\n")
         else:
-            res = ipc_packet("SET_ROBOT_LOCATION_NW," + self.json(position.to_dict()) + "\n")
+            res = ipc_packet("SET_ROBOT_LOCATION_NW," + enc_str(self.json(position.to_dict())) + "," 
+                             + enc_str(self.json(lld)) + "\n")
+        if res.find("LOCATION") == 0:
+            res = BlastLocation(jsond = json.loads(res[len("LOCATION"):]))
         if res == "None": res = None
         if res == "True": res = True
         if res == "False": res = False
