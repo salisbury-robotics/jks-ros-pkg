@@ -3,16 +3,67 @@ import time
 class BlastPr2RootAction(BlastActionExec):
     def __init__(self):
         BlastActionExec.__init__(self)
-    def run(self, parameters):
-        self.capability("simulator", "START")
-        self.capability("robot_pub", "START")
-        self.capability("joint_states", "START")
-        self.capability("base", "START")
-        self.capability("amcl_set_location", "START")
-        pos = self.get_location()
-        self.capability("amcl_set_location", "VALUE", pos)
-        
+    
+    def set_amcl(self, pos):
+        self.capability("amcl_param", "x", pos.x)
+        self.capability("amcl_param", "y", pos.y)
+        self.capability("amcl_param", "a", pos.a)
+        self.capability("amcl_param", "set_map", pos.mid)
+
+    def kill_laser(self):
+        self.capability("tilt-laser", "set", {"command": {"profile": "blended_linear", 
+                                                          "position": [0.0, 0.0],
+                                                          "time_from_start": [0.0, 1.0],
+                                                          "max_velocity": 10.0, 
+                                                          "max_acceleration": 30},})
+
+    def wait_laser_motion(self, wait_move):
+        laser_pos = None
         while True:
+            r = self.capability("joint_states", "getstate")
+            for name, pos in zip(r["name"], r["position"]):
+                if name == 'laser_tilt_mount_joint':
+                    pos_c = pos
+            #print r
+            #print pos_c, laser_pos
+            print "Wait for the laser - wait for move: ", wait_move
+            time.sleep(0.1)
+            if laser_pos != None and ((pos_c != laser_pos and wait_move) or (pos_c == laser_pos and not wait_move)):
+                break
+            laser_pos = pos_c
+
+    def run(self, parameters):
+        #Start a bunch of capabilities
+        self.capability("joint_states", "START")
+
+        #We set the robot's pose before starting AMCL to avoid race conditions
+        pos = self.get_location()
+        self.capability("amcl_param", "START")
+        self.set_amcl(pos)
+        self.capability("tilt-laser", "START")
+        self.kill_laser()
+        self.capability("base", "START")
+        
+        #TODO: do not allow actions during startup
+        while True:
+            if self.capability("amcl_param", "get_loc") != None:
+                break
+            else:
+                time.sleep(0.1)
+            print "Waiting for base transform"
+
+        self.wait_laser_motion(True)
+        self.kill_laser()
+        self.wait_laser_motion(False)
+
+        last_location = pos
+
+        old_odom_tf = None
+
+        while True:
+            tf = self.capability("amcl_param", "get_loc")
+            otf = self.capability("amcl_param", "odom_loc")
+
             #r = self.capability("simulator", "SIMULATE")
             r = self.capability("joint_states", "getstate")
             t = self.get_teleop()
@@ -65,8 +116,40 @@ class BlastPr2RootAction(BlastActionExec):
                     if not bad:
                         #print str(name), "->", val
                         self.set_robot_position(str(name), val)
+                
+                #Supress robot position updates from when the robot is not moving.
+                #This could serve as a source of bugs
+                do_tf_update = True
+                if tf != None and otf != None:
+                    if old_odom_tf != None:
+                        dx = old_odom_tf[0][0] - otf[0][0]
+                        dy = old_odom_tf[0][1] - otf[0][1]
+                        da = old_odom_tf[2][2] - otf[2][2]
+                        if abs(dx) < 1e-04 and abs(dy) < 1e-04 and abs(da) < 1e-04:
+                            do_tf_update = False
+                            #print "Supress tf"
+                        #else:
+                            #print "Update error", dx, dy, da
+                
+                if do_tf_update:
+                    #print tf
+                    old_odom_tf = otf
+                    l_x = tf[0][0]
+                    l_y = tf[0][1]
+                    l_a = tf[2][2]
+                    l_map = last_location.mid
+                    new_loc = BlastLocation(l_x, l_y, l_a, l_map)
+                    found_location = self.set_location(new_loc, last_location)
+                    if found_location != True and found_location != False:
+                        last_location = found_location
+                        print "Locations differ"
+                        print new_loc.to_dict()
+                        print last_location.to_dict()
+                        self.set_amcl(last_location)
+                    else:
+                        last_location = new_loc
             try:
-                time.sleep(0.1)
+                time.sleep(0.02)
             except:
                 break
 

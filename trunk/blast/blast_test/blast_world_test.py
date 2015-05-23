@@ -488,7 +488,7 @@ def make_test_types_world():
     types_world.add_surface_type(SurfaceType("elevator",
                                              {"default": {"default": True, "accessible": True}},
                                              ["floor_*",]))
-    ATL = 0.005 #Arm offset tolerance
+    ATL = 0.05 #Arm offset tolerance
     types_world.add_robot_type(RobotType("pr2", {"width": 0.668, "height": 0.668, 
                                                  "image": {"image": "robot_fs/pr2/pr2_def.png",
                                                            "priority": 0, #Lowest
@@ -544,7 +544,7 @@ def make_test_types_world():
                                                         },
                                           "head": {False: (["pan", "tilt"], [ATL, ATL], [0, 0]), "level": [0.0, 0.0]},
                                           "tilt-laser": {False: (['tilt',], [ATL,], [False,]), },
-                                          }))
+                                          }, 0.01, 0.01))
 
     types_world.add_robot_type(RobotType("pr2-cupholder", {"image": 
                                                            {"image": "robot_fs/pr2-cupholder/pr2_def.png",
@@ -574,7 +574,9 @@ def make_test_types_world():
                                                             "cupholder": ((4.5 / 48.0 - 0.5) * 0.668, ((31 + 5) / 48.0 - 0.5) * 0.668),
                                                             "priority": 100,
                                                             },},
-                                         {"cupholder": {}}, {}, types_world.get_robot("pr2")))
+                                         {"cupholder": {}}, {}, 
+                                         None, None,
+                                         types_world.get_robot("pr2")))
 
     a, c = make_test_actions()
     [types_world.add_action_type(x) for x in a]
@@ -598,7 +600,9 @@ def make_table_top_world(root_path, make_objects = True):
 
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
-                        BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
+                        #BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
+                        #BlastPt(50.328, 49.933, -1.557, clarkcenterfirstfloor.map),
+                        BlastPt(50.328, 49.933, 0, clarkcenterfirstfloor.map),
                         world.types.get_robot("pr2-cupholder"))
     world.append_robot(stair4)
 
@@ -693,7 +697,9 @@ def make_test_world(root_path):
     
     stair4 = BlastRobot("stair4", 
                         #BlastPt(55.840, 14.504, -0.331, clarkcenterpeetscoffee.map),
-                        BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
+                        #BlastPt(12.000, 40.957, 0.148, clarkcenterfirstfloor.map),
+                        #BlastPt(50.328, 49.933, -1.557, clarkcenterfirstfloor.map),
+                        BlastPt(50.328, 49.933, 0, clarkcenterfirstfloor.map),
                         world.types.get_robot("pr2-cupholder"))
     world.append_robot(stair4)
 

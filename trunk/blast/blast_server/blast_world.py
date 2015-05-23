@@ -944,24 +944,31 @@ class SurfaceType(object):
                 'locations': self.locations, 'planes': self.planes}
     
 class RobotType(object):
-    __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort', 'position_variables_keysort',
-                 'display']
+    __slots__ = ['name', 'holders', 'position_variables', 'parent', 'holders_keysort',
+                 'motion_tol', 'rotation_tol', 'position_variables_keysort', 'display']
     def copy(self, parent = None):
         return RobotType(self.name, copy_dict(self.display),
                          copy_dict(self.holders),
                          copy_dict(self.position_variables),
+                         self.motion_tol, self.rotation_tol,
                          parent)
 
-    def __init__(self, name, display, holders, position_variables, parent = None):
+    def __init__(self, name, display, holders, position_variables, motion_tol, rotation_tol, parent = None):
         #TODO: define "display" values
 
         self.name = name
         self.holders = {}
         self.display = {}
+        self.motion_tol = motion_tol
+        self.rotation_tol = rotation_tol
 
         self.position_variables = {}
         self.parent = parent
         if parent:
+            if self.rotation_tol == None:
+                self.rotation_tol = parent.rotation_tol
+            if self.motion_tol == None:
+                self.motion_tol = parent.motion_tol
             for n, d in parent.holders.iteritems():
                 self.holders[n] = d
             for n, d in parent.position_variables.iteritems():
@@ -981,6 +988,7 @@ class RobotType(object):
         par = None
         if self.parent: par = self.parent.name
         return {"name": self.name, "holders": self.holders, "display": self.display,
+                "motion_tol": self.motion_tol, "rotation_tol": self.rotation_tol,
                 "position_variables": self.position_variables, "parent": par}
 
 class ObjectType(object):
@@ -1054,15 +1062,22 @@ class BlastPt(object):
         st = str(self.x) + str(self.y) + str(self.a) + str(self.map)
         hl.update(st)
 
-    def equal(self, other):
+    def equal(self, other, tolerant = False):
         if self == other: return True
         if not self or not other: return False
         if type(self) != type(other): return False
         if self.__class__ != other.__class__: return False
         
-        if self.x != other.x: return False
-        if self.y != other.y: return False
-        if self.a != other.a: return False
+        if tolerant == False:
+            if self.x != other.x: return False
+            if self.y != other.y: return False
+            if self.a != other.a: return False
+        else:
+            mt, rt = tolerant
+            if (self.x - other.x)**2 + (self.y - other.y)**2 > mt**2:
+                return False
+            if abs(other.a - self.a) > abs(rt):
+                return False
         if self.map != other.map: return False
         return True
 
@@ -1338,7 +1353,7 @@ class BlastMap(object):
             self.mapdata = mapdata
         else:
             ih = hashlib.sha256()
-            ih.update(str(self.ppm))
+            ih.update(str(float(self.ppm)))
             f = open(root_dir + "/" + self.map_file, "r")
             md = []
             while True:
@@ -1483,9 +1498,11 @@ class BlastRobot(object):
         if not self or not other: return False
         if type(self) != type(other): return False
         if self.__class__ != other.__class__: return False
-        
+        if self.name != other.name: return False
         if self.robot_type.name != other.robot_type.name: return False
-        if not self.location.equal(other.location): return False
+        tol_loc = False
+        if tolerant: tol_loc = (self.robot_type.motion_tol, self.robot_type.rotation_tol)
+        if not self.location.equal(other.location, tolerant = tol_loc): return False
         for name in other.holders:
             if not name in self.holders: return False
         for name in self.holders:
