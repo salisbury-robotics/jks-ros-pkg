@@ -2502,6 +2502,8 @@ class BlastWorld(object):
                 csp = csp + [(this_var, "===", this_ivar, this_svar),]
             elif c == "robot.location":
                 csp = csp + [(this_var, "==", "robot.location"),]
+            elif c == "robot.location.map":
+                csp = csp + [(this_var, "==", "robot.location.map"),]
             elif type(c) == str and c.split(".")[0] in action_type.parameters:
                 csp = csp + [tuple([this_var, "extract"] + c.split(".")),]
             else:
@@ -2511,14 +2513,15 @@ class BlastWorld(object):
         for param, value in parameters.iteritems():
             csp.append((param, "==", [value,]))
 
-        #print csp
+        print 
+        print csp
 
         this_var, csp, csp_var = eval_condition(action_type.condition, csp, csp_var)
         #print csp
 
-        #print robot_name, action, parameters
-        #for c in csp:
-        #    print c
+        print robot_name, action, parameters
+        for c in csp:
+            print c
 
         output = []
         for d in cspsolver.solvecsp(csp):

@@ -962,9 +962,9 @@ def on_program_change():
     queue_load(None, "plan", None)
 
 
-def run(a, w):
+def run(a, w, sim):
     global manager, global_feed_alive, edit_types
-    manager = blast_action.BlastManager(a, w)
+    manager = blast_action.BlastManager(a, w, sim)
     manager.on_robot_change = on_robot_change
     manager.world.on_program_changed = on_program_change
     manager.on_surface_change = on_surface_change
@@ -1000,7 +1000,7 @@ if __name__ == '__main__':
 
         exec("import " + test_fn)
         exec("my_world = " + test_fn + ".make_test_world(my_path)")
-        run(["test_actions"], my_world)
+        run(["test_actions"], my_world, "--sim" in sys.argv)
 
 
 

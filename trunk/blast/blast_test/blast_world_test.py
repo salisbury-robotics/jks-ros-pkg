@@ -544,7 +544,7 @@ def make_test_types_world():
                                                         },
                                           "head": {False: (["pan", "tilt"], [ATL, ATL], [0, 0]), "level": [0.0, 0.0]},
                                           "tilt-laser": {False: (['tilt',], [ATL,], [False,]), },
-                                          }, 0.01, 0.01))
+                                          }, 0.30, 0.2))
 
     types_world.add_robot_type(RobotType("pr2-cupholder", {"image": 
                                                            {"image": "robot_fs/pr2-cupholder/pr2_def.png",
