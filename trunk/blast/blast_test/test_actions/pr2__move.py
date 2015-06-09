@@ -3,9 +3,31 @@ import math, time
 class BlastPr2MoveActionExec(BlastActionExec):
     def __init__(self):
         BlastActionExec.__init__(self)
+
     def run(self, parameters):
-        self.capability("move_base", "START")
-        self.capability("move_base", "DRIVE", parameters["end"])
+        self.capability("move-base", "START")
+        self.capability("move-base", "wait", 
+                        {"target_pose":
+                             {"header": {"frame_id": "/map"},
+                              "pose":
+                                  {"position": {"x": parameters["end"].x,
+                                                "y": parameters["end"].y,
+                                                "z": 0.0},
+                                   "orientation":
+                                       {"z": math.sin(parameters["end"].a/2.0), "y": 0, "x": 0,
+                                        "w": math.cos(parameters["end"].a/2.0)},
+                                   }
+                              }
+                         })
+                        #parameters["end"])
+        time.sleep(1.0)
+        self.capability("tilt-laser", "START")
+        self.capability("tilt-laser", "set", {"command": {"profile": "blended_linear", 
+                                                          "position": [0.0, 0.0],
+                                                          "time_from_start": [0.0, 1.0],
+                                                          "max_velocity": 10.0, 
+                                                          "max_acceleration": 30},})
+        time.sleep(3.0)
     
     def ok():
         start_l = self.get_location()

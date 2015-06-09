@@ -26,10 +26,13 @@ class BlastPr2RootAction(BlastActionExec):
                     pos_c = pos
             #print r
             #print pos_c, laser_pos
-            print "Wait for the laser - wait for move: ", wait_move
+            print "Wait for the laser - wait for move:", wait_move
             time.sleep(0.1)
-            if laser_pos != None and ((pos_c != laser_pos and wait_move) or (pos_c == laser_pos and not wait_move)):
-                break
+            if laser_pos != None:
+                delta = (abs(laser_pos - pos_c) > 0.01)
+                print delta, wait_move
+                if delta == wait_move:
+                    break
             laser_pos = pos_c
 
     def run(self, parameters):
