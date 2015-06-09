@@ -285,11 +285,11 @@ $('#plan-action').click(function () {
 					    var param_type = data.parameters[param];
 					    if (param_type == "Pt") {
 						$('#plan-action-items').append(param + ": x:<input id=\"plan-action-item-x-" + param
-									       + "\" value=\"17.5\" size=\"10\"></input>");
+									       + "\" value=\"55.444\" size=\"10\"></input>");
 						$('#plan-action-items').append(" y: <input id=\"plan-action-item-y-" + param 
-									       + "\" value=\"38.4\" size=\"10\"></input>");
+									       + "\" value=\"47.6894\" size=\"10\"></input>");
 						$('#plan-action-items').append(" a: <input id=\"plan-action-item-a-" + param
-									       + "\" value=\"-2.3\" size=\"10\"></input>");
+									       + "\" value=\"-0.448\" size=\"10\"></input>");
 						var map_sel = $('<select id="plan-action-item-map-' + param + '"></select>');
 						for (var i in maps) {
 						    var sel = ""; if (maps[i] == "clarkcenterfirstfloor") { sel = "selected=\"selected\""; }
@@ -985,7 +985,10 @@ function update_plan() {
 
 	    for (var robot in plan.current_plan) {
 		var txt = null;
-		if (plan.current_plan[robot] == "__disconnected") {
+		if (plan.current_plan[robot] == "__sim") {
+		    txt = $('<div class="current-step-sim">'
+			    + robot + ': Simulated</div>');
+		} else if (plan.current_plan[robot] == "__disconnected") {
 		    txt = $('<div class="current-step-discon">'
 			    + robot + ': Disconnected</div>');
 		} else if (plan.current_plan[robot] == "__setup") {

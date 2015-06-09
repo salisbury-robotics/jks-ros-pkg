@@ -980,7 +980,7 @@ def manager_active():
     return a
     
 class BlastManager:
-    def __init__(self, directories, world):
+    def __init__(self, directories, world, sim):
         global one_manager, one_manager_lock
         one_manager_lock.acquire()
         if one_manager != None:
@@ -991,6 +991,7 @@ class BlastManager:
         
         self.robot_connections = {}
         
+        self.sim = sim
         self.server = None
         self.server_thread = None
         self.server = SocketServer.TCPServer(("0.0.0.0", 8080), BlastManagedRobot)
@@ -998,9 +999,9 @@ class BlastManager:
         self.server_thread.daemon = True
         self.server_thread.start()
 
-        self.world = blast_planner.BlastPlannableWorld(world)
-        self.world.real_world = True
+        self.world = blast_planner.BlastPlannableWorld(world, not sim)
         self.world.action_callback = lambda r, a, p: self.on_action_take(r, a, p)
+        self.world.sim_callback = lambda r, a, p, w: self.on_action_simulate(r, a, p, w)
         self.on_robot_change = lambda robot: None
         self.on_plan_action = lambda: None
         self.on_surface_change = lambda surface: None
@@ -1062,8 +1063,18 @@ class BlastManager:
         print "Root action for", robot, "is offline"
         return True
 
+    def on_action_simulate(self, robot, action, parameters, workspace):
+        self.on_robot_change(robot)
+        print "Change", workspace
+        for s in workspace:
+            self.on_surface_change(s)
+
     def on_action_take(self, robot, action, parameters):
         print "Action!", robot, action, parameters
+        if self.sim:
+            time.sleep(1.0)
+            print "Simulation, doing nothing but return true"
+            return True
         robot_type = self.world.world.robots[robot].robot_type
         action_robot_type = robot_type
         while action_robot_type:

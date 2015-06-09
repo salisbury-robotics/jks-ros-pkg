@@ -1414,6 +1414,9 @@ class BlastPlannableWorld:
         #Exception generation is epic failure plus exception printed.
         self.action_callback = lambda r, a, p: self.test_action_callback(r, a, p)
 
+        #Called when simulation works
+        self.sim_callback = lambda r, a, p, w: False
+
         #Called when the action fails epically. Return ignored
         self.action_epic_fail_callback = lambda r, a, p: None
 
@@ -1589,15 +1592,20 @@ class BlastPlannableWorld:
             else:
                 plan.append(clean_json(a))
         current = {}
-        for n in self.world.robots_keysort:
-            current[n] = None
         for k, v in self.robot_actions.iteritems():
             current[clean_json(k)] = clean_json(v)
         for n in self.world.robots_keysort:
-            if self.world.robots[n].is_active == None:
+            if n in current:
+                continue
+            if self.real_world == False:
+                current[n] = "__sim"
+            elif self.world.robots[n].is_active == None:
                 current[n] = "__disconnected"
-            if self.world.robots[n].is_active == False:
+            elif self.world.robots[n].is_active == False:
                 current[n] = "__setup"
+        for n in self.world.robots_keysort:
+            if n not in current:
+                current[n] = None
         self.lock.release()
         #print nprevious_steps, plan, current
         return nprevious_steps, plan, current
@@ -1616,10 +1624,13 @@ class BlastPlannableWorld:
             if robot not in self.world.robots:
                 self.lock.release()
                 return None
-            if self.world.robots[robot].is_active == False \
-                    or self.world.robots[robot].is_active == None \
-                    or self.world.robots[robot].location == None \
+            if self.world.robots[robot].location == None \
                     or self.world.robots[robot].location.map.find(":") == 0:
+                self.lock.release()
+                return None
+            if not self.real_world: continue
+            if self.world.robots[robot].is_active == False \
+                    or self.world.robots[robot].is_active == None:
                 self.lock.release()
                 return None
             if self.world.robots[robot].is_active.get_teleop() != None:
@@ -1911,10 +1922,13 @@ class BlastPlannableWorld:
                 self.needs_replan = True
             
             if not self.real_world: #Debug action internally
+                print "Internally taking action"
                 atr, d = self.world.take_action(r, a, p, failure_mode = acr)
                 if atr == None or d == None:
                     print "Action failed epically we could not run the action in a non-real world", r, a, p
                     self.epic_fail(r, a, p, "Failed to run")
+                else:
+                    self.sim_callback(r, a, p, workspace_surfaces)
 
             get_obj = lambda x: self.world.get_obj(x)
             other_get_obj = lambda x: internal_copy.get_obj(x)
