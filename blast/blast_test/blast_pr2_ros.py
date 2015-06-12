@@ -18,6 +18,16 @@ capabilities_dict = {
                    },
          "command": {"type": "pub", "topic": "/base_controller/command"},
          },
+    "move-base":
+        {"START": {"apt-pkgs": [], #Empty, better be installed
+                   "launch-files": [], #Empty, should be launched by base
+                   "actions":
+                       {"/pr2_move_base":
+                            {"action": "move_base_msgs.MoveBase"}
+                        },
+                   },
+         "wait": {"type": "action-wait", "topic": "/pr2_move_base"},
+         },
     "tilt-laser":
         {"START": {"apt-pkgs": [], #Empty, better be installed
                    "launch-files": [], #Just need the robot launch
