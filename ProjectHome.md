@@ -1,0 +1,1 @@
+These are ROS packages for a number of our projects. Documentation can be found at ros.org.
